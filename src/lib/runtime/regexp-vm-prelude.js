@@ -1,8 +1,19 @@
 ;
     var vm=__nonaRegexpVm.core;
     if(re===undefined){vm.compile(pattern,flags);return undefined}
+    // [Symbol.match]'s global loop in one call (#389): the matched strings.
+    var collect=__nonaRegexpVm.collect;
+    if(collect!==0){
+      __nonaRegexpVm.collect=0;
+      var strings=vm.matchStrings(re,input,start,sticky,pattern,flags,collect===2);
+      if(strings!==undefined){__nonaRegexpVm.collected=true;return strings}
+    }
     return vm.exec(re,input,start,sticky,pattern,flags)
 };
+// Set by RegExp.prototype[Symbol.match] around its call of the builtin exec:
+// 1 (2 in unicode mode) asks for every match of a global expression at once.
+__nonaRegexpVm.collect=0;
+__nonaRegexpVm.collected=false;
 __nonaRegexpVm.replaceApply=Function.prototype.apply;
 // The literal strings check of the engine's candidate loop (#389).
 __nonaRegexpVm.replaceStartsWith=String.prototype.startsWith;

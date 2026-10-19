@@ -1627,8 +1627,8 @@
     if(program.pike===null){backtracks=-Infinity;return false}
     return true
   }
-  function execute(compiled,subject,start,sticky){
-    backtracks=0;
+  // Sets the matcher up for compiled on subject; returns the register count.
+  function prepare(compiled,subject){
     var program=compiled.program;
     if(program===undefined){program=assemble(compiled);compiled.program=program}
     ignore=program.ignore;unicode=program.unicode;dotAll=program.dotAll;multiline=program.multiline;modeFrame=2;
@@ -1636,22 +1636,100 @@
     var stateSize=program.stateSize;
     if(stateSize>registerPool.length)registerPool=new PositionArray(stateSize*2);
     state=registerPool;undo=undoPool;frames=framePool;
+    // What search reads of compiled, once per pattern (a global match loop
+    // calls search for every match).
+    if(compiled!==searched){
+      searched=compiled;searchPrefix=compiled.prefix;searchAnchored=compiled.anchored;
+      searchScan=nativeScan===null?undefined:compiled.firstUnits;searchLiterals=compiled.literals;
+      searchCount=searchLiterals===undefined?0:searchLiterals.length;searchUnits=compiled.literalUnits;
+      searchLast=compiled.literalLast;searchWhole=compiled.whole;searchGroups=compiled.groups
+    }
+    return stateSize
+  }
+  var searched=null,searchPrefix=null,searchAnchored=false,searchScan,searchLiterals,searchCount=0,searchUnits,searchLast=0,searchWhole=false,searchGroups=0;
+  function execute(compiled,subject,start,sticky){
+    backtracks=0;
+    var stateSize=prepare(compiled,subject);
     var result=search(compiled,stateSize,start,sticky);
     input=undefined;current=null;
     return result
   }
+  // The global match loop of String.prototype.match (#389):
+  // RegExpBuiltinExec repeated from the end of each match (one code unit,
+  // or one code point in unicode mode, past an empty one) until it fails,
+  // as RegExp.prototype[Symbol.match] does with the builtin exec. Returns
+  // the matched strings or null, and leaves lastIndex 0 as the failing exec
+  // does. undefined when the expression's own flags differ from the ones
+  // [Symbol.match] read (an overridden flags getter) or have d: the
+  // caller then runs the generic loop.
+  function matchStrings(re,subject,start,sticky,pattern,flags,unicodeMode){
+    var compiled=compile(pattern,flags);
+    if(indexOf(flags,'g')<0||compiled.hasIndices||isUnicode(flags)!==unicodeMode)return undefined;
+    var stateSize=prepare(compiled,subject),result=[],at=start;
+    // Matches are consumed at once: search reuses one record for them.
+    collecting=true;
+    if(searchWhole)literalReset();
+    try{
+      while(true){
+        backtracks=0;
+        var matched=search(compiled,stateSize,at,sticky);
+        if(matched===null)break;
+        var begin=matched.start,end=matched.end;
+        append(result,slice(subject,begin,end));
+        at=end;
+        if(end===begin){
+          if(unicodeMode&&end+1<length){
+            var first=charCodeAt(subject,end),second=charCodeAt(subject,end+1);
+            at=end+(first>=0xd800&&first<=0xdbff&&second>=0xdc00&&second<=0xdfff?2:1)
+          }else at=end+1
+        }
+      }
+    }finally{collecting=false;input=undefined;current=null}
+    re.lastIndex=0;
+    return result.length===0?null:result
+  }
   // The captures of a match of a pattern without groups: only read.
   var noCaptures=new PositionArray(2);
+  // The match record of search while matchStrings runs.
+  var collecting=false,collected={end:0,captures:noCaptures,start:0};
+  function matchRecord(start,end,captures){
+    if(!collecting)return {end:end,captures:captures,start:start};
+    collected.start=start;collected.end=end;collected.captures=captures;
+    return collected
+  }
+  // A pattern of literal strings only (compiled.whole) in matchStrings: the
+  // leftmost match is the nearest occurrence of any of them, the first in
+  // priority order where several start at one position. indexOf finds each
+  // string's next occurrence natively, and it is kept for the later
+  // searches of the loop, so that each string's occurrences are scanned
+  // once. (A single exec keeps the candidate loop: without the loop's
+  // cache, a rare string would be scanned to the end at every call.)
+  var literalAt=[],literalFrom=[];
+  function literalReset(){for(var l=0;l<searchCount;l++){literalAt[l]=-1;literalFrom[l]=length+1}}
+  function literalSearch(start){
+    var best=-1,which=0;
+    for(var l=0;l<searchCount;l++){
+      var at=literalAt[l];
+      if(literalFrom[l]>start||(at>=0&&at<start)){
+        at=start>length?-1:safeIndexOf.call(input,searchLiterals[l],start);
+        literalAt[l]=at;literalFrom[l]=start
+      }
+      if(at>=0&&(best<0||at<best)){best=at;which=l}
+    }
+    if(best<0)return null;
+    return matchRecord(best,best+searchLiterals[which].length,noCaptures)
+  }
   function search(compiled,stateSize,start,sticky){
     if(unicode&&start>0&&start<length){
       var low=charCodeAt(input,start),high=charCodeAt(input,start-1);
       if(low>=0xdc00&&low<=0xdfff&&high>=0xd800&&high<=0xdbff)start--
     }
-    var prefix=sticky?null:compiled.prefix;
-    var anchored=compiled.anchored;
-    var scan=sticky||nativeScan===null?undefined:compiled.firstUnits;
-    var literals=compiled.literals,count=literals===undefined?0:literals.length;
-    var literalUnits=compiled.literalUnits,literalLast=compiled.literalLast;
+    var prefix=sticky?null:searchPrefix;
+    var anchored=searchAnchored;
+    var scan=sticky?undefined:searchScan;
+    var literals=searchLiterals,count=searchCount;
+    var literalUnits=searchUnits,literalLast=searchLast;
+    if(searchWhole&&collecting&&!sticky)return literalSearch(start);
     // A failed run undoes its register changes: the registers are cleared
     // once, not before every candidate.
     for(var s=0;s<stateSize;s++)state[s]=NONE;
@@ -1675,16 +1753,19 @@
           while(hit<count&&(literalUnits[hit*2]!==second||literalUnits[hit*2+1]!==last||!safeStartsWith.call(input,literals[hit],candidate)))hit++
         }else while(hit<count&&!safeStartsWith.call(input,literals[hit],candidate))hit++;
         if(hit===count){if(sticky)break;continue}
-        if(compiled.whole)return {end:candidate+literals[hit].length,captures:noCaptures,start:candidate}
+        if(searchWhole)return matchRecord(candidate,candidate+literals[hit].length,noCaptures)
       }
       var end=run(0,candidate);
       if(end===-2)return pikeSearch(compiled,compiled.program.pike,candidate,sticky||anchored);
       if(end>=0){
         // Capture bounds as registers: 4294967295 marks a group that did not
         // participate (slots 0 and 1 are unused).
-        var captures=new PositionArray(compiled.groups*2+2);
-        for(var c=2;c<captures.length;c++)captures[c]=state[c];
-        return {end:end,captures:captures,start:candidate}
+        var captures=noCaptures;
+        if(searchGroups>0){
+          captures=new PositionArray(searchGroups*2+2);
+          for(var c=2;c<captures.length;c++)captures[c]=state[c]
+        }
+        return matchRecord(candidate,end,captures)
       }
       if(sticky)break;
       if(unicode&&candidate+1<length){
@@ -1754,5 +1835,5 @@
     return result
   }
   // setBacktrackBudget is for tests: 0 switches to the Pike VM at the first backtrack.
-  return {compile:compile,execute:execute,exec:exec,indices:indices,setBacktrackBudget:function(steps){backtrackBudget=steps}}
+  return {compile:compile,execute:execute,exec:exec,matchStrings:matchStrings,indices:indices,setBacktrackBudget:function(steps){backtrackBudget=steps}}
 })()

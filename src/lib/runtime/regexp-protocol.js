@@ -1,7 +1,7 @@
 // RegExpExec (ES2020 21.2.5.2.1): a callable exec wins, otherwise the builtin one.
-__nonaRegexpVm.regExpExec = (function (builtinExec, apply) {
-    return function (R, S) {
-        var exec = R.exec;
+// regExpExecWith takes the exec that was already read from R.
+__nonaRegexpVm.regExpExecWith = (function (builtinExec, apply) {
+    return function (R, S, exec) {
         if (typeof exec === "function") {
             var result = apply(exec, R, S);
             if (
@@ -18,6 +18,43 @@ __nonaRegexpVm.regExpExec = (function (builtinExec, apply) {
     };
 })(
     RegExp.prototype.exec,
+    Function.prototype.call.bind(Function.prototype.call),
+);
+__nonaRegexpVm.regExpExec = function (R, S) {
+    return __nonaRegexpVm.regExpExecWith(R, S, R.exec);
+};
+// Whether exec, just read from R, is the builtin one and every later read
+// of R.exec returns it without running user code (#389): R is a genuine
+// RegExp (not a Proxy: the source getter throws for anything else) without
+// an own exec, whose prototype is the original RegExp.prototype with its
+// exec a data property. [Symbol.match] may then let the engine run the
+// whole global loop.
+__nonaRegexpVm.isBuiltinExec = (function (
+    builtinExec,
+    regexpPrototype,
+    sourceGetter,
+    getOwnPropertyDescriptor,
+    getPrototypeOf,
+    apply,
+) {
+    return function (R, exec) {
+        if (exec !== builtinExec || R === regexpPrototype) return false;
+        try {
+            apply(sourceGetter, R);
+        } catch (error) {
+            return false;
+        }
+        if (getOwnPropertyDescriptor(R, "exec") !== undefined) return false;
+        if (getPrototypeOf(R) !== regexpPrototype) return false;
+        var own = getOwnPropertyDescriptor(regexpPrototype, "exec");
+        return own !== undefined && own.value === builtinExec;
+    };
+})(
+    RegExp.prototype.exec,
+    RegExp.prototype,
+    Object.getOwnPropertyDescriptor(RegExp.prototype, "source").get,
+    Object.getOwnPropertyDescriptor,
+    Object.getPrototypeOf,
     Function.prototype.call.bind(Function.prototype.call),
 );
 Object.defineProperty(RegExp.prototype, Symbol.match, {
@@ -43,9 +80,27 @@ Object.defineProperty(RegExp.prototype, Symbol.match, {
                 return single;
             }
             this.lastIndex = 0;
-            var matches = [];
+            var matches = [],
+                safe = __nonaRegexpVm,
+                exec = this.exec,
+                result;
+            if (safe.isBuiltinExec(this, exec)) {
+                // The engine collects the matched strings in one call of
+                // the builtin exec when the expression's own flags agree;
+                // otherwise that call was the first exec of the loop.
+                safe.collect = unicode ? 2 : 1;
+                safe.collected = false;
+                try {
+                    result = safe.safeCall(exec, this, input);
+                } finally {
+                    safe.collect = 0;
+                }
+                if (safe.collected) {
+                    safe.collected = false;
+                    return result;
+                }
+            } else result = safe.regExpExecWith(this, input, exec);
             while (true) {
-                var result = __nonaRegexpVm.regExpExec(this, input);
                 if (result === null)
                     return matches.length === 0 ? null : matches;
                 if (typeof result !== "object" && typeof result !== "function")
@@ -67,6 +122,7 @@ Object.defineProperty(RegExp.prototype, Symbol.match, {
                                 : 1);
                     } else this.lastIndex = index + 1;
                 }
+                result = safe.regExpExec(this, input);
             }
         },
     }[Symbol.match],
