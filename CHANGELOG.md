@@ -8,6 +8,8 @@
 
 ### Runtime
 
+- Speed up `Array.prototype.sort` and `toSorted`: the default order sorts all-string arrays with direct `<` comparisons (no per-comparison `String()` call), converts other elements with `ToString` once each, skips merging runs that are already ordered, and calls a user comparator without a wrapper closure. 50 000 log lines: 215 ms to 32 ms on Windows x64 (Node.js 22: 29 ms); new `bench/18_sort.js`. ([#388](https://github.com/40oleg/nona/issues/388))
+
 ### Internals
 
 - AGENTS.md: every issue and pull request has one type label and the milestone of its version; a closed issue carries the milestone of the release that ships it and no `blocked` label ([#396](https://github.com/40oleg/nona/issues/396)).
