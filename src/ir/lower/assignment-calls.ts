@@ -203,6 +203,8 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             this.invokeWithArguments(dest, callee, args, receiver);
             return dest;
         }
+        const json = this.endJsonCall(e);
+        if (json !== undefined) return json;
         const optional =
             e.callee.kind === "OptionalChain"
                 ? this.optionalChainCallee(e.callee)

@@ -16,6 +16,7 @@
 
 ### Runtime
 
+- **JSON straight into UTF-8 bytes.** The native JSON serializer has a byte-output mode that writes UTF-8 into a growable byte buffer with the same walk as `JSON.stringify` (replacer, `toJSON`, indentation, cycle detection, property order, lone surrogates as `\uXXXX`). The new `nona:json` module exports `stringifyToBuffer(value, replacer, space)`, a `Buffer` byte-for-byte equal to `Buffer.from(JSON.stringify(...))`. `res.end(JSON.stringify(value))` and `res.write(...)` in `node:http` use it when `JSON.stringify` is the unmodified intrinsic, so a JSON response no longer builds a UTF-16 string, a finished string and a second UTF-8 copy. `JSON.stringify` itself is unchanged. ([#155](https://github.com/40oleg/nona/issues/155))
 - Speed up `Array.prototype.sort` and `toSorted`: the default order sorts all-string arrays with direct `<` comparisons (no per-comparison `String()` call), converts other elements with `ToString` once each, skips merging runs that are already ordered, and calls a user comparator without a wrapper closure. 50 000 log lines: 215 ms to 32 ms on Windows x64 (Node.js 22: 29 ms); new `bench/18_sort.js`. ([#388](https://github.com/40oleg/nona/issues/388))
 
 ### Internals

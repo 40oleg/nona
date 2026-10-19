@@ -770,6 +770,8 @@ function generateImage(
         hostGlobal("__nonaNetWrite", "rt.netWrite.code", 4);
         hostGlobal("__nonaNetCopy", "rt.netCopy.code", 5);
         hostGlobal("__nonaNetCheck", "rt.netCheck.code", 2);
+        // JSON.stringify into UTF-8 bytes (#155), for node:http and nona:json.
+        hostGlobal("__nonaJsonStringifyBytes", "rt.jsonStringifyBytes.code", 3);
     }
     const agentPrograms = options.agentPrograms ?? [];
     if (options.agent) {

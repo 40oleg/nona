@@ -51,7 +51,7 @@ When a feature changes behaviour visible to programs, update:
 
 ## Documentation site
 
-The site is built with [VitePress](https://vitepress.dev) from `site/`:
+The site is built with [VitePress](https://github.com/vuejs/vitepress) from `site/`:
 
 ```sh
 npm run build              # the compiler, needed to check the samples

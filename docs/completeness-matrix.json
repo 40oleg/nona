@@ -777,6 +777,15 @@
             "note": "Explicit native imports; no node:ffi alias."
         },
         {
+            "id": "module.nona.json",
+            "specifier": "nona:json",
+            "aliases": [],
+            "visibility": "public",
+            "capabilities": ["runtime.json"],
+            "evidence": ["src/frontend/builtin-modules.ts"],
+            "note": "stringifyToBuffer: JSON.stringify straight into a UTF-8 Buffer (#155); no node:json alias."
+        },
+        {
             "id": "module.nona.win32",
             "specifier": "nona:win32",
             "aliases": [],
@@ -5759,7 +5768,7 @@
             "scope": "JSON parse reviver and stringify replacer/space; cycle and unsupported-value handling.",
             "status": "implemented-unverified",
             "visibility": "public",
-            "surfaces": ["JSON"],
+            "surfaces": ["JSON", "nona:json"],
             "affectedTargets": [
                 "win32-x64",
                 "linux-x64",

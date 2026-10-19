@@ -222,6 +222,22 @@ Teeing a cancelled or completed stream preserves its terminal state. A tee branc
 
 See the [Node 26 Buffer reference](https://nodejs.org/docs/latest-v26.x/api/buffer.html) for the shared API contract and [the runnable Buffer sample](../site/samples/buffer.mjs).
 
+## JSON to UTF-8 bytes
+
+`nona:json` exports `stringifyToBuffer(value, replacer, space)`. It serializes `value` straight into a UTF-8 byte buffer and returns a `Buffer` that is byte-for-byte equal to `Buffer.from(JSON.stringify(value, replacer, space))`, without building the UTF-16 string first. It returns `undefined` where `JSON.stringify` returns `undefined` (a function, a symbol or `undefined`), and throws the same errors: a `TypeError` for a BigInt or a cycle (no partial output), and whatever a `toJSON` method or replacer throws. The replacer, `toJSON`, indentation and property order follow `JSON.stringify`; lone surrogates are written as `\uXXXX` escapes. Use it to write JSON to a file or a socket.
+
+```js
+import { stringifyToBuffer } from "nona:json";
+import { writeFileSync } from "nona:fs";
+
+writeFileSync(
+    "out.json",
+    stringifyToBuffer({ ok: true, name: "Nona" }, null, 2),
+);
+```
+
+`JSON.stringify` itself does not change. The `node:http` server uses the same byte serializer for `res.end(JSON.stringify(value))` and `res.write(JSON.stringify(value))` when `JSON.stringify` is the unmodified intrinsic: the compiler passes the value to the response, which writes the bytes to the socket without the intermediate string, a second UTF-8 encoding or a `byteLength` scan. The observable result is the same as for the plain call.
+
 ## Streams
 
 `node:stream`, `stream` and `nona:stream` expose the same original Stream,
