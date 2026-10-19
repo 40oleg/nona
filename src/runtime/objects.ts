@@ -33,6 +33,34 @@ function copyValue(a: Assembler, to: Mem, from: Mem): void {
     a.store(plus(to), "rax");
 }
 
+/**
+ * Writes the header of a plain shaped object into the cell RAX (from
+ * rt.allocRaw, not cleared): its heap kind, every object field, the shape in
+ * SHAPE and Object.prototype. Its inline slots are left to the caller.
+ * Clobbers R10.
+ */
+export function emitShapedObjectHeader(
+    a: Assembler,
+    shape: "rdx" | "r11",
+): void {
+    a.mov("r10", HeapKind.object);
+    a.store({ base: "rax", disp: H.kind - H.size }, "r10");
+    a.mov("r10", 0);
+    for (const field of [
+        O.kind,
+        O.properties,
+        O.length,
+        O.flags,
+        O.index,
+        O.elements,
+        O.keys,
+    ])
+        a.store({ base: "rax", disp: field }, "r10");
+    a.store({ base: "rax", disp: O.shape }, shape);
+    a.lea("r10", { rip: "rt.objectPrototype" });
+    a.store({ base: "rax", disp: O.prototype }, "r10");
+}
+
 export function emitObjects(b: RuntimeBuilder): void {
     for (const [name, text] of Object.entries({
         length: "length",
@@ -119,23 +147,8 @@ export function emitObjects(b: RuntimeBuilder): void {
         a.shl("rcx", 4);
         a.add("rcx", O.size);
         a.call("rt.allocRaw");
-        a.mov("r10", HeapKind.object);
-        a.store({ base: "rax", disp: H.kind - H.size }, "r10");
-        a.mov("r10", 0);
-        for (const field of [
-            O.kind,
-            O.properties,
-            O.length,
-            O.flags,
-            O.index,
-            O.elements,
-            O.keys,
-        ])
-            a.store({ base: "rax", disp: field }, "r10");
         a.load("rdx", slot(48));
-        a.store({ base: "rax", disp: O.shape }, "rdx");
-        a.lea("r10", { rip: "rt.objectPrototype" });
-        a.store({ base: "rax", disp: O.prototype }, "r10");
+        emitShapedObjectHeader(a, "rdx");
         // Every inline slot undefined.
         {
             const loop = a.unique("slots"),

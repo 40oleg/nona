@@ -163,6 +163,12 @@ export type Operation =
           slots?: number;
           /** An object literal whose keys are all known (#194): its distinct keys in order. The final shape is resolved once per site. */ keys?: string[];
           /** An array literal of `length` elements without holes or spread (#48): created with its element table, every element undefined until its definition stores it. */ elements?: boolean;
+          /** An object literal with `keys` whose values were evaluated before it (#48): the slots of the key constants and of the value of each key (its last definition). newObject creates the object with every property defined. */ literal?: {
+              keys: number[];
+              values: number[];
+              strict: boolean;
+          };
+          /** An array literal with `elements` of at most inlineElementCapacity elements, evaluated before it (#48): newObject creates the array with these values. */ elementValues?: number[];
       }
     | { kind: "forInKeys"; dest: number; object: number }
     | { kind: "forInHas"; dest: number; object: number; key: number }

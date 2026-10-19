@@ -13,8 +13,14 @@ import {
     maxInlineCapacity,
     emptyLiteralCapacity,
     LiteralSiteLayout,
+    literalSiteGeneric,
 } from "../../runtime/shapes.js";
-import { ElementsLayout } from "../../runtime/array-elements.js";
+import { emitShapedObjectHeader } from "../../runtime/objects.js";
+import {
+    ElementsLayout,
+    arrayLiteralBytes,
+    emitArrayLiteralCell,
+} from "../../runtime/array-elements.js";
 import {
     int32Operand,
     integerRemainder,
@@ -1704,10 +1710,77 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     // An object literal with known keys (#194): a per-site record whose
                     // shape the first evaluation resolves; its objects start with it.
                     const site = literalSites.get(op.dest);
+                    // Its values are already evaluated (#48): a resolved site's object
+                    // is allocated with the site's constant cell size and written once,
+                    // header, the values in their slots and undefined in the spare
+                    // slots, before anything can reach a collection. An unresolved or
+                    // generic site defines the keys one by one.
+                    if (site && op.keys && op.literal) {
+                        const literal = op.literal,
+                            dest = op.dest,
+                            generic = a.unique("literalGeneric"),
+                            done = a.unique("literalDone");
+                        a.load("rax", { rip: site });
+                        a.cmp("rax", literalSiteGeneric);
+                        a.jcc("be", generic);
+                        a.mov("rcx", O.size + 16 * capacity);
+                        a.call("rt.allocRaw");
+                        a.load("r11", { rip: site });
+                        emitShapedObjectHeader(a, "r11");
+                        for (let i = 0; i < capacity; i++) {
+                            const at = O.size + 16 * i;
+                            if (i < literal.values.length) {
+                                a.load("r10", value(literal.values[i]!));
+                                a.store({ base: "rax", disp: at }, "r10");
+                                a.load("r10", payload(literal.values[i]!));
+                            } else {
+                                a.mov("r10", 0);
+                                a.store({ base: "rax", disp: at }, "r10");
+                            }
+                            a.store({ base: "rax", disp: at + 8 }, "r10");
+                        }
+                        a.store(payload(dest), "rax");
+                        a.mov("rax", 5);
+                        a.store(value(dest), "rax");
+                        pushCold(() => {
+                            a.label(generic);
+                            pointer("rcx", dest);
+                            a.lea("rdx", { rip: site });
+                            a.call("rt.newLiteralObject");
+                            literal.keys.forEach((key, i) => {
+                                pointer("rcx", dest);
+                                pointer("rdx", key);
+                                pointer("r8", literal.values[i]!);
+                                a.mov("r9", 1 | (literal.strict ? 2 : 0));
+                                a.call("rt.setProperty");
+                            });
+                            a.jmp(done);
+                        });
+                        a.label(done);
+                        break;
+                    }
                     if (site && op.keys && !op.array) {
                         pointer("rcx", op.dest);
                         a.lea("rdx", { rip: site });
                         a.call("rt.newLiteralObject");
+                        break;
+                    }
+                    // A small array literal whose elements are evaluated (#48): one
+                    // cell with its table, written in one pass.
+                    if (op.array && op.elements && op.elementValues) {
+                        a.mov("rcx", arrayLiteralBytes(op.length));
+                        a.call("rt.allocRaw");
+                        emitArrayLiteralCell(a, op.length);
+                        op.elementValues.forEach((source, i) => {
+                            const at = O.size + ElementsLayout.values + 16 * i;
+                            a.load("r10", value(source));
+                            a.store({ base: "rax", disp: at }, "r10");
+                            a.load("r10", payload(source));
+                            a.store({ base: "rax", disp: at + 8 }, "r10");
+                        });
+                        a.store(payload(op.dest), "rax");
+                        a.mov("rax", 5);
+                        a.store(value(op.dest), "rax");
                         break;
                     }
                     if (op.array && op.elements) {
