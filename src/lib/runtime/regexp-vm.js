@@ -3,6 +3,7 @@
   var safeSlice=intrinsic?intrinsic.replaceSlice:String.prototype.slice;
   var safeIndexOf=intrinsic?intrinsic.replaceIndexOf:String.prototype.indexOf;
   var safeCharCodeAt=intrinsic?intrinsic.replaceCharCodeAt:String.prototype.charCodeAt;
+  var safeStartsWith=intrinsic&&intrinsic.replaceStartsWith?intrinsic.replaceStartsWith:String.prototype.startsWith;
   var PositionArray=intrinsic?intrinsic.positionArrayConstructor:Uint32Array;
   var ByteArray=intrinsic?intrinsic.byteArrayConstructor:Uint8Array;
   var byteFill=intrinsic?intrinsic.byteArrayFill:Uint8Array.prototype.fill;
@@ -16,6 +17,14 @@
   // semantics (no setters on Array.prototype can interfere), one native
   // call instead of a defineProperty per element.
   var arraySlice=Array.prototype.slice;
+  // The match result's named properties (exec): Object.defineProperty and
+  // Object.create as the prelude found them before user code, and a data
+  // descriptor without a prototype, so that a get or set on Object.prototype
+  // cannot turn it into an accessor descriptor.
+  var defineProperty=intrinsic&&intrinsic.replaceDefineProperty?intrinsic.replaceDefineProperty:Object.defineProperty;
+  var objectCreate=intrinsic&&intrinsic.replaceCreate?intrinsic.replaceCreate:Object.create;
+  var dataField=objectCreate(null);
+  dataField.value=undefined;dataField.writable=true;dataField.enumerable=true;dataField.configurable=true;
   function slice(string,start,end){return safeSlice.call(string,start,end)}
   function indexOf(string,value){return safeIndexOf.call(string,value)}
   function charCodeAt(string,index){return safeCharCodeAt.call(string,index)}
@@ -256,14 +265,20 @@
   // Compiled patterns are immutable: a regular expression that is executed
   // repeatedly (every global match loop does this) is parsed once.
   var compileCache=new Map();
+  // The last pattern compiled: a loop that executes one expression (every
+  // global match does) skips building the key and the Map lookup.
+  var lastPattern=null,lastFlags=null,lastCompiled=null;
   // Unicode mode is the u flag or the v flag (unicodeSets).
   function isUnicode(flags){return indexOf(flags,'u')>=0||indexOf(flags,'v')>=0}
   function compile(pattern,flags){
-    var cacheKey=flags+'/'+pattern,cached=compileCache.get(cacheKey);
-    if(cached!==undefined)return cached;
-    var compiled=compileUncached(pattern,flags);
-    if(compileCache.size>=256)compileCache.clear();
-    compileCache.set(cacheKey,compiled);
+    if(pattern===lastPattern&&flags===lastFlags)return lastCompiled;
+    var cacheKey=flags+'/'+pattern,compiled=compileCache.get(cacheKey);
+    if(compiled===undefined){
+      compiled=compileUncached(pattern,flags);
+      if(compileCache.size>=256)compileCache.clear();
+      compileCache.set(cacheKey,compiled)
+    }
+    lastPattern=pattern;lastFlags=flags;lastCompiled=compiled;
     return compiled
   }
   function compileUncached(pattern,flags){
@@ -783,7 +798,8 @@
       }
     }
     validateReferences(tree);
-    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined,modifiers:modifiers};
+    var compiled={tree:tree,groups:groups,flags:flags,names:names,prefix:null,anchored:false,firstUnits:undefined,literals:undefined,whole:false,modifiers:modifiers,
+      updatesLastIndex:indexOf(flags,'g')>=0||indexOf(flags,'y')>=0,hasIndices:indexOf(flags,'d')>=0};
     // A pattern whose every alternative starts with ^ (without the m flag) can
     // only match at index 0: search tries no other start position.
     if(indexOf(flags,'m')<0)compiled.anchored=startsAnchored(tree);
@@ -794,7 +810,19 @@
       // The whole literal run at the start ('abc' of /abc(\d+)/), so that
       // indexOf skips the positions where only the first character matches.
       var literal=literalPrefix(tree);
-      if(literal.text!=='')compiled.prefix=literal.text
+      if(literal.text!=='')compiled.prefix=literal.text;
+      // The literal strings every match starts with, through alternations
+      // ('ERROR [', 'WARN [' for /(?:ERROR|WARN) \[\w+\]/): search rejects
+      // a candidate that starts with none of them without running the
+      // matcher. When they are the whole pattern and it has no groups, the
+      // first one (in the order backtracking tries them) present at a
+      // position is the match there, and run is not needed at all.
+      var set=literalSet(tree);
+      if(set.strings!==null&&(set.strings.length>1||set.whole)){
+        var usable=true;
+        for(var l=0;l<set.strings.length;l++)if(set.strings[l]==='')usable=false;
+        if(usable){compiled.literals=set.strings;compiled.whole=set.whole&&groups===0}
+      }
     }
     // Otherwise a pattern whose matches must start with one of at most eight
     // code units skips to the next of them with the native scan (#258).
@@ -828,6 +856,38 @@
       return {text:text,whole:true}
     }
     return {text:'',whole:false}
+  }
+  // The literal strings a match of node starts with, in the order
+  // backtracking tries them: {strings, whole}, whole when the matches of
+  // node are exactly these strings (a following node then extends each of
+  // them). strings is null past sixteen strings.
+  function literalSet(node){
+    var kind=node.kind;
+    if(kind==='char')return {strings:[node.value],whole:true};
+    if(kind==='group')return literalSet(node.value);
+    if(kind==='alternative'){
+      var strings=[],whole=true;
+      for(var i=0;i<node.value.length;i++){
+        var part=literalSet(node.value[i]);
+        if(part.strings===null||strings.length+part.strings.length>16)return {strings:null,whole:false};
+        for(var j=0;j<part.strings.length;j++)append(strings,part.strings[j]);
+        if(!part.whole)whole=false
+      }
+      if(strings.length===0)return {strings:[''],whole:false};
+      return {strings:strings,whole:whole}
+    }
+    if(kind==='sequence'){
+      var result={strings:[''],whole:true};
+      for(var i=0;i<node.value.length&&result.whole;i++){
+        var part=literalSet(node.value[i]);
+        if(part.strings===null||result.strings.length*part.strings.length>16)return {strings:result.strings,whole:false};
+        var joined=[];
+        for(var a=0;a<result.strings.length;a++)for(var b=0;b<part.strings.length;b++)append(joined,result.strings[a]+part.strings[b]);
+        result={strings:joined,whole:part.whole}
+      }
+      return result
+    }
+    return {strings:[''],whole:false}
   }
   // The code units a match of node can start with: {set, nullable}. set is
   // null when it is unknown or has more than eight units; nullable when the
@@ -1565,6 +1625,11 @@
     var prefix=sticky?null:compiled.prefix;
     var anchored=compiled.anchored;
     var scan=sticky||nativeScan===null?undefined:compiled.firstUnits;
+    var literals=compiled.literals,count=literals===undefined?0:literals.length;
+    // A failed run undoes its register changes: the registers are cleared
+    // once, not before every candidate.
+    for(var s=0;s<stateSize;s++)state[s]=NONE;
+    undoTop=0;frameTop=0;
     for(var candidate=start;candidate<=length;candidate++){
       if(anchored&&candidate>0)return null;
       if(prefix!==null){
@@ -1576,8 +1641,12 @@
         if(next===-1)return null;
         if(typeof next==='number')candidate=next
       }
-      for(var s=0;s<stateSize;s++)state[s]=NONE;
-      undoTop=0;frameTop=0;
+      if(count>0){
+        var hit=0;
+        while(hit<count&&!safeStartsWith.call(input,literals[hit],candidate))hit++;
+        if(hit===count){if(sticky)break;continue}
+        if(compiled.whole)return {end:candidate+literals[hit].length,captures:new PositionArray(2),start:candidate}
+      }
       var end=run(0,candidate);
       if(end===-2)return pikeSearch(compiled,compiled.program.pike,candidate,sticky||anchored);
       if(end>=0){
@@ -1599,7 +1668,7 @@
   // (MakeMatchIndicesIndexPairArray): [start, end] per capture or undefined,
   // and a groups object (or undefined).
   function indices(result,compiled,matched){
-    if(indexOf(compiled.flags,'d')<0)return;
+    if(!compiled.hasIndices)return;
     var captures=matched.captures,pairs=[],groups=undefined;
     append(pairs,[matched.start,matched.end]);
     for(var i=1;i<=compiled.groups;i++)append(pairs,captures[i*2]===4294967295?undefined:[captures[i*2],captures[i*2+1]]);
@@ -1616,6 +1685,41 @@
     appendDescriptor.value=pairs;Object.defineProperty(result,'indices',appendDescriptor);
     appendDescriptor.value=undefined
   }
+  // RegExpBuiltinExec after the native part (__nonaRegexpVm): the match at
+  // or after start, lastIndex, and the result array, or null.
+  function exec(re,subject,start,sticky,pattern,flags){
+    var compiled=compile(pattern,flags);
+    var matched=execute(compiled,subject,start,sticky);
+    if(matched===null){
+      if(compiled.updatesLastIndex)re.lastIndex=0;
+      return null
+    }
+    if(compiled.updatesLastIndex)re.lastIndex=matched.end;
+    var result=[slice(subject,matched.start,matched.end)],captures=matched.captures;
+    // The captures go at the end of the fresh array: CreateDataProperty
+    // natively, without a descriptor per element.
+    for(var i=1;i<=compiled.groups;i++){
+      var begin=captures[i*2];
+      append(result,begin===NONE?undefined:slice(subject,begin,captures[i*2+1]))
+    }
+    var groups=undefined;
+    if(compiled.names.length){
+      groups=objectCreate(null);
+      for(var i=0;i<compiled.names.length;i++){
+        // A duplicate name (ES2025) keeps the value of the group that participated.
+        var named=compiled.names[i],first=captures[named.index*2];
+        if(first!==NONE)groups[named.name]=slice(subject,first,captures[named.index*2+1]);
+        else if(!(named.name in groups))groups[named.name]=undefined
+      }
+    }
+    dataField.value=matched.start;defineProperty(result,'index',dataField);
+    dataField.value=subject;defineProperty(result,'input',dataField);
+    dataField.value=groups;defineProperty(result,'groups',dataField);
+    dataField.value=undefined;
+    // The d flag: the core adds indices, so programs without the engine do not carry the code.
+    indices(result,compiled,matched);
+    return result
+  }
   // setBacktrackBudget is for tests: 0 switches to the Pike VM at the first backtrack.
-  return {compile:compile,execute:execute,indices:indices,setBacktrackBudget:function(steps){backtrackBudget=steps}}
+  return {compile:compile,execute:execute,exec:exec,indices:indices,setBacktrackBudget:function(steps){backtrackBudget=steps}}
 })()
