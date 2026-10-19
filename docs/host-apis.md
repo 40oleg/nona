@@ -418,10 +418,10 @@ startup. Each is available as `node:<name>` and `<name>`.
 ## Child processes
 
 `node:child_process` (issue [#303](https://github.com/40oleg/nona/issues/303))
-runs other programs on win32-x64 and linux-x64. Other targets (macOS, BSD,
-arm64) link a stub: every function throws `ERR_NONA_UNSUPPORTED`, so that
-packages which only mention the module still load. Support for them is
-tracked in [328](https://github.com/40oleg/nona/issues/328).
+runs other programs on win32-x64, win32-arm64, linux-x64, linux-arm64,
+darwin-x64, darwin-arm64, freebsd-x64 and openbsd-x64. Other targets
+link a stub: every function throws `ERR_NONA_UNSUPPORTED`, so that
+packages which only mention the module still load.
 
 ```js
 import { spawn, execFileSync } from "nona:child_process";
@@ -466,21 +466,32 @@ stderr)`; `util.promisify` resolves to `{stdout, stderr}`),
 
 ### Platform mechanisms
 
-- **Windows.** `CreateProcessW` with anonymous pipes from `CreatePipe`. The
-  command line is quoted as Node.js does (`windowsVerbatimArguments` keeps it
-  as given). `shell: true` runs `%ComSpec%` (`cmd.exe`) as
-  `cmd.exe /d /s /c "command"`. Anonymous pipes cannot be waited for, so the
-  event loop polls them (`PeekNamedPipe`), waiting on the process handles for
-  1 to 16 ms between polls.
-- **Linux.** Raw system calls, no libc: the parent resolves the file against
-  `PATH`, builds `argv` and `envp` in anonymous memory, creates `O_CLOEXEC`
-  pipes with `pipe2` and an error pipe, blocks signals and calls `fork`. The
-  child only runs system calls on preallocated buffers (`dup2`, `chdir`,
-  `execve`); on failure it reports the errno through the error pipe, which is
-  how `ENOENT` reaches the parent. Readiness uses `poll(2)` on the pipes and
-  a `pidfd` (`pidfd_open`); kernels without pidfd fall back to polling
-  `wait4` every 10 ms. `shell: true` runs `/bin/sh -c`. Writes to a closed
-  child stdin fail with `EPIPE` instead of raising `SIGPIPE`.
+- **Windows (win32-x64, win32-arm64).** `CreateProcessW` with anonymous pipes
+  from `CreatePipe`. The command line is quoted as Node.js does
+  (`windowsVerbatimArguments` keeps it as given). `shell: true` runs `%ComSpec%`
+  (`cmd.exe`) as `cmd.exe /d /s /c "command"`. Anonymous pipes cannot be waited
+  for, so the event loop polls them (`PeekNamedPipe`), waiting on the process
+  handles for 1 to 16 ms between polls.
+- **Linux (linux-x64, linux-arm64).** Raw system calls, no libc: the parent
+  resolves the file against `PATH`, builds `argv` and `envp` in anonymous
+  memory, creates `O_CLOEXEC` pipes with `pipe2` and an error pipe, blocks
+  signals and calls `fork`. The child only runs system calls on preallocated
+  buffers (`dup2`, `chdir`, `execve`); on failure it reports the errno through
+  the error pipe, which is how `ENOENT` reaches the parent. Readiness uses
+  `poll(2)` on the pipes and a `pidfd` (`pidfd_open`); kernels without pidfd
+  fall back to polling `wait4` every 10 ms. `shell: true` runs `/bin/sh -c`.
+  Writes to a closed child stdin fail with `EPIPE` instead of raising `SIGPIPE`.
+- **macOS (darwin-x64, darwin-arm64).** `posix_spawn` through `libSystem.B.dylib`,
+  resolving the file against `PATH`. File actions dup the child's pipe ends,
+  open `/dev/null` for `'ignore'`, reset signal dispositions and close unneeded
+  descriptors. Readiness uses `poll(2)` on the pipes and `kqueue` with
+  `EVFILT_PROC/NOTE_EXIT` for process exit; `kqueue` registration failures
+  fall back to polling `waitpid` every 10 ms.
+- **BSD (freebsd-x64, openbsd-x64).** Raw system calls like Linux (fork, execve,
+  pipe2), with platform-specific syscall numbers and signal handling. Readiness
+  uses `poll(2)` on the pipes and `kqueue` with `EVFILT_PROC/NOTE_EXIT` for
+  process exit; `kqueue` registration failures fall back to polling `wait4`
+  every 10 ms.
 
 ### Limitations
 
@@ -488,6 +499,5 @@ stderr)`; `util.promisify` resolves to `{stdout, stderr}`),
   throw `ERR_NONA_UNSUPPORTED`; so do `stdio` entries other than `'pipe'`,
   `'inherit'` and `'ignore'` (streams, file descriptors, extra pipes).
 - `uid`, `gid` and `signal` (`AbortSignal`) are ignored. `detached` starts
-  a new session (Linux) or a process group without a console (Windows).
-- macOS, BSD and arm64 targets: `ERR_NONA_UNSUPPORTED`
-  ([328](https://github.com/40oleg/nona/issues/328)).
+  a new session (Linux and BSD) or a process group without a console (Windows).
+  On macOS, `detached` starts a new session.

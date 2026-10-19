@@ -84,6 +84,7 @@ test("BSD cross-compilation under an ARM64 emission scope also scopes OS service
         "process-signals-delivery",
         "process-signals-unreferenced",
         "process-signals-restoration",
+        "child-process",
     ])
         assert.ok(
             images.some((probe: { name: string }) => probe.name === name),
@@ -109,6 +110,7 @@ test("BSD cross-compilation under an ARM64 emission scope also scopes OS service
         assert.equal(
             probe.timeoutMs,
             probe.name.startsWith("buffer") ||
+                probe.name === "child-process" ||
                 probe.name === "process-network-stream-integration" ||
                 probe.name.startsWith("stream-") ||
                 probe.name.startsWith("process-builtin-") ||
