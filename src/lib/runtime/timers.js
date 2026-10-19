@@ -257,8 +257,14 @@ __nonaPromiseDrainJobs = (function (fullDrain) {
             throw new TypeError(
                 'The "callback" argument must be of type function',
             );
-        var context = __nonaRegexpVm.asyncContext,
-            snapshot = context ? context.activeRecord : undefined;
+        var context = __nonaRegexpVm.asyncContext;
+        // Without async_hooks there is no context to carry: the callback is
+        // the job (no closure per call).
+        if (context === undefined) {
+            enqueueJob(callback);
+            return;
+        }
+        var snapshot = context.activeRecord;
         enqueueJob(function () {
             var active = __nonaRegexpVm.asyncContext,
                 previous = active ? active.activeRecord : undefined,
@@ -440,12 +446,11 @@ __nonaPromiseDrainJobs = (function (fullDrain) {
         }
     }
     // Nothing is left to do: the full drain emits beforeExit and exit; work
-    // scheduled by beforeExit continues the loop.
+    // scheduled by beforeExit (which counts as referenced) continues the loop.
     function quit() {
         fullDrain();
         return (
             referenced === 0 &&
-            immediateHead >= immediates.length &&
             !networkAlive() &&
             !(
                 typeof __nonaRegexpVm.hasPendingIO === "function" &&

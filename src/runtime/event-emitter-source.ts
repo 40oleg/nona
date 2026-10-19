@@ -10,10 +10,13 @@ export const eventEmitterPreludeSource = (() => {
         "",
     );
     implementation = patchSource(implementation, /\bexport /g, "");
+    // An element store, not a method call: it cannot be redirected by a
+    // changed Array.prototype.push, and Reflect.apply (a prelude function)
+    // costs about two thousand instructions per listener.
     implementation = patchSource(
         implementation,
         "list.push(listener)",
-        "emitterApply(emitterPush,list,[listener])",
+        "list[list.length]=listener",
         { all: true },
     );
     implementation = patchSource(
@@ -46,14 +49,14 @@ export const eventEmitterPreludeSource = (() => {
     );
     implementation = patchSource(
         implementation,
-        "let list = emitter._events[name];",
-        "if(emitter===vm.processSignalEmitter)vm.processSignalListenerChanged(name,true);\nlet list = emitter._events[name];",
+        "let list = events[name];",
+        "if(emitter===processSignalEmitter)vm.processSignalListenerChanged(name,true);\nlet list = events[name];",
     );
     implementation = patchSource(
         implementation,
         /if \(this\._events\.removeListener\)\s*this\.emit\("removeListener", name, current\.listener \|\| current\);/,
         (match) =>
-            "if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);\n" +
+            "if(this===processSignalEmitter)vm.processSignalListenerChanged(name,false);\n" +
             match,
     );
     implementation = patchSource(
@@ -61,7 +64,7 @@ export const eventEmitterPreludeSource = (() => {
         /\} else \{\s*delete this\._events\[name\];\s*this\._eventsCount--;/,
         (match) =>
             match +
-            "if(this===vm.processSignalEmitter)vm.processSignalListenerChanged(name,false);",
+            "if(this===processSignalEmitter)vm.processSignalListenerChanged(name,false);",
     );
     return `;(function(){
  var vm=__nonaRegexpVm,subscribers=[],initialized=null;
@@ -72,7 +75,12 @@ export const eventEmitterPreludeSource = (() => {
  var Reflect={apply:globalThis.Reflect.apply,ownKeys:globalThis.Reflect.ownKeys};
  var emitterSymbolFor=Symbol.for;
  function AsyncResource(type,options){var constructor=EventTarget[Symbol.for('nona.async_hooks.internal')].AsyncResource;return new constructor(type,options)}
- var emitterApply=Reflect.apply,emitterPush=Array.prototype.push,emitterUnshift=Array.prototype.unshift,emitterSplice=Array.prototype.splice;
+ var emitterApply=Reflect.apply,emitterUnshift=Array.prototype.unshift,emitterSplice=Array.prototype.splice;
+ // The process object (process-signals.js sets it): every addListener compares
+ // against it, and a read of an absent property of the prelude object scans
+ // its whole property list, so it lives in a variable behind an accessor.
+ var processSignalEmitter=vm.processSignalEmitter;
+ Object.defineProperty(vm,'processSignalEmitter',{get:function(){return processSignalEmitter},set:function(value){processSignalEmitter=value},enumerable:true,configurable:true});
  function initialize(){if(initialized)return initialized;
  function updateExports(){for(var subscriber of subscribers)subscriber(defaultMaxListeners,captureRejections)}
  ${implementation}

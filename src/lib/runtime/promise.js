@@ -92,12 +92,15 @@ var __nonaPromiseDrainJobs = (function () {
                 __nonaRegexpVm.dispatchUncaught(error, "uncaughtException");
             }
         }
-        // The lists are replaced only when they hold something: drain runs
-        // after every I/O callback, usually with nothing to report.
-        var handled = handledLater;
-        if (handled.length !== 0) handledLater = [];
-        var pending = unhandled;
-        if (pending.length !== 0) unhandled = [];
+        // The lists are replaced only when one holds something (drain runs
+        // after every I/O callback, usually with nothing to report); the
+        // reports below may add to the new lists, never to the ones reported.
+        var handled = handledLater,
+            pending = unhandled;
+        if (handled.length !== 0 || pending.length !== 0) {
+            handledLater = [];
+            unhandled = [];
+        }
         for (var i = 0; i < pending.length; i++) {
             var state = pending[i];
             if (state.handled) continue;
