@@ -170,7 +170,10 @@ function linuxArm64Source(): string {
             'const openat = define("syscall", "56", "i64(i64,buf,i64,i64)");function sysOpen(path,flags,mode){return openat(-100,path,flags,mode)}',
         // ppoll takes a timespec (NULL: no limit) and a signal mask (NULL: unchanged).
         sysPoll:
-            'const ppoll = define("syscall", "73", "i64(buf,i64,buf,buf,i64)"),pollTime = new Uint32Array(4);function sysPoll(fds,count,timeout){if(timeout<0)return ppoll(fds,count,null,null,8);const seconds=Math.floor(timeout/1000);pollTime[0]=seconds;pollTime[2]=Math.floor((timeout-seconds*1000)*1000000);return ppoll(fds,count,pollTime,null,8)}',
+            'const ppoll = define("syscall", "73", "i64(buf,i64,buf,buf,i64)"),pollTime = new Uint32Array(4);' +
+            "function sysPoll(fds,count,timeout){if(timeout<0)return ppoll(fds,count,null,null,8);" +
+            "const seconds=Math.floor(timeout/1000);pollTime[0]=seconds;" +
+            "pollTime[2]=Math.floor((timeout-seconds*1000)*1000000);return ppoll(fds,count,pollTime,null,8)}",
         // dup3 fails with EINVAL when both descriptors are equal; dup2 would
         // keep the descriptor, which the child needs without FD_CLOEXEC.
         sysDup2:
@@ -209,7 +212,9 @@ function openbsdSource(): string {
     const replacements: Record<string, string> = {
         // A null set reads the mask (SIG_BLOCK with no signals).
         sysSigprocmask:
-            'const sigprocmask = define("syscall", "48", "i64(i64,i64)");function sysSigprocmask(how,set,old){const result=set===null?sigprocmask(1,0):sigprocmask(how,set[0]);if(result>=0&&old!==null)old[0]=result;return result<0?result:0}',
+            'const sigprocmask = define("syscall", "48", "i64(i64,i64)");' +
+            "function sysSigprocmask(how,set,old){const result=set===null?sigprocmask(1,0):sigprocmask(how,set[0]);" +
+            "if(result>=0&&old!==null)old[0]=result;return result<0?result:0}",
         sysSigtimedwait:
             'const thrsigdivert = define("syscall", "303", "i64(i64,buf,buf)");function sysSigtimedwait(set,info,timeout){return thrsigdivert(set[0],info,timeout)}',
     };
