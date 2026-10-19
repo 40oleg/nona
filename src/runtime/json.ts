@@ -685,108 +685,108 @@ export function emitJson(b: RuntimeBuilder): void {
         ["rt.JSON.stringify.fn.code", false],
         ["rt.jsonStringifyBytes.code", true],
     ] as const)
-    rootedFn(
-        b,
-        name,
-        216,
-        [
-            { kind: "output", register: "rcx" },
-            { kind: "range", register: "r8", count: "rdx" },
-            { kind: "locals", offset: 64, count: 6 },
-        ],
-        (a) => {
-            a.store(slot(40), "rcx");
-            a.store(slot(48), "rdx");
-            a.store(slot(56), "r8");
-            a.mov("rax", 0);
-            for (const offset of [160, 168, 176, 184])
-                a.store(slot(offset), "rax");
-            if (utf8) {
-                a.mov("rax", 1);
-                a.store(slot(160 + BuilderLayout.utf8), "rax");
-            }
-            a.test("rdx", "rdx");
-            const supplied = a.unique("supplied");
-            a.jcc("ne", supplied);
-            a.lea("r8", { rip: "rt.undefinedValue" });
-            a.label(supplied);
-            for (const n of [0, 8]) {
-                a.load("rax", { base: "r8", disp: n });
-                a.store(slot(64 + n), "rax");
-            }
-            a.cmp("rdx", 2);
-            const noReplacer = a.unique("noReplacer");
-            a.jcc("b", noReplacer);
-            for (const n of [0, 8]) {
-                a.load("rax", { base: "r8", disp: 16 + n });
-                a.store(slot(112 + n), "rax");
-            }
-            a.label(noReplacer);
-            a.lea("rcx", slot(112));
-            a.lea("rdx", slot(112));
-            a.call("rt.jsonBuildPropertyList");
-            a.load("rax", slot(48));
-            a.cmp("rax", 3);
-            const noSpace = a.unique("noSpace"),
-                spaceReady = a.unique("spaceReady");
-            a.jcc("b", noSpace);
-            a.load("r10", slot(56));
-            a.lea("rdx", { base: "r10", disp: 32 });
-            a.jmp(spaceReady);
-            a.label(noSpace);
-            a.lea("rdx", { rip: "rt.undefinedValue" });
-            a.label(spaceReady);
-            a.lea("rcx", slot(128));
-            a.call("rt.jsonNormalizeGap");
-            a.mov("rax", 4);
-            a.store(slot(144), "rax");
-            a.lea("rax", { rip: "rt.str.empty" });
-            a.store(slot(152), "rax");
-            a.mov("rax", 4);
-            a.store(slot(96), "rax");
-            a.lea("rax", { rip: "rt.str.empty" });
-            a.store(slot(104), "rax");
-            // The wrapper {"": value} is only observable as a replacer function's
-            // `this`; without one the holder stays undefined.
-            {
-                const noWrapper = a.unique("noWrapper");
+        rootedFn(
+            b,
+            name,
+            216,
+            [
+                { kind: "output", register: "rcx" },
+                { kind: "range", register: "r8", count: "rdx" },
+                { kind: "locals", offset: 64, count: 6 },
+            ],
+            (a) => {
+                a.store(slot(40), "rcx");
+                a.store(slot(48), "rdx");
+                a.store(slot(56), "r8");
                 a.mov("rax", 0);
-                a.store(slot(80), "rax");
-                a.store(slot(88), "rax");
-                a.load("rax", slot(112));
-                a.cmp("rax", 5);
-                a.jcc("ne", noWrapper);
-                a.load("r10", slot(120));
-                a.load("rax", { base: "r10", disp: O.kind });
-                a.cmp("rax", 2);
-                a.jcc("ne", noWrapper);
-                a.lea("rcx", slot(80));
-                a.mov("rdx", 0);
-                a.mov("r8", 0);
-                a.call("rt.newObject");
-                a.lea("rcx", slot(80));
-                a.lea("rdx", slot(96));
-                a.lea("r8", slot(64));
-                a.mov("r9", 1);
-                a.call("rt.setProperty");
-                a.label(noWrapper);
-            }
-            a.lea("rax", slot(112));
-            a.store(slot(32), "rax");
-            a.load("rcx", slot(40));
-            a.lea("rdx", slot(64));
-            a.lea("r8", slot(96));
-            a.lea("r9", slot(80));
-            a.call("rt.jsonStringifyValue");
-            const omitted = a.unique("omitted");
-            a.load("rcx", slot(40));
-            a.load("rax", { base: "rcx" });
-            a.test("rax", "rax");
-            a.jcc("e", omitted);
-            a.lea("rcx", slot(160));
-            a.load("rdx", slot(40));
-            a.call(utf8 ? "rt.builderFinishBytes" : "rt.builderFinish");
-            a.label(omitted);
-        },
-    );
+                for (const offset of [160, 168, 176, 184])
+                    a.store(slot(offset), "rax");
+                if (utf8) {
+                    a.mov("rax", 1);
+                    a.store(slot(160 + BuilderLayout.utf8), "rax");
+                }
+                a.test("rdx", "rdx");
+                const supplied = a.unique("supplied");
+                a.jcc("ne", supplied);
+                a.lea("r8", { rip: "rt.undefinedValue" });
+                a.label(supplied);
+                for (const n of [0, 8]) {
+                    a.load("rax", { base: "r8", disp: n });
+                    a.store(slot(64 + n), "rax");
+                }
+                a.cmp("rdx", 2);
+                const noReplacer = a.unique("noReplacer");
+                a.jcc("b", noReplacer);
+                for (const n of [0, 8]) {
+                    a.load("rax", { base: "r8", disp: 16 + n });
+                    a.store(slot(112 + n), "rax");
+                }
+                a.label(noReplacer);
+                a.lea("rcx", slot(112));
+                a.lea("rdx", slot(112));
+                a.call("rt.jsonBuildPropertyList");
+                a.load("rax", slot(48));
+                a.cmp("rax", 3);
+                const noSpace = a.unique("noSpace"),
+                    spaceReady = a.unique("spaceReady");
+                a.jcc("b", noSpace);
+                a.load("r10", slot(56));
+                a.lea("rdx", { base: "r10", disp: 32 });
+                a.jmp(spaceReady);
+                a.label(noSpace);
+                a.lea("rdx", { rip: "rt.undefinedValue" });
+                a.label(spaceReady);
+                a.lea("rcx", slot(128));
+                a.call("rt.jsonNormalizeGap");
+                a.mov("rax", 4);
+                a.store(slot(144), "rax");
+                a.lea("rax", { rip: "rt.str.empty" });
+                a.store(slot(152), "rax");
+                a.mov("rax", 4);
+                a.store(slot(96), "rax");
+                a.lea("rax", { rip: "rt.str.empty" });
+                a.store(slot(104), "rax");
+                // The wrapper {"": value} is only observable as a replacer function's
+                // `this`; without one the holder stays undefined.
+                {
+                    const noWrapper = a.unique("noWrapper");
+                    a.mov("rax", 0);
+                    a.store(slot(80), "rax");
+                    a.store(slot(88), "rax");
+                    a.load("rax", slot(112));
+                    a.cmp("rax", 5);
+                    a.jcc("ne", noWrapper);
+                    a.load("r10", slot(120));
+                    a.load("rax", { base: "r10", disp: O.kind });
+                    a.cmp("rax", 2);
+                    a.jcc("ne", noWrapper);
+                    a.lea("rcx", slot(80));
+                    a.mov("rdx", 0);
+                    a.mov("r8", 0);
+                    a.call("rt.newObject");
+                    a.lea("rcx", slot(80));
+                    a.lea("rdx", slot(96));
+                    a.lea("r8", slot(64));
+                    a.mov("r9", 1);
+                    a.call("rt.setProperty");
+                    a.label(noWrapper);
+                }
+                a.lea("rax", slot(112));
+                a.store(slot(32), "rax");
+                a.load("rcx", slot(40));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(96));
+                a.lea("r9", slot(80));
+                a.call("rt.jsonStringifyValue");
+                const omitted = a.unique("omitted");
+                a.load("rcx", slot(40));
+                a.load("rax", { base: "rcx" });
+                a.test("rax", "rax");
+                a.jcc("e", omitted);
+                a.lea("rcx", slot(160));
+                a.load("rdx", slot(40));
+                a.call(utf8 ? "rt.builderFinishBytes" : "rt.builderFinish");
+                a.label(omitted);
+            },
+        );
 }

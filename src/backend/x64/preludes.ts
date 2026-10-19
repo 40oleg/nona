@@ -20,6 +20,7 @@ import {
 import {
     classElementsPreludeSource,
     evalCodePreludeSource,
+    jsonResponsePreludeSource,
     moduleRecordsPreludeSource,
     promisePreludeSource,
     topLevelAwaitPreludeSource,
@@ -34,6 +35,7 @@ import { asyncHooksPreludeSource } from "../../runtime/async-hooks-source.js";
 import { eventEmitterPreludeSource } from "../../runtime/event-emitter-source.js";
 import { streamPreludeForTarget } from "../../runtime/stream-source.js";
 import { timersPreludeSource } from "../../runtime/timers-source.js";
+import { networkPreludeSource } from "../../runtime/network-source.js";
 import { objectAnnexBPreludeSource } from "../../runtime/object-annexb-source.js";
 import { errorStackPreludeSource } from "../../runtime/error-stack-source.js";
 import { regexpProtocolPreludeSource } from "../../runtime/regexp-protocol-source.js";
@@ -133,7 +135,8 @@ export function lowerRuntimePrelude(
             ["stream", streamPreludeForTarget(currentNativeTarget())],
             ["process", processPreludeForTarget(currentNativeTarget())],
             ["timers", timersPreludeSource],
-            ["network", ""],
+            ["network", networkPreludeSource],
+            ["jsonResponse", jsonResponsePreludeSource],
             ["proxy", proxyPreludeSource],
             [null, preludeCleanupSource],
         ];

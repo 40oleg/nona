@@ -33,6 +33,7 @@ export const preludeHelpers = [
     "evalDeclareVars",
     "evalGlobalDeclarations",
     "callWithGlobalThis",
+    "endJson",
 ] as const;
 // Intrinsic prototypes of async functions and async generators. Their
 // methods and metadata are installed by the Promise prelude, which owns the
