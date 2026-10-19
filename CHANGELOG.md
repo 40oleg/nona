@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **Native promises.** A promise is now a native object kind whose state, value and pending reactions live in the object instead of a WeakMap record. A `.then` allocates one object that is both the derived promise and its reaction. For a plain `%Promise%` receiver, `then`, settling and the job runner are native: handlers are called directly and a primitive result or a thrown error settles the derived promise without running prelude code. Thenables, subclass and foreign capabilities, `queueMicrotask` jobs and `async_hooks` context tracking still go through the Promise prelude. The 100 000-reaction chain of `bench/10_async.js` (`--scale 0.1`) takes 39 ms instead of 146 ms on Windows x64 (Node.js 22: 14 ms), about 0.4 µs per reaction; 100 000 sequential `await`s of a primitive take 32 ms instead of 38 ms (Node.js: 7 ms). ([#44](https://github.com/40oleg/nona/issues/44))
+
 ## v0.20.0 — 2026-10-19
 
 ### Host APIs

@@ -8,7 +8,11 @@ import {
     PropertyAttributes as A,
 } from "./object-layout.js";
 import { HeapLayout as H, HeapKind } from "./heap-layout.js";
-import { HandlerLayout as EH, preservedGp, preservedXmm } from "./exception-layout.js";
+import {
+    HandlerLayout as EH,
+    preservedGp,
+    preservedXmm,
+} from "./exception-layout.js";
 import { FunctionKind } from "./functions.js";
 import {
     PromiseKind,
@@ -173,10 +177,7 @@ export function emitPromiseNative(b: RuntimeBuilder): void {
     );
     // Loads the slot number (argument 1, a Number) into R11 and the promise
     // (argument 0) into R10; jumps to notPromise when argument 0 is not one.
-    const promiseAndSlot = (
-        a: Assembler,
-        notPromise: string,
-    ) => {
+    const promiseAndSlot = (a: Assembler, notPromise: string) => {
         a.load("rax", { base: "r8", disp: 16 });
         a.cmp("rax", 3);
         failIf(a, "ne", "rt.throwTypeError");
@@ -249,10 +250,7 @@ export function emitPromiseNative(b: RuntimeBuilder): void {
         a.add("r10", "r11");
         for (const part of [0, 8]) {
             a.load("rax", { base: "r8", disp: 32 + part });
-            a.store(
-                { base: "r10", disp: L.value - 16 + part },
-                "rax",
-            );
+            a.store({ base: "r10", disp: L.value - 16 + part }, "rax");
         }
         a.jmp(done);
         a.label(state);
@@ -420,7 +418,7 @@ export function emitPromiseNative(b: RuntimeBuilder): void {
     // Finds the own nodes of %Promise.prototype%.constructor and
     // %Promise%[@@species] and flags both objects, so that a change to their
     // properties advances the shape epoch. RAX 1 when both exist, else 0.
-    b.fn("rt.promiseProtect", 40, (a) => {
+    b.fn("rt.promiseFindProtected", 40, (a) => {
         const fail = a.unique("fail"),
             done = a.unique("done");
         a.load("rcx", { rip: "rt.promiseRealm", addend: 24 });
@@ -494,7 +492,7 @@ export function emitPromiseNative(b: RuntimeBuilder): void {
             a.load("rax", { rip: "rt.promiseProtect" });
             a.cmpMemory("rax", { rip: "rt.shapeEpoch" });
             a.jcc("e", check);
-            a.call("rt.promiseProtect");
+            a.call("rt.promiseFindProtected");
             a.test("rax", "rax");
             a.jcc("e", slow);
             a.label(check);
@@ -576,14 +574,15 @@ export function emitPromiseNative(b: RuntimeBuilder): void {
         a.cvttsd2si("r11", "xmm0");
     };
 
-    // __nonaPromiseUpdateInternal(promise, operation, value): 1 fulfil or 2
+    // __nonaPromiseUpdateInternal(promise, operation[, value]): 1 fulfil or 2
     // reject a pending promise with value, 4 mark it handled, 8 release the
     // handlers of a reaction that has run.
     b.fn("rt.promiseUpdateInternal.code", 56, (a) => {
         const handle = a.unique("handle"),
             release = a.unique("release"),
             done = a.unique("done");
-        a.cmp("rdx", 3);
+        a.store(slot(40), "rdx");
+        a.cmp("rdx", 2);
         failIf(a, "b", "rt.throwTypeError");
         clearValues(a, "rcx", 0, 1);
         promiseArgument(a);
@@ -596,6 +595,9 @@ export function emitPromiseNative(b: RuntimeBuilder): void {
         failIf(a, "b", "rt.throwTypeError");
         a.cmp("r11", 2);
         failIf(a, "a", "rt.throwTypeError");
+        a.load("rax", slot(40));
+        a.cmp("rax", 3);
+        failIf(a, "b", "rt.throwTypeError");
         a.mov("rcx", "r10");
         a.mov("rdx", "r11");
         a.add("r8", 32);
