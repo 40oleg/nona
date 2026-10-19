@@ -388,6 +388,19 @@ export function emitPrimitives(b: RuntimeBuilder): void {
                 a.jmp(fastDone);
                 a.label(slow);
             }
+            if (op === "add") {
+                // Two strings: ToPrimitive and ToString are the identity.
+                const mixed = a.unique("mixed");
+                a.load("rax", { base: "rdx" });
+                a.cmp("rax", 4);
+                a.jcc("ne", mixed);
+                a.load("rax", { base: "r8" });
+                a.cmp("rax", 4);
+                a.jcc("ne", mixed);
+                a.call("rt.concatLazy");
+                a.jmp(fastDone);
+                a.label(mixed);
+            }
             a.store(slot(40), "rcx");
             a.store(slot(48), "rdx");
             a.store(slot(56), "r8");
