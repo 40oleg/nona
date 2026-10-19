@@ -104,6 +104,7 @@ export type Operation =
           /** Code label of the function the callee is expected to be (src/ir/calls.ts). */ direct?: string;
           /** That function is strict (receives this unchanged). */ directStrict?: boolean;
           /** That function reads neither this nor new.target (usesFrameThis): the call passes no receiver. */ directNoThis?: boolean;
+          /** The call passes exactly that function's parameters: it enters at `<direct>.direct`. */ directEntry?: boolean;
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
       }
@@ -299,6 +300,7 @@ export interface FunctionIR {
     handlerCount?: number;
     derivedConstructor?: boolean;
     generator?: boolean;
+    /** Some direct call enters at `<id>.direct` (src/ir/calls.ts). */ directEntry?: boolean;
     blocks: BlockIR[];
 }
 export interface FfiDeclarationIR {

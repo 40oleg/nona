@@ -97,8 +97,10 @@ export function generate(
             options.coverage!,
         );
     const counted = new Set<string>();
-    setCallCounter((target) => {
-        if (target === "rt.callStatsReport") return undefined;
+    setCallCounter((call) => {
+        if (call === "rt.callStatsReport") return undefined;
+        // A direct entry (`<id>.direct`, #47) counts as a call of its function.
+        const target = call.endsWith(".direct") ? call.slice(0, -7) : call;
         counted.add(target);
         return "stats." + target;
     });

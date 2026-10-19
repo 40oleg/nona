@@ -10,10 +10,24 @@ import type { FunctionIR, ModuleIR, Operation } from "./model.js";
  *
  * A callee is known when it is the result of `newFunction` in the same
  * block, or a read of a global binding that every store in the program
- * fills with the same function declaration. Arrow functions (lexical this),
- * generators, async functions and class constructors are never annotated.
+ * fills with the same function declaration. Generators, async functions and
+ * class constructors are never annotated, nor arrow functions that read their
+ * lexical this or new.target.
+ *
+ * A callee that reads neither this nor new.target (usesFrameThis) is called
+ * without a receiver, and a call that passes exactly its parameters enters
+ * after the argument count handling (`<id>.direct`, emitDirectEntry in
+ * src/runtime/prologue.ts). The check of the callee stays even where the
+ * binding cannot change: it is a few well-predicted instructions and
+ * measured no cost against the call.
  */
-type Target = { target: string; strict: boolean; noThis: boolean };
+type Target = {
+    target: string;
+    strict: boolean;
+    noThis: boolean;
+    /** The parameter count, when the function is in this module. */
+    parameters?: number;
+};
 
 /** Operations that read or write the frame's this, new.target or super receiver slots. */
 const frameThisOperations = new Set<Operation["kind"]>([
@@ -45,6 +59,8 @@ export function usesFrameThis(fn: FunctionIR): boolean {
 export function annotateDirectCalls(module: ModuleIR): ModuleIR {
     const callable = new Map<string, Target | null>(),
         byId = new Map(module.functions.map((fn) => [fn.id, fn]));
+    // Slots that hold a function declaration's closure (or, as "", the
+    // uninitialized marker of a binding in its TDZ) at each operation.
     const definitions = (
         fn: FunctionIR,
         visit: (op: Operation, fromFunction: Map<number, string>) => void,
@@ -56,6 +72,8 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
                 if ("dest" in op) fromFunction.delete(op.dest);
                 if (op.kind === "newFunction")
                     fromFunction.set(op.dest, op.target);
+                else if (op.kind === "uninitialized")
+                    fromFunction.set(op.dest, "");
                 else if (op.kind === "copy" && fromFunction.has(op.source))
                     fromFunction.set(op.dest, fromFunction.get(op.source)!);
             }
@@ -66,29 +84,33 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
             for (const op of block.operations)
                 if (op.kind === "newFunction") {
                     const callee = byId.get(op.target),
+                        noThis = callee !== undefined && !usesFrameThis(callee),
                         plain =
-                        !op.arrow &&
-                        !op.generator &&
-                        !op.async &&
-                        !op.classConstructor;
+                            (!op.arrow || noThis) &&
+                            !op.generator &&
+                            !op.async &&
+                            !op.classConstructor;
                     callable.set(
                         op.target,
                         plain
                             ? {
                                   target: op.target,
                                   strict: !!op.strict,
-                                  noThis:
-                                      callee !== undefined &&
-                                      !usesFrameThis(callee),
+                                  noThis,
+                                  parameters: callee?.parameterCount,
                               }
                             : null,
                     );
                 }
-    // Global index -> the one declaration every store puts there (null: anything else).
+    // Global index -> the one declaration every store puts there (null:
+    // anything else). Storing the TDZ marker (`const f = () => ...` at the
+    // top level) does not count: a call in the TDZ fails the callee check
+    // and throws on the general path.
     const globals = new Map<number, string | null>();
     for (const fn of module.functions)
         definitions(fn, (op, fromFunction) => {
             if (op.kind !== "storeGlobal" || op.prelude) return;
+            if (fromFunction.get(op.source) === "") return;
             const target = fromFunction.get(op.source) ?? null,
                 known = globals.get(op.index);
             globals.set(
@@ -97,6 +119,8 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
             );
         });
     let changed = false;
+    // Functions entered at `<id>.direct` by a call that passes exactly their parameters.
+    const entered = new Set<string>();
     const functions = module.functions.map((fn) => {
         let marked = false;
         const blocks = fn.blocks.map((block) => {
@@ -116,12 +140,15 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
                                 ? undefined
                                 : callable.get(target);
                     if (info) {
+                        const exact = info.parameters === op.arguments.length;
                         result = {
                             ...op,
                             direct: info.target,
                             directStrict: info.strict,
                             ...(info.noThis ? { directNoThis: true } : {}),
+                            ...(exact ? { directEntry: true } : {}),
                         };
+                        if (exact) entered.add(info.target);
                         blockChanged = true;
                     }
                 }
@@ -142,5 +169,11 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
         changed = true;
         return { ...fn, blocks };
     });
-    return changed ? { ...module, functions } : module;
+    if (!changed) return module;
+    return {
+        ...module,
+        functions: functions.map((fn) =>
+            entered.has(fn.id) ? { ...fn, directEntry: true } : fn,
+        ),
+    };
 }

@@ -47,7 +47,12 @@ import {
     stackMapFragment,
     type StackMapEntry,
 } from "../../runtime/stack-maps.js";
-import { enterFrameStub } from "../../runtime/prologue.js";
+import {
+    enterFrameStub,
+    directEntryFits,
+    emitDirectEntry,
+    type DirectFrame,
+} from "../../runtime/prologue.js";
 import { usesFrameThis } from "../../ir/calls.js";
 import {
     FunctionLayout,
@@ -298,15 +303,24 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     );
     for (const n of liveness.get(fn.blocks[0]!.id)!.liveIn)
         if (!staticConstant(n)) clear = Math.max(clear, location(n) + 1);
-    a.lea("r10", { rip: fn.id + ".frame" });
-    a.call(
-        enterFrameStub(
-            fn.parameterCount,
-            clear,
+    // Direct calls that pass exactly the parameters enter at `<id>.direct`
+    // (src/ir/calls.ts): an inline prologue at the end of the function when
+    // the frame is small (emitDirectEntry), else the ordinary entry.
+    const copyThis = usesFrameThis(fn),
+        directFrame: DirectFrame = {
             allocation,
-            usesFrameThis(fn),
-        ),
-    );
+            parameters: fn.parameterCount,
+            clear,
+            slots: locations.count,
+            copyThis,
+            maps: fn.id + ".maps",
+        },
+        directEntry = fn.directEntry && directEntryFits(directFrame);
+    if (fn.directEntry && !directEntry) a.label(fn.id + ".direct");
+    a.lea("r10", { rip: fn.id + ".frame" });
+    a.call(enterFrameStub(fn.parameterCount, clear, allocation, copyThis));
+    const entered = fn.id + ".entered";
+    a.label(entered);
     // For the unwind information the frame exists once the stub has returned.
     const allocated = a.offset,
         prologSize = a.offset;
@@ -1635,7 +1649,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     pointer("rcx", op.dest);
                     a.mov("rdx", op.arguments.length);
                     a.lea("r8", stack(argsBase));
-                    a.call(op.direct);
+                    a.call(op.directEntry ? op.direct + ".direct" : op.direct);
                     // A tail call made by the callee comes back as a marker (rt.invoke
                     // does the same); it and the general call are out of line.
                     const tail = a.unique("tailMarker"),
@@ -2374,6 +2388,13 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     for (const { map, emit } of cold.sort((x, y) => x.map - y.map)) {
         currentMap = map;
         emit();
+    }
+    if (directEntry) {
+        a.label(fn.id + ".direct");
+        if (options.coverage && fn.source && !fn.id.startsWith("js.regexpVm."))
+            a.incrementMemory({ rip: "cov." + fn.id });
+        emitDirectEntry(a, directFrame, fn.id);
+        a.jmp(entered);
     }
     fragments.push(
         stackMapFragment(

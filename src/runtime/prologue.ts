@@ -57,6 +57,102 @@ function finishFrame(a: Assembler, copyThis: boolean): void {
     a.ret();
 }
 
+/** The frame of a function, as its descriptor (frame-layout.ts) has it. */
+export interface DirectFrame {
+    allocation: number;
+    parameters: number;
+    clear: number;
+    slots: number;
+    copyThis: boolean;
+    /** The function's stack map table. */
+    maps: string;
+}
+/**
+ * Whether a function gets an inline direct entry (emitDirectEntry): a frame
+ * below a page (no probes), parameters that have slots, and few of them and
+ * of the other slots to clear, so that the unrolled code stays short.
+ */
+export function directEntryFits(frame: DirectFrame): boolean {
+    return (
+        frame.allocation < 4096 &&
+        frame.parameters <= frame.slots &&
+        frame.parameters <= 8 &&
+        frame.clear - frame.parameters <= 8
+    );
+}
+/**
+ * The direct entry of a function (`<id>.direct`), for direct calls that pass
+ * exactly its parameter count (src/ir/calls.ts): the prologue stub's work,
+ * inline and with the descriptor's values as constants, and no stub call or
+ * return-address move. RSP is the function's entry RSP; the frame is
+ * allocated in place. A stack overflow takes the ordinary entry `fallback`,
+ * whose stub throws on the caller's aligned stack. It ends with RSP and RBP
+ * as the stubs leave them, before the function's first block.
+ */
+export function emitDirectEntry(
+    a: Assembler,
+    frame: DirectFrame,
+    fallback: string,
+): void {
+    const at = (disp: number) => ({
+        base: "rbp" as const,
+        disp: disp - F.bias,
+    });
+    const thisSlot = F.values + 16 * frame.slots;
+    a.lea("rax", { base: "rsp", disp: -frame.allocation });
+    a.cmpMemory("rax", { rip: "rt.stackLimit" });
+    a.jcc("b", fallback);
+    a.mov("rsp", "rax");
+    a.store({ base: "rsp", disp: F.savedFrame }, "rbp");
+    a.lea("rbp", { base: "rsp", disp: F.bias });
+    a.store(at(F.result), "rcx");
+    a.store(at(F.argc), "rdx");
+    a.store(at(F.argv), "r8");
+    a.store(at(F.callee), "r9");
+    for (let i = 0; i < frame.parameters; i++)
+        for (const half of [0, 8]) {
+            a.movsd("xmm1", { base: "r8", disp: 16 * i + half });
+            a.storesd(at(F.values + 16 * i + half), "xmm1");
+        }
+    const cleared = frame.clear - frame.parameters;
+    if (cleared > 0 || !frame.copyThis) {
+        a.mov("r11", 0);
+        a.movqToXmm("xmm0", "r11");
+    }
+    for (let i = 0; i < cleared; i++)
+        a.storeXmm128(at(F.values + 16 * (frame.parameters + i)), "xmm0");
+    if (frame.copyThis) {
+        const incoming = (disp: number) => ({
+            base: "rsp" as const,
+            disp: frame.allocation + disp,
+        });
+        a.load("rcx", incoming(F.incomingThis));
+        a.load("r8", { base: "rcx" });
+        a.load("rcx", { base: "rcx", disp: 8 });
+        a.store(at(thisSlot), "r8");
+        a.store(at(thisSlot + 8), "rcx");
+        a.store(at(thisSlot + 32), "r8");
+        a.store(at(thisSlot + 40), "rcx");
+        a.load("rcx", incoming(F.incomingNewTarget));
+        a.load("r8", { base: "rcx" });
+        a.load("rcx", { base: "rcx", disp: 8 });
+        a.store(at(thisSlot + 16), "r8");
+        a.store(at(thisSlot + 24), "rcx");
+    } else
+        for (const disp of [0, 16, 32])
+            a.storeXmm128(at(thisSlot + disp), "xmm0");
+    a.load("r11", { rip: "rt.gcRoots" });
+    a.store({ base: "rsp", disp: F.roots + R.next }, "r11");
+    a.lea("r11", at(F.values));
+    a.store({ base: "rsp", disp: F.roots + R.values }, "r11");
+    a.mov("r11", -(frame.slots + 3));
+    a.store({ base: "rsp", disp: F.roots + R.count }, "r11");
+    a.lea("r11", { rip: frame.maps });
+    a.store({ base: "rsp", disp: F.maps }, "r11");
+    a.lea("r11", { base: "rsp", disp: F.roots });
+    a.store({ rip: "rt.gcRoots" }, "r11");
+}
+
 /** Parameter counts with a prologue stub of their own (enterFrameStub). */
 export const fixedPrologueParameters = 4;
 /**
