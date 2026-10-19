@@ -771,6 +771,8 @@ function generateImage(
         hostGlobal("__nonaNetCopy", "rt.netCopy.code", 5);
         hostGlobal("__nonaNetCheck", "rt.netCheck.code", 2);
         hostGlobal("__nonaNetSlice", "rt.netSlice.code", 4);
+        hostGlobal("__nonaNetHeadLines", "rt.netHeadLines.code", 2);
+        hostGlobal("__nonaNetLowerNames", "rt.netLowerNames.code", 2);
     }
     const agentPrograms = options.agentPrograms ?? [];
     if (options.agent) {

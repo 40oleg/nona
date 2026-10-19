@@ -236,31 +236,32 @@ function lookup(host) {
  * so constant churn makes them grow and their small-size lookups linear.
  */
 class HandleList {
-    constructor(field) {
+    // One list per server (its connections); the position field is fixed so
+    // that its accesses are plain named property reads.
+    constructor() {
         this.items = [];
-        this.field = field;
     }
     get size() {
         return this.items.length;
     }
     has(handle) {
-        const i = handle[this.field];
-        return i !== undefined && i >= 0 && this.items[i] === handle;
+        const i = handle._connectionIndex;
+        return i >= 0 && this.items[i] === handle;
     }
     add(handle) {
         if (this.has(handle)) return;
-        handle[this.field] = this.items.length;
+        handle._connectionIndex = this.items.length;
         this.items.push(handle);
     }
     delete(handle) {
         if (!this.has(handle)) return false;
-        const i = handle[this.field],
+        const i = handle._connectionIndex,
             last = this.items.pop();
         if (last !== handle) {
             this.items[i] = last;
-            last[this.field] = i;
+            last._connectionIndex = i;
         }
-        handle[this.field] = -1;
+        handle._connectionIndex = -1;
         return true;
     }
     values() {
@@ -340,13 +341,17 @@ function watch(handle) {
     handle._watched = 0;
     markDirty(handle);
 }
-/** Stops watching before the descriptor is closed. */
-function unwatch(handle) {
+/**
+ * Stops watching the descriptor; with closing set it is closed right after,
+ * which removes it from the poller by itself (no epoll_ctl per connection).
+ */
+function unwatch(handle, closing) {
     const fd = handle._fd;
     if (fd < 0) return;
     if (byFd[fd] === handle) byFd[fd] = undefined;
     if (handle._watched !== 0) {
-        sys.watch(fd, 0, handle._watched, handle);
+        if (!closing || !sys.closeDropsWatch)
+            sys.watch(fd, 0, handle._watched, handle);
         handle._watched = 0;
     }
 }
@@ -453,6 +458,10 @@ const poller = {
     },
 };
 
+/** The 'finish' listener of destroySoon (returns nothing: a returned value is checked for capture). */
+function destroyOnFinish() {
+    this.destroy();
+}
 /** Write callbacks are functions, or (from node:http) objects with a _sent method. */
 function invoke(callback, error) {
     if (typeof callback === "function") callback(error);
@@ -834,7 +843,7 @@ export class Socket extends Readable {
     destroySoon() {
         if (!this._writeEnded) this.end();
         if (this._finished) this.destroy();
-        else this.once("finish", () => this.destroy());
+        else this.once("finish", destroyOnFinish);
     }
     _maybeClose() {
         if (this._destroyed) return;
@@ -849,7 +858,7 @@ export class Socket extends Readable {
         this.connecting = false;
         this._deadline = 0;
         if (this._fd >= 0) {
-            unwatch(this);
+            unwatch(this, true);
             sys.close(this._fd);
             this._fd = -1;
         }
@@ -882,9 +891,12 @@ export class Socket extends Readable {
     resetAndDestroy() {
         return this.destroy();
     }
-    emit(type, ...args) {
-        if (type === "close") return super.emit("close", this._hadError);
-        return super.emit(type, ...args);
+    // 'close' carries hadError (as Node.js emits it from its destroy path;
+    // an emit override would cost a rest array and a spread per emit).
+    _closeTask() {
+        if (this._finalError) this.emit("error", this._finalError);
+        this._closed = true;
+        this.emit("close", this._hadError);
     }
     setNoDelay(noDelay) {
         if (this._fd >= 0 && !this.connecting)
@@ -915,9 +927,18 @@ export class Socket extends Readable {
      */
     _idleTimeout(timeout) {
         this._timeout = timeout;
-        if (timeout > 0 && !this._destroyed)
-            setDeadline(this, loopNow + timeout);
-        else if (this._deadline !== 0) setDeadline(this, 0);
+        if (timeout > 0 && !this._destroyed) {
+            // setDeadline, spelled out: the socket is usually on the timed
+            // list already (a cleared deadline keeps it there).
+            const deadline = loopNow + timeout,
+                i = this._timedIndex;
+            this._deadline = deadline;
+            if (i < 0 || timedItems[i] !== this) {
+                this._timedIndex = timedItems.length;
+                timedItems.push(this);
+            }
+            if (deadline < earliestDeadline) earliestDeadline = deadline;
+        } else this._deadline = 0;
     }
     /** Activity: extends the inactivity deadline (never moves it earlier). */
     _touch() {
@@ -995,6 +1016,7 @@ defaults(Socket.prototype, {
     _timeout: 0,
     _deadline: 0,
     _timedIndex: -1,
+    _connectionIndex: -1,
     _registered: false,
     _dirty: false,
     _watched: 0,
@@ -1024,7 +1046,7 @@ export class Server extends EventEmitter {
         }
         if (options) this._options = options;
         if (typeof listener === "function") this.on("connection", listener);
-        this._connections = new HandleList("_connectionIndex");
+        this._connections = new HandleList();
     }
     get connections() {
         return this._connections.size;
@@ -1184,7 +1206,7 @@ export class Server extends EventEmitter {
             else this.once("close", callback);
         }
         if (this._fd >= 0) {
-            unwatch(this);
+            unwatch(this, true);
             sys.close(this._fd);
             this._fd = -1;
         }

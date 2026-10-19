@@ -154,6 +154,8 @@ function dnsLookup(name) {
 const sys = {
     AF_INET: 2,
     AF_INET6: 10,
+    /** Closing a descriptor removes it from the epoll set: no epoll_ctl before close. */
+    closeDropsWatch: true,
     init() {
         epollFd = sysEpollCreate1(0x80000);
     },

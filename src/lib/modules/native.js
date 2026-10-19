@@ -4,10 +4,14 @@ export const parse = g.__nonaNetParse,
     write = g.__nonaNetWrite,
     copy = g.__nonaNetCopy,
     check = g.__nonaNetCheck,
-    slice = g.__nonaNetSlice;
+    slice = g.__nonaNetSlice,
+    headLines = g.__nonaNetHeadLines,
+    lowerNames = g.__nonaNetLowerNames;
 delete g.__nonaNetParse;
 delete g.__nonaNetLatin1;
 delete g.__nonaNetWrite;
 delete g.__nonaNetCopy;
 delete g.__nonaNetCheck;
 delete g.__nonaNetSlice;
+delete g.__nonaNetHeadLines;
+delete g.__nonaNetLowerNames;

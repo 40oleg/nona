@@ -9,6 +9,8 @@ import {
     copy as copyBytes,
     check as checkChars,
     slice as sliceBytes,
+    headLines as nativeHeadLines,
+    lowerNames as nativeLowerNames,
 } from "nona:internal/native";
 const bufferPrototype = Buffer.prototype;
 
@@ -325,8 +327,28 @@ const firstWins = new Set([
     "server",
     "user-agent",
 ]);
+/**
+ * The lower-case names of a raw header array, one per field: natively when
+ * it is a plain array of strings with distinct names (the usual request),
+ * else null and the caller merges repeated fields itself.
+ */
+const internedNames = [];
+function distinctLowerNames(raw) {
+    const lower = nativeLowerNames(raw, internedNames);
+    return lower === undefined ? null : lower;
+}
 function mergeHeaders(raw, joinDuplicates) {
-    const out = {};
+    const out = {},
+        lower = distinctLowerNames(raw);
+    if (lower !== null) {
+        // No repeated names: every field is set once.
+        for (let i = 0; i < raw.length; i += 2) {
+            const field = lower[i >> 1],
+                value = raw[i + 1];
+            out[field] = field === "set-cookie" ? [value] : value;
+        }
+        return out;
+    }
     for (let i = 0; i < raw.length; i += 2) {
         const field = lowerName(raw[i]),
             value = raw[i + 1],
@@ -348,26 +370,13 @@ function distinctHeaders(raw) {
     }
     return out;
 }
-/** The header lines of a request head copied by the server, as [name, value, ...]. */
-function headLines(head) {
-    const end = parseHead(head, 0, head.length, OUT),
-        raw = [];
-    if (end > 0)
-        for (let i = 0, n = OUT[6]; i < n; i++) {
-            const k = 11 + 4 * i;
-            raw.push(
-                latin1(head, OUT[k], OUT[k + 1]),
-                latin1(head, OUT[k + 2], OUT[k + 3]),
-            );
-        }
-    return raw;
-}
 
 // The message classes are base classes whose prototype chains are set
 // afterwards (as in Node.js, where they are functions): a derived
 // constructor pays for every level of super(), and a request creates two
 // messages. Their constructors initialize the emitter themselves (the base
 // constructors of Readable and EventEmitter do nothing else for them).
+// (Inlined in the hot constructors: a call is about 150 instructions.)
 function initEmitter(emitter) {
     if (captureRejections) EventEmitter.call(emitter);
     else {
@@ -379,7 +388,12 @@ function initEmitter(emitter) {
 // ---- IncomingMessage -----------------------------------------------------------
 export class IncomingMessage {
     constructor(socket) {
-        initEmitter(this);
+        if (captureRejections) EventEmitter.call(this);
+        else {
+            this._events = { __proto__: null };
+            this._eventsCount = 0;
+            this._maxListeners = undefined;
+        }
         this.socket = socket;
     }
     get connection() {
@@ -389,8 +403,7 @@ export class IncomingMessage {
         this.socket = value;
     }
     get rawHeaders() {
-        if (this._raw === null)
-            this._raw = this._head === null ? [] : headLines(this._head);
+        if (this._raw === null) this._raw = [];
         return this._raw;
     }
     set rawHeaders(value) {
@@ -505,7 +518,6 @@ defaults(IncomingMessage.prototype, {
     joinDuplicateHeaders: false,
     socket: null,
     _rawTrailers: null,
-    _head: null,
     _raw: null,
     _headers: null,
     _trailers: null,
@@ -575,15 +587,25 @@ export class OutgoingMessage {
     setHeader(name, value) {
         if (this._header !== null) throw headersSentError("set");
         // A name seen before (validated then): its key and special flags.
-        let info = fieldNames.get(name);
+        let info = fieldNames[name];
         if (info === undefined) {
             validateHeaderName(name);
             const key = lowerName(name),
                 special = specialFields.get(key);
             info = { key, special: special === undefined ? 0 : special };
-            if (fieldNames.size < 512) fieldNames.set(name, info);
+            if (fieldNameCount < 512) {
+                fieldNames[name] = info;
+                fieldNameCount++;
+            }
         }
-        validateHeaderValue(name, value);
+        if (typeof value === "string") {
+            if (checkChars(value, 1) >= 0)
+                throw codedError(
+                    "ERR_INVALID_CHAR",
+                    'Invalid character in header content ["' + name + '"]',
+                    TypeError,
+                );
+        } else validateHeaderValue(name, value);
         const key = info.key,
             index = this._find(key);
         if (info.special !== 0) this._special |= info.special;
@@ -1170,7 +1192,10 @@ function byteLength(chunk, encoding) {
 const SPECIAL_ARRAY = 256,
     SPECIAL_REMOVED = 512;
 /** Header names given to setHeader: {key (lower case), special}. */
-const fieldNames = new Map();
+// (A null-prototype object: a lookup by a name that is the same string
+// object as before, as literals are, hits the key hash cache.)
+const fieldNames = { __proto__: null };
+let fieldNameCount = 0;
 const specialFields = new Map([
     ["connection", 1],
     ["transfer-encoding", 2],
@@ -1200,7 +1225,8 @@ function contentLengthLine(length) {
  * the last line composed for a name is kept and reused while its value is
  * the same string.
  */
-const fieldLineCache = new Map();
+const fieldLineCache = { __proto__: null };
+let fieldLineCount = 0;
 function fieldLines(name, value) {
     if (Array.isArray(value)) {
         let lines = "";
@@ -1208,11 +1234,12 @@ function fieldLines(name, value) {
             lines += name + ": " + value[i] + "\r\n";
         return lines;
     }
-    let entry = fieldLineCache.get(name);
+    let entry = fieldLineCache[name];
     if (entry === undefined) {
-        if (fieldLineCache.size >= 512) return name + ": " + value + "\r\n";
+        if (fieldLineCount >= 512) return name + ": " + value + "\r\n";
         entry = { value, line: name + ": " + value + "\r\n" };
-        fieldLineCache.set(name, entry);
+        fieldLineCache[name] = entry;
+        fieldLineCount++;
     } else if (entry.value !== value) {
         entry.value = value;
         entry.line = name + ": " + value + "\r\n";
@@ -1351,7 +1378,12 @@ class ChunkedDecoder {
 // ---- ServerResponse ----------------------------------------------------------------
 export class ServerResponse {
     constructor(req, options) {
-        initEmitter(this);
+        if (captureRejections) EventEmitter.call(this);
+        else {
+            this._events = { __proto__: null };
+            this._eventsCount = 0;
+            this._maxListeners = undefined;
+        }
         this.req = req;
         if (req.method === "HEAD") this._hasBody = false;
         if (req.httpVersionMajor < 1 || req.httpVersionMinor < 1) {
@@ -1480,7 +1512,8 @@ export class ServerResponse {
         const code = this.statusCode | 0;
         if (code < 100 || code > 999 || code !== this.statusCode)
             return super.end(chunk, encoding, callback);
-        const standard = standardStatus(code);
+        let standard = statusLines[code];
+        if (standard === undefined) standard = standardStatus(code);
         let message = this.statusMessage,
             head;
         if (!message) {
@@ -1494,7 +1527,8 @@ export class ServerResponse {
         if (fields !== null)
             for (let i = 1; i < fields.length; i += 3)
                 head += fieldLines(fields[i], fields[i + 1]);
-        if (this.sendDate) head += dateLine();
+        if (this.sendDate)
+            head += clock.now < dateExpiry ? dateField : dateLine();
         if (!this.shouldKeepAlive) {
             this._last = true;
             head += "Connection: close\r\n";
@@ -1508,7 +1542,11 @@ export class ServerResponse {
                 server.keepAliveTimeout &&
                 this._defaultKeepAlive
             )
-                head += keepAliveLines(server);
+                head +=
+                    server._keepAliveFor === server.keepAliveTimeout &&
+                    server._keepAliveMax === server.maxRequestsPerSocket
+                        ? server._keepAliveLines
+                        : keepAliveLines(server);
             else head += "Connection: keep-alive\r\n";
         }
         const hasBody =
@@ -1532,8 +1570,11 @@ export class ServerResponse {
                 ? length || writeString(chunk, undefined, 0, false)
                 : chunk.length
             : 0;
-        if (hasBody) head += contentLengthLine(this._contentLength);
-        else head += "\r\n";
+        if (hasBody) {
+            const length = this._contentLength,
+                line = length < 4096 ? contentLengthLines[length] : undefined;
+            head += line !== undefined ? line : contentLengthLine(length);
+        } else head += "\r\n";
         this._header = head;
         this.finished = true;
         const out = reserve(head.length + length);
@@ -1793,7 +1834,9 @@ class ServerConnection {
             req.httpVersionMinor = minor;
             req.httpVersion = major + "." + minor;
         }
-        req._head = sliceBytes(data, OUT[10], headEnd);
+        // The header lines as strings now (one native call): the bytes
+        // belong to the shared read buffer.
+        req._raw = nativeHeadLines(data, OUT);
         if (server.joinDuplicateHeaders) req.joinDuplicateHeaders = true;
         // Body framing.
         let chunked = false,
