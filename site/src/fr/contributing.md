@@ -51,7 +51,7 @@ Lorsqu’une fonctionnalité modifie un comportement visible par les programmes,
 
 ## Site de documentation
 
-Le site est construit avec [VitePress](https://vitepress.dev/guide/what-is-vitepress) à partir de `site/` :
+Le site est construit avec [VitePress](https://github.com/vuejs/vitepress) à partir de `site/` :
 
 ```sh
 npm run build              # the compiler, needed to check the samples
