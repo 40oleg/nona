@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { patchSource } from "../../source-patch.js";
 import { currentNativeTarget } from "../machine/context.js";
 import type { ModuleIR } from "../../ir/model.js";
@@ -137,25 +138,25 @@ export function lowerRuntimePrelude(
             ["proxy", proxyPreludeSource],
             [null, preludeCleanupSource],
         ];
-        const build = (selected: readonly OptionalPrelude[]) =>
-            lower(
-                bind(
-                    parse(
-                        lex(
-                            parts
-                                .filter(
-                                    ([name]) =>
-                                        name === null ||
-                                        selected.includes(name) ||
-                                        (name === "regexpProtocol" &&
-                                            regexpLink.regexp),
-                                )
-                                .map(([, source]) => source)
-                                .join("\n"),
-                        ),
-                    ),
-                ),
-            );
+        const build = (selected: readonly OptionalPrelude[]) => {
+            const source = parts
+                .filter(
+                    ([name]) =>
+                        name === null ||
+                        selected.includes(name) ||
+                        (name === "regexpProtocol" && regexpLink.regexp),
+                )
+                .map(([, source]) => source)
+                .join("\n");
+            // NONA_FN_NAMES (operations.ts): the prelude's text, so that the
+            // offsets of its functions can be resolved.
+            if (process.env.NONA_FN_NAMES)
+                writeFileSync(
+                    process.env.NONA_FN_NAMES + ".prelude.js",
+                    source,
+                );
+            return lower(bind(parse(lex(source))));
+        };
         // The preludes themselves may need syntax helper parts (a class with
         // fields in a stream prelude): add them until nothing is missing.
         let selected = [...linked];
