@@ -38,7 +38,6 @@
 
 Пробелы языка и библиотеки:
 
-- [#11](https://github.com/40oleg/nona/issues/11) — `eval` и `Function` с исходником, вычисленным во время исполнения.
 - [#44](https://github.com/40oleg/nona/issues/44) — реакции Promise: отдельный вид promise и одна запись на каждый `then`.
 
 Производительность — основное направление [плана развития](https://github.com/40oleg/nona/blob/main/docs/roadmap.md):

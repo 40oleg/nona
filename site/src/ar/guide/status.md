@@ -36,7 +36,6 @@
 
 فجوات اللغة والمكتبة:
 
-- [#11](https://github.com/40oleg/nona/issues/11): ‏`eval` و`Function` بشيفرة محسوبة وقت التشغيل.
 - [#44](https://github.com/40oleg/nona/issues/44): ردود فعل Promise: نوع مخصص للوعود وسجل واحد لكل `then`.
 
 الأداء، وهو الخط الرئيسي في [خارطة الطريق](https://github.com/40oleg/nona/blob/main/docs/roadmap.md):

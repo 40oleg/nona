@@ -17,7 +17,7 @@ Nona पहले से कंपाइल करता है, इसलिए
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-रनटाइम सोर्स [#11](https://github.com/40oleg/nona/issues/11) में ट्रैक किए जा रहे हैं।
+यह एक स्थायी, दस्तावेज़ित अपवाद है ([#11](https://github.com/40oleg/nona/issues/11), [ES2020 अनुबंध](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)): जनरेट की गई एक्ज़ीक्यूटेबल में इंटरप्रेटर या कंपाइलर नहीं होता।
 
 ## Node.js से अंतर
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Documentation
+
+- **`eval` and the dynamic `Function` constructors with run-time sources are a permanent, documented exception of the ES2020 contract.** Generated executables contain no interpreter, compiler or bundled frontend, so an embedded evaluator (options 1 and 2 of the issue) is rejected. The [contract](docs/es2020-contract.md) now specifies the exact behavior (`EvalError` and its messages, `typeof eval`, `eval.name`/`length`/`toString`, the source text of ahead-of-time dynamic functions, which forms are compiled at compile time and when `SyntaxError` is thrown); new assertions in `tests/eval-exception.test.ts` and `tests/dynamic-functions.test.ts` cover it. The remaining Test262 `eval-code` failures are intentional. ([#11](https://github.com/40oleg/nona/issues/11))
+
 ## v0.20.0 — 2026-10-19
 
 ### Host APIs

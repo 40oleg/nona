@@ -36,7 +36,6 @@ v0.8.0 的审计还发现了七个崩溃（对带元素的 `Math` 调用 `Array.
 
 语言和库方面的缺口：
 
-- [#11](https://github.com/40oleg/nona/issues/11)——源码在运行时计算的 `eval` 和 `Function`。
 - [#44](https://github.com/40oleg/nona/issues/44)——Promise 反应：专用的 promise 类型，以及每个 `then` 对应一条记录。
 
 性能，[路线图](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)的主线：
