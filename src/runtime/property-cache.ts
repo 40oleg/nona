@@ -481,7 +481,10 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
     // entry's reads its inline slot; one without the key reads the data
     // property that the first prototype entry names at the current shape epoch
     // (a method of a class instance). Anything else is rt.getPropertyCached.
-    b.fn("rt.icGet", 40, (a) => {
+    // A stub without a frame: a hit touches no stack, and a miss jumps to
+    // rt.getPropertyCached with the arguments as they are, which returns to
+    // the site. Unrolled per entry so that no register has to be saved.
+    b.raw("rt.icGet", (a) => {
         const L = PropertyCacheLayout,
             miss = a.unique("miss"),
             inherited = a.unique("inherited"),
@@ -490,37 +493,42 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
             unshaped = a.unique("unshaped");
         a.load("rax", { base: "rdx" });
         a.cmp("rax", 5);
-        a.jcc("ne", miss + ".key");
+        a.jcc("ne", miss);
         a.load("r10", { base: "rdx", disp: 8 });
         a.load("rax", { base: "r10", disp: O.shape });
         a.test("rax", "rax");
         a.jcc("e", unshaped);
-        // Every shape entry (a site shared by a few classes): R8 = the entry
-        // (the key is restored from slot 32 on a miss).
-        a.store(slot(32), "r8");
+        // Every shape entry (a site shared by a few classes): R11 = the
+        // inline slot's address, or the entry's slot (negative: inherited).
         for (let i = 0; i < L.shapeEntries; i++) {
             const next = a.unique("shapeEntry");
             a.load("r11", { base: "r9", disp: L.shape + L.shapeEntry * i });
             a.cmp("rax", "r11");
             a.jcc("ne", next);
-            a.lea("r8", { base: "r9", disp: L.shapeEntry * i });
-            a.jmp(copy + ".entry");
+            a.load(
+                "r11",
+                { base: "r9", disp: L.offset + L.shapeEntry * i },
+                32,
+            );
+            a.test("r11", "r11");
+            a.jcc("ne", copy + ".inline");
+            a.loadSigned32("r11", {
+                base: "r9",
+                disp: L.slot + L.shapeEntry * i,
+            });
+            a.jmp(inherited);
             a.label(next);
         }
         a.jmp(miss);
-        a.label(copy + ".entry");
-        a.load("r11", { base: "r8", disp: L.offset }, 32);
-        a.test("r11", "r11");
-        a.jcc("e", inherited);
+        a.label(copy + ".inline");
         a.add("r11", "r10");
         a.label(copy);
         a.load("rax", { base: "r11" });
         a.store({ base: "rcx" }, "rax");
         a.load("rax", { base: "r11", disp: 8 });
         a.store({ base: "rcx", disp: 8 }, "rax");
-        a.jmp(done);
+        a.ret();
         a.label(inherited);
-        a.loadSigned32("r11", { base: "r8", disp: L.slot });
         a.test("r11", "r11");
         a.jcc("ns", miss);
         a.load("rax", { base: "r9", disp: L.epoch });
@@ -552,19 +560,17 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         // Not shaped: a function object's own property remembered by the own entry.
         a.label(unshaped);
         emitOwnEntryHit(a, done);
-        a.jmp(miss + ".key");
         a.label(miss);
-        a.load("r8", slot(32));
-        a.label(miss + ".key");
-        a.call("rt.getPropertyCached");
+        a.jmp("rt.getPropertyCached");
         a.label(done);
+        a.ret();
     });
     // `object.name = value`: RCX..R10 as for rt.setPropertyCached. A shaped
     // receiver whose shape is the record's takes the value in its inline slot.
-    b.fn("rt.icSet", 40, (a) => {
+    b.raw("rt.icSet", (a) => {
         const S = SetCacheLayout,
             miss = a.unique("miss"),
-            done = a.unique("done");
+            hit = a.unique("hit");
         a.load("rax", { base: "rcx" });
         a.cmp("rax", 5);
         a.jcc("ne", miss);
@@ -572,12 +578,12 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.load("r11", { base: "rax", disp: O.shape });
         a.test("r11", "r11");
         a.jcc("e", miss);
-        const hit = a.unique("hit");
-        a.store(slot(32), "r9");
         for (let i = 0; i < S.shapeEntries; i++) {
             const next = a.unique("shapeEntry");
-            a.load("r9", { base: "r10", disp: S.shape + S.shapeEntry * i });
-            a.cmp("r11", "r9");
+            a.cmpMemory("r11", {
+                base: "r10",
+                disp: S.shape + S.shapeEntry * i,
+            });
             a.jcc("ne", next);
             a.load(
                 "r11",
@@ -587,10 +593,8 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
             a.jmp(hit);
             a.label(next);
         }
-        a.load("r9", slot(32));
         a.jmp(miss);
         a.label(hit);
-        a.load("r9", slot(32));
         a.test("r11", "r11");
         a.jcc("e", miss);
         a.add("r11", "rax");
@@ -598,10 +602,9 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.store({ base: "r11" }, "rax");
         a.load("rax", { base: "r8", disp: 8 });
         a.store({ base: "r11", disp: 8 }, "rax");
-        a.jmp(done);
+        a.ret();
         a.label(miss);
-        a.call("rt.setPropertyCached");
-        a.label(done);
+        a.jmp("rt.setPropertyCached");
     });
     {
         const table = new Uint8Array(32);
