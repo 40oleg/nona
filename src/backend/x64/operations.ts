@@ -72,6 +72,7 @@ import {
     cacheableName,
 } from "../../runtime/property-cache.js";
 import { HasCacheLayout } from "../../runtime/has-cache.js";
+import { realmTable } from "../../runtime/constructor-prototype.js";
 import {
     ClosureDescriptor as CD,
     ClosureFlags as CF,
@@ -1533,6 +1534,165 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             ),
                         );
                     };
+                    // `f.call(thisArg, ...args)` / `f.apply(thisArg, list)` (src/ir/calls.ts):
+                    // when the callee is the builtin (by identity) and `f` a function
+                    // object, `f` is called without it. call: a plain function's code
+                    // with the direct-call convention (this as rt.invoke gives it: as is
+                    // for strict code and object receivers, the realm's global object
+                    // for undefined/null), anything else through rt.invoke with the
+                    // shifted arguments. apply: rt.applyFast for an undefined/null list
+                    // or a dense array; with an array literal that was not created
+                    // ("applyElements"), like call with its elements. Other callees and
+                    // targets make the general call (rt.applyElements creates the
+                    // literal first).
+                    const generalCall = (
+                        op: Extract<Operation, { kind: "invoke" }>,
+                    ) => {
+                        if (op.callApply !== "applyElements") {
+                            callSite(op);
+                            return;
+                        }
+                        [op.callee, op.receiver!, ...op.arguments].forEach(
+                            (n, i) => copy(stack(argsBase + 16 * i), value(n)),
+                        );
+                        pointer("rcx", op.dest);
+                        a.lea("rdx", stack(argsBase));
+                        a.mov("r8", op.arguments.length + 2);
+                        a.call("rt.applyElements");
+                    };
+                    const callApplySite = (
+                        op: Extract<Operation, { kind: "invoke" }>,
+                    ) => {
+                        if (
+                            !op.callApply ||
+                            op.direct ||
+                            op.construct ||
+                            op.tail ||
+                            op.receiver === undefined
+                        ) {
+                            generalCall(op);
+                            return;
+                        }
+                        const receiver = op.receiver,
+                            general = a.unique("callApplyGeneral"),
+                            done = a.unique("callApplyDone"),
+                            call = op;
+                        a.load("rax", value(op.callee));
+                        a.cmp("rax", 5);
+                        a.jcc("ne", general);
+                        a.load("rax", payload(op.callee));
+                        a.lea("r10", {
+                            rip:
+                                op.callApply === "call"
+                                    ? "rt.functionCall"
+                                    : "rt.functionApply",
+                        });
+                        a.cmp("rax", "r10");
+                        a.jcc("ne", general);
+                        pushCold(() => {
+                            a.label(general);
+                            generalCall(call);
+                            a.jmp(done);
+                        });
+                        if (op.callApply === "apply") {
+                            pointer("rcx", op.dest);
+                            a.lea("rdx", value(receiver));
+                            a.lea("r8", value(op.arguments[0]!));
+                            a.lea("r9", value(op.arguments[1]!));
+                            a.call("rt.applyFast");
+                            a.test("rax", "rax");
+                            a.jcc("e", general);
+                            a.label(done);
+                            return;
+                        }
+                        const args = op.arguments.slice(1),
+                            thisArg: Mem =
+                                op.arguments.length > 0
+                                    ? value(op.arguments[0]!)
+                                    : { rip: "rt.undefinedValue" },
+                            invoke = a.unique("callInvoke"),
+                            ready = a.unique("callThisReady"),
+                            tail = a.unique("tailMarker");
+                        a.load("rax", value(receiver));
+                        a.cmp("rax", 5);
+                        a.jcc("ne", general);
+                        a.load("r9", payload(receiver));
+                        a.load("rax", { base: "r9", disp: O.kind });
+                        a.cmp("rax", FunctionKind);
+                        a.jcc("ne", general);
+                        args.forEach((n, i) =>
+                            copy(stack(argsBase + 16 * i), value(n)),
+                        );
+                        for (const field of [
+                            FunctionLayout.bound,
+                            FunctionLayout.generator,
+                            FunctionLayout.arrow,
+                        ]) {
+                            a.load("rax", { base: "r9", disp: field });
+                            a.test("rax", "rax");
+                            a.jcc("ne", invoke);
+                        }
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.constructable,
+                        });
+                        a.cmp("rax", 2);
+                        a.jcc("e", invoke);
+                        a.lea("r11", thisArg);
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.rawThis,
+                        });
+                        a.test("rax", "rax");
+                        a.jcc("ne", ready);
+                        a.load("rax", { base: "r11" });
+                        a.cmp("rax", 5);
+                        a.jcc("e", ready);
+                        a.cmp("rax", 1);
+                        a.jcc("a", invoke);
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.realm,
+                        });
+                        a.and("rax", 255);
+                        a.shl("rax", 3);
+                        a.lea("r11", { rip: realmTable("rt.globalValue") });
+                        a.add("r11", "rax");
+                        a.load("r11", { base: "r11" });
+                        a.label(ready);
+                        a.store(stack(32), "r11");
+                        a.lea("rax", { rip: "rt.undefinedValue" });
+                        a.store(stack(40), "rax");
+                        pointer("rcx", op.dest);
+                        a.mov("rdx", args.length);
+                        a.lea("r8", stack(argsBase));
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.code,
+                        });
+                        a.callRegister("rax");
+                        a.load("rax", value(op.dest));
+                        a.cmp("rax", TailCallTag);
+                        a.jcc("e", tail);
+                        pushCold(() => {
+                            a.label(tail);
+                            pointer("rcx", call.dest);
+                            a.call("rt.tailDispatch");
+                            a.jmp(done);
+                        });
+                        pushCold(() => {
+                            a.label(invoke);
+                            a.lea("rax", thisArg);
+                            a.store(stack(32), "rax");
+                            pointer("rcx", call.dest);
+                            a.lea("rdx", value(receiver));
+                            a.mov("r8", args.length);
+                            a.lea("r9", stack(argsBase));
+                            a.call("rt.invoke");
+                            a.jmp(done);
+                        });
+                        a.label(done);
+                    };
                     if (
                         op.hasOwn &&
                         !op.direct &&
@@ -1586,8 +1746,12 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             a.jcc("ne", called);
                         }
                         a.label(general);
-                        callSite(op);
+                        callApplySite(op);
                         a.label(called);
+                        break;
+                    }
+                    if (op.callApply) {
+                        callApplySite(op);
                         break;
                     }
                     if (

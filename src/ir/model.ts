@@ -106,6 +106,8 @@ export type Operation =
           /** That function reads neither this nor new.target (usesFrameThis): the call passes no receiver. */ directNoThis?: boolean;
           /** The call passes exactly that function's parameters: it enters at `<direct>.direct`. */ directEntry?: boolean;
           /** `object.name(...)` (src/ir/calls.ts): a plain function callee's code is called directly. */ method?: boolean;
+          /** `f.call(thisArg, ...args)` or `f.apply(thisArg, list)` (src/ir/calls.ts): when the callee is %Function.prototype.call% / %Function.prototype.apply% and `f` a function object, `f` is called without the builtin. "applyElements": `f.apply(thisArg, [elements])` with the array literal not created, its elements are arguments[1..] (src/ir/calls.ts). */ callApply?:
+              "call" | "apply" | "applyElements";
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
       }
