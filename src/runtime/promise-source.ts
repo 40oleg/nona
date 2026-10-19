@@ -5,6 +5,7 @@ export const promisePreludeSource = runtimePromise;
 import {
     runtimeClassElements,
     runtimeEvalCode,
+    runtimeJsonResponse,
     runtimeModuleRecords,
     runtimeTopLevelAwait,
     runtimeWithStatement,
@@ -16,3 +17,4 @@ export const evalCodePreludeSource = runtimeEvalCode;
 export const classElementsPreludeSource = runtimeClassElements;
 export const moduleRecordsPreludeSource = runtimeModuleRecords;
 export const topLevelAwaitPreludeSource = runtimeTopLevelAwait;
+export const jsonResponsePreludeSource = runtimeJsonResponse;

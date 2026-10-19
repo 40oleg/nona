@@ -10,6 +10,17 @@ date and version they were measured at: v0.7.0 on 2026-10-01 and
 The scripts live in [`bench/`](bench/); `node bench/run.mjs` reproduces every
 table (protocol in [`bench/README.md`](bench/README.md)).
 
+## HTTP `/json` with the UTF-8 JSON serializer (#155)
+
+Measured 2026-10-19 on a shared Windows 11 machine, with the Linux x64 servers running in WSL2 (16 logical CPUs, 7.8 GB). Both servers are `bench/http/server.mjs` built with `--target linux-x64 --module`: "before" from `3fbc0ad2` (the base of the #155 branch), "after" from the #155 branch (`res.end(JSON.stringify(x))` through the byte serializer). The load generator is `bench/http/load.c` (50 keep-alive connections, 4 s per case; server on CPU 0, load on CPU 1), three alternating rounds; `run.sh` itself was not used because there is no Node.js in WSL, so the Node.js column is not measured here.
+
+| Case    | Before, req/s (3 rounds) | After, req/s (3 rounds)  |
+| ------- | ------------------------ | ------------------------ |
+| `hello` | 39 488 / 40 141 / 37 960 | 37 855 / 40 386 / 39 158 |
+| `/json` | 38 096 / 34 858 / 37 548 | 35 900 / 37 740 / 34 820 |
+
+The medians are 37 548 req/s before and 35 900 req/s after for `/json`: no difference beyond the round-to-round noise of about 10 % on this shared machine. The saving (one UTF-16 buffer, one finished string, one `byteLength` scan and one UTF-8 copy per response) is small next to the per-request cost of the HTTP stack at the payload size of this case, so this measurement does not show a throughput gain; a quiet reference VM and the Node.js comparison are still to be run. Absolute numbers are lower than the sections below (different machine and WSL2 networking), so only the before/after pair is comparable.
+
 ## Current release (v0.13.0) against Node.js, Deno and Bun
 
 **These are not new measurements.** The v0.13.0 release commit (2026-10-16) was

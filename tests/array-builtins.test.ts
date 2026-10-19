@@ -60,6 +60,22 @@ const cases: [string, string][] = [
         `var a=[3,2,1],mutated=false;a.sort(function(x,y){if(!mutated){mutated=true;a[0]=9}return x-y});console.log(a.join(','),mutated);`,
     ],
     [
+        "sort default on strings uses code unit order",
+        "var a=['b','','\u{1F600}','\uFFFF','a','\u00e9','B','ab','a','\uD83D','z','10','9'];var r=a.slice().sort();console.log(JSON.stringify(r),JSON.stringify(a.toSorted()));var s=[];for(var i=0;i<300;i++)s.push('k'+((i*7919)%101));s.sort();var ok=true;for(var j=1;j<s.length;j++)if(s[j-1]>s[j])ok=false;console.log(ok,s[0],s[299]);",
+    ],
+    [
+        "sort default on numbers and mixed values converts to strings",
+        "console.log([10,9,1,100].sort().join(),[3,'20',1,true,null,{toString(){return '15'}},[2]].sort().map(String).join('|'));var calls=0,x={toString(){calls++;return 'm'}},y={toString(){calls++;return 'a'}};var r=[x,'b',y,'a'].sort();console.log(r[0]===y||r[0]==='a',r.length,calls>=2);",
+    ],
+    [
+        "sort default keeps equal keys stable and undefined and holes last",
+        "var o1={toString(){return 'k'},id:1},o2={toString(){return 'k'},id:2},o3={toString(){return 'k'},id:3};var a=[o3,'a',o1,undefined,,o2];a.sort();console.log(a.length,a[0],a[1].id,a[2].id,a[3].id,a[4],4 in a,5 in a);var b=['b',undefined,'a',,'c'];b.sort();console.log(b.length,b[0],b[1],b[2],b[3],4 in b);",
+    ],
+    [
+        "sort with comparator is stable and toSorted copies",
+        "var a=[];for(var i=0;i<40;i++)a.push({k:i%3,i:i});var b=a.toSorted(function(x,y){return x.k-y.k});var ok=true;for(var j=1;j<b.length;j++)if(b[j-1].k>b[j].k||(b[j-1].k===b[j].k&&b[j-1].i>b[j].i))ok=false;console.log(ok,a[1].i,b.length,['b','a'].sort(function(x,y){return x<y?-1:1}).join(),[3,1,2].sort(function(){return NaN}).join(),[2,,1,undefined].toSorted().join('|'));var str=['pear','apple','fig'];console.log(str.toSorted().join(),str.join());",
+    ],
+    [
         "sort invalid comparator",
         `try{[].sort(null)}catch(e){console.log(e.name)}try{Array.prototype.sort.call(null)}catch(e){console.log(e.name)}`,
     ],

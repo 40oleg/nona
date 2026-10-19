@@ -2,8 +2,8 @@ import { slot } from "./abi.js";
 import type { Assembler } from "../backend/machine/context.js";
 
 // Vector scans for the first unit of a substring pattern (#253), shared by
-// indexOf, includes and lastIndexOf (string-builtins.ts) and split and
-// replaceAll (string-split.ts).
+// indexOf, includes and lastIndexOf (string-builtins.ts), split
+// (string-split.ts) and replaceAll (string-replace-all.ts).
 
 /**
  * The scan of a backward substring search (lastIndexOf, #253): moves the

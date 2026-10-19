@@ -8,6 +8,8 @@ import {
     write as writeString,
     copy as copyBytes,
     check as checkChars,
+    jsonBytes,
+    registerHttpJson,
 } from "nona:internal/native";
 
 export const METHODS = [
@@ -1031,6 +1033,17 @@ export class OutgoingMessage extends EventEmitter {
         else this._emit(null, null, null, null, done);
         return this;
     }
+    /**
+     * end(JSON.stringify(value, replacer, space)) without the intermediate
+     * string (#155): the JSON text is serialized straight into UTF-8 bytes, so
+     * Content-Length is their count and nothing is encoded again. A cycle or a
+     * BigInt throws before anything is sent; a value JSON.stringify returns
+     * undefined for ends the message without a body. The lowering sends
+     * x.end(JSON.stringify(...)) here when x.end is this method.
+     */
+    _endJson(value, replacer, space) {
+        return this.end(jsonBytes(value, replacer, space));
+    }
     /** Write completion when the message itself is the callback (no closure per message). */
     _sent(error) {
         if (!error) this._finished();
@@ -1386,7 +1399,8 @@ export class ServerResponse extends OutgoingMessage {
             !this.useChunkedEncodingByDefault ||
             (chunk !== undefined &&
                 chunk !== null &&
-                typeof chunk !== "string") ||
+                typeof chunk !== "string" &&
+                !(chunk instanceof Uint8Array)) ||
             this.finished ||
             this.destroyed
         )
@@ -1435,15 +1449,18 @@ export class ServerResponse extends OutgoingMessage {
             (code < 100 || code > 199);
         if (!hasBody) this._hasBody = false;
         const body = hasBody && chunk ? chunk : "";
+        // Bytes (a Buffer, or the UTF-8 of _endJson) are copied as they are.
+        const bytes = typeof body !== "string";
         // A large body that was just sent is likely sent again (a cached page):
         // its bytes are kept and copied instead of encoded twice per response.
-        const cached = body.length >= 2048 && body === lastBody;
-        const length =
-            body === ""
-                ? 0
-                : cached
-                  ? lastBytes.length
-                  : writeString(body, undefined, 0, false);
+        const cached = !bytes && body.length >= 2048 && body === lastBody;
+        const length = bytes
+            ? body.length
+            : body === ""
+              ? 0
+              : cached
+                ? lastBytes.length
+                : writeString(body, undefined, 0, false);
         this._contentLength = chunk
             ? typeof chunk === "string"
                 ? length || writeString(chunk, undefined, 0, false)
@@ -1457,7 +1474,10 @@ export class ServerResponse extends OutgoingMessage {
         const out = reserve(head.length + length);
         let size = writeString(head, out, 0, true);
         this._headerSent = true;
-        if (cached) {
+        if (bytes) {
+            copyBytes(body, 0, length, out, size);
+            size += length;
+        } else if (cached) {
             copyBytes(lastBytes, 0, length, out, size);
             size += length;
         } else if (length > 0) {
@@ -1484,6 +1504,19 @@ defaults(ServerResponse.prototype, {
     _expect_continue: false,
     req: null,
 });
+
+// The lowering's x.end(JSON.stringify(...)) (#155, json-response prelude):
+// end is one of the two end methods above, already read from x.
+if (registerHttpJson !== undefined) {
+    const apply = Reflect.apply;
+    registerHttpJson({
+        end: OutgoingMessage.prototype.end,
+        serverEnd: ServerResponse.prototype.end,
+        endJson(receiver, end, value, replacer, space) {
+            return apply(end, receiver, [jsonBytes(value, replacer, space)]);
+        },
+    });
+}
 
 // ---- Server --------------------------------------------------------------------------
 export class Server extends net.Server {

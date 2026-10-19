@@ -128,6 +128,8 @@ jobs:
               run: node scripts/run-suite.mjs fs
             - name: Portable process oracle suite
               run: node scripts/run-suite.mjs process
+            - name: Child process oracle suite
+              run: node scripts/run-suite.mjs child-process
             - name: Compare Linux examples with Node.js
               run: npm run compare:linux
               if: matrix.target == 'linux-arm64'

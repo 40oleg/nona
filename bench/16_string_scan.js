@@ -81,10 +81,23 @@ const lines = [];
 for (let i = 0; i < S(200000); i++)
     lines.push(`${levels[i % 4]} [${services[i % 3]}] request ${i}
 `);
-const log = lines.join("");
+const regLog = lines.join("");
 t = performance.now();
-check += log.match(/(?:ERROR|WARN) \[(?:auth|gateway)\]/g).length;
+check += regLog.match(/(?:ERROR|WARN) \[(?:auth|gateway)\]/g).length;
 const tRegExp = performance.now() - t;
+
+t = performance.now();
+// Large text with many matches: a log with S(200000) lines.
+let log = "";
+for (let i = 0; i < S(200000); i++) {
+    log += `line ${i} request ${i} took 1ms\n`;
+}
+for (let round = 0; round < S(1); round++) {
+    check += log.replaceAll("request ", "req#").length;
+    check += log.replace(/request /g, "req#").length;
+    check += log.split("request ").join("req#").length;
+}
+const tReplaceAll = performance.now() - t;
 
 console.log(
     JSON.stringify({
@@ -93,6 +106,7 @@ console.log(
         split: tSplit,
         keys: tKeys,
         regexp: tRegExp,
+        replaceAll: tReplaceAll,
         check,
     }),
 );

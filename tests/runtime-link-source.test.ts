@@ -466,6 +466,19 @@ test("syntax helpers are linked by the calls of the lowered program", () => {
     // Plain classes and public fields (defined inline) need none of them.
     assert.deepEqual(parts("class A { m() {} static s() {} }"), []);
     assert.deepEqual(parts("class A { x = 1; }"), []);
+    // x.end(JSON.stringify(...)) may take node:http's UTF-8 byte path (#155).
+    assert.deepEqual(parts("res.end(JSON.stringify({ a: 1 }, null, 2));"), [
+        "jsonResponse",
+    ]);
+    for (const other of [
+        "res.end(JSON.stringify(...args));",
+        "res.end(JSON.stringify(a), 'utf8');",
+        "res.write(JSON.stringify(a));",
+        "res.end(JSON.parse(a));",
+        "res.end(String(JSON.stringify(a)));",
+        "res?.end(JSON.stringify(a));",
+    ])
+        assert.deepEqual(parts(other), [], other);
     for (const target of ["win32-x64", "linux-x64"] as const) {
         const hello = image('console.log("hi");', {}, target).length;
         const fields = image(

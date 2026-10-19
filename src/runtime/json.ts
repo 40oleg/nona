@@ -10,7 +10,11 @@ import {
     builtinPropertyRoots,
 } from "./function-builtin.js";
 import { stringLiteral } from "./value.js";
-import { BuilderLayout } from "./string-builder.js";
+import {
+    BuilderLayout,
+    emitUtf8Sequence,
+    ifUtf8Builder,
+} from "./string-builder.js";
 import type { Assembler } from "../backend/machine/context.js";
 
 export const jsonRoots = [
@@ -191,6 +195,199 @@ function emitQuoteUnits(a: Assembler): void {
     a.label(plain);
     a.store({ base: "r9" }, "r11", 16);
     a.add("r9", 2);
+    a.label(next);
+    a.load("rax", slot(104));
+    a.add("rax", 1);
+    a.store(slot(104), "rax");
+    a.jmp(loop);
+    a.label(end);
+    emit(34);
+}
+
+/**
+ * emitQuoteUnits for a UTF-8 builder (#155): writes JSON Quote of the string
+ * at slot(72) (length at slot(96)) to R9 as UTF-8 bytes. Escapes are the
+ * same; a paired surrogate becomes one four-byte sequence and a lone one the
+ * \uXXXX escape. At most six bytes per unit. Uses the same slots and
+ * registers.
+ */
+function emitQuoteBytes(a: Assembler): void {
+    const emit = (code: number) => {
+        a.mov("r10", code);
+        a.store({ base: "r9" }, "r10", 8);
+        a.add("r9", 1);
+    };
+    const emitHex = (shifts: number[]) => {
+        for (const shift of shifts) {
+            a.mov("rax", "r11");
+            if (shift) a.shr("rax", shift);
+            a.and("rax", 15);
+            const digit = a.unique("digit"),
+                ready = a.unique("ready");
+            a.cmp("rax", 10);
+            a.jcc("b", digit);
+            a.add("rax", 87);
+            a.jmp(ready);
+            a.label(digit);
+            a.add("rax", 48);
+            a.label(ready);
+            a.store({ base: "r9" }, "rax", 8);
+            a.add("r9", 1);
+        }
+    };
+    emit(34);
+    a.mov("rax", 0);
+    a.store(slot(104), "rax");
+    const loop = a.unique("loop"),
+        end = a.unique("end"),
+        plain = a.unique("plain"),
+        escape = a.unique("escape"),
+        control = a.unique("control"),
+        two = a.unique("two"),
+        three = a.unique("three"),
+        surrogate = a.unique("surrogate"),
+        next = a.unique("next");
+    a.label(loop);
+    a.load("rax", slot(104));
+    a.load("r10", slot(96));
+    a.cmp("rax", "r10");
+    a.jcc("ae", end);
+    // Four units at a time while all are ASCII and none needs an escape; their
+    // low bytes are packed into four output bytes.
+    {
+        const single = a.unique("single"),
+            lanes = (v: bigint) => v | (v << 16n) | (v << 32n) | (v << 48n);
+        a.sub("r10", "rax");
+        a.cmp("r10", 4);
+        a.jcc("b", single);
+        a.mov("r8", "rax");
+        a.shl("r8", 1);
+        a.load("r10", slot(72));
+        a.add("r8", "r10");
+        a.load("r11", { base: "r8", disp: 8 });
+        a.mov("rcx", "r11");
+        a.mov("rdx", lanes(0x20n));
+        a.sub("rcx", "rdx");
+        a.mov("rdx", "r11");
+        a.not("rdx");
+        a.and("rcx", "rdx");
+        for (const code of [0x22n, 0x5cn]) {
+            a.mov("rdx", lanes(code));
+            a.xor("rdx", "r11");
+            a.mov("r10", "rdx");
+            a.mov("r8", lanes(1n));
+            a.sub("r10", "r8");
+            a.not("rdx");
+            a.and("r10", "rdx");
+            a.or("rcx", "r10");
+        }
+        a.mov("rdx", lanes(0x8000n));
+        a.and("rcx", "rdx");
+        a.mov("rdx", lanes(0xff80n));
+        a.and("rdx", "r11");
+        a.or("rcx", "rdx");
+        a.jcc("ne", single);
+        a.mov("rcx", "r11");
+        a.shr("rcx", 8);
+        a.or("rcx", "r11");
+        a.mov("rdx", 0x0000ffff0000ffffn);
+        a.and("rcx", "rdx");
+        a.mov("rdx", "rcx");
+        a.shr("rdx", 16);
+        a.or("rcx", "rdx");
+        a.store({ base: "r9" }, "rcx", 32);
+        a.add("r9", 4);
+        a.add("rax", 4);
+        a.store(slot(104), "rax");
+        a.jmp(loop);
+        a.label(single);
+    }
+    a.shl("rax", 1);
+    a.load("r8", slot(72));
+    a.add("r8", "rax");
+    a.load("r11", { base: "r8", disp: 8 }, 16);
+    a.cmp("r11", 34);
+    a.jcc("e", escape);
+    a.cmp("r11", 92);
+    a.jcc("e", escape);
+    a.cmp("r11", 32);
+    a.jcc("b", control);
+    a.cmp("r11", 0x80);
+    a.jcc("b", plain);
+    a.cmp("r11", 0x800);
+    a.jcc("b", two);
+    a.cmp("r11", 0xd800);
+    a.jcc("b", three);
+    a.cmp("r11", 0xdfff);
+    a.jcc("be", surrogate);
+    a.jmp(three);
+    a.label(escape);
+    emit(92);
+    a.store({ base: "r9" }, "r11", 8);
+    a.add("r9", 1);
+    a.jmp(next);
+    a.label(control);
+    for (const [code, letter] of [
+        [8, 98],
+        [9, 116],
+        [10, 110],
+        [12, 102],
+        [13, 114],
+    ] as const) {
+        const skip = a.unique("skip");
+        a.cmp("r11", code);
+        a.jcc("ne", skip);
+        emit(92);
+        emit(letter);
+        a.jmp(next);
+        a.label(skip);
+    }
+    emit(92);
+    emit(117);
+    emit(48);
+    emit(48);
+    emitHex([4, 0]);
+    a.jmp(next);
+    a.label(surrogate);
+    a.cmp("r11", 0xdbff);
+    const lone = a.unique("lone");
+    a.jcc("a", lone);
+    a.load("rax", slot(104));
+    a.add("rax", 1);
+    a.load("r10", slot(96));
+    a.cmp("rax", "r10");
+    a.jcc("ae", lone);
+    a.shl("rax", 1);
+    a.load("r8", slot(72));
+    a.add("r8", "rax");
+    a.load("r10", { base: "r8", disp: 8 }, 16);
+    a.cmp("r10", 0xdc00);
+    a.jcc("b", lone);
+    a.cmp("r10", 0xdfff);
+    a.jcc("a", lone);
+    a.sub("r11", 0xd800);
+    a.shl("r11", 10);
+    a.add("r11", "r10");
+    a.add("r11", 0x10000 - 0xdc00);
+    emitUtf8Sequence(a, 4, "r11", "r8", "r9");
+    a.load("rax", slot(104));
+    a.add("rax", 1);
+    a.store(slot(104), "rax");
+    a.jmp(next);
+    a.label(lone);
+    emit(92);
+    emit(117);
+    emitHex([12, 8, 4, 0]);
+    a.jmp(next);
+    a.label(two);
+    emitUtf8Sequence(a, 2, "r11", "r8", "r9");
+    a.jmp(next);
+    a.label(three);
+    emitUtf8Sequence(a, 3, "r11", "r8", "r9");
+    a.jmp(next);
+    a.label(plain);
+    a.store({ base: "r9" }, "r11", 8);
+    a.add("r9", 1);
     a.label(next);
     a.load("rax", slot(104));
     a.add("rax", 1);
@@ -410,6 +607,9 @@ export function emitJson(b: RuntimeBuilder): void {
         a.mov("rdx", "rax");
         a.call("rt.builderReserve");
         a.load("rcx", slot(40));
+        const bytes = a.unique("bytes"),
+            appended = a.unique("appended");
+        ifUtf8Builder(a, "rcx", bytes);
         a.load("rax", { base: "rcx", disp: BuilderLayout.length });
         a.shl("rax", 1);
         a.load("r9", { base: "rcx", disp: BuilderLayout.buffer });
@@ -419,6 +619,17 @@ export function emitJson(b: RuntimeBuilder): void {
         a.load("r10", slot(48));
         a.sub("r9", "r10");
         a.shr("r9", 1);
+        a.jmp(appended);
+        // A UTF-8 builder reserved the same count, in bytes.
+        a.label(bytes);
+        a.load("rax", { base: "rcx", disp: BuilderLayout.length });
+        a.load("r9", { base: "rcx", disp: BuilderLayout.buffer });
+        a.add("r9", "rax");
+        a.store(slot(48), "r9");
+        emitQuoteBytes(a);
+        a.load("r10", slot(48));
+        a.sub("r9", "r10");
+        a.label(appended);
         a.load("rcx", slot(40));
         a.load("rax", { base: "rcx", disp: BuilderLayout.length });
         a.add("rax", "r9");
@@ -465,103 +676,117 @@ export function emitJson(b: RuntimeBuilder): void {
 
     // State record at slot 112: replacer, gap, indent, then the string builder
     // (string-builder.ts) every nested rt.jsonStringifyValue appends to.
-    rootedFn(
-        b,
-        "rt.JSON.stringify.fn.code",
-        216,
-        [
-            { kind: "output", register: "rcx" },
-            { kind: "range", register: "r8", count: "rdx" },
-            { kind: "locals", offset: 64, count: 6 },
-        ],
-        (a) => {
-            a.store(slot(40), "rcx");
-            a.store(slot(48), "rdx");
-            a.store(slot(56), "r8");
-            a.mov("rax", 0);
-            for (const offset of [160, 168, 176]) a.store(slot(offset), "rax");
-            a.test("rdx", "rdx");
-            const supplied = a.unique("supplied");
-            a.jcc("ne", supplied);
-            a.lea("r8", { rip: "rt.undefinedValue" });
-            a.label(supplied);
-            for (const n of [0, 8]) {
-                a.load("rax", { base: "r8", disp: n });
-                a.store(slot(64 + n), "rax");
-            }
-            a.cmp("rdx", 2);
-            const noReplacer = a.unique("noReplacer");
-            a.jcc("b", noReplacer);
-            for (const n of [0, 8]) {
-                a.load("rax", { base: "r8", disp: 16 + n });
-                a.store(slot(112 + n), "rax");
-            }
-            a.label(noReplacer);
-            a.lea("rcx", slot(112));
-            a.lea("rdx", slot(112));
-            a.call("rt.jsonBuildPropertyList");
-            a.load("rax", slot(48));
-            a.cmp("rax", 3);
-            const noSpace = a.unique("noSpace"),
-                spaceReady = a.unique("spaceReady");
-            a.jcc("b", noSpace);
-            a.load("r10", slot(56));
-            a.lea("rdx", { base: "r10", disp: 32 });
-            a.jmp(spaceReady);
-            a.label(noSpace);
-            a.lea("rdx", { rip: "rt.undefinedValue" });
-            a.label(spaceReady);
-            a.lea("rcx", slot(128));
-            a.call("rt.jsonNormalizeGap");
-            a.mov("rax", 4);
-            a.store(slot(144), "rax");
-            a.lea("rax", { rip: "rt.str.empty" });
-            a.store(slot(152), "rax");
-            a.mov("rax", 4);
-            a.store(slot(96), "rax");
-            a.lea("rax", { rip: "rt.str.empty" });
-            a.store(slot(104), "rax");
-            // The wrapper {"": value} is only observable as a replacer function's
-            // `this`; without one the holder stays undefined.
-            {
-                const noWrapper = a.unique("noWrapper");
+    // rt.jsonStringifyBytes (#155, __nonaJsonStringifyBytes of
+    // nona:internal/native) is the same with the builder in UTF-8 mode: it
+    // returns a Uint8Array of the UTF-8 bytes of what JSON.stringify returns,
+    // or undefined. A throw leaves the builder's raw buffer behind, as it does
+    // for JSON.stringify.
+    for (const [name, utf8] of [
+        ["rt.JSON.stringify.fn.code", false],
+        ["rt.jsonStringifyBytes.code", true],
+    ] as const)
+        rootedFn(
+            b,
+            name,
+            216,
+            [
+                { kind: "output", register: "rcx" },
+                { kind: "range", register: "r8", count: "rdx" },
+                { kind: "locals", offset: 64, count: 6 },
+            ],
+            (a) => {
+                a.store(slot(40), "rcx");
+                a.store(slot(48), "rdx");
+                a.store(slot(56), "r8");
                 a.mov("rax", 0);
-                a.store(slot(80), "rax");
-                a.store(slot(88), "rax");
-                a.load("rax", slot(112));
-                a.cmp("rax", 5);
-                a.jcc("ne", noWrapper);
-                a.load("r10", slot(120));
-                a.load("rax", { base: "r10", disp: O.kind });
-                a.cmp("rax", 2);
-                a.jcc("ne", noWrapper);
-                a.lea("rcx", slot(80));
-                a.mov("rdx", 0);
-                a.mov("r8", 0);
-                a.call("rt.newObject");
-                a.lea("rcx", slot(80));
-                a.lea("rdx", slot(96));
-                a.lea("r8", slot(64));
-                a.mov("r9", 1);
-                a.call("rt.setProperty");
-                a.label(noWrapper);
-            }
-            a.lea("rax", slot(112));
-            a.store(slot(32), "rax");
-            a.load("rcx", slot(40));
-            a.lea("rdx", slot(64));
-            a.lea("r8", slot(96));
-            a.lea("r9", slot(80));
-            a.call("rt.jsonStringifyValue");
-            const omitted = a.unique("omitted");
-            a.load("rcx", slot(40));
-            a.load("rax", { base: "rcx" });
-            a.test("rax", "rax");
-            a.jcc("e", omitted);
-            a.lea("rcx", slot(160));
-            a.load("rdx", slot(40));
-            a.call("rt.builderFinish");
-            a.label(omitted);
-        },
-    );
+                for (const offset of [160, 168, 176, 184])
+                    a.store(slot(offset), "rax");
+                if (utf8) {
+                    a.mov("rax", 1);
+                    a.store(slot(160 + BuilderLayout.utf8), "rax");
+                }
+                a.test("rdx", "rdx");
+                const supplied = a.unique("supplied");
+                a.jcc("ne", supplied);
+                a.lea("r8", { rip: "rt.undefinedValue" });
+                a.label(supplied);
+                for (const n of [0, 8]) {
+                    a.load("rax", { base: "r8", disp: n });
+                    a.store(slot(64 + n), "rax");
+                }
+                a.cmp("rdx", 2);
+                const noReplacer = a.unique("noReplacer");
+                a.jcc("b", noReplacer);
+                for (const n of [0, 8]) {
+                    a.load("rax", { base: "r8", disp: 16 + n });
+                    a.store(slot(112 + n), "rax");
+                }
+                a.label(noReplacer);
+                a.lea("rcx", slot(112));
+                a.lea("rdx", slot(112));
+                a.call("rt.jsonBuildPropertyList");
+                a.load("rax", slot(48));
+                a.cmp("rax", 3);
+                const noSpace = a.unique("noSpace"),
+                    spaceReady = a.unique("spaceReady");
+                a.jcc("b", noSpace);
+                a.load("r10", slot(56));
+                a.lea("rdx", { base: "r10", disp: 32 });
+                a.jmp(spaceReady);
+                a.label(noSpace);
+                a.lea("rdx", { rip: "rt.undefinedValue" });
+                a.label(spaceReady);
+                a.lea("rcx", slot(128));
+                a.call("rt.jsonNormalizeGap");
+                a.mov("rax", 4);
+                a.store(slot(144), "rax");
+                a.lea("rax", { rip: "rt.str.empty" });
+                a.store(slot(152), "rax");
+                a.mov("rax", 4);
+                a.store(slot(96), "rax");
+                a.lea("rax", { rip: "rt.str.empty" });
+                a.store(slot(104), "rax");
+                // The wrapper {"": value} is only observable as a replacer function's
+                // `this`; without one the holder stays undefined.
+                {
+                    const noWrapper = a.unique("noWrapper");
+                    a.mov("rax", 0);
+                    a.store(slot(80), "rax");
+                    a.store(slot(88), "rax");
+                    a.load("rax", slot(112));
+                    a.cmp("rax", 5);
+                    a.jcc("ne", noWrapper);
+                    a.load("r10", slot(120));
+                    a.load("rax", { base: "r10", disp: O.kind });
+                    a.cmp("rax", 2);
+                    a.jcc("ne", noWrapper);
+                    a.lea("rcx", slot(80));
+                    a.mov("rdx", 0);
+                    a.mov("r8", 0);
+                    a.call("rt.newObject");
+                    a.lea("rcx", slot(80));
+                    a.lea("rdx", slot(96));
+                    a.lea("r8", slot(64));
+                    a.mov("r9", 1);
+                    a.call("rt.setProperty");
+                    a.label(noWrapper);
+                }
+                a.lea("rax", slot(112));
+                a.store(slot(32), "rax");
+                a.load("rcx", slot(40));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(96));
+                a.lea("r9", slot(80));
+                a.call("rt.jsonStringifyValue");
+                const omitted = a.unique("omitted");
+                a.load("rcx", slot(40));
+                a.load("rax", { base: "rcx" });
+                a.test("rax", "rax");
+                a.jcc("e", omitted);
+                a.lea("rcx", slot(160));
+                a.load("rdx", slot(40));
+                a.call(utf8 ? "rt.builderFinishBytes" : "rt.builderFinish");
+                a.label(omitted);
+            },
+        );
 }
