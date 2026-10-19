@@ -67,6 +67,7 @@ import {
 } from "../../runtime/environment-layout.js";
 import {
     PropertyCacheLayout,
+    MethodCacheLayout,
     SetCacheLayout,
     cacheableName,
 } from "../../runtime/property-cache.js";
@@ -1589,6 +1590,87 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         a.label(called);
                         break;
                     }
+                    if (
+                        op.method &&
+                        !op.direct &&
+                        !op.construct &&
+                        !op.tail &&
+                        op.receiver !== undefined
+                    ) {
+                        // `object.name(...)` (src/ir/calls.ts): a plain function (not
+                        // bound, a generator or async, an arrow or a class constructor)
+                        // is called at its code with the direct-call convention below.
+                        // The receiver is this: an object as is, a primitive only for
+                        // strict code (sloppy code boxes it on the general path).
+                        op.arguments.forEach((n, i) =>
+                            copy(stack(argsBase + 16 * i), value(n)),
+                        );
+                        const general = a.unique("generalCall"),
+                            called = a.unique("called"),
+                            object = a.unique("objectThis"),
+                            tail = a.unique("tailMarker"),
+                            call = op;
+                        a.load("rax", value(op.callee));
+                        a.cmp("rax", 5);
+                        a.jcc("ne", general);
+                        a.load("r9", payload(op.callee));
+                        a.load("rax", { base: "r9", disp: O.kind });
+                        a.cmp("rax", FunctionKind);
+                        a.jcc("ne", general);
+                        for (const field of [
+                            FunctionLayout.bound,
+                            FunctionLayout.generator,
+                            FunctionLayout.arrow,
+                        ]) {
+                            a.load("rax", { base: "r9", disp: field });
+                            a.test("rax", "rax");
+                            a.jcc("ne", general);
+                        }
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.constructable,
+                        });
+                        a.cmp("rax", 2);
+                        a.jcc("e", general);
+                        a.load("rax", value(op.receiver));
+                        a.cmp("rax", 5);
+                        a.jcc("e", object);
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.rawThis,
+                        });
+                        a.test("rax", "rax");
+                        a.jcc("e", general);
+                        a.label(object);
+                        a.lea("rax", value(op.receiver));
+                        a.store(stack(32), "rax");
+                        a.lea("rax", { rip: "rt.undefinedValue" });
+                        a.store(stack(40), "rax");
+                        pointer("rcx", op.dest);
+                        a.mov("rdx", op.arguments.length);
+                        a.lea("r8", stack(argsBase));
+                        a.load("rax", {
+                            base: "r9",
+                            disp: FunctionLayout.code,
+                        });
+                        a.callRegister("rax");
+                        a.load("rax", value(op.dest));
+                        a.cmp("rax", TailCallTag);
+                        a.jcc("e", tail);
+                        pushCold(() => {
+                            a.label(tail);
+                            pointer("rcx", call.dest);
+                            a.call("rt.tailDispatch");
+                            a.jmp(called);
+                        });
+                        pushCold(() => {
+                            a.label(general);
+                            callSite(call);
+                            a.jmp(called);
+                        });
+                        a.label(called);
+                        break;
+                    }
                     if (!op.direct) {
                         callSite(op);
                         break;
@@ -1802,17 +1884,22 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         op.keyName !== undefined &&
                         cacheableName(op.keyName)
                     ) {
+                        // The callee of a method call gets a record with method entries.
                         const cache = "ic." + fragments.length;
                         fragments.push({
                             name: cache,
                             section: ".data",
                             alignment: 8,
-                            bytes: new Uint8Array(PropertyCacheLayout.size),
+                            bytes: new Uint8Array(
+                                op.method
+                                    ? MethodCacheLayout.size
+                                    : PropertyCacheLayout.size,
+                            ),
                             fixups: [],
                             symbols: {},
                         });
                         a.lea("r9", { rip: cache });
-                        a.call("rt.icGet");
+                        a.call(op.method ? "rt.icMethod" : "rt.icGet");
                         break;
                     }
                     // `'name' in object`: a per-site cache for shaped receivers (has-cache.ts).

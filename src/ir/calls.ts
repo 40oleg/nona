@@ -1,4 +1,5 @@
 import type { FunctionIR, ModuleIR, Operation } from "./model.js";
+import { cacheableName } from "../runtime/property-cache.js";
 
 /**
  * Direct calls (roadmap item 16): a call whose callee is a function
@@ -57,6 +58,10 @@ export function usesFrameThis(fn: FunctionIR): boolean {
 }
 
 export function annotateDirectCalls(module: ModuleIR): ModuleIR {
+    return annotateMethodCalls(annotateKnownCallees(module));
+}
+
+function annotateKnownCallees(module: ModuleIR): ModuleIR {
     const callable = new Map<string, Target | null>(),
         byId = new Map(module.functions.map((fn) => [fn.id, fn]));
     // Slots that hold a function declaration's closure (or, as "", the
@@ -176,4 +181,65 @@ export function annotateDirectCalls(module: ModuleIR): ModuleIR {
             entered.has(fn.id) ? { ...fn, directEntry: true } : fn,
         ),
     };
+}
+
+/**
+ * Method calls (#47): `object.name(...)` is a cached read of `name` whose
+ * result is the callee of an invoke with `object` as the receiver. Both are
+ * flagged `method`: the read gets a cache record with entries for several
+ * receiver shapes (MethodCacheLayout, rt.icMethod) and the invoke calls a
+ * plain function's code directly. The flags are hints: the invoke checks the
+ * callee it gets, so a pairing that a later write breaks only costs speed.
+ * Construct, tail, direct and hasOwnProperty calls keep their own paths.
+ */
+function annotateMethodCalls(module: ModuleIR): ModuleIR {
+    let changed = false;
+    const functions = module.functions.map((fn) => {
+        let marked = false;
+        const blocks = fn.blocks.map((block) => {
+            // dest of a cacheable read -> [its index, its object]
+            const reads = new Map<number, [number, number]>(),
+                flagged = new Set<number>();
+            block.operations.forEach((op, index) => {
+                if (
+                    op.kind === "invoke" &&
+                    op.receiver !== undefined &&
+                    !op.construct &&
+                    !op.tail &&
+                    !op.direct &&
+                    !op.hasOwn
+                ) {
+                    const read = reads.get(op.callee);
+                    if (read && read[1] === op.receiver) {
+                        flagged.add(read[0]);
+                        flagged.add(index);
+                    }
+                }
+                if ("dest" in op)
+                    for (const [dest, [, object]] of reads)
+                        if (dest === op.dest || object === op.dest)
+                            reads.delete(dest);
+                if (
+                    op.kind === "property" &&
+                    op.operation === "get" &&
+                    op.keyName !== undefined &&
+                    cacheableName(op.keyName) &&
+                    op.dest !== op.object
+                )
+                    reads.set(op.dest, [index, op.object]);
+            });
+            if (!flagged.size) return block;
+            marked = true;
+            return {
+                ...block,
+                operations: block.operations.map((op, index) =>
+                    flagged.has(index) ? { ...op, method: true } : op,
+                ),
+            };
+        });
+        if (!marked) return fn;
+        changed = true;
+        return { ...fn, blocks };
+    });
+    return changed ? { ...module, functions } : module;
 }

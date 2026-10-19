@@ -105,6 +105,7 @@ export type Operation =
           /** That function is strict (receives this unchanged). */ directStrict?: boolean;
           /** That function reads neither this nor new.target (usesFrameThis): the call passes no receiver. */ directNoThis?: boolean;
           /** The call passes exactly that function's parameters: it enters at `<direct>.direct`. */ directEntry?: boolean;
+          /** `object.name(...)` (src/ir/calls.ts): a plain function callee's code is called directly. */ method?: boolean;
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
       }
@@ -187,6 +188,7 @@ export type Operation =
           object: number;
           key: number;
           /** The key is this literal name (`object.name`): the read may use an inline cache. */ keyName?: string;
+          /** The read is the callee of a method call `object.name(...)` (src/ir/calls.ts): its cache record has method entries (MethodCacheLayout). */ method?: boolean;
       }
     | {
           kind: "setProperty";
