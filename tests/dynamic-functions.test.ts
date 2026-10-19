@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runOnHost } from "./helpers/host.js";
+import { runOracle } from "./helpers/oracle.js";
 
 // Function() with string-literal arguments is compiled ahead of time; see src/frontend/dynamic-functions.ts.
 test("Function with literal source creates global-scope sloppy functions", () => {
@@ -89,4 +90,16 @@ try { new Fn('a b', ''); } catch (e) { console.log(e.name); }
 `);
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, "5 2 anonymous true\n42 true\nSyntaxError\n");
+});
+
+test("dynamic functions: source text follows CreateDynamicFunction", () => {
+    const source = `const GF = Object.getPrototypeOf(function* () {}).constructor;
+const AF = Object.getPrototypeOf(async function () {}).constructor;
+console.log(JSON.stringify([Function('a', 'b', 'return a + b').toString(), new Function(\`return 1\`).toString(), Function().toString(),
+ GF('yield 1').toString(), AF('a', 'return a').toString(), Function('a', 'b', 'return a').name]));
+try { Function('a', 'return }'); } catch (e) { console.log(e.name); }`;
+    const run = runOnHost(source);
+    assert.equal(run.status, 0, run.stderr);
+    const oracle = runOracle(source).stdout;
+    assert.equal(run.stdout, oracle);
 });

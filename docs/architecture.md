@@ -26,7 +26,7 @@ source text
   -> link          src/backend/{pe,linux,darwin,bsd}/   PE, ELF or Mach-O file
 ```
 
-`eval` and `Function` are compiled ahead of time when their source text is a compile-time constant; other sources throw `EvalError` (a documented exception, issue #11).
+`eval` and `Function` are compiled ahead of time when their source text is a compile-time constant; other sources throw `EvalError` (a permanent documented exception, [issue #11](https://github.com/40oleg/nona/issues/11), [ES2020 contract](es2020-contract.md)).
 
 ## Source layout
 

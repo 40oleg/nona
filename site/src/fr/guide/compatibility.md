@@ -17,7 +17,7 @@ Nona compile à l’avance ; `eval` et les constructeurs dynamiques de fonctions
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-Les sources calculés à l’exécution sont suivis dans [#11](https://github.com/40oleg/nona/issues/11).
+C’est une exception permanente et documentée ([#11](https://github.com/40oleg/nona/issues/11), [contrat ES2020](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)) : les exécutables générés ne contiennent ni interpréteur ni compilateur.
 
 ## Différences avec Node.js
 
