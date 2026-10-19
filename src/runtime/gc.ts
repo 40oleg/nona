@@ -97,7 +97,12 @@ import {
     generatorPropertyRoots,
 } from "./generator.js";
 import { asyncRoots, asyncPropertyRoots } from "./async.js";
-import { PromiseKind, PromiseLayout } from "./promise-layout.js";
+import {
+    PromiseKind,
+    PromiseLayout,
+    PromiseLists,
+    promiseValueSlots,
+} from "./promise-layout.js";
 import { CellTag, EnvironmentLayout as E } from "./environment-layout.js";
 import { BoxKind, BoxLayout } from "./boxing.js";
 import { callStaticProperties } from "./function-call.js";
@@ -606,15 +611,10 @@ export function emitGc(
         const notPromise = a.unique("notPromise");
         a.cmp("rax", PromiseKind);
         a.jcc("ne", notPromise);
-        for (const offset of [
-            PromiseLayout.value,
-            PromiseLayout.first,
-            PromiseLayout.last,
-        ]) {
-            a.load("rcx", slot(40));
-            a.add("rcx", offset);
-            a.call("rt.gcMarkValue");
-        }
+        a.load("rcx", slot(40));
+        a.add("rcx", PromiseLayout.value);
+        a.mov("rdx", promiseValueSlots);
+        a.call("rt.gcMarkRange");
         a.jmp(done);
         a.label(notPromise);
         // Private finalization callbacks are strong during marking. A callback
@@ -1078,6 +1078,9 @@ export function emitGc(
         a.lea("rcx", { rip: "rt.preludeGlobals" });
         a.mov("rdx", 3);
         a.call("rt.gcMarkRange");
+        a.lea("rcx", { rip: "rt.promiseRealm" });
+        a.mov("rdx", 3);
+        a.call("rt.gcMarkRange");
         for (const prototype of [
             "objectPrototype",
             "arrayPrototype",
@@ -1432,8 +1435,8 @@ export function emitGc(
         a.lea("rcx", { rip: "rt.tailStaging" });
         a.mov("rdx", tailStagingCapacity);
         a.call("rt.gcMarkRange");
-        a.lea("rcx", { rip: "rt.sharedJobQueue" });
-        a.mov("rdx", 1);
+        a.lea("rcx", { rip: "rt.promiseLists" });
+        a.mov("rdx", PromiseLists.size / 16);
         a.call("rt.gcMarkRange");
         a.call("rt.gcMarkRealm");
         a.call("rt.gcMarkShapes");
