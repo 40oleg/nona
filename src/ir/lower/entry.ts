@@ -385,6 +385,18 @@ export abstract class EntryLowerer extends AssignmentCallLowerer {
             name:
                 this.fn?.declaration.id?.name ??
                 (this.fn ? "<anonymous>" : "<main>"),
+            ...(this.fn
+                ? {
+                      origin: {
+                          script:
+                              this.fn.module === undefined
+                                  ? ""
+                                  : this.bound.modules![this.fn.module]!.record
+                                        .path,
+                          start: this.fn.declaration.span.start,
+                      },
+                  }
+                : {}),
             parameterCount: this.fn?.parameters.length ?? 0,
             localCount: this.fn?.locals.length ?? this.bound.mainLocals.length,
             slotCount: this.slots,

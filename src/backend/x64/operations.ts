@@ -1,3 +1,4 @@
+import { appendFileSync } from "node:fs";
 import { createAssembler } from "../machine/context.js";
 import {
     HandlerLayout as H,
@@ -220,6 +221,17 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness = analyzeLiveness(fn),
         locations = assignLocations(fn, liveness);
+    // NONA_FN_NAMES=<file>: append "id name" per compiled function, for
+    // profiling tools (scripts/profile-runtime.mjs names js.fn.N with it).
+    if (process.env.NONA_FN_NAMES)
+        appendFileSync(
+            process.env.NONA_FN_NAMES,
+            fn.id +
+                " " +
+                (fn.name || fn.source?.name || "") +
+                (fn.origin ? ` ${fn.origin.script}:${fn.origin.start}` : "") +
+                "\n",
+        );
     const a = createAssembler(fn.id),
         rootBase = JF.roots,
         valueBase = JF.values,

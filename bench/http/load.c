@@ -1,6 +1,8 @@
 // HTTP/1.1 load generator: N connections, one outstanding request each, epoll,
 // edge-free fast path: the next request is sent right after a response
-// completes (no epoll_ctl per request). Usage: load2 PORT CONNS SECONDS [path] [close] [bodybytes]
+// completes (no epoll_ctl per request).
+// Usage: load PORT CONNS SECONDS [path] [keep|close] [bodybytes] [headers]
+// "headers" adds the ten request headers of the headers case of server.mjs.
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,8 +65,15 @@ static int feed(conn_t*c,char*p,long n){
 int main(int argc,char**argv){
   port=atoi(argv[1]); int nc=atoi(argv[2]); double secs=atof(argv[3]); const char*path=argc>4?argv[4]:"/";
   keepalive=!(argc>5&&!strcmp(argv[5],"close")); body=argc>6?atol(argv[6]):0;
-  if(body>0) reqlen=snprintf(req,sizeof req,"POST %s HTTP/1.1\r\nHost: localhost\r\nContent-Length: %ld\r\n%s\r\n",path,body,keepalive?"":"Connection: close\r\n");
-  else reqlen=snprintf(req,sizeof req,"GET %s HTTP/1.1\r\nHost: localhost\r\n%s\r\n",path,keepalive?"":"Connection: close\r\n");
+  const char*extra=argc>7&&!strcmp(argv[7],"headers")?
+    "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36\r\n"
+    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+    "Accept-Language: en-US,en;q=0.5\r\nAccept-Encoding: gzip, deflate, br\r\n"
+    "X-Request-Id: 7f3c2a1e-9b4d-4c8e-a1f2-3d5e6f708192\r\nX-Forwarded-For: 203.0.113.42, 198.51.100.17\r\n"
+    "X-Trace: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01\r\nReferer: https://example.com/products/42?ref=home\r\n"
+    "Cache-Control: max-age=0\r\nIf-None-Match: \"5d8c72a5edda8d6a:0\"\r\n":"";
+  if(body>0) reqlen=snprintf(req,sizeof req,"POST %s HTTP/1.1\r\nHost: localhost\r\nContent-Length: %ld\r\n%s%s\r\n",path,body,extra,keepalive?"":"Connection: close\r\n");
+  else reqlen=snprintf(req,sizeof req,"GET %s HTTP/1.1\r\nHost: localhost\r\n%s%s\r\n",path,extra,keepalive?"":"Connection: close\r\n");
   bodybuf=calloc(1,body+1); memset(bodybuf,'x',body);
   epfd=epoll_create1(0); conn_t*cs=calloc(nc,sizeof(conn_t)); for(int i=0;i<nc;i++)open_conn(&cs[i]);
   double t0=now(), warm=t0+0.5, end=warm+secs; struct epoll_event ev[512];
