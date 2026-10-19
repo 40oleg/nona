@@ -1322,8 +1322,12 @@ export function emitHttpNative(b: RuntimeBuilder): void {
     // index of its string there (direct-mapped, 256 entries of {hash, index}),
     // so the same name gives the same string object on every request, and
     // the headers object's shape transitions compare keys by identity.
-    b.data("rt.netNameHashes", new Uint8Array(8 * 256), ".data");
-    b.data("rt.netNameTable", new Uint8Array(16 * 256), ".data");
+    // One block outside the collected heap, allocated on first use (not in
+    // the image): the table (256 entries of 16 bytes), then the hashes of
+    // the names of the request being folded (128 of 8 bytes).
+    b.data("rt.netNameTable", new Uint8Array(8), ".data");
+    const nameTableBytes = 16 * 256,
+        nameBlockBytes = nameTableBytes + 8 * 128;
     b.fn("rt.netLowerNames.code", 136, (a) => {
         // Frame: 48 the elements table, 56 count, 64 index, 72 the array
         // Value (16 bytes), 88 a string Value (16 bytes), 104 the intern
@@ -1369,9 +1373,27 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.jcc("ne", bad);
         a.store(slot(48), "r10");
         a.load("rax", { base: "r10", disp: EL.count });
-        a.cmp("rax", 512);
+        a.cmp("rax", 256);
         a.jcc("a", bad);
         a.store(slot(56), "rax");
+        {
+            const have = a.unique("haveTable"),
+                ok = a.unique("allocated");
+            a.load("rax", { rip: "rt.netNameTable" });
+            a.test("rax", "rax");
+            a.jcc("ne", have);
+            a.load("rcx", { rip: "rt.heap" });
+            a.mov("rdx", 8);
+            a.mov("r8", nameBlockBytes);
+            a.callImport("HeapAlloc");
+            a.test("rax", "rax");
+            a.jcc("ne", ok);
+            a.call("rt.fail");
+            a.label(ok);
+            a.store({ rip: "rt.netNameTable" }, "rax");
+            a.label(have);
+            a.load("rax", slot(56));
+        }
         {
             const empty = a.unique("empty"),
                 made = a.unique("made");
@@ -1417,9 +1439,9 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.load("rcx", slot(64));
         a.shr("rcx", 1);
         a.shl("rcx", 3);
-        a.lea("r10", { rip: "rt.netNameHashes" });
+        a.load("r10", { rip: "rt.netNameTable" });
         a.add("r10", "rcx");
-        a.store({ base: "r10" }, "rdx");
+        a.store({ base: "r10", disp: nameTableBytes }, "rdx");
         // Interning: the table entry for the hash names a string of the intern
         // array with the same units (reused), or the new string is added there.
         {
@@ -1432,7 +1454,7 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             a.mov("rcx", "rdx");
             a.and("rcx", 255);
             a.shl("rcx", 4);
-            a.lea("r8", { rip: "rt.netNameTable" });
+            a.load("r8", { rip: "rt.netNameTable" });
             a.add("r8", "rcx");
             a.store(slot(128), "r8");
             a.load("r9", { base: "r9", disp: 8 });
@@ -1505,7 +1527,8 @@ export function emitHttpNative(b: RuntimeBuilder): void {
                 distinct = a.unique("distinct");
             a.load("r11", slot(56));
             a.shr("r11", 1);
-            a.lea("r9", { rip: "rt.netNameHashes" });
+            a.load("r9", { rip: "rt.netNameTable" });
+            a.add("r9", nameTableBytes);
             a.mov("rcx", 0);
             a.label(outer);
             a.cmp("rcx", "r11");
