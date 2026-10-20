@@ -385,7 +385,10 @@ function contains(root: unknown, test: (node: A.Node) => boolean): boolean {
         }
         if (!value || typeof value !== "object") continue;
         const record = value as Record<string, unknown>;
-        if (typeof record.kind === "string" && test(record as unknown as A.Node))
+        if (
+            typeof record.kind === "string" &&
+            test(record as unknown as A.Node)
+        )
             return true;
         for (const [key, child] of Object.entries(record))
             if (!skippedKeys.has(key)) pending.push(child);
@@ -459,7 +462,10 @@ function analyze(
                             ? {
                                   kind: "const",
                                   at: [index, ordinal],
-                                  init: d.id.kind === "Identifier" ? d.init : null,
+                                  init:
+                                      d.id.kind === "Identifier"
+                                          ? d.init
+                                          : null,
                               }
                             : {
                                   kind: declaration.declarationKind,
@@ -595,9 +601,7 @@ function analyze(
             primitive(e.right));
     const arguments_ = (list: A.Argument[], context: Context): boolean =>
         list.every((a) => a.kind !== "SpreadElement" && pure(a, context));
-    const classPure = (
-        c: A.ClassDeclaration | A.ClassExpression,
-    ): boolean =>
+    const classPure = (c: A.ClassDeclaration | A.ClassExpression): boolean =>
         c.superClass === null &&
         c.methods.every(
             (m) =>
@@ -664,7 +668,8 @@ function analyze(
                 );
             }
             case "Call":
-                if (ffiDefine(e.callee)) return arguments_(e.arguments, context);
+                if (ffiDefine(e.callee))
+                    return arguments_(e.arguments, context);
                 return (
                     e.callee.kind === "Identifier" &&
                     !context.locals?.has(e.callee.name) &&
@@ -867,7 +872,8 @@ function analyze(
                         : [];
             const unit = add(
                 {
-                    label: names.join(",") || `<effect@${statement.span.start}>`,
+                    label:
+                        names.join(",") || `<effect@${statement.span.start}>`,
                     usage: whole,
                     root: true,
                 },
@@ -1038,7 +1044,9 @@ function analyze(
             return;
         }
         if (declaration?.kind === "Var") {
-            if (declaration.declarations.some((d) => d.id.kind !== "Identifier")) {
+            if (
+                declaration.declarations.some((d) => d.id.kind !== "Identifier")
+            ) {
                 root();
                 if (exported)
                     for (const d of declaration.declarations)
@@ -1121,7 +1129,9 @@ function analyze(
             if (targets) {
                 const unit = add(
                     {
-                        label: targets.map(([t, key]) => `${t}.${key}=`).join(""),
+                        label: targets
+                            .map(([t, key]) => `${t}.${key}=`)
+                            .join(""),
                         usage: whole,
                         root: false,
                     },
