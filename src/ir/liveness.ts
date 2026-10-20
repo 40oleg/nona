@@ -77,7 +77,6 @@ function transfer(operation: Operation, live: Set<number>): void {
         case "currentThis":
         case "currentFunction":
         case "loadCapture":
-        case "newObject":
         case "newRestArray":
         case "uninitialized":
         case "immutableWrite":
@@ -85,6 +84,15 @@ function transfer(operation: Operation, live: Set<number>): void {
         case "loadGlobal":
         case "globalObject":
         case "readGlobalProperty":
+            return;
+        case "newObject":
+            if (operation.literal)
+                for (const n of [
+                    ...operation.literal.keys,
+                    ...operation.literal.values,
+                ])
+                    live.add(n);
+            for (const n of operation.elementValues ?? []) live.add(n);
             return;
         case "superGet":
             live.add(operation.object);
