@@ -141,7 +141,7 @@ Nona's own HTTP server against Node.js on the same program ([bench/http](bench/h
 | 64 KiB response            | 20–21k        | **33–38k** | 91 / 16 MB             |
 | 16 KiB request body        | 49–54k        | 41k        | 78 / 16 MB             |
 
-[PERFORMANCE.md](PERFORMANCE.md) has the full comparison with Node.js, Deno and Bun, the method and the known slow spots.
+[PERFORMANCE.md](PERFORMANCE.md) has the full comparison with Node.js, Deno and Bun, the method and the known slow spots. [docs/perf-cpp.md](docs/perf-cpp.md) compares Nona with optimized C++ on arithmetic, call and string kernels and explains the measured gaps (10 million double additions: 119 ms vs 5.45 ms in WSL2).
 
 ## How it works
 

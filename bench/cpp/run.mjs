@@ -24,7 +24,8 @@
 // and every run must also print the same `units` and `allocUnits`. ns/op and
 // Mop/s are per iteration; Mcu/s is million code units processed per second.
 //
-// Startup is measured separately: the wall time of `loop_control 0` per
+// Startup is measured separately: the wall time of `loop_control 0` of the
+// arith binaries (also under --only strings), per
 // binary. Under --platform linux it is measured on the Linux side with
 // date +%s%N around the exec (includes one date(1) exec, the same for every
 // binary), so the wsl.exe launch from Windows is not part of it.
@@ -321,11 +322,13 @@ console.log(
 // Startup.
 const startupResults = {};
 if (startup) {
-    const list = [
-        ...new Map(
-            rows.flatMap((k) => binaries(k.program)).map((b) => [b.label, b]),
-        ).values(),
-    ].filter((b) => b.status === "ok");
+    // The arith binaries, whatever --only selects: loop_control is an arith
+    // kernel (the string program has no zero-work kernel).
+    const list = binaries("arith").filter(
+        (b) =>
+            b.status === "ok" &&
+            (b.side === "nona" || builds.includes(b.build)),
+    );
     const samples = Object.fromEntries(list.map((b) => [b.label, []]));
     for (const b of shuffle(list)) runStartup(b); // warm-up
     for (let round = 0; round < runs; round++)

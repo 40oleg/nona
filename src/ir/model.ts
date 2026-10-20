@@ -44,7 +44,12 @@ export type Operation =
     /** Writes a private field of object; TypeError without it. */
     | { kind: "privateSet"; object: number; name: number; source: number }
     | { kind: "newCell"; dest: number; source: number }
-    | { kind: "readCell"; dest: number; cell: number }
+    /**
+     * function: the code label of the function declaration the cell holds for
+     * its whole life (binder knownFunction, #239). Direct calls use it; later
+     * passes (inlining) may rely on it as well.
+     */
+    | { kind: "readCell"; dest: number; cell: number; function?: string }
     | { kind: "writeCell"; cell: number; source: number }
     | { kind: "loadCapture"; dest: number; index: number }
     | { kind: "currentFunction"; dest: number }
@@ -191,6 +196,9 @@ export type Operation =
           object: number;
           key: number;
           /** The key is this literal name (`object.name`): the read may use an inline cache. */ keyName?: string;
+          /** The key is a Number (src/ir/numbers.ts): a typed array element may be read inline. */ numericKey?: boolean;
+          /** In a loop versioned by src/ir/typed-loops.ts: object is a typed array over a fixed-length attached buffer and key an integer index below its length. */ unchecked?: boolean;
+          /** In a loop versioned by src/ir/typed-loops.ts: `object.length` of such a typed array, read from the view (the getter is the intrinsic one). */ typedLength?: boolean;
       }
     | {
           kind: "setProperty";
@@ -202,6 +210,8 @@ export type Operation =
           /** `object.name = value`: the write may use an inline cache. */ keyName?: string;
           /** The initial definition of key `keys[literalSlot]` of the object literal `object` (a newObject with keys). */ literalSlot?: number;
           /** The initial definition of element `literalElement` of the array literal `object` (a newObject with elements). */ literalElement?: number;
+          /** The key is a Number (src/ir/numbers.ts): a typed array element may be written inline. */ numericKey?: boolean;
+          /** As for property: the element is known to exist (src/ir/typed-loops.ts); the value is a primitive. */ unchecked?: boolean;
       }
     | {
           kind: "defineAccessor";
