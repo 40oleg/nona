@@ -10,7 +10,9 @@ import {
     ProxyKind,
     ProxyCallable,
     ProxyConstructable,
+    keyFilterValid,
 } from "./object-layout.js";
+import { keyFilterBitOf } from "./property-index.js";
 import { HeapLayout as H, HeapKind } from "./heap-layout.js";
 import { stringLiteral } from "./value.js";
 import { BoundDataLayout as B } from "./bound-layout.js";
@@ -228,6 +230,11 @@ export function emitFunctions(b: RuntimeBuilder): void {
         a.store({ base: "rax", disp: P.next }, "r10");
         a.load("rcx", slot(40));
         a.load("rcx", { base: "rcx", disp: 8 });
+        // The keys join the function's key filter, as rt.propIndexAdd would add them.
+        a.mov("r8", keyFilterBitOf("length") | keyFilterBitOf("name"));
+        a.load("r9", { base: "rcx", disp: O.keys });
+        a.or("r9", "r8");
+        a.store({ base: "rcx", disp: O.keys }, "r9");
         a.load("r11", { base: "rcx", disp: O.properties });
         const behind = a.unique("behindPrototype"),
             done = a.unique("done");
@@ -331,6 +338,12 @@ export function emitFunctions(b: RuntimeBuilder): void {
         a.store({ base: "rax", disp: FunctionLayout.environment }, "r10");
         a.lea("r10", { rip: "rt.str.nativeFunction" });
         a.store({ base: "rax", disp: FunctionLayout.sourceText }, "r10");
+        // No own keys yet: the key filter is complete. Every property node later
+        // linked onto the function sets its key's bit (rt.propIndexAdd,
+        // rt.initFunctionMetadata), so reads of inherited keys such as `call`
+        // skip the own list (named-properties.ts).
+        a.mov("r10", keyFilterValid);
+        a.store({ base: "rax", disp: O.keys }, "r10");
         a.load("rcx", slot(40));
         a.store({ base: "rcx", disp: 8 }, "rax");
         a.mov("rax", 5);

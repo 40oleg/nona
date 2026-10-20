@@ -26,7 +26,7 @@ test("printAsm lists the program functions with offsets, bytes and instructions"
     assert.match(assembly, /^js\.fn\.0:$/m, "the function add");
     assert.match(
         assembly,
-        /^ {2}[0-9a-f]{6} {2}(?:[0-9a-f]{2} )+ *call rt\.enterFrame\d?$/m,
+        /^ {2}[0-9a-f]{6} {2}(?:[0-9a-f]{2} )+ *call rt\.enterFrame(?:Lean)?\d?$/m,
     );
     assert.match(assembly, /addsd xmm0, /, "the number fast path of a+b");
     // Only the program: no runtime routine or prelude function is listed.
