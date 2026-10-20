@@ -260,10 +260,18 @@ test("captured bindings that something else may write stay generic", () => {
             !ops.some(({ op }) => op.kind === "readCell" && op.function),
             `${name}: readCell`,
         );
-        // The IIFE (js.fn.0) calls its non-captured helper through newFunction.
+        // Calls to a closure created in the same function (the IIFE, its
+        // non-captured helper, the scope helper of a direct eval) are direct
+        // through newFunction, not through a captured binding.
+        const local = new Set(
+            ops
+                .filter(({ op }) => op.kind === "newFunction")
+                .map(({ fn, op }) => `${fn}:${"dest" in op ? op.dest : ""}`),
+        );
         assert.deepEqual(
             directCalls(source).filter(
-                ({ fn }) => fn !== "js.main" && fn !== "js.fn.0",
+                ({ fn, op }) =>
+                    op.kind !== "invoke" || !local.has(`${fn}:${op.callee}`),
             ),
             [],
             name,
