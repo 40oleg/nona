@@ -53,6 +53,7 @@ const producesValue = new Set<Operation["kind"]>([
     "forInHas",
     "forOfValue",
     "globalObject",
+    "isFunctionCode",
     "currentFunction",
     "newCell",
     "superGet",

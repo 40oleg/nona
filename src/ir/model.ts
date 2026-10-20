@@ -91,6 +91,12 @@ export type Operation =
       }
     | { kind: "currentThis"; dest: number }
     | { kind: "globalObject"; dest: number }
+    /**
+     * The guard of an inlined call (src/ir/inline.ts): true when callee is a
+     * function object whose code is label `target`, otherwise false. Runs no
+     * user code and never throws.
+     */
+    | { kind: "isFunctionCode"; dest: number; callee: number; target: string }
     | {
           kind: "readGlobalProperty";
           dest: number;

@@ -243,6 +243,7 @@
                 "http",
                 "http-json-bytes",
                 "immediate-source",
+                "inlining",
                 "ir-constants",
                 "ir-control-flow",
                 "ir-move-rules",
