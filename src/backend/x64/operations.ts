@@ -1592,6 +1592,49 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             ),
                         );
                     };
+                    if (
+                        op.intrinsic === "imul" &&
+                        op.arguments.length === 2 &&
+                        !op.direct &&
+                        !op.construct &&
+                        !op.tail
+                    ) {
+                        // %Math.imul% with two Numbers whose truncations fit in
+                        // 64 bits: ToInt32 of each and a 32-bit product inline
+                        // (#426). The callee is checked at every call; anything
+                        // else (NaN, Infinity, huge values, non-Numbers, another
+                        // function) is the call, out of line.
+                        const general = a.unique("generalCall"),
+                            called = a.unique("called"),
+                            call = op;
+                        a.load("rax", value(op.callee));
+                        a.cmp("rax", 5);
+                        a.jcc("ne", general);
+                        a.load("rax", payload(op.callee));
+                        a.lea("r10", { rip: "rt.Math.imul.fn" });
+                        a.cmp("rax", "r10");
+                        a.jcc("ne", general);
+                        for (const n of op.arguments) {
+                            a.load("rax", value(n));
+                            a.cmp("rax", 3);
+                            a.jcc("ne", general);
+                        }
+                        const [x, y] = op.arguments;
+                        toInt32Operand(a, payload(x!), "rcx", general);
+                        toInt32Operand(a, payload(y!), "r10", general);
+                        a.imul("rcx", "r10");
+                        a.shl("rcx", 32);
+                        a.sar("rcx", 32);
+                        a.cvtsi2sd("xmm0", "rcx");
+                        setNumber(op.dest);
+                        pushCold(() => {
+                            a.label(general);
+                            callSite(call);
+                            a.jmp(called);
+                        });
+                        a.label(called);
+                        break;
+                    }
                     const frame: SiteFrame = {
                         a,
                         value,
