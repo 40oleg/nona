@@ -9,6 +9,7 @@ test("native binder traverses a deep binary expression without recursive frames"
         "global-builtins",
         "diagnostics",
         "frontend/declarations",
+        "frontend/known-functions",
         "frontend/binder",
     ]
         .map((name) =>
