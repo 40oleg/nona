@@ -156,6 +156,56 @@ let s = 'abcdef', i = 2;
 for (let k = 0; k < 3; k++) { let t = s; t = t.charAt(k); console.log(t); }
 for (let k = 0; k < 3; k++) { i = 'pqrs'.charCodeAt(i - 110 > 0 ? i - 110 : k); console.log(i); }`,
     ],
+    [
+        "loops bounded by s.length where s or its length changes",
+        `${show}
+function scan(s) { let acc = 0; for (let j = 0; j < s.length; j++) acc = (acc + (s.charCodeAt(j) ^ 7)) >>> 0; return acc; }
+let rope = '';
+for (let i = 0; i < 300; i++) rope += String.fromCharCode(0x41 + (i % 26), i % 5 ? 0x430 : 0xD83D, 0xDE00);
+const rows = [scan('scan me'), scan(''), scan('\\u0416\\uD83D\\uDE00\\uDC00'), scan(rope), rope.length];
+// s reassigned in the body: a longer, shorter and empty string.
+let s = 'abc', grown = '';
+for (let j = 0; j < s.length; j++) { grown += s.charAt(j); if (j === 1) s = 'abcdefgh'; if (j === 5) s = 'xyz\\u0101\\u0102\\u0103\\u0104'; }
+rows.push(grown, s.length);
+s = 'abcdef';
+let shrunk = '';
+for (let j = 0; j < s.length; j++) { shrunk += s.charCodeAt(j) + ','; if (j === 2) s = ''; }
+rows.push(shrunk);
+// s rebuilt as a rope in the body.
+s = 'q';
+let ropeCodes = 0;
+for (let j = 0; j < s.length && j < 40; j++) { ropeCodes += s.charCodeAt(j); s = s + String.fromCharCode(0x61 + (j % 26)); }
+rows.push(ropeCodes, s.length);
+// An object whose length is a getter that changes, with charCodeAt of its own.
+let reads = 0;
+const counter = { get length() { reads++; return reads < 6 ? 10 : 3; }, charCodeAt: (j) => 100 + j, charAt: (j) => 'c' + j };
+let fromObject = '';
+for (let j = 0; j < counter.length; j++) fromObject += counter.charCodeAt(j) + counter.charAt(j);
+rows.push(fromObject, reads);
+// A String object and an array that grows in the loop.
+const wrapper = new String('wrapped');
+let wrapped = 0;
+for (let j = 0; j < wrapper.length; j++) wrapped += wrapper.charCodeAt(j);
+const array = [1, 2];
+let pushed = 0;
+for (let j = 0; j < array.length && j < 20; j++) { pushed += array[j]; if (j % 2 === 0) array.push(j); }
+rows.push(wrapped, pushed, array.length);
+// s captured and changed by a closure called in the loop.
+let captured = 'hello world';
+const shorten = () => { captured = captured.slice(0, captured.length - 2); };
+let viaClosure = '';
+for (let j = 0; j < captured.length; j++) { viaClosure += captured.charAt(j) + show(captured.charCodeAt(j + 1)); if (j % 2 === 1) shorten(); }
+rows.push(viaClosure, captured);
+// The methods replaced by a call in the loop body.
+const codeAt = String.prototype.charCodeAt;
+const patch = () => { String.prototype.charCodeAt = function (p) { return -p; }; };
+const t = 'patched';
+let mixed = '';
+for (let j = 0; j < t.length; j++) { mixed += t.charCodeAt(j) + ' '; if (j === 3) patch(); }
+String.prototype.charCodeAt = codeAt;
+rows.push(mixed);
+console.log(rows.map((v) => typeof v === 'string' ? JSON.stringify(v) : show(v)).join(' '));`,
+    ],
 ];
 for (const [name, source] of cases)
     test(`inline charCodeAt/charAt: ${name}`, () => expectProgram(source));
