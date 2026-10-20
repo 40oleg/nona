@@ -30,7 +30,7 @@ Todo se ejecuta dentro del proceso del compilador; no hay ensamblador, enlazador
 
 [`src/ir`](https://github.com/40oleg/nona/tree/main/src/ir) traduce el programa enlazado a una IR de tipo registro formada por bloques, operaciones y terminadores (`lower.ts`, `model.ts`) y calcula la vida de las variables (`liveness.ts`) para que el recolector de basura solo vea valores vivos en cada safepoint.
 
-Antes de generar código, la IR de cada función pasa por optimizaciones que conservan exactamente la semántica de JavaScript: plegado y propagación de constantes con eliminación de ramas de condición conocida, eliminación de comprobaciones de zona muerta temporal, propagación de copias y eliminación de código muerto, inferencia del tipo Number y llamadas directas a funciones conocidas ([arquitectura](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)).
+Antes de generar código, la IR de cada función pasa por optimizaciones que conservan exactamente la semántica de JavaScript: plegado y propagación de constantes con eliminación de ramas de condición conocida, eliminación de comprobaciones de zona muerta temporal, propagación de copias y eliminación de código muerto, reemplazo escalar de literales de objeto y array que no escapan, inferencia del tipo Number y llamadas directas a funciones conocidas ([arquitectura](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)).
 
 ## Generación de código
 
