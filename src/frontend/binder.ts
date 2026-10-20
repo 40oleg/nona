@@ -1174,7 +1174,7 @@ export function bind(
                     }
                     case "Var":
                         for (const d of s.declarations) {
-                            // A declaration with an initializer, or in a for-in/of head, writes its binding (a redeclared parameter included).
+                            // Any var redeclaration, with or without an initializer, counts as a write of its binding (a redeclared parameter included); for-in/of heads are marked in their own case.
                             for (const id of boundNames(d.id)) {
                                 const visible = [...scopes]
                                     .reverse()
@@ -1322,6 +1322,16 @@ export function bind(
                                 patternInitializers(s.left);
                             } else if (s.left.kind === "Var") {
                                 patternInitializers(s.left.declarations[0]!.id);
+                                // Every iteration writes the head's names.
+                                for (const id of boundNames(
+                                    s.left.declarations[0]!.id,
+                                )) {
+                                    const visible = [...scopes]
+                                        .reverse()
+                                        .map((scope) => scope.get(id.name))
+                                        .find(Boolean);
+                                    if (visible) written(visible);
+                                }
                                 const catchVisible = (id: A.Identifier) => {
                                     const visible = [...scopes]
                                         .reverse()

@@ -124,6 +124,12 @@ test("captured bindings that something else may write stay generic", () => {
             "(function(){function h(){return 1}function u(){return h()}function w(){h=null}return u()})()",
         "var initializer":
             "(function(){function h(){return 1}function u(){return h()}var h=3;return u()})()",
+        "for-of var head":
+            "(function(){function h(){return 1}function u(){return h()}for(var h of [function(){return 2}]);return u()})()",
+        "for-of var pattern head":
+            "(function(){function h(){return 1}function u(){return h()}for(var [h] of [[function(){return 2}]]);return u()})()",
+        "for-in var head":
+            "(function(){function h(){return 1}function u(){return h()}for(var h in {a:1});return typeof u})()",
         "assigned through eval":
             "(function(){function h(){return 1}function u(){return h()}eval('h = function(){return 2}');return u()})()",
         "eval var declaration":
@@ -200,6 +206,12 @@ const out=[];
     function k(){return 'k1'}
     function r(){return k()}
     out.push(r());k=k.bind(null);out.push(r());
+    function f(){return 'f1'}
+    function t(){return f()}
+    out.push(t());for(var f of [function(){return 'f2'}]);out.push(t());
+    function j(){return 'j1'}
+    function l(){return typeof j}
+    for(var j in {a:1});out.push(l());
 })();
 (function(o){
     function m(){return 'outer'}
