@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.21.0 — 2026-10-20
+
 ### Performance
 
 - **Integer fast path for number-to-string conversion.** `rt.formatNumber`, which `String(x)`, `x.toString()`, template literals, `+` concatenation and property keys use, now converts integral Numbers with |x| < 2^53 (and -0, as `"0"`) as integers. It counts the digits first, allocates the exact-length string once, and writes the digits right to left two at a time from a digit-pair table, dividing by 100 with a reciprocal multiply. Before, only 0..2^32-1 had an integer path: it divided by 10 once per digit and copied the digits through a buffer. Negative integers and integers of 2^32 and above went through the scaled decimal loop. Output is unchanged. On Windows x64, 3M conversions of 12-digit integers take 100 ms instead of 148 ms, and 3M negative integers 78 ms instead of 103 ms. ([#427](https://github.com/40oleg/nona/issues/427))
