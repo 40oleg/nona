@@ -6,6 +6,7 @@
             "files": [
                 "frontend",
                 "lowering",
+                "scalar-replacement",
                 "liveness",
                 "object-annexb",
                 "with",
