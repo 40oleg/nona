@@ -68,6 +68,35 @@ export function emitFormat(b: RuntimeBundle): void {
         a.mov("rax", "rsi");
         f.end(b);
     }
+    // 10^1..10^16 as qwords, and "00".."99" as two UTF-16 units each.
+    {
+        const powers = new Uint8Array(16 * 8),
+            view = new DataView(powers.buffer);
+        for (let i = 0; i < 16; i++)
+            view.setBigUint64(i * 8, 10n ** BigInt(i + 1), true);
+        b.fragments.push({
+            name: "rt.formatPow10",
+            section: ".rdata",
+            alignment: 8,
+            bytes: powers,
+            fixups: [],
+            symbols: {},
+        });
+        const pairs = new Uint8Array(100 * 4),
+            pairView = new DataView(pairs.buffer);
+        for (let i = 0; i < 100; i++) {
+            pairView.setUint16(i * 4, 48 + Math.floor(i / 10), true);
+            pairView.setUint16(i * 4 + 2, 48 + (i % 10), true);
+        }
+        b.fragments.push({
+            name: "rt.formatDigitPairs",
+            section: ".rdata",
+            alignment: 8,
+            bytes: pairs,
+            fixups: [],
+            symbols: {},
+        });
+    }
     // The general path keeps its big integers, digit buffer and text in the
     // frame (SCRATCH bytes above the register area) rather than in a managed
     // allocation: a program that formats many numbers would otherwise leave
@@ -75,49 +104,88 @@ export function emitFormat(b: RuntimeBundle): void {
     const SCRATCH = 4096,
         f = new Native("rt.formatNumber", 360 + SCRATCH),
         a = f.a;
-    a.mov("rax", 0);
-    a.movqToXmm("xmm1", "rax");
-    a.ucomisd("xmm0", "xmm1");
+    // Integers below 2^53 in magnitude (and -0, which prints as "0"): count
+    // the digits, allocate the exact length once and write the digits right
+    // to left, two at a time from rt.formatDigitPairs, dividing by 100 with
+    // a reciprocal multiply: n / 100 = ((n >> 2) * 0x28F5C28F5C28F5C3) >> 66,
+    // exact for every u64. The sign comes from the integer, not the double.
+    a.movqFromXmm("r12", "xmm0");
+    a.mov("rax", 0x7fffffffffffffffn);
+    a.and("r12", "rax");
+    a.movqToXmm("xmm1", "r12");
+    a.mov("rax", 0x4340000000000000n);
+    a.movqToXmm("xmm4", "rax");
+    a.ucomisd("xmm1", "xmm4");
     a.jcc("p", "fmt.fast");
-    a.jcc("b", "fmt.fast");
-    a.mov("rax", 4294967295);
-    a.cvtsi2sd("xmm1", "rax");
-    a.ucomisd("xmm0", "xmm1");
-    a.jcc("a", "fmt.fast");
+    a.jcc("ae", "fmt.fast");
     a.cvttsd2si("r12", "xmm0");
     a.cvtsi2sd("xmm1", "r12");
     a.ucomisd("xmm0", "xmm1");
     a.jcc("ne", "fmt.fast");
-    a.lea("rsi", { base: "rsp", disp: 200 });
-    a.mov("rdi", "rsi");
+    // RBX = 1 for a negative integer, R12 = its magnitude.
+    a.mov("rbx", "r12");
+    a.shr("rbx", 63);
     a.mov("rax", "r12");
-    a.mov("r10", 10);
-    a.label("fmt.uintDigits");
-    a.xor("rdx", "rdx");
-    a.div("r10");
-    a.add("rdx", 48);
-    a.store({ base: "rdi" }, "rdx", 8);
-    a.add("rdi", 1);
-    a.test("rax", "rax");
-    a.jcc("ne", "fmt.uintDigits");
-    a.mov("r13", "rdi");
-    a.sub("r13", "rsi");
-    a.mov("rcx", "r13");
+    a.sar("rax", 63);
+    a.xor("r12", "rax");
+    a.sub("r12", "rax");
+    // R13 = digit count: one plus the powers 10^1..10^16 not above R12.
+    a.mov("r13", 1);
+    a.lea("r11", { rip: "rt.formatPow10" });
+    a.label("fmt.intCount");
+    a.load("rax", { base: "r11" });
+    a.cmp("r12", "rax");
+    a.jcc("b", "fmt.intCounted");
+    a.add("r13", 1);
+    a.add("r11", 8);
+    a.jmp("fmt.intCount");
+    a.label("fmt.intCounted");
+    a.mov("r15", "r13");
+    a.add("r15", "rbx");
+    a.mov("rcx", "r15");
     a.shl("rcx", 1);
     a.add("rcx", 8);
     a.call("rt.allocRaw");
     a.mov("r14", "rax");
-    a.store({ base: "r14" }, "r13");
+    a.store({ base: "r14" }, "r15");
+    // The minus sign goes first; without one the leading digit overwrites it.
+    a.mov("rax", 45);
+    a.store({ base: "r14", disp: 8 }, "rax", 16);
     a.lea("rdi", { base: "r14", disp: 8 });
-    a.label("fmt.uintCopy");
-    a.sub("r13", 1);
-    a.lea("r11", { base: "rsi" });
-    a.add("r11", "r13");
-    a.load("rax", { base: "r11" }, 8);
-    a.store({ base: "rdi" }, "rax", 16);
-    a.add("rdi", 2);
-    a.test("r13", "r13");
-    a.jcc("ne", "fmt.uintCopy");
+    a.add("rdi", "r15");
+    a.add("rdi", "r15");
+    a.lea("rsi", { rip: "rt.formatDigitPairs" });
+    a.mov("r8", 100);
+    a.mov("r9", 0x28f5c28f5c28f5c3n);
+    a.label("fmt.intPairs");
+    a.cmp("r12", "r8");
+    a.jcc("b", "fmt.intLast");
+    a.mov("rax", "r12");
+    a.shr("rax", 2);
+    a.mul("r9");
+    a.shr("rdx", 2);
+    a.mov("r10", "rdx");
+    a.imul("r10", "r8");
+    a.sub("r12", "r10");
+    a.shl("r12", 2);
+    a.add("r12", "rsi");
+    a.load("rax", { base: "r12" }, 32);
+    a.sub("rdi", 4);
+    a.store({ base: "rdi" }, "rax", 32);
+    a.mov("r12", "rdx");
+    a.jmp("fmt.intPairs");
+    a.label("fmt.intLast");
+    a.cmp("r12", 10);
+    a.jcc("b", "fmt.intSingle");
+    a.shl("r12", 2);
+    a.add("r12", "rsi");
+    a.load("rax", { base: "r12" }, 32);
+    a.store({ base: "rdi", disp: -4 }, "rax", 32);
+    a.mov("rax", "r14");
+    a.jmp("fmt.return");
+    a.label("fmt.intSingle");
+    a.add("r12", 48);
+    a.store({ base: "rdi", disp: -2 }, "r12", 16);
     a.mov("rax", "r14");
     a.jmp("fmt.return");
     // Short decimals: a value below 2^53 for which some n = round(value * 10^k)
