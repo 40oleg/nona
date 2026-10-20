@@ -123,11 +123,13 @@ const movesOnly = new Set<string>([
     "readCell",
     "writeCell",
     "loadCapture",
+    "isFunctionCode",
 ]);
 /** Moves with no effect besides their destination: not emitted when the destination is dead. */
 const deadMoves = new Set<string>([
     "constant",
     "copy",
+    "isFunctionCode",
     "loadGlobal",
     "readCell",
     "loadCapture",
@@ -343,6 +345,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             case "popHandler":
             case "immutableWrite":
             case "generatorInitialSuspend":
+            case "isFunctionCode":
                 return true;
             case "binary":
                 return (
@@ -580,6 +583,24 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             a.jcc("p", differ);
             a.jcc("ne", differ);
         }
+    };
+    // Jumps to differ unless callee is a function object running code
+    // `target` (the test of a direct call); keeps R11.
+    const testFunctionCode = (
+        op: Extract<Operation, { kind: "isFunctionCode" }>,
+        differ: string,
+    ) => {
+        a.load("rax", value(op.callee));
+        a.cmp("rax", 5);
+        a.jcc("ne", differ);
+        a.load("r10", payload(op.callee));
+        a.load("rax", { base: "r10", disp: O.kind });
+        a.cmp("rax", FunctionKind);
+        a.jcc("ne", differ);
+        a.load("rax", { base: "r10", disp: FunctionLayout.code });
+        a.lea("r10", { rip: op.target });
+        a.cmp("rax", "r10");
+        a.jcc("ne", differ);
     };
     // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
     const knownArithmetic: Record<
@@ -848,6 +869,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         let fused: Extract<Operation, { kind: "binary" }> | undefined;
         let fusedEquality:
             { other: number; k: number; negate: boolean } | undefined;
+        let fusedGuard:
+            Extract<Operation, { kind: "isFunctionCode" }> | undefined;
         for (const [index, op] of block.operations.entries()) {
             const live = liveness.get(block.id)!.before[index]!,
                 dests = destinations(op).filter(
@@ -902,6 +925,28 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 case "globalObject":
                     copy(value(op.dest), { rip: "rt.globalValue" });
                     break;
+                case "isFunctionCode": {
+                    // The guard of an inlined call (src/ir/inline.ts): the test of
+                    // a direct call, fused into this block's branch when only that
+                    // reads it.
+                    if (
+                        index === block.operations.length - 1 &&
+                        block.terminator.kind === "branch" &&
+                        block.terminator.condition === op.dest &&
+                        !isLive(liveness.get(block.id)!.liveOut, op.dest, floor)
+                    ) {
+                        fusedGuard = op;
+                        break;
+                    }
+                    const store = a.unique("functionCode");
+                    a.mov("r11", 0);
+                    testFunctionCode(op, store);
+                    a.mov("r11", 1);
+                    a.label(store);
+                    a.mov("rax", "r11");
+                    setBoolean(op.dest);
+                    break;
+                }
                 case "readGlobalProperty": {
                     // Prelude code is shared by every program and cannot know which
                     // names a script declares, so only user code gets the fast path.
@@ -2265,6 +2310,11 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 });
                 break;
             case "branch": {
+                if (fusedGuard) {
+                    testFunctionCode(fusedGuard, fn.id + ".block." + term.no);
+                    goto(term.yes);
+                    break;
+                }
                 if (fusedEquality) {
                     const equal = fusedEquality.negate ? term.no : term.yes,
                         differ = fusedEquality.negate ? term.yes : term.no;

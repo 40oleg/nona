@@ -185,6 +185,9 @@ function transfer(operation: Operation, live: Set<number>): void {
         case "realmFunction":
             live.add(operation.ctor);
             return;
+        case "isFunctionCode":
+            live.add(operation.callee);
+            return;
         case "newFunction":
             if (operation.homeObject !== undefined)
                 live.add(operation.homeObject);

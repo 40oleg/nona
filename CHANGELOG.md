@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **Guarded inlining of small known callees.** A direct call of a small plain function declaration (at most 30 IR operations, no closures, `arguments`, `new.target`, `super`, exception handlers or self-calls) is replaced by the callee's body behind the same check a direct call makes (the callee is still that function), and the caller is folded again: `greet('from Nona')` with a template literal body becomes the string constant and `square(12)` becomes `144`. Any other callee (a reassigned binding, a bound function) takes the original call. Function objects, their identity, `name`, `length` and source are unchanged; budgets per call, per caller and per module bound code growth, and inlining is off for coverage and call-statistics builds. ([#235](https://github.com/40oleg/nona/issues/235))
+
 ### Documentation
 
 - **`eval` and the dynamic `Function` constructors with run-time sources are a permanent, documented exception of the ES2020 contract.** Generated executables contain no interpreter, compiler or bundled frontend, so an embedded evaluator (options 1 and 2 of the issue) is rejected. The [contract](docs/es2020-contract.md) now specifies the exact behavior (`EvalError` and its messages, `typeof eval`, `eval.name`/`length`/`toString`, the source text of ahead-of-time dynamic functions, which forms are compiled at compile time and when `SyntaxError` is thrown); new assertions in `tests/eval-exception.test.ts` and `tests/dynamic-functions.test.ts` cover it. The remaining Test262 `eval-code` failures are intentional. ([#11](https://github.com/40oleg/nona/issues/11))
