@@ -1,0 +1,27 @@
+{
+    "kernel": "u32_add_chain",
+    "program": "arith",
+    "n": 10000000,
+    "seed": 12345,
+    "frequencyHz": 2000,
+    "event": "cpu-clock",
+    "samples": 932,
+    "output": {
+        "kernel": "u32_add_chain",
+        "n": 10000000,
+        "ns": 464657273,
+        "checksum": "u32:212994551"
+    },
+    "routines": {
+        "js.fn.12": 365,
+        "rt.toNumber": 161,
+        "rt.elementGet": 117,
+        "rt.toInt32": 95,
+        "rt.shiftUnsigned": 68,
+        "rt.toNumeric": 66,
+        "rt.toNumber.save": 50,
+        "rt.toNumber.done": 8,
+        "rt.alloc": 1,
+        "rt.compareStrings.loop": 1
+    }
+}

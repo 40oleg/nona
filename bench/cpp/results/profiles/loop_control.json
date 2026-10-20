@@ -1,0 +1,30 @@
+{
+    "kernel": "loop_control",
+    "program": "arith",
+    "n": 10000000,
+    "seed": 12345,
+    "frequencyHz": 2000,
+    "event": "cpu-clock",
+    "samples": 996,
+    "output": {
+        "kernel": "loop_control",
+        "n": 10000000,
+        "ns": 495948142,
+        "checksum": "u32:3090143325"
+    },
+    "routines": {
+        "js.fn.16": 400,
+        "rt.toNumber": 180,
+        "rt.elementGet": 107,
+        "rt.toInt32": 97,
+        "rt.toNumeric": 92,
+        "rt.bitXor": 80,
+        "rt.toNumber.save": 25,
+        "rt.toNumber.done": 10,
+        "rt.namedSetFast": 1,
+        "rt.readGlobalProperty": 1,
+        "rt.propIndexProbe": 1,
+        "linux.HeapAlloc.code": 1,
+        "rt.alloc": 1
+    }
+}

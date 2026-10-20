@@ -4,6 +4,10 @@
 Cette page est une traduction de la page anglaise [Performance](/guide/performance), générée à partir de [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md). La version anglaise fait foi et peut être plus récente. `node bench/run.mjs` reproduit les mesures.
 :::
 
+::: tip
+La comparaison avec du C++ optimisé (arithmétique, appels et chaînes UTF-16 ; 2026-10-20) se trouve dans [docs/perf-cpp.md](https://github.com/40oleg/nona/blob/main/docs/perf-cpp.md) (en anglais).
+:::
+
 ::: warning
 La comparaison actuelle avec Node.js, Deno et Bun (2026-10-14) se trouve sur la [page anglaise](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun) : hello world démarre en 2,7 ms et pèse 1,1 Mo, et la plupart des micro-benchmarks de tableaux, objets, chaînes et tableaux typés sont au niveau de Node.js. Ci-dessous, la traduction des mesures de v0.7.0.
 :::

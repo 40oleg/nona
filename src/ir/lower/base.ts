@@ -328,6 +328,20 @@ export abstract class LowererBase {
         });
         return prefixed;
     }
+    /** Read the cell of a captured binding; a known function is recorded on the read. */
+    protected readCell(b: StorageBinding, dest: number): void {
+        const fn = b.knownFunction;
+        this.emit({
+            kind: "readCell",
+            dest,
+            cell: this.cellSlot(b),
+            ...(fn
+                ? {
+                      function: `${fn.realmLocal ? "js.rfn" : "js.fn"}.${fn.index}`,
+                  }
+                : {}),
+        });
+    }
     /** Read a hidden storage binding (a with statement's object). */
     protected readStorage(b: StorageBinding): number {
         const dest = this.slot();
@@ -335,8 +349,7 @@ export abstract class LowererBase {
             this.emit({ kind: "loadGlobal", dest, index: b.index });
             return dest;
         }
-        if (b.captured && !this.capturedByValue(b))
-            this.emit({ kind: "readCell", dest, cell: this.cellSlot(b) });
+        if (b.captured && !this.capturedByValue(b)) this.readCell(b, dest);
         else this.emit({ kind: "copy", dest, source: this.cellSlot(b) });
         return dest;
     }
@@ -432,11 +445,7 @@ export abstract class LowererBase {
             case "parameter":
             case "local":
                 if (b.captured && !this.capturedByValue(b))
-                    this.emit({
-                        kind: "readCell",
-                        dest,
-                        cell: this.cellSlot(b),
-                    });
+                    this.readCell(b, dest);
                 else
                     this.emit({ kind: "copy", dest, source: this.cellSlot(b) });
                 break;
