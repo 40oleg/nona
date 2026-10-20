@@ -58,9 +58,15 @@ only marks their keys.
   key, accessor, `__proto__` or array-index key) has a per-site record
   (`LiteralSiteLayout`, in `.data`) with its keys in order. Its first
   evaluation resolves the shape the keys lead to from the literal root
-  (`rt.literalSiteResolve`); every evaluation allocates the object with that
-  shape (`rt.newLiteralObject`, slots undefined) and each definition stores its
-  value into its slot directly, without a transition lookup. The shape is the
+  (`rt.literalSiteResolve`). A literal without methods evaluates its values
+  first (not observable) and, once its site is resolved, the generated code
+  allocates the object with the site's constant cell size (`rt.allocRaw`) and
+  writes the header, every value into its slot and undefined into the spare
+  slots in one pass, with nothing in between that could reach a collection.
+  A literal with methods (whose home object must exist first) allocates the
+  object with that shape (`rt.newLiteralObject`, slots undefined) and each
+  definition stores its value into its slot directly, without a transition
+  lookup. The shape is the
   one the key-by-key definitions would give, so these objects share shapes
   and inline caches with objects built by assignments. When the shape cannot
   be resolved (too many shapes or transitions), the site falls back to
@@ -75,7 +81,9 @@ only marks their keys.
   managed allocation instead of a cell and a raw-heap table, and nothing to
   release when the array dies. An object whose `elements` is its payload +
   `ObjectLayout.size` owns such a table; growing the array moves the elements
-  to a raw-heap table.
+  to a raw-heap table. An array literal of up to eight elements evaluates its
+  elements first and is written by the generated code in one pass, header,
+  table and elements, into one `rt.allocRaw` cell.
 - `rt.newShapedObject` (object literals and constructor instances) takes an
   uncleared cell (`rt.allocRaw`) and writes every header field and inline
   slot itself.
@@ -174,6 +182,57 @@ Everything else (holes, indices outside the table, string and symbol keys,
 proxies, arguments objects, string wrappers) is the generic call with the
 same arguments. As with the inline caches, the checks are one shared stub per
 direction, not code at every site.
+
+The exception is a site of the program (not of a prelude) whose key is a
+proven Number (`numericKey`, `src/ir/numbers.ts`): it first tests inline for a
+typed array over a fixed-length buffer that is not detached and an integer
+index below its length (`-0` is index 0). A `Float64Array` element is then
+read or written in place; `Int32Array` and `Uint8Array` reads and 8- and
+32-bit integer writes of a Number take a short out-of-line path. Every other
+case, including resizable buffers, BigInt and clamped elements and non-Number
+values, calls the stub as before (#240).
+
+### Typed array loops
+
+`src/ir/typed-loops.ts` versions counted loops over typed arrays (#240). It
+finds natural loops (a back edge to a block that dominates its source) and
+takes a loop when
+
+- the header ends in a branch on `i < bound` into and out of the loop, `i` is
+  changed in the loop only by `i++` (or `i = i + 1`), and `bound` is
+  `a.length` read in the header or a slot or script binding the loop does not
+  write;
+- every element access `a[i]` / `a[i] = v` has the key `i`, is reached only
+  where `i < bound` holds since `i` last changed, and its receiver is a slot or
+  script binding the loop does not write;
+- every operation is on a whitelist: constants, copies, script binding loads
+  and stores, dead-zone checks, the arithmetic, bitwise, comparison and
+  `typeof` operators, element accesses and `length` reads of the receivers.
+  Calls, other property accesses, `in`, `instanceof`, allocation, `yield` /
+  `await` and exception handlers inside the loop disqualify it.
+
+Every entry edge of such a loop goes through a guard block that calls
+`rt.typedLoopGuard` (`src/runtime/typed-loop-guard.ts`). It passes when every
+receiver is a typed array over a fixed-length, attached, non-shared
+`ArrayBuffer` whose `length` is the intrinsic getter (no own `length`, no
+shadowing accessor), the start of `i` is an integer Number >= 0, the bound is
+a Number (not NaN) no greater than every receiver's length, and the operands
+of the loop's conversions (and the stored values) are primitives, so no
+`valueOf` can run. Then control enters a copy of the loop whose element
+accesses are marked `unchecked` and whose `length` reads `typedLength`: the code
+generator reads and writes the element without receiver, attachment or range
+tests and reads `length` from the view. Element types other than `Float64`
+still branch to the out-of-line path, and non-Number stored values and BigInt
+and clamped elements still call the stub there, out of the loop body. When the
+guard fails the original loop runs unchanged. Temporaries that live only in
+the loop get fresh slots in the copy; all other slots are shared, so liveness
+and the stack maps need nothing special.
+
+Limitations: only `<` with an increasing induction variable, only keys equal
+to `i` (not `i + 1`), at most eight loops per function and 16 guard
+arguments; a loop that calls any function, even one that cannot touch a
+buffer, keeps the per-access checks of the inline path. Prelude code and
+generators are not versioned.
 
 ## Development aids
 

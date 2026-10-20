@@ -13,6 +13,7 @@ import {
     keyFilterValid,
 } from "./object-layout.js";
 import { HeapLayout as H, HeapKind } from "./heap-layout.js";
+import { emitShapedObjectHeader } from "./object-header.js";
 import { CellTag } from "./environment-layout.js";
 import { BoxLayout } from "./boxing.js";
 import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
@@ -119,23 +120,8 @@ export function emitObjects(b: RuntimeBuilder): void {
         a.shl("rcx", 4);
         a.add("rcx", O.size);
         a.call("rt.allocRaw");
-        a.mov("r10", HeapKind.object);
-        a.store({ base: "rax", disp: H.kind - H.size }, "r10");
-        a.mov("r10", 0);
-        for (const field of [
-            O.kind,
-            O.properties,
-            O.length,
-            O.flags,
-            O.index,
-            O.elements,
-            O.keys,
-        ])
-            a.store({ base: "rax", disp: field }, "r10");
         a.load("rdx", slot(48));
-        a.store({ base: "rax", disp: O.shape }, "rdx");
-        a.lea("r10", { rip: "rt.objectPrototype" });
-        a.store({ base: "rax", disp: O.prototype }, "r10");
+        emitShapedObjectHeader(a, "rdx");
         // Every inline slot undefined.
         {
             const loop = a.unique("slots"),
