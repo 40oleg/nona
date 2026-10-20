@@ -103,3 +103,107 @@ test("a chain of 200 000 reactions settles in order", () => {
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, "end 200000\n");
 });
+
+test("then, queueMicrotask and await interleave as in Node.js", () =>
+    expectOracle(`
+ var log=[];
+ var p=Promise.resolve('p');
+ queueMicrotask(function(){log.push('m1')});
+ p.then(function(v){log.push('t1 '+v);queueMicrotask(function(){log.push('m3')});return 'x'}).then(function(v){log.push('t2 '+v)});
+ (async function(){log.push('a0');await p;log.push('a1');await 0;log.push('a2');await new Promise(function(r){queueMicrotask(function(){log.push('m4');r()})});log.push('a3')})();
+ queueMicrotask(function(){log.push('m2');p.then(function(){log.push('t3')})});
+ Promise.reject('r').then(function(){log.push('never')}).then(undefined,function(e){log.push('caught '+e)});
+ setTimeout(function(){console.log(log.join(' '))},0);
+`));
+
+test("handler-less reactions pass values and reasons through long chains", () =>
+    expectOracle(`
+ var r=Promise.reject(new Error('deep')),f=Promise.resolve('value');
+ for(var i=0;i<1000;i++){r=r.then(function(){return 'skipped'});f=f.catch(function(){return 'skipped'})}
+ for(var i=0;i<1000;i++){r=r.then(null,undefined);f=f.then(1)}
+ r.catch(function(e){console.log('reason',e.message)});
+ f.then(function(v){console.log('value',v)});
+ var n=Promise.resolve(0);
+ for(var i=0;i<1000;i++)n=n.then(function(v){if(v%100===99)throw v+1;return v+1}).catch(function(e){return e});
+ n.then(function(v){console.log('alternating',v)});
+`));
+
+test("non-function handlers, thenable results and a patched Promise fall back to the prelude", () =>
+    expectOracle(`
+ var log=[];
+ function f(v){return this===undefined?'strict '+v:'sloppy'}
+ 'use strict';
+ Promise.resolve(1).then(f.bind(undefined,'bound')).then(function(v){log.push(v)});
+ Promise.resolve(2).then(new Proxy(function(v){return v*10},{})).then(function(v){log.push('proxy '+v)});
+ Promise.resolve(3).then(class{}).catch(function(e){log.push('class '+e.constructor.name)});
+ Promise.resolve(4).then(function(v){return {then:function(y){log.push('adopting');y(v+1)}}}).then(function(v){log.push('adopted '+v)});
+ Promise.resolve(5).then(function(v){return Promise.resolve(v*2)}).then(function(v){log.push('promise '+v)});
+ Promise.resolve(6).then(function(v){return [v]}).then(function(v){log.push('array '+v[0])});
+ var own=Promise.resolve(7);own.then=function(a){log.push('own then');return Promise.prototype.then.call(this,a)};
+ own.then(function(v){log.push('own '+v)});
+ setTimeout(function(){
+  var saved=Promise.prototype.constructor;
+  Promise.prototype.constructor=function(executor){log.push('patched constructor');return new Promise(executor)};
+  Promise.prototype.constructor[Symbol.species]=Promise.prototype.constructor;
+  Promise.resolve(8).then(function(v){log.push('after patch '+v)});
+  Promise.prototype.constructor=saved;
+  var getter=Object.getOwnPropertyDescriptor(Promise,Symbol.species);
+  Object.defineProperty(Promise,Symbol.species,{get:function(){log.push('species read');return Promise},configurable:true});
+  Promise.resolve(9).then(function(v){log.push('species '+v)});
+  Object.defineProperty(Promise,Symbol.species,getter);
+  Promise.resolve(10).then(function(v){log.push('restored '+v)});
+  setTimeout(function(){console.log(log.join(' | '))},0);
+ },0);
+`));
+
+test("unhandled rejections are reported once and late handlers report them handled", () =>
+    expectOracle(`
+ var log=[];
+ process.on('unhandledRejection',function(reason,promise){log.push('unhandled '+reason+' '+(promise instanceof Promise))});
+ process.on('rejectionHandled',function(promise){log.push('handled late')});
+ var late=Promise.reject('late');
+ Promise.reject('caught').catch(function(){});
+ Promise.resolve().then(function(){throw 'derived'});
+ var chained=Promise.reject('chain').then(function(){});
+ setTimeout(function(){
+  late.catch(function(e){log.push('late catch '+e)});
+  chained.catch(function(){});
+  setTimeout(function(){console.log(log.join(' | '))},0);
+ },0);
+`));
+
+test("a 100 000 reaction chain of async functions, then and catch runs without stack growth", () => {
+    const source = `
+ var p=Promise.resolve(0);
+ for(var i=0;i<100000;i++)p=i%3===0?p.then(function(v){return v+1}):i%3===1?p.then(async function(v){return v+1}):p.then(function(v){throw v+1}).catch(function(v){return v});
+ p.then(function(v){console.log('end',v)});
+ (async function(){var n=0;for(var i=0;i<100000;i++)n+=await i;console.log('await',n)})();
+ `;
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
+});
+
+test("promises of two realms share one job queue", () => {
+    const source = `
+ var other=__nonaCreateRealm(),log=[];
+ var mine=Promise.resolve('main'),theirs=other.Promise.resolve('other');
+ mine.then(function(v){log.push(1+v)});
+ theirs.then(function(v){log.push(2+v)});
+ Promise.prototype.then.call(theirs,function(v){log.push(3+v)});
+ other.Promise.prototype.then.call(mine,function(v){log.push(4+v)}).then(function(){log.push(5)});
+ mine.then(function(){return theirs}).then(function(v){log.push(6+v)});
+ queueMicrotask(function(){log.push(7)});
+ other.Promise.resolve(8).then(function(v){log.push(v)});
+ setTimeout(function(){console.log(log.join(' '))},0);
+ `;
+    for (const gcStress of [true, false]) {
+        const run = runOnHost(source, { gcStress, realms: 1 });
+        assert.equal(run.status, 0, run.stderr);
+        assert.equal(
+            run.stdout,
+            "1main 2other 3other 4main 7 8 5 6other\n",
+            `gcStress ${gcStress}`,
+        );
+    }
+});

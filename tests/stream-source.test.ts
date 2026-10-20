@@ -58,7 +58,7 @@ async function boundary(initialize = true, nativePromise = false) {
     );
     if (nativePromise)
         runInContext(
-            "__nonaRegexpVm.isConstructor=function(fn){return typeof fn==='function'};__nonaRegexpVm.AggregateError=AggregateError;Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};" +
+            "__nonaRegexpVm.isConstructor=function(fn){return typeof fn==='function'};__nonaRegexpVm.AggregateError=AggregateError;Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};" +
                 promisePreludeSource.replace(
                     "__NONA_FAIL_ON_UNHANDLED__",
                     "true",
