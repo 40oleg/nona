@@ -104,6 +104,7 @@
                 "typedarray-change-by-copy",
                 "float16",
                 "string-builtins",
+                "string-index-inline",
                 "intl",
                 "simd",
                 "string-search",
