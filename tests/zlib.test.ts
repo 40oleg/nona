@@ -386,7 +386,9 @@ zlib.inflate(Buffer.from('not zlib data'), (err, out) => log.push('inflate ' + e
 zlib.deflateRaw('abc', { level: 9 }, (err, out) => log.push('deflateRaw ' + zlib.inflateRawSync(out)));
 process.nextTick(() => log.push('nextTick'));
 log.push('sync');
-setTimeout(async () => {
+const wait = setInterval(async () => {
+  if (log.length < 5) return;
+  clearInterval(wait);
   console.log(log.join(', '));
   const round = async (enc, dec, input, options) => (await util.promisify(dec)(await util.promisify(enc)(input, options))).toString('latin1');
   console.log(await round(zlib.deflate, zlib.inflate, 'deflate/inflate'), await round(zlib.gzip, zlib.gunzip, 'gzip/gunzip', { level: 1 }), await round(zlib.deflateRaw, zlib.inflateRaw, 'raw'), await round(zlib.gzip, zlib.unzip, 'gzip/unzip'), await round(zlib.deflate, zlib.unzip, 'deflate/unzip'));
@@ -405,7 +407,7 @@ setTimeout(async () => {
   const invalid = [['callback', () => zlib.gzip('x')], ['input', () => zlib.deflate(5, () => {})], ['object', () => zlib.deflate({}, () => {})], ['options', () => zlib.gzip('x', { level: 42 }, () => {})]];
   for (const [name, f] of invalid)
     try { f(); console.log(name, 'ok'); } catch (e) { console.log(name, e.name, e.code, e.message); }
-}, 20);
+}, 5);
 `,
     ));
 
