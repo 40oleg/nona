@@ -969,6 +969,17 @@ export class Arm64Assembler extends Assembler {
             (0x9e620000 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
         );
     }
+    override cvtsi2sd32(dst: Xmm, src: Reg): void {
+        this.nativeWord(
+            (0x1e620000 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
+        );
+    }
+    override movsxd(dst: Reg, src: Reg): void {
+        this.nativeWord(
+            (0x93407c00 | (arm64Registers[src] << 5) | arm64Registers[dst]) >>>
+                0,
+        );
+    }
     override movqToXmm(dst: Xmm, src: Reg): void {
         this.nativeWord(
             (0x9e670000 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
