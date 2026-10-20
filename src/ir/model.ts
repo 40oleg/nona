@@ -114,6 +114,16 @@ export type Operation =
           tail?: boolean;
           /** Code label of the function the callee is expected to be (src/ir/calls.ts). */ direct?: string;
           /** That function is strict (receives this unchanged). */ directStrict?: boolean;
+          /** That function reads neither this nor new.target (usesFrameThis): the call passes no receiver. */ directNoThis?: boolean;
+          /** The call passes exactly that function's parameters: it enters at `<direct>.direct`. */ directEntry?: boolean;
+          /** `object.name(...)` (src/ir/calls.ts): a plain function callee's code is called directly. */ method?: boolean;
+          /**
+           * `f.call(thisArg, ...args)` or `f.apply(thisArg, list)` (src/ir/calls.ts): when the callee is
+           * %Function.prototype.call% / %Function.prototype.apply% and `f` a function object, `f` is called
+           * without the builtin. "applyElements": `f.apply(thisArg, [elements])` with the array literal not
+           * created, its elements are arguments[1..].
+           */
+          callApply?: "call" | "apply" | "applyElements";
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
       }
@@ -202,6 +212,7 @@ export type Operation =
           object: number;
           key: number;
           /** The key is this literal name (`object.name`): the read may use an inline cache. */ keyName?: string;
+          /** The read is the callee of a method call `object.name(...)` (src/ir/calls.ts): its cache record has method entries (MethodCacheLayout). */ method?: boolean;
           /** The key is a Number (src/ir/numbers.ts): a typed array element may be read inline. */ numericKey?: boolean;
           /** In a loop versioned by src/ir/typed-loops.ts: object is a typed array over a fixed-length attached buffer and key an integer index below its length. */ unchecked?: boolean;
           /** In a loop versioned by src/ir/typed-loops.ts: `object.length` of such a typed array, read from the view (the getter is the intrinsic one). */ typedLength?: boolean;
@@ -314,12 +325,19 @@ export interface FunctionIR {
         end: number;
     };
     parameterCount: number;
+    /**
+     * Every parameter is a plain identifier without a default and the rest
+     * parameter (if any) is not destructured: the parameter slots hold their
+     * arguments (or undefined) from entry and never start in their dead zone.
+     */
+    simpleParameters?: boolean;
     localCount: number;
     slotCount: number;
     maxArguments: number;
     handlerCount?: number;
     derivedConstructor?: boolean;
     generator?: boolean;
+    /** Some direct call enters at `<id>.direct` (src/ir/calls.ts). */ directEntry?: boolean;
     blocks: BlockIR[];
 }
 export interface FfiDeclarationIR {

@@ -11,6 +11,17 @@ import { BIG_BYTES, Native } from "./native.js";
  * limit: a long fractional prefix may legitimately cancel a large exponent.
  */
 export function emitParse(b: RuntimeBundle): void {
+    // Exact binary64 powers 10^0..10^22 for the fast path of rt.parseNumber.
+    const pow10 = new DataView(new ArrayBuffer(23 * 8));
+    for (let i = 0; i <= 22; i++) pow10.setFloat64(i * 8, 10 ** i, true);
+    b.fragments.push({
+        name: "num.pow10",
+        section: ".rdata",
+        alignment: 8,
+        bytes: new Uint8Array(pow10.buffer),
+        fixups: [],
+        symbols: {},
+    });
     {
         const f = new Native("num.space"),
             a = f.a;
@@ -200,6 +211,122 @@ export function emitParse(b: RuntimeBundle): void {
     a.load("rax", { base: "rsi" }, 16);
     a.cmp("rax", 73);
     a.jcc("e", "parse.infinity");
+    // Exact fast path (Clinger): a decimal literal whose significand m has at
+    // most 19 significant digits, m <= 2^53, and whose effective decimal
+    // exponent e is in [-22, 22] is m * 10^e or m / 10^-e, one correctly
+    // rounded operation on exact doubles. The scan uses no big integers and
+    // makes no calls; anything else (radix prefixes, syntax errors, long or
+    // large-exponent inputs) restarts from the same position on the exact
+    // path below. RBX = m, R12 = significant digits, R13 = fraction digits,
+    // R14 = digit seen, R15 = dot seen, R8 = exponent.
+    f.set(17, "rsi");
+    a.xor("rbx", "rbx");
+    a.xor("r12", "r12");
+    a.xor("r13", "r13");
+    a.xor("r14", "r14");
+    a.xor("r15", "r15");
+    a.xor("r8", "r8");
+    a.label("parse.fastDigit");
+    a.cmp("rsi", "rdi");
+    a.jcc("ae", "parse.fastEnd");
+    a.load("rax", { base: "rsi" }, 16);
+    a.sub("rax", 48);
+    a.cmp("rax", 9);
+    a.jcc("a", "parse.fastNondigit");
+    a.mov("r14", 1);
+    a.add("r13", "r15");
+    a.mov("rdx", "rbx");
+    a.or("rdx", "rax");
+    a.test("rdx", "rdx");
+    a.jcc("e", "parse.fastAdvance");
+    a.add("r12", 1);
+    a.cmp("r12", 19);
+    a.jcc("a", "parse.slow");
+    a.mov("rdx", 10);
+    a.imul("rbx", "rdx");
+    a.add("rbx", "rax");
+    a.label("parse.fastAdvance");
+    a.add("rsi", 2);
+    a.jmp("parse.fastDigit");
+    a.label("parse.fastNondigit");
+    a.add("rax", 48);
+    a.cmp("rax", 46);
+    a.jcc("ne", "parse.fastExponent");
+    a.test("r15", "r15");
+    a.jcc("ne", "parse.slow");
+    a.mov("r15", 1);
+    a.add("rsi", 2);
+    a.jmp("parse.fastDigit");
+    a.label("parse.fastExponent");
+    a.or("rax", 32);
+    a.cmp("rax", 101);
+    a.jcc("ne", "parse.slow");
+    a.test("r14", "r14");
+    a.jcc("e", "parse.slow");
+    a.add("rsi", 2);
+    a.cmp("rsi", "rdi");
+    a.jcc("ae", "parse.slow");
+    a.xor("r9", "r9");
+    a.load("rax", { base: "rsi" }, 16);
+    a.cmp("rax", 43);
+    a.jcc("e", "parse.fastExpSign");
+    a.cmp("rax", 45);
+    a.jcc("ne", "parse.fastExpFirst");
+    a.mov("r9", 1);
+    a.label("parse.fastExpSign");
+    a.add("rsi", 2);
+    a.label("parse.fastExpFirst");
+    a.cmp("rsi", "rdi");
+    a.jcc("ae", "parse.slow");
+    a.label("parse.fastExpLoop");
+    a.load("rax", { base: "rsi" }, 16);
+    a.sub("rax", 48);
+    a.cmp("rax", 9);
+    a.jcc("a", "parse.slow");
+    // Saturate far outside [-22, 22] (and far below 2^63 / 10).
+    a.cmp("r8", 100000);
+    a.jcc("ae", "parse.fastExpNext");
+    a.mov("rdx", 10);
+    a.imul("r8", "rdx");
+    a.add("r8", "rax");
+    a.label("parse.fastExpNext");
+    a.add("rsi", 2);
+    a.cmp("rsi", "rdi");
+    a.jcc("b", "parse.fastExpLoop");
+    a.test("r9", "r9");
+    a.jcc("e", "parse.fastEnd");
+    a.neg("r8");
+    a.label("parse.fastEnd");
+    a.test("r14", "r14");
+    a.jcc("e", "parse.slow");
+    a.test("r12", "r12");
+    a.jcc("e", "parse.signedzero");
+    a.mov("rax", 1n << 53n);
+    a.cmp("rbx", "rax");
+    a.jcc("a", "parse.slow");
+    a.sub("r8", "r13");
+    a.cmp("r8", 22);
+    a.jcc("g", "parse.slow");
+    a.cmp("r8", -22);
+    a.jcc("l", "parse.slow");
+    a.cvtsi2sd("xmm0", "rbx");
+    a.lea("r10", { rip: "num.pow10" });
+    a.test("r8", "r8");
+    a.jcc("l", "parse.fastDivide");
+    a.shl("r8", 3);
+    a.add("r10", "r8");
+    a.mulsd("xmm0", { base: "r10" });
+    a.jmp("parse.fastDone");
+    a.label("parse.fastDivide");
+    a.neg("r8");
+    a.shl("r8", 3);
+    a.add("r10", "r8");
+    a.divsd("xmm0", { base: "r10" });
+    a.label("parse.fastDone");
+    a.movqFromXmm("rax", "xmm0");
+    a.jmp("parse.sign");
+    a.label("parse.slow");
+    f.get("rsi", 17);
     a.lea("r12", { base: "rsp", disp: 360 });
     a.lea("r13", { base: "r12", disp: BIG_BYTES });
     a.mov("rcx", "r12");

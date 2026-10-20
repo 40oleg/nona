@@ -39,10 +39,11 @@ test("functions share one prologue stub and keep a short inline prologue", () =>
                 descriptor.bytes.length === FrameDescriptor.size,
             fragment.name + " has a frame descriptor",
         );
-        // rt.enterFrame, or the stub for a small function's parameter count (#47).
+        // rt.enterFrame, or the stub for a small function's parameter count;
+        // the lean variants for functions that read no this (#47).
         assert.ok(
             fragment.fixups.some((f) =>
-                /^rt\.enterFrame[0-4]?$/.test(f.target),
+                /^rt\.enterFrame(Lean)?[0-4]?$/.test(f.target),
             ),
             fragment.name + " calls the stub",
         );
@@ -60,6 +61,23 @@ test("functions share one prologue stub and keep a short inline prologue", () =>
     const unwind = program.functions.find((f) => f.begin === "js.main")!;
     assert.equal(unwind.prologSize, 12);
     assert.ok(unwind.stackAllocation >= 240);
+    const stub = (name: string) =>
+        program.fragments
+            .find((f) => f.name === name)!
+            .fixups.find((f) => /^rt\.enterFrame/.test(f.target))!.target;
+    // f reads no this; the constructors do (#47).
+    assert.equal(stub("js.fn.0"), "rt.enterFrameLean2");
+    assert.ok(
+        program.fragments
+            .filter((f) => /^js\.fn\.[1-9]$/.test(f.name))
+            .every((f) => !/Lean/.test(stub(f.name))),
+    );
+    // f(1,2) passes all its parameters: it enters at f's direct entry.
+    assert.ok(
+        program.fragments
+            .find((f) => f.name === "js.main")!
+            .fixups.some((f) => f.target === "js.fn.0.direct"),
+    );
 });
 
 test("parameters, this and new.target reach their slots through the shared prologue", () =>
@@ -96,6 +114,8 @@ test("the stub turns stack overflow into a RangeError", () =>
 function rec(n){return n===0?0:1+rec(n-1)}
 console.log(rec(5000));
 try{(function deep(n){return deep(n+1)+1})(0)}catch(e){console.log(e instanceof RangeError,e.message)}
+function direct(n){return direct(n+1)+1}
+try{direct(0)}catch(e){console.log(e instanceof RangeError,e.message)}
 try{(function deepArrow(){const d=()=>d();d()})()}catch(e){console.log(e instanceof RangeError)}
 class A{constructor(){this.x=1}}class B extends A{constructor(){super();new B()}}
 try{new B()}catch(e){console.log(e instanceof RangeError)}

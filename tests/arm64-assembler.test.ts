@@ -72,6 +72,13 @@ test("ARM64 binary64 arithmetic uses native FP registers and instructions", () =
     );
 });
 
+test("ARM64 int32 conversion and sign extension of a register's low 32 bits (#402)", () => {
+    const a = assembler();
+    a.cvtsi2sd32("xmm0", "r10");
+    a.movsxd("r10", "r10");
+    assert.deepEqual(words(a.finish().bytes), [0x1e620120, 0x93407d29]);
+});
+
 test("ARM64 CPU execution probe links arithmetic, flags, division, FP and atomic checks", async () => {
     const path = "../tests/probes/arm64-cpu-probe.js";
     const { arm64CpuProbe } = await import(path),
