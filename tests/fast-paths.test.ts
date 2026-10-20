@@ -592,7 +592,14 @@ test("the named fast paths list the ordinary object kinds by their numbers", asy
             m.WeakSetKind,
         ]),
     ]);
-    assert.deepEqual(namedPropertyKinds, [0, 1, 2, ...kinds.flat()]);
+    const { PromiseKind } = await import("../src/runtime/promise-layout.js");
+    assert.deepEqual(namedPropertyKinds, [
+        0,
+        1,
+        2,
+        ...kinds.flat(),
+        PromiseKind,
+    ]);
     assert.equal(
         namedTypedArrayKind,
         (await import("../src/runtime/typed-array.js")).TypedArrayKind,

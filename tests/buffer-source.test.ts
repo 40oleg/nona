@@ -270,7 +270,7 @@ for (const [index, source] of cases.entries()) {
 }
 
 test("private Web reader and writer rejection handling does not construct species promises", () => {
-    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
     const body = `var speciesCalls=0;Object.defineProperty(Promise,Symbol.species,{get:function(){speciesCalls++;return Promise},configurable:true});var reader=new Blob(['x']).stream().getReader();reader.releaseLock();var writer=new WritableStream().getWriter();writer.releaseLock();__nonaPromiseDrainJobs();speciesCalls`;
     assert.equal(
         runInNewContext(
