@@ -14,7 +14,12 @@ import {
     emptyLiteralCapacity,
     LiteralSiteLayout,
 } from "../../runtime/shapes.js";
-import { ElementsLayout } from "../../runtime/array-elements.js";
+import {
+    emitLiteralStore,
+    emitTypedElementGet,
+    emitTypedElementSet,
+    type SiteEmitter,
+} from "./element-sites.js";
 import {
     int32Operand,
     integerRemainder,
@@ -796,6 +801,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     const pushCold = (emit: () => void) => {
         cold.push({ map: currentMap, emit });
     };
+    const sites: SiteEmitter = { a, value, payload, pointer, pushCold };
     // A derived constructor's this starts uninitialized, in a cell that its
     // arrow functions may share (the stub copied the receiver to the super
     // receiver slot already).
@@ -1764,6 +1770,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.call("rt.forOfValue");
                     break;
                 case "property":
+                    if (emitTypedElementGet(sites, fn.id, op)) break;
                     pointer("rcx", op.dest);
                     pointer("rdx", op.object);
                     pointer("r8", op.key);
@@ -1838,91 +1845,16 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     }
                     break;
                 case "setProperty":
-                    // An element of an array literal created with its table (#48) is
-                    // stored into its slot.
                     if (
-                        op.literalElement !== undefined &&
-                        arrayLiterals.has(op.object)
-                    ) {
-                        const slow = a.unique("elementSlow"),
-                            done = a.unique("elementDone"),
-                            generic = op,
-                            offset =
-                                ElementsLayout.values + 16 * op.literalElement;
-                        a.load("r10", payload(op.object));
-                        a.load("r10", { base: "r10", disp: O.elements });
-                        a.test("r10", "r10");
-                        a.jcc("e", slow);
-                        a.load("rax", {
-                            base: "r10",
-                            disp: ElementsLayout.capacity,
-                        });
-                        a.cmp("rax", op.literalElement);
-                        a.jcc("be", slow);
-                        a.load("rax", value(op.source));
-                        a.store({ base: "r10", disp: offset }, "rax");
-                        a.load("rax", payload(op.source));
-                        a.store({ base: "r10", disp: offset + 8 }, "rax");
-                        pushCold(() => {
-                            a.label(slow);
-                            pointer("rcx", generic.object);
-                            pointer("rdx", generic.key);
-                            pointer("r8", generic.source);
-                            a.mov(
-                                "r9",
-                                (generic.define ? 1 : 0) |
-                                    (generic.strict ? 2 : 0),
-                            );
-                            a.call("rt.setProperty");
-                            a.jmp(done);
-                        });
-                        a.label(done);
+                        emitLiteralStore(
+                            sites,
+                            op,
+                            arrayLiterals.has(op.object),
+                            literalSites.get(op.object),
+                        ) ||
+                        emitTypedElementSet(sites, fn.id, op)
+                    )
                         break;
-                    }
-                    // A definition in an object literal with known keys stores its slot
-                    // directly while the object still has the site's shape.
-                    if (
-                        op.literalSlot !== undefined &&
-                        literalSites.has(op.object)
-                    ) {
-                        const site = literalSites.get(op.object)!,
-                            slow = a.unique("literalSlow"),
-                            done = a.unique("literalDone"),
-                            generic = op;
-                        a.load("r10", payload(op.object));
-                        a.load("r11", { base: "r10", disp: O.shape });
-                        a.load("rax", { rip: site });
-                        a.cmp("r11", "rax");
-                        a.jcc("ne", slow);
-                        a.load("rax", value(op.source));
-                        a.store(
-                            { base: "r10", disp: O.size + 16 * op.literalSlot },
-                            "rax",
-                        );
-                        a.load("rax", payload(op.source));
-                        a.store(
-                            {
-                                base: "r10",
-                                disp: O.size + 16 * op.literalSlot + 8,
-                            },
-                            "rax",
-                        );
-                        pushCold(() => {
-                            a.label(slow);
-                            pointer("rcx", generic.object);
-                            pointer("rdx", generic.key);
-                            pointer("r8", generic.source);
-                            a.mov(
-                                "r9",
-                                (generic.define ? 1 : 0) |
-                                    (generic.strict ? 2 : 0),
-                            );
-                            a.call("rt.setProperty");
-                            a.jmp(done);
-                        });
-                        a.label(done);
-                        break;
-                    }
                     pointer("rcx", op.object);
                     pointer("rdx", op.key);
                     pointer("r8", op.source);

@@ -185,6 +185,7 @@ export type Operation =
           object: number;
           key: number;
           /** The key is this literal name (`object.name`): the read may use an inline cache. */ keyName?: string;
+          /** The key is a Number (src/ir/numbers.ts): a typed array element may be read inline. */ numericKey?: boolean;
       }
     | {
           kind: "setProperty";
@@ -196,6 +197,7 @@ export type Operation =
           /** `object.name = value`: the write may use an inline cache. */ keyName?: string;
           /** The initial definition of key `keys[literalSlot]` of the object literal `object` (a newObject with keys). */ literalSlot?: number;
           /** The initial definition of element `literalElement` of the array literal `object` (a newObject with elements). */ literalElement?: number;
+          /** The key is a Number (src/ir/numbers.ts): a typed array element may be written inline. */ numericKey?: boolean;
       }
     | {
           kind: "defineAccessor";

@@ -96,6 +96,7 @@
                 "array-from-async",
                 "array-buffer",
                 "typed-array-fast-path",
+                "typed-array-inline",
                 "typedarray-change-by-copy",
                 "float16",
                 "string-builtins",

@@ -175,6 +175,15 @@ proxies, arguments objects, string wrappers) is the generic call with the
 same arguments. As with the inline caches, the checks are one shared stub per
 direction, not code at every site.
 
+The exception is a site of the program (not of a prelude) whose key is a
+proven Number (`numericKey`, `src/ir/numbers.ts`): it first tests inline for a
+typed array over a fixed-length buffer that is not detached and an integer
+index below its length (`-0` is index 0). A `Float64Array` element is then
+read or written in place; `Int32Array` and `Uint8Array` reads and 8- and
+32-bit integer writes of a Number take a short out-of-line path. Every other
+case, including resizable buffers, BigInt and clamped elements and non-Number
+values, calls the stub as before (#240).
+
 ## Development aids
 
 `NONA_SHAPE_STATS=1` at compile time adds a counter to every place that

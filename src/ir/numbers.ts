@@ -13,7 +13,8 @@ import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
  * arithmetic, comparison or update operation whose operands are all such
  * slots is marked `numeric`; the code generator then emits it without tag
  * checks and without the generic runtime fallback, and since it cannot reach
- * the runtime, without clearing dead slots before it.
+ * the runtime, without clearing dead slots before it. An element read or
+ * assignment whose key is such a slot is marked `numericKey` (#240).
  *
  * Numbers come from number constants, from + - * / on Numbers, and from the
  * numeric/increment/decrement/negation unary operators on Numbers. BigInt
@@ -34,6 +35,26 @@ import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
 const arithmetic = new Set(["+", "-", "*", "/"]);
 const relation = new Set(["<", "<=", ">", ">=", "==", "===", "!=", "!=="]);
 const numericUnary = new Set(["numeric", "increment", "decrement", "-", "+"]);
+
+/**
+ * `object[key]` reads and `object[key] = value` assignments whose key is not
+ * a literal name: with a Number key (marked `numericKey`) the code generator
+ * may access a typed array element inline (#240).
+ */
+function elementSite(
+    op: Operation,
+): op is Extract<Operation, { kind: "property" | "setProperty" }> {
+    return (
+        (op.kind === "property" &&
+            op.operation === "get" &&
+            op.keyName === undefined) ||
+        (op.kind === "setProperty" &&
+            !op.define &&
+            op.keyName === undefined &&
+            op.literalSlot === undefined &&
+            op.literalElement === undefined)
+    );
+}
 
 type State = Set<number> | null;
 function intersect(a: State, b: ReadonlySet<number>): Set<number> {
@@ -123,7 +144,10 @@ export function markNumericOperations(fn: FunctionIR): FunctionIR {
     if (
         !fn.blocks.some((block) =>
             block.operations.some(
-                (op) => op.kind === "binary" || op.kind === "unary",
+                (op) =>
+                    op.kind === "binary" ||
+                    op.kind === "unary" ||
+                    elementSite(op),
             ),
         )
     )
@@ -188,6 +212,11 @@ export function markNumericOperations(fn: FunctionIR): FunctionIR {
             const state = new Set(start);
             let marked = false;
             const operations = block.operations.map((operation) => {
+                if (elementSite(operation) && state.has(operation.key)) {
+                    step(operation, state);
+                    marked = true;
+                    return { ...operation, numericKey: true } as Operation;
+                }
                 const numeric = isNumericOperation(operation, state);
                 step(operation, state);
                 if (!numeric) return operation;
