@@ -5,7 +5,7 @@ import { CompileError, inPhase, internalError } from "./diagnostics.js";
 import { lex } from "./frontend/lexer.js";
 import { parse } from "./frontend/parser.js";
 import { bind } from "./frontend/binder.js";
-import { lower } from "./ir/lower.js";
+import { lower, type LowerOptions } from "./ir/lower.js";
 import type { FfiDeclarationIR, ModuleIR } from "./ir/model.js";
 import { checkFfiNames } from "./ffi.js";
 import type { Program } from "./frontend/ast.js";
@@ -168,6 +168,7 @@ export function compileModuleToIR(
     host?: ModuleHost,
     scriptPrelude = "",
     target: Target = requireHostTarget(),
+    lowering: LowerOptions = { inline: true },
 ): ModuleIR {
     host ??= nodeModuleHost(target, { fileName, source });
     // The entry's createRequire table, as for the modules it imports.
@@ -190,7 +191,10 @@ export function compileModuleToIR(
     );
     const main: Program = { ...script, module: true, source: scriptPrelude };
     const bound = inPhase("bind", () => bind(main, records));
-    return { ...inPhase("lower", () => lower(bound)), runtimePrelude: true };
+    return {
+        ...inPhase("lower", () => lower(bound, lowering)),
+        runtimePrelude: true,
+    };
 }
 export type CompileResult =
     | {
@@ -207,6 +211,7 @@ export function compileToIR(
     fileName?: string,
     host?: ModuleHost,
     target: Target = requireHostTarget(),
+    lowering: LowerOptions = { inline: true },
 ): ModuleIR {
     // A script entry that is CommonJS (or an ES module by its syntax) is
     // compiled as the module graph it starts.
@@ -224,12 +229,20 @@ export function compileToIR(
                 node,
                 "",
                 target,
+                lowering,
             );
         if (
             format === "module" &&
             (fileName.endsWith(".mjs") || entryHasModuleSyntax(source))
         )
-            return compileModuleToIR(source, fileName, node, "", target);
+            return compileModuleToIR(
+                source,
+                fileName,
+                node,
+                "",
+                target,
+                lowering,
+            );
         host = node;
     }
     host = withBuiltinModules(host ?? fileModuleHost, target);
@@ -257,7 +270,7 @@ export function compileToIR(
     if (!dynamic.length) {
         const bound = inPhase("bind", () => bind(script));
         return {
-            ...inPhase("lower", () => lower(bound)),
+            ...inPhase("lower", () => lower(bound, lowering)),
             runtimePrelude: true,
         };
     }
@@ -274,7 +287,10 @@ export function compileToIR(
     const bound = inPhase("bind", () =>
         bind({ ...script, scriptPath: path, scriptRequests }, records),
     );
-    return { ...inPhase("lower", () => lower(bound)), runtimePrelude: true };
+    return {
+        ...inPhase("lower", () => lower(bound, lowering)),
+        runtimePrelude: true,
+    };
 }
 /** PE resources from compile options; a GUI program gets a default manifest. */
 /**
@@ -443,6 +459,14 @@ function compileOnTarget(
                       options.conditions,
                   )
                 : undefined);
+        // Coverage and call statistics count every call: no call is inlined.
+        // NONA_NO_INLINE=1 disables the inliner (#235) to measure its effect.
+        const lowering: LowerOptions = {
+            inline:
+                !options.coverage &&
+                !options.callStats &&
+                !process.env.NONA_NO_INLINE,
+        };
         const {
             result: { ir: loweredIR, agentIRs },
             usage,
@@ -454,6 +478,7 @@ function compileOnTarget(
                     undefined,
                     undefined,
                     options.target,
+                    lowering,
                 ),
             ),
             ir: options.module
@@ -463,12 +488,14 @@ function compileOnTarget(
                       moduleHost,
                       options.scriptPrelude,
                       options.target,
+                      lowering,
                   )
                 : compileToIR(
                       source,
                       options.fileName,
                       moduleHost,
                       options.target,
+                      lowering,
                   ),
         }));
         const unknownParts = (options.link ?? []).filter(

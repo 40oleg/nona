@@ -3,12 +3,21 @@ import type { BoundProgram } from "../frontend/bound.js";
 import type { FfiDeclarationIR, ModuleIR } from "./model.js";
 import { internalError } from "../diagnostics.js";
 import { annotateDirectCalls } from "./calls.js";
+import { inlineDirectCalls } from "./inline.js";
 import { optimizeFunction } from "./optimize.js";
 import { initializedCaptures } from "./initialization.js";
 import { EntryLowerer } from "./lower/entry.js";
 export { importMetaFields } from "./lower/expressions.js";
 
-export function lower(bound: BoundProgram): ModuleIR {
+export interface LowerOptions {
+    /** Inline small known callees (src/ir/inline.ts); off for coverage and call statistics, which count calls. */
+    inline?: boolean;
+}
+
+export function lower(
+    bound: BoundProgram,
+    options: LowerOptions = {},
+): ModuleIR {
     const templateCaches = {
         next: bound.globals.length,
         ffi: [] as FfiDeclarationIR[],
@@ -115,21 +124,20 @@ export function lower(bound: BoundProgram): ModuleIR {
                 ...fn,
                 source: { ...fn.source, name: names.get(fn.id)! },
             };
-    return annotateDirectCalls({
+    const captures = initializedCaptures(functions);
+    const module = annotateDirectCalls({
         ...(templateCaches.ffi.length ? { ffi: templateCaches.ffi } : {}),
         scripts: [
             "",
             ...(bound.modules ?? []).map((module) => module.record.path),
         ],
         globalCount: templateCaches.next,
-        functions: ((captures) =>
-            functions.map((fn) => optimizeFunction(fn, captures)))(
-            initializedCaptures(functions),
-        ),
+        functions: functions.map((fn) => optimizeFunction(fn, captures)),
         globalProperties: bound.globals
             .filter((b) => !b.lexical && !b.module)
             .map(({ name, index }) => ({ name, index })),
     });
+    return options.inline ? inlineDirectCalls(module, { captures }) : module;
 }
 
 /** Expression dispatch; the final class of the lowering chain. */
