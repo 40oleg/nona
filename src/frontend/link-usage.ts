@@ -380,7 +380,10 @@ class UsageWalker {
             if (statement.kind === "Var" && statement.declarationKind !== "var")
                 for (const d of statement.declarations)
                     for (const id of boundNames(d.id)) scope.names.add(id.name);
-            else if (statement.kind === "Function" || statement.kind === "Class")
+            else if (
+                statement.kind === "Function" ||
+                statement.kind === "Class"
+            )
                 scope.names.add(statement.id.name);
         }
         this.statements(statements, scope);
@@ -471,7 +474,8 @@ class UsageWalker {
             case "ForIn":
             case "ForOf": {
                 const inner = this.loopScope(node.left, scope);
-                if (node.left.kind === "Var") this.declaration(node.left, inner);
+                if (node.left.kind === "Var")
+                    this.declaration(node.left, inner);
                 else this.target(node.left, inner);
                 this.expression(node.right, inner);
                 this.nested(node.body, inner);
@@ -513,7 +517,10 @@ class UsageWalker {
                     if (node.source !== undefined)
                         selectName(specifier.local, inSource(specifier.local));
                     else this.reference(specifier.local, scope);
-                    selectName(specifier.exported, inSource(specifier.exported));
+                    selectName(
+                        specifier.exported,
+                        inSource(specifier.exported),
+                    );
                 }
                 if (node.declaration) this.statement(node.declaration, scope);
                 if (node.defaultExpression)
@@ -539,10 +546,7 @@ class UsageWalker {
         parent: Scope,
     ): Scope {
         const scope: Scope = { parent, names: new Set() };
-        if (
-            head?.kind === "Var" &&
-            (head as A.Var).declarationKind !== "var"
-        )
+        if (head?.kind === "Var" && (head as A.Var).declarationKind !== "var")
             for (const d of (head as A.Var).declarations)
                 for (const id of boundNames(d.id)) scope.names.add(id.name);
         return scope;
@@ -579,7 +583,8 @@ class UsageWalker {
             case "ArrayPattern":
                 for (const element of node.elements)
                     if (element) this.element(element, scope, assignment);
-                if (node.rest) this.patternOrTarget(node.rest, scope, assignment);
+                if (node.rest)
+                    this.patternOrTarget(node.rest, scope, assignment);
                 return;
             case "ObjectPattern":
                 for (const property of node.properties) {
@@ -589,11 +594,13 @@ class UsageWalker {
                     } else {
                         // const {normalize} = String.prototype reads the property.
                         const name = literalName(property.key);
-                        if (name !== undefined) selectName(name, inSource(name));
+                        if (name !== undefined)
+                            selectName(name, inSource(name));
                     }
                     this.element(property.value, scope, assignment);
                 }
-                if (node.rest) this.patternOrTarget(node.rest, scope, assignment);
+                if (node.rest)
+                    this.patternOrTarget(node.rest, scope, assignment);
                 return;
         }
     }
@@ -686,11 +693,7 @@ class UsageWalker {
                 return;
             case "Member":
                 this.expression(node.object, scope);
-                this.property(
-                    node.property,
-                    !!this.computed?.has(node),
-                    scope,
-                );
+                this.property(node.property, !!this.computed?.has(node), scope);
                 return;
             case "OptionalChain":
                 this.expression(node.base, scope);

@@ -139,7 +139,10 @@ test("real uses still select their parts", () => {
         ["var Proxy; new Proxy({}, {})", "proxy"],
     ] as [string, string][])
         assert.equal(linked(source), expected, source);
-    assert.equal(linked('import { stdout } from "node:process"', true), "stream");
+    assert.equal(
+        linked('import { stdout } from "node:process"', true),
+        "stream",
+    );
     assert.equal(linked('import("node:stream")', true), "stream");
     assert.equal(linked('export { link } from "./x.js"', true), "annexB");
     assert.equal(linked("import { bold } from './x.js'", true), "annexB");
@@ -214,8 +217,11 @@ test("string probes are the size of a program without them", () => {
             target,
         ).length;
         assert.ok(normalize - hello > 300_000, `${target}: ${normalize}`);
-        const full = image('console.log("link");', { fullRuntime: true }, target)
-            .length;
+        const full = image(
+            'console.log("link");',
+            { fullRuntime: true },
+            target,
+        ).length;
         assert.ok(full - hello > 3_000_000, `${target}: ${full}`);
     }
 });

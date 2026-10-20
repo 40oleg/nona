@@ -34,9 +34,8 @@ function image(
 }
 
 const usage = (...sources: string[]) =>
-    collectSourceUsage(() =>
-        sources.forEach((source) => parse(lex(source))),
-    ).usage;
+    collectSourceUsage(() => sources.forEach((source) => parse(lex(source))))
+        .usage;
 
 test("source usage: what reaches the RegExp engine and the Unicode tables", () => {
     const none = {
