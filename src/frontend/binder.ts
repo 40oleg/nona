@@ -53,10 +53,34 @@ export function bind(
     const catchBindings = new Set<Binding>(),
         withChains = new Map<A.Node, StorageBinding[]>(),
         annexBFunctions = new Map<A.Node, Binding>();
+    // Known-function bindings (#239): the plain function declaration that
+    // initializes a local (null: several declarations or not a plain function),
+    // and the bindings that something else writes or may write.
+    const declaredFunctions = new Map<
+            StorageBinding,
+            A.FunctionDeclaration | null
+        >(),
+        otherWrites = new Set<StorageBinding>();
+    const written = (b: Binding): void => {
+        if (b.kind === "globalProperty") return;
+        b.assigned = true;
+        otherWrites.add(b);
+    };
     const fail = (node: A.Node, message: string): never => {
         throw new CompileError([
             { code: "E_BIND", message, file: "", span: node.span },
         ]);
+    };
+    /** Marks the locals that only their one plain function declaration writes. */
+    const markKnownFunctions = (): void => {
+        for (const [b, declaration] of declaredFunctions)
+            if (
+                declaration &&
+                b.kind === "local" &&
+                b.name !== "arguments" &&
+                !otherWrites.has(b)
+            )
+                b.knownFunction = functionNodes.get(declaration);
     };
     let classCode = 0; // > 0 while analyzing class heritage and element names (strict mode code)
     const register = (
@@ -209,7 +233,7 @@ export function bind(
         }
         const variable = (
             id: A.Identifier,
-            functionDeclaration = false,
+            functionDeclaration?: A.FunctionDeclaration,
         ): void => {
             checkName(id);
             let b = functionNames.get(id.name);
@@ -239,13 +263,23 @@ export function bind(
                 functionNames.set(id.name, b);
             }
             // A function declaration writes the binding it reuses (a parameter of that name).
-            if (functionDeclaration && b.kind !== "globalProperty")
+            if (functionDeclaration && b.kind !== "globalProperty") {
                 b.assigned = true;
+                const plain =
+                    !functionDeclaration.generator &&
+                    !functionDeclaration.async;
+                declaredFunctions.set(
+                    b,
+                    plain && !declaredFunctions.has(b)
+                        ? functionDeclaration
+                        : null,
+                );
+            }
             bindings.set(id, b);
         };
         const bodyDeclarations = collectDeclarations(body, "var");
         for (const statement of bodyDeclarations.bodyFunctions) {
-            variable(statement.id, true);
+            variable(statement.id, statement);
             (fn?.declarations ?? declarations).push(register(statement, fn));
         }
         bodyDeclarations.vars.forEach((id) => variable(id));
@@ -281,6 +315,8 @@ export function bind(
                     span: declaration.id.span,
                 });
                 annexBFunctions.set(declaration, functionNames.get(name)!);
+                // Evaluating the block declaration writes the var binding.
+                written(functionNames.get(name)!);
             }
         }
         const scopes = [...outerScopes],
@@ -535,8 +571,7 @@ export function bind(
             if (!fn?.realmLocal) b ??= globalNames.get(id.name);
             if (!b) b = { kind: "globalProperty", name: id.name };
             const result = b!;
-            if (mode === "write" && result.kind !== "globalProperty")
-                result.assigned = true;
+            if (mode === "write") written(result);
             if (result.kind === "local") {
                 const argumentsOwner = argumentOwners.get(result);
                 if (argumentsOwner) {
@@ -580,7 +615,11 @@ export function bind(
             };
             use(result);
             withs.forEach(use);
-            if (withs.length) withChains.set(id, withs);
+            if (withs.length) {
+                withChains.set(id, withs);
+                // A with object or an eval var environment may answer instead.
+                if (result.kind !== "globalProperty") otherWrites.add(result);
+            }
             bindings.set(id, result);
             return result;
         };
@@ -1141,11 +1180,7 @@ export function bind(
                                     .reverse()
                                     .map((scope) => scope.get(id.name))
                                     .find(Boolean);
-                                if (
-                                    visible &&
-                                    visible.kind !== "globalProperty"
-                                )
-                                    visible.assigned = true;
+                                if (visible) written(visible);
                             }
                             if (d.init) {
                                 const id = d.id;
@@ -1448,6 +1483,7 @@ export function bind(
     };
     if (!moduleRecords) {
         analyze(ast.body, null, ast);
+        markKnownFunctions();
         return {
             ast,
             globals,
@@ -1798,6 +1834,7 @@ export function bind(
             modules[index]!.getters.push(getter);
         }
     }
+    markKnownFunctions();
     return {
         ast,
         globals,
