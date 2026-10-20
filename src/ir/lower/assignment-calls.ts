@@ -231,6 +231,7 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             this.tailCalls.has(e),
             ref ? this.hasOwnCall(e.callee as A.Member, args) : undefined,
             ref ? this.intrinsicCall(e.callee as A.Member, args) : undefined,
+            ref ? this.stringIndexCall(e.callee as A.Member, args) : undefined,
         );
         return dest;
     }

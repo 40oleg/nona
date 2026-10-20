@@ -56,6 +56,7 @@ export abstract class LowererBase {
         tail?: boolean,
         hasOwn?: "method" | "call",
         intrinsic?: "imul",
+        stringIndex?: "charCodeAt" | "charAt",
     ): void;
     protected abstract preludeCall(name: string, args: number[]): number;
     protected blocks: BlockIR[] = [];

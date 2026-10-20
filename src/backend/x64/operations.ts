@@ -30,6 +30,7 @@ import {
 } from "./integer-ops.js";
 import { emitSwitchTable } from "./switch-table.js";
 import { emitFastSite, type SiteFrame } from "./method-sites.js";
+import { emitStringIndexSite } from "./string-index-site.js";
 import type { Assembler, Mem, Condition, Reg } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
 import type {
@@ -1647,6 +1648,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         callSite,
                         fragments,
                     };
+                    if (emitStringIndexSite(frame, op)) break;
                     if (emitFastSite(frame, op)) break;
                     if (!op.direct) {
                         callSite(op);

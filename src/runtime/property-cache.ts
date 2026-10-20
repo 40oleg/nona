@@ -443,10 +443,11 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
             inherited = a.unique("inherited"),
             copy = a.unique("copy"),
             done = a.unique("done"),
-            unshaped = a.unique("unshaped");
+            unshaped = a.unique("unshaped"),
+            primitive = a.unique("primitive");
         a.load("rax", { base: "rdx" });
         a.cmp("rax", 5);
-        a.jcc("ne", miss);
+        a.jcc("ne", primitive);
         a.load("r10", { base: "rdx", disp: 8 });
         a.load("rax", { base: "r10", disp: O.shape });
         a.test("rax", "rax");
@@ -488,6 +489,15 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.jmp(copy);
         // Not shaped: a function object's own property remembered by the own entry.
         a.label(unshaped);
+        emitOwnEntryHit(a, done);
+        a.jmp(miss);
+        // A primitive string: String.prototype's own property, remembered the same
+        // way (a string's own properties are its length and indices, never a
+        // cached name).
+        a.label(primitive);
+        a.cmp("rax", 4);
+        a.jcc("ne", miss);
+        a.lea("r10", { rip: "rt.stringPrototype" });
         emitOwnEntryHit(a, done);
         a.label(miss);
         a.call("rt.getPropertyCached");
@@ -998,11 +1008,21 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
                     // RAX = an own node of the receiver (slot 72). A function object's is
                     // remembered in the own entry (emitOwnEntryHit), and the function is
                     // flagged so that deleting or redefining the property advances the epoch.
+                    // So is String.prototype's when the receiver is a primitive string
+                    // (`s.charCodeAt`): rt.icGet answers those from the entry too.
                     a.label(ownFound);
                     a.load("r10", slot(72));
                     a.load("r11", { base: "r10", disp: O.kind });
                     a.cmp("r11", cachedFunctionKind);
-                    a.jcc("ne", read);
+                    {
+                        const remember = a.unique("remember");
+                        a.jcc("e", remember);
+                        a.load("r11", slot(48));
+                        a.load("r11", { base: "r11" });
+                        a.cmp("r11", 4);
+                        a.jcc("ne", read);
+                        a.label(remember);
+                    }
                     a.load("r11", { base: "r10", disp: O.flags });
                     a.or("r11", ObjectFlags.cachedPrototype);
                     a.store({ base: "r10", disp: O.flags }, "r11");
