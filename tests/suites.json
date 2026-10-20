@@ -276,6 +276,7 @@
                 "new-target",
                 "nullish",
                 "number-builtins",
+                "number-to-string",
                 "object-collections",
                 "object-literal-methods",
                 "object-methods",

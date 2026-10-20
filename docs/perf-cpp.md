@@ -201,7 +201,7 @@ Selected rows at N = 10M (iterations as given):
 | `str_indexof_ascii_short_n4`    | 10,000,000 | 16          | 1030 [1017–1041] | 91.5 [89.9–93.1] | 11.3     |                                                 |
 | `str_builder_ascii_short_join`  | 1,000,000  | 16          | 243 [238–248]    | 22.2 [21.5–22.4] | 10.9     | push + join, matched contract                   |
 | `str_splitjoin_ascii_short`     | 1,000,000  | 16          | 1068 [1031–1091] | 118 [114–125]    | 9.04     |                                                 |
-| `str_format_int_short`          | 10,000,000 | —           | 3389 [3369–3486] | 411 [398–429]    | 8.24     | `String(x)` of integers below 2^53              |
+| `str_format_int_short`          | 10,000,000 | —           | 3389 [3369–3486] | 411 [398–429]    | 8.24     | `String(x)` of integers below 2^53 (#427)       |
 | `str_concat_ascii_short`        | 10,000,000 | 16          | 1173 [1149–1195] | 168 [163–172]    | 6.99     | C++ builds a new string each time               |
 | `str_equal_ascii_short`         | 10,000,000 | 16          | 119 [117–123]    | 50.2 [49.0–51.5] | 2.37     |                                                 |
 | `str_slice_ascii_large`         | 1,000      | 1,048,576   | 49.0 [47.9–50.3] | 22.4 [21.3–23.6] | 2.19     | 512 KiB copy per iteration                      |
@@ -223,6 +223,52 @@ The C++ ASCII `std::string` rows (`*_bytes`) are a practical lower bound,
 not equivalent Unicode work: they halve the C++ search time for medium and
 large inputs (`indexOf` x1.26–x1.73 against bytes) and change little for
 scan, where the C++ loop is already vectorized.
+
+### Update: integer fast path for `String(number)` (#427)
+
+`rt.formatNumber` now converts integral Numbers with |x| < 2^53 (and -0) as
+integers: it counts the digits against a table of powers of ten, allocates
+the exact length once and writes the digits right to left two at a time
+(`src/runtime/numeric/format.ts`). Same host and protocol as above (WSL2,
+`--only <kernels>`, N = 10,000,000, 11 runs, `g++ -O3` unchanged); "before"
+is the build of the parent commit (`a2e7601d`), "after" the #427 branch.
+Raw results: `bench/cpp/results/2026-10-20-strings-format-int-{before,after}-427*-linux-wsl2.json`.
+Median ms [min–max]:
+
+| Kernel                              | Nona before      | Nona after       | C++ before       | C++ after        | Nona/C++ before | Nona/C++ after |
+| ----------------------------------- | ---------------- | ---------------- | ---------------- | ---------------- | --------------- | -------------- |
+| `str_format_int_short`              | 3072 [2989–3275] | 2713 [2642–2818] | 387 [360–415]    | 373 [349–396]    | 7.94            | 7.26           |
+| `str_format_int_short_bytes`        | 3180 [2934–3331] | 2752 [2516–2912] | 258 [232–279]    | 249 [234–279]    | 12.3            | 11.1           |
+| `str_parse_int_short`               | 7616 [7371–8019] | 7817 [7347–8244] | 136 [124–146]    | 136 [131–157]    | 56.2            | 57.5           |
+| `str_concat_ascii_short`            | 1140 [1123–1363] | 1233 [1127–1369] | 160 [156–172]    | 162 [154–190]    | 7.12            | 7.62           |
+| `str_builder_ascii_short_join`      | 225 [208–245]    | 234 [216–247]    | 20.6 [18.6–23.1] | 19.9 [18.3–25.7] | 10.9            | 11.7           |
+| `str_slice_ascii_short` (no format) | 2075 [2009–2145] | 1815 [1765–2078] | 47.3 [44.5–51.8] | 45.4 [42.3–54.7] | 43.8            | 40.0           |
+
+Two more before/after pairs of `str_format_int_short` (alternating runs,
+same host) give Nona 3051 → 2520 ms and 3377 → 2792 ms, so the kernel is
+12–17% faster (307 → 271 ns per iteration in the first pair; Nona/C++
+x7.94–x8.25 → x7.10–x7.26). The neighbouring kernels do not call
+`formatNumber`; their differences (including `str_slice_ascii_short`, which
+moved by -12% with no related change) are the run-to-run drift of this
+host, about ±10% for Nona's short string kernels, and are not an effect of
+the change. The gap to C++ is smaller but not closed: a fresh 2M-iteration
+profile (`results/profiles/str_format_int_short.json`) puts the conversion
+itself (`fmt.intPairs`, `fmt.intCount*`, `rt.allocRaw`, `rt.toString*`) at
+about 10% of the samples; the rest is the checksum loop of the kernel
+(`charCodeAt`, `rt.toInt32`/`rt.toNumber`, `Math.imul`, calls), i.e. gaps 1,
+4 and 5, so closing the remaining x7 needs those.
+
+Allocation per conversion: exactly one. The integer path calls
+`rt.allocRaw` once (the digit-count and digit-pair tables are static
+`.rdata`; there is no intermediate buffer and no second string), and the
+kernel reports `allocUnits` = 86,057,420 for 10,000,000 conversions, 8.61
+code units (17.2 bytes of payload) per conversion, which is the digits of
+the value. The string record is 8 bytes of length plus 2 bytes per unit,
+about 25 bytes, in a 40-byte heap header and a 16-byte-rounded cell:
+64–80 bytes of heap per conversion (the previous uint32 path also made one
+string, after digit-by-digit division and a copy through a frame buffer).
+This is established from the code and the kernel's `allocUnits`, not from
+a runtime allocation counter.
 
 ## Assembly evidence
 
@@ -466,16 +512,16 @@ Ranked by measured gap and breadth. Baselines are the medians of this report
 the same kernel on the same host with the same protocol. The targets are
 proposals, not measurements.
 
-| #   | Gap (measured)                                                              | Cause / hypothesis                                                                                                     | Acceptance baseline → proposed target                                                                                  | Related               |
-| --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| 1   | u32 kernels x22–x263; `loop_control` x151; 23–29% of short string kernels   | ToInt32/ToUint32 of non-int32 doubles leaves the inline path (verified)                                                | `u32_add_chain` 442 ms, `loop_control` 449 ms → at most `f64_add_chain`'s 119 ms; no `rt.shiftUnsigned` in the profile | #284, #94, #238       |
-| 2   | `f64_add_chain` x21.9 (11.9 ns/op), `f64_mul_chain` x11.2                   | frame-resident tagged values, double loop counter, global const reload + TDZ check, boolean materialization (verified) | 119 ms / 122 ms → under 40 ms (under 4 ns/op)                                                                          | #94, #284, #236       |
-| 3   | `f64_array_*` x18.5–x65.6; `rt.elementGet` 35–43% of samples                | typed-array access not inlined for masked index / parameter receiver (hypothesis); no vectorization                    | `f64_array_1m` 116 ms → under 40 ms; no `rt.elementGet`/`Set` in `f64_add_chain`/`f64_array_1m` profiles               | #240, #193, #31, #253 |
-| 4   | direct call +6.4 ns (x32.5 for `f64_add_direct`); closure/indirect 17–19 ns | `rt.enterFrame2` stub and generic invocation; no inlining of small known callees (verified)                            | `f64_add_direct` 183 ms → equal to the inline kernel; `f64_add_closure` 169 ms → under 100 ms                          | #47, #235, #239, #166 |
-| 5   | `str_scan_*` x362–x693 (41–48 ns per code unit)                             | `charCodeAt` as a method call with receiver coercion (verified), plus #1                                               | `str_scan_ascii_medium` 4196 ms → under 420 ms (x10)                                                                   | #47, #253             |
-| 6   | `str_parse_int_short` x58.9 (875 ns per parse)                              | exact big-number path for every input (verified)                                                                       | 8751 ms → under 1000 ms                                                                                                | —                     |
-| 7   | `str_replaceall_*_short` x24.5–x31.8                                        | prelude `replaceAll` lookups before the native scan (verified)                                                         | `str_replaceall_ascii_short` 1604 ms → under 600 ms (the `replace` row)                                                | #387                  |
-| 8   | short `slice`/`concat`/`indexOf`/`builder` x7–x48                           | mostly #1, #4 and #5 in the kernel and checksum code; the string operation is 15–22% of samples                        | re-measure after #1, #4, #5 before working on string allocation                                                        | #48, #415             |
+| #   | Gap (measured)                                                              | Cause / hypothesis                                                                                                     | Acceptance baseline → proposed target                                                                                      | Related               |
+| --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| 1   | u32 kernels x22–x263; `loop_control` x151; 23–29% of short string kernels   | ToInt32/ToUint32 of non-int32 doubles leaves the inline path (verified)                                                | `u32_add_chain` 442 ms, `loop_control` 449 ms → at most `f64_add_chain`'s 119 ms; no `rt.shiftUnsigned` in the profile     | #284, #94, #238       |
+| 2   | `f64_add_chain` x21.9 (11.9 ns/op), `f64_mul_chain` x11.2                   | frame-resident tagged values, double loop counter, global const reload + TDZ check, boolean materialization (verified) | 119 ms / 122 ms → under 40 ms (under 4 ns/op)                                                                              | #94, #284, #236       |
+| 3   | `f64_array_*` x18.5–x65.6; `rt.elementGet` 35–43% of samples                | typed-array access not inlined for masked index / parameter receiver (hypothesis); no vectorization                    | `f64_array_1m` 116 ms → under 40 ms; no `rt.elementGet`/`Set` in `f64_add_chain`/`f64_array_1m` profiles                   | #240, #193, #31, #253 |
+| 4   | direct call +6.4 ns (x32.5 for `f64_add_direct`); closure/indirect 17–19 ns | `rt.enterFrame2` stub and generic invocation; no inlining of small known callees (verified)                            | `f64_add_direct` 183 ms → equal to the inline kernel; `f64_add_closure` 169 ms → under 100 ms                              | #47, #235, #239, #166 |
+| 5   | `str_scan_*` x362–x693 (41–48 ns per code unit)                             | `charCodeAt` as a method call with receiver coercion (verified), plus #1                                               | `str_scan_ascii_medium` 4196 ms → under 420 ms (x10)                                                                       | #47, #253             |
+| 6   | `str_parse_int_short` x58.9 (875 ns per parse)                              | exact big-number path for every input (verified)                                                                       | 8751 ms → under 1000 ms                                                                                                    | —                     |
+| 7   | `str_replaceall_*_short` x24.5–x31.8                                        | prelude `replaceAll` lookups before the native scan (verified)                                                         | `str_replaceall_ascii_short` 1604 ms → under 600 ms (the `replace` row)                                                    | #387                  |
+| 8   | short `slice`/`concat`/`indexOf`/`builder` x7–x48                           | mostly #1, #4 and #5 in the kernel and checksum code; the string operation is 15–22% of samples                        | re-measure after #1, #4, #5 before working on string allocation; `String(x)` of integers addressed by #427 (x8.24 → x7.26) | #48, #415, #427       |
 
 Out of scope for #402 from this data: medium/large `indexOf`, `===`, `<`,
 `replaceAll` and large concatenation are already at or ahead of the C++
