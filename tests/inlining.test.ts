@@ -271,3 +271,11 @@ test("proper tail calls in an inlined callee still run at constant depth", () =>
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, "2000000\n");
 });
+
+test("an inlined callee keeps the slots of its object and array literals", () =>
+    agree(`
+var x = { value: 5 };
+function pair(o) { return [typeof o.value, 1, o.value]; }
+function point(a, b) { return { a: a, b: b, c: "k" }; }
+console.log(pair(x).join(), JSON.stringify(point(1, 2)), JSON.stringify(point("u", x)));
+`));

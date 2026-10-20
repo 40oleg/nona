@@ -117,8 +117,24 @@ function remap(op: Operation, f: Frame): Operation | undefined {
         case "readGlobalProperty":
         case "globalObject":
         case "uninitialized":
-        case "newObject":
             return { ...op, dest: s(op.dest) };
+        case "newObject":
+            return {
+                ...op,
+                dest: s(op.dest),
+                ...(op.literal
+                    ? {
+                          literal: {
+                              ...op.literal,
+                              keys: op.literal.keys.map(s),
+                              values: op.literal.values.map(s),
+                          },
+                      }
+                    : {}),
+                ...(op.elementValues
+                    ? { elementValues: op.elementValues.map(s) }
+                    : {}),
+            };
         case "copy":
             return { ...op, dest: s(op.dest), source: s(op.source) };
         case "unary":
