@@ -6,6 +6,7 @@ import { coalesceMoves, propagateCopies } from "./copies.js";
 import { foldConstants } from "./constants.js";
 import { simplifyControlFlow } from "./control-flow.js";
 import { replaceScalars } from "./scalar-replacement.js";
+import { versionTypedLoops } from "./typed-loops.js";
 
 /**
  * IR clean-up after lowering (roadmap item 15): drop dead-zone checks of
@@ -13,7 +14,8 @@ import { replaceScalars } from "./scalar-replacement.js";
  * control-flow graph (#146), forward copies, replace non-escaping object
  * and array literals by slots (#236, folded again when one is), mark operations on proven
  * Numbers (which may turn ToNumeric into a copy, so copies are forwarded
- * again) and let Number results go straight to their binding.
+ * again), let Number results go straight to their binding and version
+ * counted typed array loops (#240).
  */
 export function optimizeFunction(
     fn: FunctionIR,
@@ -38,7 +40,9 @@ export function optimizeFunction(
         if (scalars === folded) break;
         folded = simplifyControlFlow(foldConstants(propagateCopies(scalars)));
     }
-    return coalesceMoves(
-        propagateCopies(markNumericOperations(propagateCopies(folded))),
+    return versionTypedLoops(
+        coalesceMoves(
+            propagateCopies(markNumericOperations(propagateCopies(folded))),
+        ),
     );
 }
