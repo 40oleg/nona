@@ -13,6 +13,7 @@ import type {
     BoundModule,
 } from "./bound.js";
 import type { ModuleRecord } from "./modules.js";
+import { knownFunctionTracker } from "./known-functions.js";
 import { boundNames, collectDeclarations } from "./declarations.js";
 
 /** A with statement's object environment: its hidden binding holds the object. */
@@ -53,34 +54,12 @@ export function bind(
     const catchBindings = new Set<Binding>(),
         withChains = new Map<A.Node, StorageBinding[]>(),
         annexBFunctions = new Map<A.Node, Binding>();
-    // Known-function bindings (#239): the plain function declaration that
-    // initializes a local (null: several declarations or not a plain function),
-    // and the bindings that something else writes or may write.
-    const declaredFunctions = new Map<
-            StorageBinding,
-            A.FunctionDeclaration | null
-        >(),
-        otherWrites = new Set<StorageBinding>();
-    const written = (b: Binding): void => {
-        if (b.kind === "globalProperty") return;
-        b.assigned = true;
-        otherWrites.add(b);
-    };
+    const known = knownFunctionTracker(functionNodes),
+        written = known.written;
     const fail = (node: A.Node, message: string): never => {
         throw new CompileError([
             { code: "E_BIND", message, file: "", span: node.span },
         ]);
-    };
-    /** Marks the locals that only their one plain function declaration writes. */
-    const markKnownFunctions = (): void => {
-        for (const [b, declaration] of declaredFunctions)
-            if (
-                declaration &&
-                b.kind === "local" &&
-                b.name !== "arguments" &&
-                !otherWrites.has(b)
-            )
-                b.knownFunction = functionNodes.get(declaration);
     };
     let classCode = 0; // > 0 while analyzing class heritage and element names (strict mode code)
     const register = (
@@ -263,18 +242,7 @@ export function bind(
                 functionNames.set(id.name, b);
             }
             // A function declaration writes the binding it reuses (a parameter of that name).
-            if (functionDeclaration && b.kind !== "globalProperty") {
-                b.assigned = true;
-                const plain =
-                    !functionDeclaration.generator &&
-                    !functionDeclaration.async;
-                declaredFunctions.set(
-                    b,
-                    plain && !declaredFunctions.has(b)
-                        ? functionDeclaration
-                        : null,
-                );
-            }
+            if (functionDeclaration) known.declare(b, functionDeclaration);
             bindings.set(id, b);
         };
         const bodyDeclarations = collectDeclarations(body, "var");
@@ -315,7 +283,6 @@ export function bind(
                     span: declaration.id.span,
                 });
                 annexBFunctions.set(declaration, functionNames.get(name)!);
-                // Evaluating the block declaration writes the var binding.
                 written(functionNames.get(name)!);
             }
         }
@@ -617,8 +584,7 @@ export function bind(
             withs.forEach(use);
             if (withs.length) {
                 withChains.set(id, withs);
-                // A with object or an eval var environment may answer instead.
-                if (result.kind !== "globalProperty") otherWrites.add(result);
+                known.shadowed(result);
             }
             bindings.set(id, result);
             return result;
@@ -1174,14 +1140,9 @@ export function bind(
                     }
                     case "Var":
                         for (const d of s.declarations) {
-                            // Any var redeclaration, with or without an initializer, counts as a write of its binding (a redeclared parameter included); for-in/of heads are marked in their own case.
-                            for (const id of boundNames(d.id)) {
-                                const visible = [...scopes]
-                                    .reverse()
-                                    .map((scope) => scope.get(id.name))
-                                    .find(Boolean);
-                                if (visible) written(visible);
-                            }
+                            // Every var declaration writes its binding (a redeclared parameter too).
+                            for (const id of boundNames(d.id))
+                                known.writeVisible(scopes, id.name);
                             if (d.init) {
                                 const id = d.id;
                                 if (
@@ -1322,16 +1283,10 @@ export function bind(
                                 patternInitializers(s.left);
                             } else if (s.left.kind === "Var") {
                                 patternInitializers(s.left.declarations[0]!.id);
-                                // Every iteration writes the head's names.
                                 for (const id of boundNames(
                                     s.left.declarations[0]!.id,
-                                )) {
-                                    const visible = [...scopes]
-                                        .reverse()
-                                        .map((scope) => scope.get(id.name))
-                                        .find(Boolean);
-                                    if (visible) written(visible);
-                                }
+                                ))
+                                    known.writeVisible(scopes, id.name);
                                 const catchVisible = (id: A.Identifier) => {
                                     const visible = [...scopes]
                                         .reverse()
@@ -1493,7 +1448,7 @@ export function bind(
     };
     if (!moduleRecords) {
         analyze(ast.body, null, ast);
-        markKnownFunctions();
+        known.mark();
         return {
             ast,
             globals,
@@ -1844,7 +1799,7 @@ export function bind(
             modules[index]!.getters.push(getter);
         }
     }
-    markKnownFunctions();
+    known.mark();
     return {
         ast,
         globals,
