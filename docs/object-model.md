@@ -120,6 +120,8 @@ understand shapes directly and keep objects shaped: named reads and writes
 
 ## Inline caches
 
+`s.charCodeAt(i)` and `s.charAt(i)` on a primitive string do not use these caches: the call site checks inline that the callee is still the intrinsic `String.prototype` method (a function identity check, not a shape epoch) and reads the code unit in place; anything else takes the general call (#425).
+
 Every `object.name` read and `object.name = value` write whose name is a
 plain name has a record in the data section.
 
