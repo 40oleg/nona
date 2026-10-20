@@ -42,7 +42,7 @@ test("lazy async-hooks activation retains startup storage constructors", () => {
     assert.equal(actual, undefined);
 });
 test("reactions registered before the first async-hooks access retain root storage", () => {
-    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
     const body = `var local,values=[],p=Promise.resolve();p.then(function(){local=new AsyncLocalStorage();local.enterWith('inner');values.push(local.getStore());p.then(function(){values.push(local.getStore())});throw Error('expected')}).catch(function(){values.push(local.getStore())});p.then(function(){values.push(local.getStore())});`;
     const oracle = spawnSync(
         process.execPath,
@@ -81,7 +81,7 @@ test("Promise reactions retain context records without allocating capture wrappe
         { encoding: "utf8", windowsHide: true },
     );
     assert.equal(oracle.status, 0, oracle.stderr);
-    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
     const actual = runInNewContext(
         setup +
             promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true") +
@@ -106,7 +106,7 @@ test("automatic context capture does not allocate a Map for every reaction", () 
     assert.equal(count, 1);
 });
 test("same-context reactions skip redundant capture calls and scope wrappers", () => {
-    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
     const actual = runInNewContext(
         setup +
             promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true") +
@@ -130,7 +130,7 @@ test("same-context callbacks entering a new store do not leak it to sibling reac
         { encoding: "utf8", windowsHide: true },
     );
     assert.equal(oracle.status, 0, oracle.stderr);
-    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
+    const setup = `var __nonaRegexpVm={isConstructor:function(fn){return typeof fn==='function'},AggregateError:AggregateError};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};`;
     const actual = runInNewContext(
         setup +
             promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true") +
