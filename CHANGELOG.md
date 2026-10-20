@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **Scalar replacement of non-escaping object and array literals.** An object literal with static keys or an array literal that is only read through constant own keys or indices (and `length`) no longer allocates: its properties become slots. `function getArea(w, h) { const r = { width: w, height: h }; return r.width * r.height; }` contains no `newObject`, and `sumPair` with `[a, b]` no array allocation. A literal that is passed, returned, stored, captured, compared, iterated, spread or `delete`d, whose missing key or index would read the prototype chain, or that lives in a function with direct `eval`, `with` or a mapped `arguments` object, keeps its allocation. Sinking the allocation of an escaping literal to the path that uses it stays a follow-up. ([#236](https://github.com/40oleg/nona/issues/236))
+
 ### Documentation
 
 - **`eval` and the dynamic `Function` constructors with run-time sources are a permanent, documented exception of the ES2020 contract.** Generated executables contain no interpreter, compiler or bundled frontend, so an embedded evaluator (options 1 and 2 of the issue) is rejected. The [contract](docs/es2020-contract.md) now specifies the exact behavior (`EvalError` and its messages, `typeof eval`, `eval.name`/`length`/`toString`, the source text of ahead-of-time dynamic functions, which forms are compiled at compile time and when `SyntaxError` is thrown); new assertions in `tests/eval-exception.test.ts` and `tests/dynamic-functions.test.ts` cover it. The remaining Test262 `eval-code` failures are intentional. ([#11](https://github.com/40oleg/nona/issues/11))
