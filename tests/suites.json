@@ -336,6 +336,7 @@
                 "runtime-io",
                 "runtime-link",
                 "runtime-link-source",
+                "runtime-link-resolved",
                 "runtime-operations",
                 "runtime-roots",
                 "shapes",

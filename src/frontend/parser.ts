@@ -4,6 +4,7 @@ import type * as A from "./ast.js";
 import { boundNames } from "./declarations.js";
 import { skipImportAttributes } from "./import-attributes.js";
 import { containsTopLevelAwait } from "./top-level-await.js";
+import { recordProgramUsage } from "./link-usage.js";
 
 const reserved = new Set(
     "break case catch continue debugger default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with class const enum export extends import super yield null true false".split(
@@ -50,7 +51,11 @@ export function parse(
     tokens: TokenStream,
     options: { module?: boolean } = {},
 ): A.Program {
-    return new Parser(tokens, !!options.module).program();
+    const parser = new Parser(tokens, !!options.module),
+        program = parser.program();
+    // What the program can reach of the optional runtime parts (#438).
+    recordProgramUsage(program, parser.computedMembers);
+    return program;
 }
 
 class Parser {
@@ -60,7 +65,7 @@ class Parser {
     private asyncContext = false;
     private awaitIdentifierForbidden = false;
     private parenthesized = new WeakSet<A.Expression>();
-    private computedMembers = new WeakSet<A.Member>();
+    readonly computedMembers = new WeakSet<A.Member>();
     constructor(
         private tokens: TokenStream,
         private module = false,

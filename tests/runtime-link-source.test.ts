@@ -10,6 +10,7 @@ import {
     type Target,
 } from "../src/compiler.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
 import {
     preludeSet,
     requiredSyntaxParts,
@@ -33,7 +34,9 @@ function image(
 }
 
 const usage = (...sources: string[]) =>
-    collectSourceUsage(() => sources.forEach((source) => lex(source))).usage;
+    collectSourceUsage(() =>
+        sources.forEach((source) => parse(lex(source))),
+    ).usage;
 
 test("source usage: what reaches the RegExp engine and the Unicode tables", () => {
     const none = {
@@ -76,7 +79,7 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
         "s.search(p)",
         'self["RegExp"]',
         "s[`match`](p)",
-        "let \\u0052egExp = 1",
+        "\\u0052egExp(p)",
     ])
         assert.deepEqual(
             usage(source),
@@ -119,10 +122,10 @@ test("source usage: what reaches the RegExp engine and the Unicode tables", () =
     assert.equal(usage("Object.getOwnPropertyNames(globalThis)").float16, true);
     assert.equal(usage("globalThis['Float16' + 'Array']").float16, false);
     assert.equal(usage("new Float32Array(4).sort()").float16, false);
-    // Every source lexed inside one collection counts; nested collections report to the outer one.
+    // Every source parsed inside one collection counts; nested collections report to the outer one.
     const outer = collectSourceUsage(() => {
-        lex("1");
-        collectSourceUsage(() => lex("/x/"));
+        parse(lex("1"));
+        collectSourceUsage(() => parse(lex("/x/")));
     });
     assert.equal(outer.usage.regexp, true);
 });
@@ -371,10 +374,18 @@ test("source usage: optional preludes follow the names a program uses", () => {
     assert.equal(linked("new Set([1]).has(1)"), "");
     assert.equal(linked("Object.freeze(o)"), "objectIntegrity");
     assert.equal(linked('o.__lookupGetter__("x")'), "objectAnnexB");
-    // Long names are found inside strings; short ones only as a whole string.
-    assert.equal(linked('const code = "x = setTimeout(g)"'), "timers");
+    // Strings are data (#438): they select only as property keys, or when
+    // a source accesses properties with keys unknown at compile time.
+    assert.equal(linked('const code = "x = setTimeout(g)"'), "");
     assert.equal(linked('const word = "data format"'), "");
-    assert.equal(linked('const key = "at"'), "es2021");
+    assert.equal(linked('const key = "at"'), "");
+    assert.equal(linked('a["at"](-1)'), "es2021");
+    assert.equal(linked('const key = "at"; a[key](-1)'), "es2021");
+    assert.equal(linked('const key = "at"', "a[key](-1)"), "es2021");
+    assert.equal(
+        linked('const key = "at"; for (let i = 0; i < 2; i++) a[i]'),
+        "",
+    );
     // Enumerating built-ins could observe a missing method: everything is
     // linked, except preludes that add no built-ins (top-level await).
     const all = Object.keys(preludeSet(true))
