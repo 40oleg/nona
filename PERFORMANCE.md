@@ -10,6 +10,31 @@ date and version they were measured at: v0.7.0 on 2026-10-01 and
 The scripts live in [`bench/`](bench/); `node bench/run.mjs` reproduces every
 table (protocol in [`bench/README.md`](bench/README.md)).
 
+## Nona vs optimized C++ (2026-10-20, #401)
+
+A separate comparison with optimized C++ on matched arithmetic, call and
+UTF-16 string kernels: [docs/perf-cpp.md](docs/perf-cpp.md), with sources
+and the runner in [`bench/cpp/`](bench/cpp/README.md) and raw samples in
+[`bench/cpp/results/`](bench/cpp/results/). Measured on `main` after v0.20.0
+(commit `36737352`) in WSL2 Ubuntu 22.04 on an Intel Core i7-13620H, g++ 11.4
+`-O3`, 11 alternating runs; it does not replace the Node.js sections below.
+
+| 10,000,000 operations, N = 1e7 | Nona ms | C++ `-O3` ms | Nona/C++ |
+| ------------------------------ | ------- | ------------ | -------- |
+| double `s + x`, inline         | 119     | 5.45         | x21.9    |
+| double, `add(s, x)` calls      | 183     | 5.62         | x32.5    |
+| double `p * x`, inline         | 122     | 10.9         | x11.2    |
+| double, `multiply(p, x)` calls | 176     | 11.1         | x15.8    |
+| `(s + x) >>> 0`, inline        | 442     | 2.93         | x151     |
+| `Math.imul(p, x) >>> 0`        | 367     | 8.06         | x45.5    |
+
+Strings on medium and large inputs are at or ahead of `std::u16string`
+(`indexOf` x0.73–x1.23, `===`/`<` x0.22–x0.36); per-code-unit and
+short-string work is 7–690 times slower. The report ranks the measured
+causes (int32 coercion fast paths, frame-resident values, out-of-line
+typed-array access, call overhead, `charCodeAt` as a method call, number
+parsing) for [#402](https://github.com/40oleg/nona/issues/402).
+
 ## Literal sites written in one pass (#48)
 
 Measured 2026-10-20 on a shared Windows 11 machine with Node.js 22.23.2: "before" is `main` 50280f42, "after" the #48 branch on top of it (object literals with known keys and array literals of up to eight elements evaluated first and written in one pass). `node bench/run.mjs --only 09 --runs 3 --runtimes node,nona`, medians of `alloc5M` (`bench/09_gc.js`):

@@ -4,7 +4,7 @@ Matched JavaScript and C++ kernels that measure how close Nona's native code is 
 
 ## Running
 
-The current report is [docs/perf-cpp.md](../../docs/perf-cpp.md).
+The current report is [docs/perf-cpp.md](../../docs/perf-cpp.md) (2026-10-20, WSL2 on an Intel Core i7-13620H); its raw results are in [`results/`](results/).
 
 ```
 npm run build
@@ -13,7 +13,11 @@ node bench/cpp/check-asm.mjs
 node bench/cpp/run.mjs                      # N = 10 000 000, 11 runs
 node bench/cpp/run.mjs --sizes 100000,1000000,10000000,30000000
 node bench/cpp/run.mjs --only strings       # the string kernels only
+node bench/cpp/report.mjs bench/cpp/results/<file>.json [...] > tables.md
+node bench/cpp/profile.mjs u32_add_chain 10000000 --json profile.json
 ```
+
+The published report was made with `--only arith --sizes 100000,1000000,10000000,30000000 --builds o3,noinline,native` and `--only strings --sizes 100000,1000000,10000000`, both with 11 runs, one after the other.
 
 `run.mjs` options: `--n` (one size, default 10 000 000), `--sizes` (a list, overrides `--n`), `--runs` (measured runs per binary, default 11, at least 10 for published numbers), `--only` (comma-separated substrings of kernel names, or program names: `arith`, `strings`), `--platform linux|win`, `--builds` (C++ builds, default `o3,noinline`; add `native`), `--seed` (input seed, default 12345), `--order-seed`, `--timeout` (seconds per process), `--no-startup`, `--out`.
 
@@ -29,6 +33,7 @@ Requirements: Node.js and the built compiler (`dist/cli.js`); `g++` and binutils
 - `run.mjs`: the runner; `stats.mjs`: sample statistics; `host.mjs`: running Linux tools natively or through WSL.
 - `report.mjs`: the Markdown tables of the report from one host's results files (headline, arithmetic and calls, diagnostic C++ builds, ns/op at every N, strings, startup).
 - `profile.mjs`: `perf record -e cpu-clock` of one Nona kernel on Linux (or in WSL2), with the samples attributed to runtime routines and compiled functions through the `NONA_ELF_MAP` symbol table.
+- `PR-SUMMARY.md`: the pull request description and the #402 update of the published report, ready to paste.
 - `results/`: raw samples and metadata of published runs, one JSON file per run of `run.mjs`, and the `perf` profiles of the report.
 
 `build/` is generated and not committed.
@@ -92,6 +97,14 @@ Every C++ kernel is a separate `noinline` function, one call per timed region, s
 4. A group's timing is accepted only when every run printed the same checksum. Mismatches, crashes, timeouts and unparsable output stay in the results file and the summary.
 5. Report the median, IQR and min–max, the Nona/C++ ratio of the medians, ns/op only where the median timed region is at least 10 ms, and operations per second. Startup (`loop_control 0`, wall time on the Linux side) is a separate table.
 6. Keep the results of each host separate; do not combine ratios across hosts. Mark WSL2 runs as such (the runner records it), and mark missing compilers or platforms as unavailable.
+
+## Reading the results
+
+- `run.mjs` prints one line per kernel and size: the median [Q1–Q3] in ms of each binary, the Nona/C++ ratio of the medians (above 1: Nona is slower), ns/op and throughput. `report.mjs` turns one host's results files into the Markdown tables of the report.
+- The results file has, per group (`kernel`, `n`): the `status` (`ok`, or the reason the group was rejected: checksum mismatch, crash, timeout, unparsable output, unavailable binary), the expected `checksum`, per binary (`nona`, `cpp-o3`, `cpp-noinline`, `cpp-native`; call kernels only for `noinline`) the summary in ms, `nsPerOp`, `opsPerSecond` or `codeUnitsPerSecond`, and `samples`: every run (warm-ups included) with its binary, round, position in the round, wall time, kernel time in ns, checksum and status. The top level records the host, the build metadata, the `check-asm` result and the startup samples.
+- ns/op is `null` when the median timed region is below 10 ms; the timer resolution and the constant cost of a run are then a visible part of the time. The calibration table of the report shows the raw quotient at every N; a constant ns/op from 1e5 to 3e7 means the cost is per operation.
+- `*_bytes`, `*_view`, `*_append`, `*_stdfn` and the main `builder` C++ row are labelled lower bounds or alternative contracts, not equivalent work; the `noinline` and `native` builds are diagnostics, not baselines.
+- `profile.mjs` prints the share of `cpu-clock` samples per runtime routine (`rt.*`) and compiled function (`js.fn.<k>`; `--print-asm` listings name the same functions). Samples cover the whole process, so use an n where the kernel dominates.
 
 ## Known limitations
 

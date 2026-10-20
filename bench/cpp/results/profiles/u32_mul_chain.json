@@ -1,31 +1,31 @@
 {
- "kernel": "u32_mul_chain",
- "program": "arith",
- "n": 10000000,
- "seed": 12345,
- "frequencyHz": 2000,
- "event": "cpu-clock",
- "samples": 740,
- "output": {
-  "kernel": "u32_mul_chain",
-  "n": 10000000,
-  "ns": 369096830,
-  "checksum": "u32:1754030669"
- },
- "routines": {
-  "js.fn.14": 257,
-  "rt.toInt32": 103,
-  "rt.elementGet": 93,
-  "rt.toNumber": 84,
-  "rt.Math.imul.fn.code": 42,
-  "rt.getPropertyCached": 35,
-  "rt.invokeSite2": 33,
-  "rt.propIndexProbe": 28,
-  "rt.icGet": 24,
-  "rt.invoke": 16,
-  "rt.readGlobalCached": 12,
-  "rt.toNumber.save": 8,
-  "rt.toNumber.done": 4,
-  "rt.propertyBase": 1
- }
+    "kernel": "u32_mul_chain",
+    "program": "arith",
+    "n": 10000000,
+    "seed": 12345,
+    "frequencyHz": 2000,
+    "event": "cpu-clock",
+    "samples": 740,
+    "output": {
+        "kernel": "u32_mul_chain",
+        "n": 10000000,
+        "ns": 369096830,
+        "checksum": "u32:1754030669"
+    },
+    "routines": {
+        "js.fn.14": 257,
+        "rt.toInt32": 103,
+        "rt.elementGet": 93,
+        "rt.toNumber": 84,
+        "rt.Math.imul.fn.code": 42,
+        "rt.getPropertyCached": 35,
+        "rt.invokeSite2": 33,
+        "rt.propIndexProbe": 28,
+        "rt.icGet": 24,
+        "rt.invoke": 16,
+        "rt.readGlobalCached": 12,
+        "rt.toNumber.save": 8,
+        "rt.toNumber.done": 4,
+        "rt.propertyBase": 1
+    }
 }

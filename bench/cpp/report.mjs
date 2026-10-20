@@ -61,7 +61,9 @@ const out = [];
 const section = (title) => out.push(`### ${title}`, "");
 
 // Headline.
-section(`Headline: ${headlineN.toLocaleString("en")} additions and multiplications`);
+section(
+    `Headline: ${headlineN.toLocaleString("en")} additions and multiplications`,
+);
 out.push(
     table(
         [
@@ -103,9 +105,13 @@ out.push(
 
 // Arithmetic and calls at the headline N.
 const arith = groups.filter(
-    (g) => g.n === headlineN && ["arith", "call", "control", "array"].includes(g.kind),
+    (g) =>
+        g.n === headlineN &&
+        ["arith", "call", "control", "array"].includes(g.kind),
 );
-section(`Arithmetic, calls, control and typed arrays at N = ${headlineN.toLocaleString("en")}`);
+section(
+    `Arithmetic, calls, control and typed arrays at N = ${headlineN.toLocaleString("en")}`,
+);
 out.push(
     table(
         [
@@ -142,7 +148,9 @@ const diagnostic = arith.filter(
     (g) => g.results["cpp-noinline"] || g.results["cpp-native"],
 );
 if (diagnostic.length) {
-    section(`Diagnostic C++ builds at N = ${headlineN.toLocaleString("en")} (not baselines)`);
+    section(
+        `Diagnostic C++ builds at N = ${headlineN.toLocaleString("en")} (not baselines)`,
+    );
     out.push(
         table(
             [
@@ -193,7 +201,9 @@ if (sizes.length > 1) {
 // Strings.
 const strings = groups.filter((g) => g.n === headlineN && g.kind === "string");
 if (strings.length) {
-    section(`Strings at N = ${headlineN.toLocaleString("en")} (bounded iterations)`);
+    section(
+        `Strings at N = ${headlineN.toLocaleString("en")} (bounded iterations)`,
+    );
     out.push(
         table(
             [
@@ -265,7 +275,9 @@ const failed = groups.filter((g) => !g.status.startsWith("ok"));
 out.push(
     `Groups: ${groups.length}, not accepted: ${failed.length}` +
         (failed.length
-            ? " (" + failed.map((g) => `${g.kernel}@${g.n} ${g.status}`).join(", ") + ")"
+            ? " (" +
+              failed.map((g) => `${g.kernel}@${g.n} ${g.status}`).join(", ") +
+              ")"
             : "") +
         ".",
     "",

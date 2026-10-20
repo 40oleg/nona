@@ -11,6 +11,7 @@ The [completeness audit](completeness-audit.md) and [structured inventory](compl
 | [intrinsics.md](intrinsics.md)                   | Decision record: the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace (#183)                 | English  |
 | [roadmap.md](roadmap.md)                         | Performance and platform plan derived from the V8 blog, with status                                                | English  |
 | [simd.md](simd.md)                               | Where the runtime spends its instructions and which routines vector instructions speed up (#253)                   | English  |
+| [perf-cpp.md](perf-cpp.md)                       | Nona vs optimized C++ on arithmetic, call and UTF-16 string kernels, gap analysis (#401)                           | English  |
 | [completeness-review.md](completeness-review.md) | Independent review record of the completeness audit (#394): verdict, reproduced checks, limitations                | English  |
 | [status.md](status.md)                           | Final ES2020 audit for 0.17-0.20: full Test262 on Windows, compile-time `eval`, remaining failures                 | Russian  |
 | [es2020-contract.md](es2020-contract.md)         | The ES2020 completion contract: scope, documented exceptions, how completion is judged                             | English  |
