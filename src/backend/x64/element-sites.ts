@@ -37,8 +37,22 @@ function typedElement(
     object: number,
     key: number,
     slow: string,
+    unchecked = false,
 ): void {
     const { a } = s;
+    // In a loop versioned by src/ir/typed-loops.ts the guard has established
+    // all of it but the integer conversion of the key.
+    if (unchecked) {
+        a.load("r10", s.payload(object));
+        a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
+        a.movsd("xmm0", s.payload(key));
+        a.cvttsd2si("rax", "xmm0");
+        a.load("r9", { base: "r10", disp: TypedArrayLayout.elementType });
+        a.load("r11", { base: "r11", disp: ArrayBufferLayout.bytes });
+        a.load("rcx", { base: "r10", disp: TypedArrayLayout.byteOffset });
+        a.add("r11", "rcx");
+        return;
+    }
     a.load("rax", s.value(object));
     a.cmp("rax", 5);
     a.jcc("ne", slow);
@@ -90,7 +104,7 @@ export function emitTypedElementGet(
         other = a.unique("elementOther"),
         number = a.unique("elementNumber"),
         done = a.unique("elementDone");
-    typedElement(s, op.object, op.key, slow);
+    typedElement(s, op.object, op.key, slow, op.unchecked);
     a.cmp("r9", 9);
     a.jcc("ne", other);
     a.shl("rax", 3);
@@ -154,7 +168,7 @@ export function emitTypedElementSet(
     a.load("rax", s.value(op.source));
     a.cmp("rax", 3);
     a.jcc("ne", slow);
-    typedElement(s, op.object, op.key, slow);
+    typedElement(s, op.object, op.key, slow, op.unchecked);
     a.movsd("xmm0", s.payload(op.source));
     a.cmp("r9", 9);
     a.jcc("ne", other);
@@ -197,6 +211,24 @@ export function emitTypedElementSet(
         a.jmp(done);
     });
     a.label(done);
+    return true;
+}
+
+/**
+ * `object.length` of a typed array in a loop versioned by
+ * src/ir/typed-loops.ts: the guard found the intrinsic getter and a
+ * fixed-length attached buffer, so it is the view's length field. False when
+ * the read is no such one.
+ */
+export function emitTypedLength(s: SiteEmitter, op: PropertyOp): boolean {
+    if (!op.typedLength) return false;
+    const { a } = s;
+    a.load("r10", s.payload(op.object));
+    a.load("rax", { base: "r10", disp: TypedArrayLayout.length });
+    a.cvtsi2sd("xmm0", "rax");
+    a.mov("rax", 3);
+    a.store(s.value(op.dest), "rax");
+    a.storesd(s.payload(op.dest), "xmm0");
     return true;
 }
 

@@ -123,6 +123,7 @@ import {
 import { emitDataViewPrototype, emitDataView } from "./data-view.js";
 import { emitTypedArrayPrototype, emitTypedArray } from "./typed-array.js";
 import { emitViewBounds } from "./view-bounds.js";
+import { emitTypedLoopGuard } from "./typed-loop-guard.js";
 import { emitTypedArrayKernels } from "./typed-array-kernels.js";
 import { emitConsole } from "./console.js";
 /** Per-realm intrinsic tables indexed by realm (see constructor-prototype.ts), and the default (empty) agent entry list. */
@@ -241,6 +242,7 @@ export function emitRuntime(
     emitTypedArray(b);
     emitTypedArrayKernels(b);
     emitViewBounds(b);
+    emitTypedLoopGuard(b);
     emitNumberBuiltins(b);
     emitUri(b);
     emitSymbols(b);

@@ -18,6 +18,7 @@ import {
     emitLiteralStore,
     emitTypedElementGet,
     emitTypedElementSet,
+    emitTypedLength,
     type SiteEmitter,
 } from "./element-sites.js";
 import {
@@ -819,6 +820,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     // collection or user code.
     const inline = (op: Operation): boolean => {
         if (movesOnly.has(op.kind) || constantEquality(op)) return true;
+        if (op.kind === "property" && op.typedLength) return true;
         if (
             op.kind === "binary" &&
             op.numeric &&
@@ -1770,7 +1772,11 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.call("rt.forOfValue");
                     break;
                 case "property":
-                    if (emitTypedElementGet(sites, fn.id, op)) break;
+                    if (
+                        emitTypedLength(sites, op) ||
+                        emitTypedElementGet(sites, fn.id, op)
+                    )
+                        break;
                     pointer("rcx", op.dest);
                     pointer("rdx", op.object);
                     pointer("r8", op.key);
