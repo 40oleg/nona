@@ -306,14 +306,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             : undefined;
     // Loops that keep Numbers in registers (register-loops.ts); the GPRs
     // they use are saved above the handler records.
-    const registerLoops = planRegisterLoops(
-        fn,
-        liveness,
-        liveFloor(fn),
-        (n) =>
-            definitions.get(n) === 1 && constants.has(n) && n >= fn.localCount
-                ? { value: constants.get(n) }
-                : undefined,
+    const registerLoops = planRegisterLoops(fn, liveness, liveFloor(fn), (n) =>
+        definitions.get(n) === 1 && constants.has(n) && n >= fn.localCount
+            ? { value: constants.get(n) }
+            : undefined,
     );
     const saveBase = handlerBase + H.size * (fn.handlerCount ?? 0),
         saveSlots = Math.max(0, ...registerLoops.map((p) => p.saved.length));
@@ -1284,7 +1280,11 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         });
         a.label(done);
     };
-    type IntegerFusion = { left: Reg; right: Reg | number; condition: Condition };
+    type IntegerFusion = {
+        left: Reg;
+        right: Reg | number;
+        condition: Condition;
+    };
     type RegisterForm =
         | "done"
         | { fuse: Extract<Operation, { kind: "binary" }> }
@@ -2832,7 +2832,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         if (region) {
             spill = liveHeld(liveness.get(block.id)!.beforeTerminator);
             const use = terminatorUse(term);
-            if (use >= 0 && !(term.kind === "branch" && (fused || fusedInteger)))
+            if (
+                use >= 0 &&
+                !(term.kind === "branch" && (fused || fusedInteger))
+            )
                 writeBack([use]);
             if (term.kind === "return") {
                 restoreRegisters(region);
@@ -2898,7 +2901,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     } else {
                         a.jcc("p", no);
                         const c = knownRelation[fused.operator]!;
-                        if (blockLabel(term.yes) === nextLabel) a.jcc(inverse[c]!, no);
+                        if (blockLabel(term.yes) === nextLabel)
+                            a.jcc(inverse[c]!, no);
                         else {
                             a.jcc(c, yes);
                             goto(term.no);

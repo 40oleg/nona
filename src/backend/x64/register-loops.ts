@@ -111,7 +111,9 @@ export function planRegisterLoops(
     }
     const plans: RegisterLoop[] = [];
     const taken = new Set<number>();
-    const ordered = [...loops].sort((x, y) => x.blocks.length - y.blocks.length);
+    const ordered = [...loops].sort(
+        (x, y) => x.blocks.length - y.blocks.length,
+    );
     for (const loop of ordered) {
         const members = new Set(loop.blocks);
         if (
@@ -241,11 +243,14 @@ function planLoop(
         // there for an entryCheck); without a register for it, an int32
         // bound is compared as a double.
         const known =
-            iv.boundValue !== undefined ||
-            intConstant(iv.bound) !== undefined;
+            iv.boundValue !== undefined || intConstant(iv.bound) !== undefined;
         const shared = bounds.get(iv.bound);
         const boundReg =
-            known || shared ? undefined : free.length >= 2 ? free[1] : undefined;
+            known || shared
+                ? undefined
+                : free.length >= 2
+                  ? free[1]
+                  : undefined;
         // (A shared bound was tested for its first variable: the limits
         // differ per variable, so a second checked one is left boxed.)
         if (iv.entryCheck && !boundReg) continue;
