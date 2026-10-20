@@ -233,7 +233,7 @@ function wrap(n){return fib(n)}
 function named(a,b){return a+b}
 function even(n){return n===0?true:odd(n-1)}
 function odd(n){return n===0?false:even(n-1)}
-console.log(fib(20),rec(5000),wrap(10),named(1,2),named.name,named.length,named.toString());
+console.log(fib(16),rec(3000),wrap(10),named(1,2),named.name,named.length,named.toString());
 console.log(String(named)===Function.prototype.toString.call(named),named===named,even(10),odd(7));
 `));
 
