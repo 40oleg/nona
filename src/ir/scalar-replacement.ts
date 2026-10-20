@@ -314,7 +314,18 @@ function replace(
         case "newObject": {
             const c = bySlot.get(op.dest);
             if (c?.op !== op) return op;
-            return [undefinedIn(op.dest), ...c.fields.map(undefinedIn)];
+            // A literal whose values were evaluated before it (#415) defines
+            // its properties itself; the others start undefined and their
+            // setProperty definitions follow.
+            const values = op.literal?.values ?? op.elementValues;
+            return [
+                undefinedIn(op.dest),
+                ...c.fields.map((dest, i): Operation =>
+                    values?.[i] !== undefined
+                        ? { kind: "copy", dest, source: values[i]! }
+                        : undefinedIn(dest),
+                ),
+            ];
         }
         case "copy":
             return bySlot.has(op.source) ? undefinedIn(op.dest) : op;
