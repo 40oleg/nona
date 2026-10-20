@@ -24,9 +24,9 @@ import {
 import { emitNewObject } from "./literals.js";
 import { ElementsLayout } from "../../runtime/array-elements.js";
 import {
-    int32Operand,
     integerRemainder,
     maskableDivisor,
+    toInt32Operand,
 } from "./integer-ops.js";
 import { emitSwitchTable } from "./switch-table.js";
 import type { Assembler, Mem, Condition, Reg } from "./assembler.js";
@@ -502,10 +502,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             integerRemainder(a, payload(left), mask ?? payload(right), slow);
             setNumber(dest);
         } else {
-            // ToInt32 inline only for operands that already are int32 values:
-            // otherwise the runtime does the modular reduction.
-            int32Operand(a, payload(left), "r10", slow);
-            int32Operand(a, payload(right), "rcx", slow);
+            // ToInt32 inline for integral operands in the int64 range (#402);
+            // fractions, NaN, ±Infinity and larger values take the runtime.
+            toInt32Operand(a, payload(left), "r10", slow);
+            toInt32Operand(a, payload(right), "rcx", slow);
             switch (operator) {
                 case "&":
                     a.and("r10", "rcx");
@@ -519,10 +519,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 case "<<":
                     a.and("rcx", 31);
                     a.shl("r10", "cl");
-                    a.shl("r10", 32);
-                    a.sar("r10", 32);
                     break;
                 case ">>":
+                    a.movsxd("r10", "r10");
                     a.and("rcx", 31);
                     a.sar("r10", "cl");
                     break;
@@ -533,7 +532,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.shr("r10", "cl");
                     break;
             }
-            a.cvtsi2sd("xmm0", "r10");
+            // The result is the low 32 bits as an int32; for >>> it is the
+            // zero-extended uint32.
+            if (operator === ">>>") a.cvtsi2sd("xmm0", "r10");
+            else a.cvtsi2sd32("xmm0", "r10");
             setNumber(dest);
         }
         a.jmp(done);
