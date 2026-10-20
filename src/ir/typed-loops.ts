@@ -119,7 +119,7 @@ function successors(block: BlockIR): number[] {
 }
 
 /** Natural loops by header, smallest first: the header and every block that reaches a back edge's source without passing it. */
-function naturalLoops(
+export function naturalLoops(
     fn: FunctionIR,
     byId: ReadonlyMap<number, BlockIR>,
 ): { header: number; blocks: Set<number> }[] {

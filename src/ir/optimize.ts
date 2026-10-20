@@ -7,6 +7,7 @@ import { foldConstants } from "./constants.js";
 import { simplifyControlFlow } from "./control-flow.js";
 import { replaceScalars } from "./scalar-replacement.js";
 import { versionTypedLoops } from "./typed-loops.js";
+import { annotateRepresentations } from "./representations.js";
 
 /**
  * IR clean-up after lowering (roadmap item 15): drop dead-zone checks of
@@ -14,8 +15,11 @@ import { versionTypedLoops } from "./typed-loops.js";
  * control-flow graph (#146), forward copies, replace non-escaping object
  * and array literals by slots (#236, folded again when one is), mark operations on proven
  * Numbers (which may turn ToNumeric into a copy, so copies are forwarded
- * again), let Number results go straight to their binding and version
- * counted typed array loops (#240).
+ * again), let Number results go straight to their binding, version
+ * counted typed array loops (#240) and annotate integer ranges and loop
+ * representation facts (#424). The annotation runs last: versioning copies
+ * loops and renames their temporaries, and the facts must describe both
+ * copies with the slots and blocks the code generator sees.
  */
 export function optimizeFunction(
     fn: FunctionIR,
@@ -40,9 +44,11 @@ export function optimizeFunction(
         if (scalars === folded) break;
         folded = simplifyControlFlow(foldConstants(propagateCopies(scalars)));
     }
-    return versionTypedLoops(
-        coalesceMoves(
-            propagateCopies(markNumericOperations(propagateCopies(folded))),
+    return annotateRepresentations(
+        versionTypedLoops(
+            coalesceMoves(
+                propagateCopies(markNumericOperations(propagateCopies(folded))),
+            ),
         ),
     );
 }
