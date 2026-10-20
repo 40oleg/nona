@@ -115,20 +115,24 @@ and given in every row. The contracts are in the headers of
 
 N = 10,000,000 operations per run, 11 runs, WSL2, C++ `-O3` baseline ISA.
 
-| Kernel           | Contract                                  | Checksum               | Nona ms [IQR] | C++ ms [IQR]     | Nona/C++ | Nona ns/op | C++ ns/op ¹ |
-| ---------------- | ----------------------------------------- | ---------------------- | ------------- | ---------------- | -------- | ---------- | ----------- |
-| `f64_add_chain`  | `s = s + t[i & 1023]`, double, dependent  | `f64:41528f30f05aec80` | 119 [118–126] | 5.45 [5.26–5.63] | **21.9** | 11.9       | 0.545       |
-| `f64_add_direct` | `s = add(s, t[i & 1023])`, 10M calls      | `f64:41528f30f05aec80` | 183 [180–184] | 5.62 [5.46–5.99] | **32.5** | 18.3       | 0.562       |
-| `f64_mul_chain`  | `p = p * t[i & 1023]`, double, dependent  | `f64:3ff000baa3443671` | 122 [119–124] | 10.9 [10.3–11.6] | **11.2** | 12.2       | 1.09        |
-| `f64_mul_direct` | `p = multiply(p, t[i & 1023])`, 10M calls | `f64:3ff000baa3443671` | 176 [174–179] | 11.1 [10.7–11.7] | **15.8** | 17.6       | 1.11        |
-| `u32_add_chain`  | `s = (s + t[i & 1023]) >>> 0`             | `u32:212994551`        | 442 [431–444] | 2.93 [2.79–2.97] | **151**  | 44.2       | 0.293       |
-| `u32_add_direct` | `s = addU32(s, t[i & 1023])`, 10M calls   | `u32:212994551`        | 505 [501–507] | 3.13 [2.97–3.50] | **162**  | 50.5       | 0.313       |
-| `u32_mul_chain`  | `p = Math.imul(p, t[i & 1023]) >>> 0`     | `u32:1754030669`       | 367 [359–408] | 8.06 [7.79–8.27] | **45.5** | 36.7       | 0.806       |
-| `u32_mul_direct` | `p = multiplyU32(p, t[i & 1023])`, calls  | `u32:1754030669`       | 429 [418–442] | 8.14 [7.81–8.70] | **52.6** | 42.9       | 0.814       |
+| Kernel             | Contract                                  | Checksum               | Nona ms [IQR] | C++ ms [IQR]     | Nona/C++ | Nona ns/op | C++ ns/op ¹ |
+| ------------------ | ----------------------------------------- | ---------------------- | ------------- | ---------------- | -------- | ---------- | ----------- |
+| `f64_add_chain`    | `s = s + t[i & 1023]`, double, dependent  | `f64:41528f30f05aec80` | 119 [118–126] | 5.45 [5.26–5.63] | **21.9** | 11.9       | 0.545       |
+| `f64_add_direct`   | `s = add(s, t[i & 1023])`, 10M calls      | `f64:41528f30f05aec80` | 183 [180–184] | 5.62 [5.46–5.99] | **32.5** | 18.3       | 0.562       |
+| `f64_mul_chain`    | `p = p * t[i & 1023]`, double, dependent  | `f64:3ff000baa3443671` | 122 [119–124] | 10.9 [10.3–11.6] | **11.2** | 12.2       | 1.09        |
+| `f64_mul_direct`   | `p = multiply(p, t[i & 1023])`, 10M calls | `f64:3ff000baa3443671` | 176 [174–179] | 11.1 [10.7–11.7] | **15.8** | 17.6       | 1.11        |
+| `u32_add_chain`    | `s = (s + t[i & 1023]) >>> 0`             | `u32:212994551`        | 442 [431–444] | 2.93 [2.79–2.97] | **151**  | 44.2       | 0.293       |
+| `u32_add_direct`   | `s = addU32(s, t[i & 1023])`, 10M calls   | `u32:212994551`        | 505 [501–507] | 3.13 [2.97–3.50] | **162**  | 50.5       | 0.313       |
+| `u32_mul_chain` ⁴  | `p = Math.imul(p, t[i & 1023]) >>> 0`     | `u32:1754030669`       | 367 [359–408] | 8.06 [7.79–8.27] | **45.5** | 36.7       | 0.806       |
+| `u32_mul_direct` ⁴ | `p = multiplyU32(p, t[i & 1023])`, calls  | `u32:1754030669`       | 429 [418–442] | 8.14 [7.81–8.70] | **52.6** | 42.9       | 0.814       |
 
 ¹ C++ timed regions under 10 ms: the quotient median/N from the calibration
 table, given here because the 30M row agrees within 10% (0.565, 0.536,
 1.06, 1.12, 0.268, 0.336, 0.856, 0.798 ns).
+
+⁴ Measured before `Math.imul` was inlined ([#426](https://github.com/40oleg/nona/issues/426)); after it
+the two rows are 293 ms (x35) and 321 ms (x42), see
+[the #426 update](#update-mathimul-inlined-426).
 
 In the `-O3` build GCC inlines `add`/`multiply` into the loop
 (`check-asm`: "inlined"), so the C++ direct-call rows equal the inline rows;
@@ -278,11 +282,11 @@ sweep; kernel = compiled JavaScript code):
 | `f64_add_direct` (10M)            | 363     | 53%         | —        | 35%                 | —      | 12%  | —               | —   |                           |
 | `f64_add_closure` (10M)           | 348     | 48%         | —        | 26%                 | 1%     | 24%  | —               | —   |                           |
 | `u32_add_chain` (10M)             | 932     | 39%         | 48%      | 13%                 | —      | —    | —               | —   |                           |
-| `u32_mul_chain` (10M)             | 740     | 35%         | 27%      | 13%                 | 14%    | 7%   | —               | —   | 6% `Math.imul`            |
+| `u32_mul_chain` (10M)             | 740     | 35%         | 27%      | 13%                 | 14%    | 7%   | —               | —   | 6% `Math.imul` ⁴          |
 | `loop_control` (10M)              | 996     | 40%         | 49%      | 11%                 | —      | —    | —               | —   |                           |
 | `f64_array_1m` (10M)              | 292     | 44%         | 10%      | 43%                 | —      | —    | —               | —   | 2%                        |
 | `str_scan_ascii_medium` (20k)     | 1570    | 40%         | 20%      | —                   | 11%    | 6%   | 20% ²           | —   | 3%                        |
-| `str_slice_ascii_short` (3M)      | 1471    | 19%         | 29%      | 2%                  | 11%    | 12%  | 15% ²           | 7%  | 5% incl. `Math.imul`      |
+| `str_slice_ascii_short` (3M)      | 1471    | 19%         | 29%      | 2%                  | 11%    | 12%  | 15% ²           | 7%  | 5% incl. `Math.imul` ⁴    |
 | `str_indexof_ascii_short_n4` (3M) | 849     | 20%         | 23%      | 4%                  | 16%    | 13%  | 22% ²           | —   | 2%                        |
 | `str_replaceall_ascii_short` (1M) | 4082    | 8%          | 8%       | —                   | 34%    | 9%   | 21% ²           | 11% | 9%                        |
 | `str_concat_ascii_short` (3M)     | 805     | 20%         | 27%      | 3%                  | 9%     | 10%  | 14% ²           | 9%  | 8%                        |
@@ -290,10 +294,62 @@ sweep; kernel = compiled JavaScript code):
 | `str_format_int_short` (2M)       | 1448    | 17%         | 27%      | 2%                  | 9%     | 12%  | 10% ²           | 4%  | 15% `fmt.*`, 3% `imul`    |
 | `str_parse_int_short` (2M)        | 3873    | 1%          | 1%       | 1%                  | —      | —    | —               | —   | **96% `num.*`/`ratio.*`** |
 
+⁴ Profiled before #426; the `Math.imul` builtin call and its two `rt.toInt32`
+calls are now inline, see [the #426 update](#update-mathimul-inlined-426).
+
 ² Includes `rt.toString` of the receiver and `rt.stringCharCodeAt`, which the
 checksum `mix(h, s.charCodeAt(k))` also calls; `rt.stringIndexOf`,
 `rt.stringSlice`, `rt.copyUnits`, `rt.concat*`, `rt.builder*`,
 `rt.arrayJoinBody` and `rt.replaceAllUnits` are the operation itself.
+
+## Update: `Math.imul` inlined (#426)
+
+`Math.imul(a, b)` is compiled inline behind a guard that the callee is still
+the intrinsic and both arguments are Numbers in the `cvttsd2si` range
+([#426](https://github.com/40oleg/nona/issues/426)). Same host as above
+(WSL2 Ubuntu 22.04, i7-13620H, Node.js 22.23.2), 2026-10-20, N = 10,000,000
+(string kernels: their default bounded iterations), 11 runs, `--builds o3`.
+"Before" is commit `3703fb73`, "after" `fd0c97e4`; each side was built in its
+own worktree, with the C++ sources and flags unchanged (the C++ medians of the
+two runs agree within a few percent, columns below). Raw results:
+[`before`](../bench/cpp/results/2026-10-20-imul-before-linux-wsl2.json),
+[`after`](../bench/cpp/results/2026-10-20-imul-after-linux-wsl2.json).
+Medians in ms with the interquartile range; "beyond IQR" means the after Q3 is
+below the before Q1.
+
+| Kernel                    | Nona before [IQR] | Nona after [IQR] | Speedup    | Beyond IQR | C++ -O3   | Nona/C++ after |
+| ------------------------- | ----------------- | ---------------- | ---------- | ---------- | --------- | -------------- |
+| `u32_mul_chain`           | 394 [385–408]     | 293 [285–306]    | x1.34      | yes        | 8.36      | x35            |
+| `u32_mul_x4`              | 386 [376–389]     | 251 [241–257]    | x1.54      | yes        | 2.68      | x94            |
+| `u32_mul_direct`          | 446 [426–471]     | 321 [317–328]    | x1.39      | yes        | 7.64      | x42            |
+| `u32_mul_indirect`        | 489 [482–506]     | 315 [311–328]    | x1.55      | yes        | 13.7      | x23            |
+| `u32_mul_stdfn` ³         | 489 [481–505]     | 345 [328–347]    | x1.42      | yes        | 20.6      | x17            |
+| `u32_mul_closure`         | 499 [487–517]     | 319 [311–326]    | x1.56      | yes        | 10.6      | x30            |
+| `str_slice_ascii_short`   | 2157 [2109–2208]  | 1696 [1661–1732] | x1.27      | yes        | 45.9      | x37            |
+| `str_slice_bmp_short`     | 2283 [2213–2309]  | 1664 [1641–1696] | x1.37      | yes        | 49.7      | x33            |
+| `str_slice_astral_short`  | 2183 [2152–2209]  | 1700 [1678–1764] | x1.28      | yes        | 49.4      | x34            |
+| `str_slice_ascii_medium`  | 263 [256–278]     | 239 [230–259]    | x1.10      | no         | 19.1      | x12.5          |
+| `str_slice_bmp_medium`    | 279 [265–290]     | 237 [234–250]    | x1.18      | yes        | 17.7      | x13.4          |
+| `str_slice_astral_medium` | 273 [265–278]     | 234 [224–240]    | x1.17      | yes        | 17.8      | x13.1          |
+| `str_slice_*_large`       | 46–49             | 46–49            | x0.95–1.08 | no         | 21.7–23.4 | x2.0–2.2       |
+
+³ `u32_mul_stdfn` is a C++-only variant run against the JavaScript `*_indirect`
+kernel; the Nona column is the same JavaScript kernel measured separately.
+
+The inline path removes about 100 ms from each u32 multiplication kernel
+(10 ns per operation); the gaps to C++ shrink from x45–x138 to x23–x94 and
+remain large because `>>> 0`, the loop counter and the table reads still take
+the slow paths of the gap analysis. The `str_slice_*` short kernels improve
+by 27–37% because their checksum `mix` uses `Math.imul`; the medium kernels
+improve by 10–18% (the ascii one within the IQR), and the large kernels,
+dominated by `slice` itself, do not change (all within the IQR). The `_view`
+rows move the same way as the owning rows (same Nona kernel).
+
+The C++ side was rebuilt in each worktree from identical sources and flags
+(`g++` 11 in WSL2), not shared as one binary; the per-kernel C++ medians differ
+between the runs by at most the noise of the calibration. The gap-map document
+`docs/perf-cpp-gaps.md` does not exist in this tree, so gap 7 is not marked
+there; this update is the record that #426 addresses it.
 
 ## Gap analysis
 
@@ -318,7 +374,8 @@ not shown directly.
    37–55 ns per operation against 12–19 ns for the double kernels with the
    same loop. The same path dominates the checksum `mix` of every string
    kernel (`Math.imul(h ^ x, 16777619) >>> 0`: 23–29% of samples in the
-   short string kernels). ToUint32 of a double is a modular reduction that
+   short string kernels; the `Math.imul` call itself is inline since #426,
+   the `^` and `>>> 0` remain). ToUint32 of a double is a modular reduction that
    `cvttsd2si` with a 64-bit destination performs exactly for |x| < 2^63,
    so this is not a semantic cost.
 2. **Values live in frame slots; counters are doubles (avoidable,
