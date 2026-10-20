@@ -2,6 +2,8 @@
 
 Micro-benchmarks (`05_*` ... `18_*`), the real-world corpus (`real/`) and the HTTP server cases (`http/`) behind [`PERFORMANCE.md`](../PERFORMANCE.md).
 
+[`cpp/`](cpp/README.md) holds the separate comparison of Nona with optimized C++ (#401): matched arithmetic and call kernels, its own build, assembly check and runner.
+
 ## Running
 
 ```
