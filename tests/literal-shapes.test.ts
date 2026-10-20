@@ -55,6 +55,20 @@ test("literal shapes: which literals get a static shape", () => {
     );
 });
 
+test("literal shapes: which literals are filled in one write pass", () => {
+    // Values first, then one newObject with every value (#48): not for a
+    // literal with a method, which needs its home object first.
+    const filled: boolean[] = [];
+    for (const fn of compileToIR(
+        `console.log([{a: 1, b: [2]}, {m() {}, a: 1}, {a: 1, f: () => 1}, {[String(1)]: 1}]);`,
+    ).functions)
+        for (const block of fn.blocks)
+            for (const op of block.operations as Operation[])
+                if (op.kind === "newObject" && !op.array)
+                    filled.push(op.literal !== undefined);
+    assert.deepEqual(filled, [true, false, true, false]);
+});
+
 const cases: [string, string][] = [
     [
         "duplicate keys keep the first position and the last value",
@@ -121,6 +135,60 @@ const copy = recs.map(r => ({...r, extra: true}));
 const merged = Object.assign({}, recs[4], {name: 'm'});
 console.log(JSON.stringify(recs[49]), JSON.stringify(copy[2]), JSON.stringify(merged), JSON.parse(JSON.stringify(recs)).length);`,
     ],
+    [
+        "values that allocate and collect between them, evaluated many times",
+        `
+const keep = [];
+let sum = 0;
+for (let i = 0; i < 2000; i++) {
+    const o = {a: i, b: [i, i + 1, {deep: [i]}], c: {d: i, e: 'e' + i}, f: new Array(20).fill(i).map(String), g: i % 7 ? null : {z: i}};
+    if (i % 250 === 0) keep.push(o);
+    sum += o.b[1] - o.c.d + o.b[2].deep[0] + o.f.length;
+}
+console.log(sum, JSON.stringify(keep[3]), keep.length);`,
+    ],
+    [
+        "getters, setters and methods next to filled literals",
+        `
+let set = 0;
+const mk = i => [{a: i, get b() { return this.a * 2; }, set b(v) { set += v; }}, {m() { return i; }, n: i}, {a: i, b: i + 1}];
+const out = [];
+for (let i = 0; i < 3; i++) { const [x, y, z] = mk(i); x.b = i; out.push(x.b, y.m(), y.n, z.a + z.b); }
+console.log(out.join(), set, Object.keys(mk(5)[0]).join());`,
+    ],
+    [
+        "a value that throws mid-literal",
+        `
+let n = 0;
+const boom = () => { if (++n % 3 === 0) throw new Error('boom' + n); return [n]; };
+const out = [];
+for (let i = 0; i < 9; i++) {
+    try { const o = {a: {i}, b: boom(), c: 'c'.repeat(i), a: i}; out.push(JSON.stringify(o)); } catch (e) { out.push(e.message); }
+}
+console.log(out.join('|'));`,
+    ],
+    [
+        "more keys than inline slots",
+        `
+const mk = i => ({${Array.from({ length: 70 }, (_, k) => `k${k}: i + ${k}`).join(", ")}});
+let sum = 0; for (let i = 0; i < 20; i++) { const o = mk(i); sum += o.k0 + o.k69; }
+console.log(sum, Object.keys(mk(1)).length, mk(2).k64);`,
+    ],
 ];
 for (const [name, source] of cases)
     test(`literal shapes: ${name}`, () => expectProgram(source));
+
+// A literal root with too many transitions makes the site generic: its
+// objects are built key by key (rt.newLiteralObject, then rt.setProperty).
+// Without GC stress: the 66000 objects that use up the transitions take long.
+test("literal shapes: a site that cannot be resolved", () => {
+    const source = `
+for (let i = 0; i < 66000; i++) { const o = {}; o['k' + i] = i; }
+const mk = i => ({zz: i, yy: [i], xx: {i}, zz: 'last' + i});
+const list = []; for (let i = 0; i < 3; i++) list.push(mk(i));
+list[1].ww = 'added'; delete list[2].yy;
+console.log(JSON.stringify(list), Object.keys(mk(9)).join());`;
+    const native = runOnHost(source, { gcStress: false });
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(native.stdout, runOracle(source).stdout);
+});
