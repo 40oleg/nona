@@ -110,6 +110,8 @@ export type Operation =
           /** That function is strict (receives this unchanged). */ directStrict?: boolean;
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
+          /** `string.charCodeAt(position)` or `string.charAt(position)` with at most one argument: when the callee is the intrinsic %String.prototype.charCodeAt% / %String.prototype.charAt%, the receiver a primitive string and the position missing or a Number, the code unit is read inline. */ stringIndex?:
+              "charCodeAt" | "charAt";
       }
     | {
           kind: "invokeArray";

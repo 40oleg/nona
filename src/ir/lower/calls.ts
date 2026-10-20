@@ -71,6 +71,7 @@ export abstract class CallLowerer extends ClassLowerer {
         newTarget?: number,
         tail = false,
         hasOwn?: "method" | "call",
+        stringIndex?: "charCodeAt" | "charAt",
     ): void {
         if ("array" in args)
             this.emit({
@@ -94,6 +95,7 @@ export abstract class CallLowerer extends ClassLowerer {
                 ...(newTarget === undefined ? {} : { newTarget }),
                 ...(tail ? { tail: true } : {}),
                 ...(hasOwn ? { hasOwn } : {}),
+                ...(stringIndex && !construct && !tail ? { stringIndex } : {}),
             });
         }
     }
@@ -116,6 +118,21 @@ export abstract class CallLowerer extends ClassLowerer {
         if (callee.property.value === "call" && args.fixed.length >= 2)
             return "call";
         return undefined;
+    }
+    /** `x.charCodeAt(i)` or `x.charAt(i)` with at most one argument: the code unit may be read inline (codegen checks the callee and the receiver). */
+    protected stringIndexCall(
+        callee: A.Member,
+        args: { fixed: number[] } | { array: number },
+    ): "charCodeAt" | "charAt" | undefined {
+        if (
+            !("fixed" in args) ||
+            args.fixed.length > 1 ||
+            callee.property.kind !== "Literal" ||
+            callee.object.kind === "Super"
+        )
+            return undefined;
+        const name = callee.property.value;
+        return name === "charCodeAt" || name === "charAt" ? name : undefined;
     }
     protected arrayOf(values: number[]): number {
         const array = this.slot();
