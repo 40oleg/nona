@@ -14,6 +14,7 @@ import {
     emptyLiteralCapacity,
     LiteralSiteLayout,
 } from "../../runtime/shapes.js";
+import { emitNewObject } from "./literals.js";
 import { ElementsLayout } from "../../runtime/array-elements.js";
 import {
     int32Operand,
@@ -820,6 +821,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     const pushCold = (emit: () => void) => {
         cold.push({ map: currentMap, emit });
     };
+    const frame = { a, value, payload, pointer, pushCold };
     // A derived constructor's this starts uninitialized, in a cell that its
     // arrow functions may share (the stub copied the receiver to the super
     // receiver slot already).
@@ -1682,35 +1684,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.cmp("rax", 5);
                     failIf(a, "ne", "rt.throwTypeError");
                     break;
-                case "newObject": {
-                    const capacity = Math.min(
-                        Math.max(op.slots ?? 0, emptyLiteralCapacity),
-                        maxInlineCapacity,
-                    );
-                    // An object literal with known keys (#194): a per-site record whose
-                    // shape the first evaluation resolves; its objects start with it.
-                    const site = literalSites.get(op.dest);
-                    if (site && op.keys && !op.array) {
-                        pointer("rcx", op.dest);
-                        a.lea("rdx", { rip: site });
-                        a.call("rt.newLiteralObject");
-                        break;
-                    }
-                    if (op.array && op.elements) {
-                        pointer("rcx", op.dest);
-                        a.mov("rdx", op.length);
-                        a.call("rt.newArrayLiteral");
-                        break;
-                    }
-                    pointer("rcx", op.dest);
-                    a.mov("rdx", op.array ? 1 : 0);
-                    a.mov("r8", op.length);
-                    if (op.slots !== undefined && !op.array) {
-                        a.mov("r9", capacity);
-                        a.call("rt.newObjectSlots");
-                    } else a.call("rt.newObject");
+                case "newObject":
+                    emitNewObject(frame, op, literalSites.get(op.dest));
                     break;
-                }
                 case "forInKeys":
                     pointer("rcx", op.dest);
                     pointer("rdx", op.object);
