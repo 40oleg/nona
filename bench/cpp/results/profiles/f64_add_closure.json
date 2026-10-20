@@ -1,0 +1,27 @@
+{
+    "kernel": "f64_add_closure",
+    "program": "arith",
+    "n": 10000000,
+    "seed": 12345,
+    "frequencyHz": 2000,
+    "event": "cpu-clock",
+    "samples": 348,
+    "output": {
+        "kernel": "f64_add_closure",
+        "n": 10000000,
+        "ns": 172224980,
+        "checksum": "f64:41528f30f05aec80"
+    },
+    "routines": {
+        "js.fn.27": 125,
+        "rt.elementGet": 91,
+        "js.fn.23": 43,
+        "rt.enterFrame2": 42,
+        "rt.invokeSite2": 22,
+        "rt.invoke": 21,
+        "rt.propKeyHash": 1,
+        "rt.shapeLookup": 1,
+        "rt.keyFilterBit": 1,
+        "rt.compareStrings": 1
+    }
+}

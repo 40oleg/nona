@@ -19,6 +19,26 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            # lean-action downloads elan and the toolchain once, without
+            # retries, so a transient TLS error from releases.lean-lang.org
+            # fails the job. Install both here with retries; lean-action then
+            # finds the toolchain already installed.
+            - name: Install elan and the Lean toolchain
+              working-directory: verification
+              run: |
+                  retry() {
+                      for attempt in 1 2 3 4 5; do
+                          "$@" && return 0
+                          echo "attempt $attempt failed: $*" >&2
+                          sleep $((attempt * 10))
+                      done
+                      return 1
+                  }
+                  retry curl -sSfL -o "$RUNNER_TEMP/elan-init.sh" \
+                      https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh
+                  retry sh "$RUNNER_TEMP/elan-init.sh" -y --default-toolchain none
+                  retry "$HOME/.elan/bin/elan" toolchain install "$(cat lean-toolchain)"
+                  "$HOME/.elan/bin/lean" --version
             - uses: leanprover/lean-action@a1e4f67744f24ab80ec3c7ab1bd37d7d419207d5
               with:
                   lake-package-directory: verification

@@ -44,7 +44,12 @@ export type Operation =
     /** Writes a private field of object; TypeError without it. */
     | { kind: "privateSet"; object: number; name: number; source: number }
     | { kind: "newCell"; dest: number; source: number }
-    | { kind: "readCell"; dest: number; cell: number }
+    /**
+     * function: the code label of the function declaration the cell holds for
+     * its whole life (binder knownFunction, #239). Direct calls use it; later
+     * passes (inlining) may rely on it as well.
+     */
+    | { kind: "readCell"; dest: number; cell: number; function?: string }
     | { kind: "writeCell"; cell: number; source: number }
     | { kind: "loadCapture"; dest: number; index: number }
     | { kind: "currentFunction"; dest: number }
