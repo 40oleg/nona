@@ -37,7 +37,7 @@ function literalKeys(source: string): (string[] | undefined)[] {
 test("literal shapes: which literals get a static shape", () => {
     assert.deepEqual(
         literalKeys(`const k='c';const s={};
-  [{a:1,b:2,a:3}, {x:1,m(){},'q r':2,$:3}, {}, {[k]:1}, {...s,a:1}, {get a(){return 1}}, {__proto__:null,a:1}, {'__proto__':1}, {0:1,a:2}, {'':1}, {'1x':1}];`),
+  console.log([{a:1,b:2,a:3}, {x:1,m(){},'q r':2,$:3}, {}, {[k]:1}, {...s,a:1}, {get a(){return 1}}, {__proto__:null,a:1}, {'__proto__':1}, {0:1,a:2}, {'':1}, {'1x':1}]);`),
         [
             undefined,
             ["a", "b"],
