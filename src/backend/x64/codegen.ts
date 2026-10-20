@@ -231,6 +231,8 @@ function generateImage(
                     }
                     if (op.kind === "invoke" && op.direct)
                         return { ...op, direct: prefix(op.direct) };
+                    if (op.kind === "isFunctionCode")
+                        return { ...op, target: prefix(op.target) };
                     if (op.kind === "loadGlobal" || op.kind === "storeGlobal")
                         return { ...op, prelude: true };
                     return op;
