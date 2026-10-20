@@ -28,6 +28,26 @@ export function int32Operand(
 }
 
 /**
+ * The low 32 bits of `reg` <- ToInt32 of the Number at `operand`: the 64-bit
+ * truncation is exact for |x| < 2^63 (-0 gives 0), and ToInt32 is its value
+ * modulo 2^32. NaN, the infinities and |x| >= 2^63 give the conversion's
+ * invalid result 2^63 and jump to `slow` (Math.imul, #426). Clobbers R11 and
+ * XMM0.
+ */
+export function toInt32Operand(
+    a: Assembler,
+    operand: Mem,
+    reg: "rcx" | "r10",
+    slow: string,
+): void {
+    a.movsd("xmm0", operand);
+    a.cvttsd2si(reg, "xmm0");
+    a.mov("r11", 1n << 63n);
+    a.cmp(reg, "r11");
+    a.jcc("e", slow);
+}
+
+/**
  * x % y of two Numbers that hold int32 values, XMM0 <- the result. Anything
  * else (fractions, NaN, Infinity, a zero divisor, -0 as the dividend) jumps
  * to `slow`, the fmod semantics of rt.rem. The remainder takes the sign of

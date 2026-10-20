@@ -71,6 +71,7 @@ export abstract class CallLowerer extends ClassLowerer {
         newTarget?: number,
         tail = false,
         hasOwn?: "method" | "call",
+        intrinsic?: "imul",
     ): void {
         if ("array" in args)
             this.emit({
@@ -94,6 +95,7 @@ export abstract class CallLowerer extends ClassLowerer {
                 ...(newTarget === undefined ? {} : { newTarget }),
                 ...(tail ? { tail: true } : {}),
                 ...(hasOwn ? { hasOwn } : {}),
+                ...(intrinsic ? { intrinsic } : {}),
             });
         }
     }
@@ -116,6 +118,20 @@ export abstract class CallLowerer extends ClassLowerer {
         if (callee.property.value === "call" && args.fixed.length >= 2)
             return "call";
         return undefined;
+    }
+    /** `Math.imul(a, b)`: the call may be computed inline when the callee is %Math.imul% at run time (#426). */
+    protected intrinsicCall(
+        callee: A.Member,
+        args: { fixed: number[] } | { array: number },
+    ): "imul" | undefined {
+        return "fixed" in args &&
+            args.fixed.length === 2 &&
+            callee.object.kind === "Identifier" &&
+            callee.object.name === "Math" &&
+            callee.property.kind === "Literal" &&
+            callee.property.value === "imul"
+            ? "imul"
+            : undefined;
     }
     protected arrayOf(values: number[]): number {
         const array = this.slot();
