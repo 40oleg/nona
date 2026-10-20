@@ -32,7 +32,10 @@ test("which loops are versioned", () => {
     const loop = (body: string, head = "let i = 0; i < a.length; i++") =>
         `function f(a, b, n, g) { let s = 0; for (${head}) { ${body} } return s; }`;
     assert.equal(versioned(loop("s += a[i] * a[i];")), 1);
-    assert.equal(versioned(loop("a[i] = i * 0.5;", "let i = 0; i < n; i++")), 1);
+    assert.equal(
+        versioned(loop("a[i] = i * 0.5;", "let i = 0; i < n; i++")),
+        1,
+    );
     assert.equal(versioned(loop("b[i] = a[i] + 1;")), 1);
     assert.equal(versioned(loop("const v = a[i]; s = s + v;")), 1);
     assert.equal(versioned(loop("if (a[i] > 1) s++; else s--;")), 1);
@@ -44,7 +47,10 @@ test("which loops are versioned", () => {
     assert.equal(versioned(loop("s += a[i]; i += 2;")), 0);
     assert.equal(versioned(loop("s += a[i] instanceof g;")), 0);
     // A bound the loop changes.
-    assert.equal(versioned(loop("s += a[i]; n--;", "let i = 0; i < n; i++")), 0);
+    assert.equal(
+        versioned(loop("s += a[i]; n--;", "let i = 0; i < n; i++")),
+        0,
+    );
     // Script bindings at the top level, as in bench/13_typed.js.
     assert.equal(
         versioned(
@@ -225,13 +231,14 @@ test("the versioned loop body of a Float64Array sum calls no element stub", () =
     const f = result
         .assembly!.split(/^js\.fn\.0:$/m)[1]!
         .split(/^js\.fn\.0\.end:$/m)[0]!;
-    // The guard branches to the copy's header, the first block after it;
+    // The guard branches to the copy's header, the first block after it
+    // (its own branch on the result may jump there too);
     // the copy's back edge jumps there.
     const [, afterGuard] = f.split(/call rt\.typedLoopGuard\n/);
     assert.ok(afterGuard, "the loop guard");
     const header = /^js\.fn\.0\.block\.(\d+):$/m.exec(afterGuard)![1]!;
     const start = afterGuard.indexOf(`js.fn.0.block.${header}:`),
-        end = afterGuard.indexOf(`jmp js.fn.0.block.${header}\n`);
+        end = afterGuard.indexOf(`jmp js.fn.0.block.${header}\n`, start);
     assert.ok(start >= 0 && end > start, "the versioned loop");
     const body = afterGuard.slice(start, end);
     assert.doesNotMatch(body, /call rt\.elementGet/);

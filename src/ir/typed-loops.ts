@@ -108,9 +108,7 @@ const elementSet = (op: Operation): op is SetPropertyOp =>
     op.literalElement === undefined &&
     !!op.numericKey;
 const lengthGet = (op: Operation): op is PropertyOp =>
-    op.kind === "property" &&
-    op.operation === "get" &&
-    op.keyName === "length";
+    op.kind === "property" && op.operation === "get" && op.keyName === "length";
 
 function successors(block: BlockIR): number[] {
     const out = terminatorTargets(block.terminator);
@@ -160,12 +158,13 @@ function naturalLoops(
         }
         return x;
     };
-    for (let changed = true; changed; ) {
+    for (let changed = true; changed;) {
         changed = false;
         for (const id of order.slice(1)) {
             let dom: number | undefined;
             for (const p of predecessors.get(id) ?? [])
-                if (idom.has(p)) dom = dom === undefined ? p : intersect(p, dom);
+                if (idom.has(p))
+                    dom = dom === undefined ? p : intersect(p, dom);
             if (dom !== undefined && idom.get(id) !== dom) {
                 idom.set(id, dom);
                 changed = true;
@@ -201,8 +200,7 @@ function naturalLoops(
 
 /** A value the loop does not change: a slot it never writes, or a script binding it never stores. */
 type Source = { slot: number } | { global: number };
-const sourceKey = (s: Source) =>
-    "slot" in s ? "s" + s.slot : "g" + s.global;
+const sourceKey = (s: Source) => ("slot" in s ? "s" + s.slot : "g" + s.global);
 
 interface Plan {
     header: number;
@@ -315,9 +313,7 @@ function analyzeLoop(
         ops
             .slice(at + 1)
             .some((op) =>
-                definitions(op).some(
-                    (d) => d === induction || d === boundSlot,
-                ),
+                definitions(op).some((d) => d === induction || d === boundSlot),
             )
     )
         return undefined;
@@ -328,17 +324,15 @@ function analyzeLoop(
             defs.get(slot)![0]!.kind === "constant" &&
             (defs.get(slot)![0] as { value: unknown }).value === 1 &&
             !live(slot);
-        if (
-            !(
-                (op.kind === "unary" &&
-                    op.operator === "increment" &&
-                    op.argument === induction) ||
-                (op.kind === "binary" &&
-                    op.operator === "+" &&
-                    op.left === induction &&
-                    one(op.right))
-            )
-        )
+        if (!(
+            (op.kind === "unary" &&
+                op.operator === "increment" &&
+                op.argument === induction) ||
+            (op.kind === "binary" &&
+                op.operator === "+" &&
+                op.left === induction &&
+                one(op.right))
+        ))
             return undefined;
     }
     // A value the loop does not change, as seen from a slot.
@@ -393,11 +387,13 @@ function analyzeLoop(
             if (definitions(op).includes(induction)) checked = false;
         return checked;
     };
-    for (let changed = true; changed; ) {
+    for (let changed = true; changed;) {
         changed = false;
         for (const block of loop) {
             const out =
-                block.id === header ? false : blockOut(block, checkedIn.get(block.id)!);
+                block.id === header
+                    ? false
+                    : blockOut(block, checkedIn.get(block.id)!);
             for (const target of terminatorTargets(block.terminator)) {
                 if (!blocks.has(target) || target === header) continue;
                 const edge =
@@ -547,7 +543,11 @@ function retarget(t: Terminator, m: (id: number) => number): Terminator {
         case "branch":
             return { ...t, yes: m(t.yes), no: m(t.no) };
         case "switch":
-            return { ...t, targets: t.targets.map(m), otherwise: m(t.otherwise) };
+            return {
+                ...t,
+                targets: t.targets.map(m),
+                otherwise: m(t.otherwise),
+            };
         default:
             return t;
     }
@@ -652,7 +652,6 @@ function version(fn: FunctionIR, plan: Plan): FunctionIR {
 export function versionTypedLoops(fn: FunctionIR): FunctionIR {
     // Prelude code works on ordinary arrays (as in element-sites.ts).
     if (fn.id.startsWith("js.regexpVm.") || fn.generator) return fn;
-    if (process.env.NONA_NO_BCE) return fn; // TEMP
     if (
         !fn.blocks.some((block) =>
             block.operations.some((op) => elementGet(op) || elementSet(op)),
