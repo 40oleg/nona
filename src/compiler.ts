@@ -460,8 +460,12 @@ function compileOnTarget(
                   )
                 : undefined);
         // Coverage and call statistics count every call: no call is inlined.
+        // NONA_NO_INLINE=1 disables the inliner (#235) to measure its effect.
         const lowering: LowerOptions = {
-            inline: !options.coverage && !options.callStats,
+            inline:
+                !options.coverage &&
+                !options.callStats &&
+                !process.env.NONA_NO_INLINE,
         };
         const {
             result: { ir: loweredIR, agentIRs },

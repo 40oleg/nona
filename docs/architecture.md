@@ -156,6 +156,34 @@ A function object is an object followed by the fields below (`src/runtime/functi
 
 A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data. Blocks are emitted in IR order, and a jump or the last conditional jump of a branch to the block emitted next is left out. A strict equality with an `undefined`, `null`, Boolean or Number constant operand is an inline tag test (with `ucomisd` for Numbers) instead of a call to `rt.strictEquals`; when the result only decides the block's branch, the test jumps to the branch targets directly. `switch` cases with such constants benefit the same way.
 
+### Inlining budgets and measured effect
+
+The inliner is bounded by these constants in `src/ir/inline.ts`:
+
+| Budget                  | Value                                         | Meaning                                                                           |
+| ----------------------- | --------------------------------------------- | --------------------------------------------------------------------------------- |
+| `maxInlineCalleeSize`   | 30                                            | Operations plus terminators of a callee's optimized IR, per call site.            |
+| `maxInlineCallerGrowth` | 600                                           | Operations inlining may add to one caller.                                        |
+| `maxInlineCallerSize`   | 20 000                                        | Larger callers are not re-optimized, which bounds the compile time of one caller. |
+| `maxInlineModuleGrowth` | 25 % of the module, at least 2 000 operations | Total growth of a module.                                                         |
+| `inlineDepthLimit`      | 1                                             | Calls inside an inlined body are not inlined again.                               |
+
+`NONA_NO_INLINE=1` in the environment disables the inliner in `nona build` (as coverage and call-statistics builds do); it exists to measure the effect below.
+
+Measured on 2026-10-20 at commit `cecf377e` (plus the switch above), Windows 11, Intel Core i7-13620H, 16 GB, Node.js 22.23.2, win32-x64 executables, `SCALE=0.1`; median of 3 builds and 3 runs on a shared machine, so differences below about 10 % are noise. `ops` is the module's IR size (operations plus terminators) from `compileToIR`; "guards" is the number of inlined call sites.
+
+| Program                                          | Executable off → on              | Compile off → on                            | Run off → on        | IR ops off → on            | Guards |
+| ------------------------------------------------ | -------------------------------- | ------------------------------------------- | ------------------- | -------------------------- | ------ |
+| `bench/14_calls.js`                              | 3 880 448 → 3 880 448            | 0.57 s → 0.57 s                             | 0.118 s → 0.116 s   | 210 → 216                  | 1      |
+| `bench/08_numeric.js` (fib)                      | 3 940 352 → 3 940 352            | 0.60 s → 0.62 s                             | 0.184 s → 0.180 s   | 257 → 257                  | 0      |
+| `bench/real/acorn.mjs`                           | 8 659 456 → 8 753 152 (+1.1 %)   | 2.15 s → 2.19 s                             | 0.862 s → 0.860 s   | 129 087 → 137 014 (+6.1 %) | 429    |
+| `bench/real/marked.mjs`                          | 5 552 640 → 5 568 000 (+0.3 %)   | 1.39 s → 1.40 s                             | 0.969 s → 0.997 s   | not measured               |        |
+| lodash 4.17.21 (`lodash.js` + one `console.log`) | 17 067 008 → 17 441 792 (+2.2 %) | 6.0 s → 6.6 s (+10 %, 7.1 s in another run) | not run (see below) | not measured               |        |
+
+- `fib` is recursive, so nothing is inlined (the table shows the budget rules, not a missed case). In `14_calls.js` the single hot call `add(s, i)` is inlined, but its loop variables are globals of the script, so the loop is dominated by their loads and stores and the run time does not change. Run-time differences in the table are within noise; the inliner's gain is the folding of constant arguments (`square(12)`), not the removal of the call itself.
+- Size growth is bounded by the module budget (25 % of the IR) and, in the measured real programs, stayed at 0.3 % to 2.2 % of the executable (6 % of the IR of acorn, the largest relative growth); the executable grows less than the IR because the runtime and data are fixed. Lodash compile time grows by about 10 %, the cost of re-optimizing the callers that received a body.
+- The lodash executable built from `lodash.js` alone exits with `ReferenceError: Invalid operation` at start-up with and without the inliner, so its run time is not compared here; its test suite is described in `examples/lodash/README.md`.
+
 ## Code generation and calling convention
 
 Runtime routines are written once, against the register set and operations of the x64 `Assembler` (`src/backend/x64/assembler.ts`), with `RuntimeBuilder.fn(name, frameSize, body)` (`src/runtime/abi.ts`). The register names are _logical roles_: `rax`, `rcx`, `rdx`, `rbx`, `rbp`, `rsi`, `rdi`, `r8`-`r15`, `rsp`. A routine that produces a value writes it to the out pointer it receives in `rcx`; the builtin entry convention passes `out`, `argc`, `argv` and `callee`, and native construct entries get the prepared receiver as a fifth argument.
