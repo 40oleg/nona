@@ -16,6 +16,14 @@
 // results as the sample's status and the group's status, and the group then
 // has no ratio. Checksums are compared exactly (kernels.mjs `tolerance` 0).
 //
+// --only takes kernel-name substrings or program names (`--only strings`).
+// String kernels run iterationsOf(row, N) = max(1, round(N / divisor))
+// iterations, so medium and large inputs get bounded counts; their groups
+// record `iterations`, `codeUnitsProcessed`, `bytesAllocated` (UTF-16 bytes
+// of the strings the JavaScript contract creates), `alloc` and `contract`,
+// and every run must also print the same `units` and `allocUnits`. ns/op and
+// Mop/s are per iteration; Mcu/s is million code units processed per second.
+//
 // Startup is measured separately: the wall time of `loop_control 0` per
 // binary. Under --platform linux it is measured on the Linux side with
 // date +%s%N around the exec (includes one date(1) exec, the same for every
@@ -36,7 +44,14 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname, cpus, totalmem, release } from "node:os";
 import { resolve } from "node:path";
-import { BUILDS, DEFAULT_BUILDS, HEADLINE_N, KERNELS } from "./kernels.mjs";
+import {
+    BUILDS,
+    DEFAULT_BUILDS,
+    HEADLINE_N,
+    KERNELS,
+    iterationsOf,
+    UTF16,
+} from "./kernels.mjs";
 import { buildDir, here, isWindows, linux, linuxSh, toLinux } from "./host.mjs";
 import { fmt, summarize } from "./stats.mjs";
 
@@ -168,7 +183,16 @@ function runKernel(binary, kernel, n) {
         typeof out.checksum !== "string"
     )
         return { ...sample, status: "bad-output", stdout: line?.slice(0, 500) };
-    return { ...sample, status: "ok", ns: out.ns, checksum: out.checksum };
+    const result = {
+        ...sample,
+        status: "ok",
+        ns: out.ns,
+        checksum: out.checksum,
+    };
+    // String kernels: the contract's code units processed and created.
+    if (Number.isFinite(out.units)) result.units = out.units;
+    if (Number.isFinite(out.allocUnits)) result.allocUnits = out.allocUnits;
+    return result;
 }
 
 // Wall time of a process doing no kernel work (loop_control, n = 0).
@@ -280,7 +304,9 @@ function hostInfo() {
 }
 
 const rows = KERNELS.filter(
-    (k) => only.length === 0 || only.some((p) => k.id.includes(p)),
+    (k) =>
+        only.length === 0 ||
+        only.some((p) => k.id.includes(p) || k.program === p),
 );
 if (rows.length === 0) throw new Error("--only matches no kernel");
 const host = hostInfo();
@@ -322,8 +348,9 @@ if (startup) {
 
 // Kernels.
 const groups = [];
+const idWidth = Math.max(18, ...rows.map((k) => k.id.length + 1));
 const header =
-    "kernel".padEnd(18) +
+    "kernel".padEnd(idWidth) +
     "n".padStart(10) +
     "  " +
     "binary".padEnd(14) +
@@ -333,11 +360,18 @@ const header =
     "min–max".padEnd(15) +
     "ns/op".padStart(8) +
     "Mop/s".padStart(9) +
+    "Mcu/s".padStart(9) +
     "nona/C++".padStart(10) +
     "  status";
 console.log("\n" + header);
+// String kernels run a bounded number of iterations derived from N
+// (kernels.mjs iterationsOf); a (kernel, iterations) pair runs once.
+const measuredPairs = new Set();
 for (const n of sizes)
     for (const row of rows) {
+        const iterations = iterationsOf(row, n);
+        if (measuredPairs.has(row.id + "@" + iterations)) continue;
+        measuredPairs.add(row.id + "@" + iterations);
         const list = binaries(row.program).filter(
             (b) =>
                 b.side === "nona" ||
@@ -353,7 +387,7 @@ for (const n of sizes)
                 warmup: true,
                 round: -1,
                 position: i,
-                ...runKernel(b, kernelOf(b), n),
+                ...runKernel(b, kernelOf(b), iterations),
             });
         for (let round = 0; round < runs; round++)
             for (const [i, b] of shuffle(runnable).entries())
@@ -362,15 +396,21 @@ for (const n of sizes)
                     warmup: false,
                     round,
                     position: i,
-                    ...runKernel(b, kernelOf(b), n),
+                    ...runKernel(b, kernelOf(b), iterations),
                 });
         // Checksums: every successful run must print the reference checksum
         // (the first one of C++ -O3, else the first one at all).
+        // String kernels must also agree on the code units processed and
+        // created.
         const ok = samples.filter((s) => s.status === "ok");
-        const reference = (ok.find((s) => s.binary === "cpp-o3") ?? ok[0])
-            ?.checksum;
+        const first = ok.find((s) => s.binary === "cpp-o3") ?? ok[0];
+        const reference = first?.checksum;
         for (const s of ok)
-            if (!sameChecksum(row, s.checksum, reference))
+            if (
+                !sameChecksum(row, s.checksum, reference) ||
+                s.units !== first.units ||
+                s.allocUnits !== first.allocUnits
+            )
                 s.status = "mismatch";
         const statuses = [...new Set(samples.map((s) => s.status))];
         const unavailable = list.filter((b) => b.status !== "ok");
@@ -402,12 +442,16 @@ for (const n of sizes)
                 status: accepted ? "ok" : "not accepted (" + status + ")",
                 summaryMs: summary,
                 nsPerOp:
-                    summary && summary.median >= 10 && n > 0
-                        ? (summary.median * 1e6) / n
+                    summary && summary.median >= 10 && iterations > 0
+                        ? (summary.median * 1e6) / iterations
                         : null,
                 opsPerSecond:
                     summary && summary.median > 0
-                        ? n / (summary.median / 1e3)
+                        ? iterations / (summary.median / 1e3)
+                        : null,
+                codeUnitsPerSecond:
+                    summary && summary.median > 0 && first?.units !== undefined
+                        ? first.units / (summary.median / 1e3)
                         : null,
             };
         }
@@ -426,6 +470,18 @@ for (const n of sizes)
             unit: row.unit,
             payloadBytes: row.payloadBytes,
             n,
+            // n operations, except for string kernels: bounded iterations.
+            iterations,
+            alloc: row.alloc,
+            contract: row.contract,
+            encoding: row.encoding,
+            inputUnits: row.inputUnits,
+            codeUnitsProcessed: first?.units ?? null,
+            // 2 bytes per code unit of the strings the JavaScript contract
+            // creates (payload only: no headers, small-string buffers or
+            // allocator overhead; Nona may store ASCII in one byte per unit).
+            bytesAllocated:
+                first?.allocUnits !== undefined ? first.allocUnits * 2 : null,
             seed,
             checksum: reference ?? null,
             status,
@@ -436,8 +492,8 @@ for (const n of sizes)
             const r = results[b.label];
             const s = r.summaryMs;
             console.log(
-                (b === list[0] ? row.id : "").padEnd(18) +
-                    (b === list[0] ? String(n) : "").padStart(10) +
+                (b === list[0] ? row.id : "").padEnd(idWidth) +
+                    (b === list[0] ? String(iterations) : "").padStart(10) +
                     "  " +
                     b.label.padEnd(14) +
                     fmt(s?.median).padStart(10) +
@@ -450,12 +506,18 @@ for (const n of sizes)
                     (r.opsPerSecond ? fmt(r.opsPerSecond / 1e6) : "").padStart(
                         9,
                     ) +
+                    (r.codeUnitsPerSecond
+                        ? fmt(r.codeUnitsPerSecond / 1e6)
+                        : ""
+                    ).padStart(9) +
                     (r.ratio ? "×" + fmt(r.ratio) : "").padStart(10) +
                     "  " +
                     (b === list[0]
                         ? status
                         : r.status === "ok"
-                          ? ""
+                          ? row.kind === "string" && row.contract !== UTF16
+                              ? `[${row.contract}]`
+                              : ""
                           : r.status),
             );
         }

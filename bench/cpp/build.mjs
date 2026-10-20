@@ -15,13 +15,15 @@
 // - build/meta.json: compiler path and version, libstdc++, binutils, flags,
 //   Nona version and command, git SHA, source hashes.
 //
-// Default platform: linux on Linux, linux,win on Windows.
+// A build whose kernels.mjs `rows` filter selects no kernel of a program
+// (noinline for strings) is skipped. Default platform: linux on Linux,
+// linux,win on Windows.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { BUILDS, PROGRAMS } from "./kernels.mjs";
+import { BUILDS, KERNELS, PROGRAMS } from "./kernels.mjs";
 import {
     buildDir,
     hasLinux,
@@ -55,6 +57,10 @@ const git = (...a) =>
     spawnSync("git", a, { cwd: root, encoding: "utf8" }).stdout.trim();
 // Paths in meta.json are relative to bench/cpp/.
 const rel = (path) => relative(here, path).split("\\").join("/");
+// Does run.mjs use this build for this program?
+const used = (build, program) =>
+    !BUILDS[build].rows ||
+    KERNELS.some((k) => k.program === program && BUILDS[build].rows(k));
 const sha256 = (path) =>
     createHash("sha256").update(readFileSync(path)).digest("hex");
 let failed = false;
@@ -151,6 +157,7 @@ if (platforms.includes("linux")) {
         for (const program of PROGRAMS) {
             const source = toLinux(resolve(here, "cpp", program + ".cpp"));
             for (const [build, { flags, label }] of Object.entries(BUILDS)) {
+                if (!used(build, program)) continue;
                 const name = `${program}-cpp-${build}`;
                 const out = resolve(binDir, name);
                 const asm = (ext) => resolve(asmDir, name + ext);
@@ -244,6 +251,7 @@ if (platforms.includes("win")) {
         };
         for (const program of PROGRAMS)
             for (const [build, { flags, label }] of Object.entries(BUILDS)) {
+                if (!used(build, program)) continue;
                 const name = `${program}-cpp-${build}`;
                 const out = resolve(binDir, name + ".exe");
                 const r = spawnSync(

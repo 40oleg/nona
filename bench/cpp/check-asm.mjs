@@ -12,7 +12,11 @@
 // direct call, or an indirect call through a register/memory operand, i.e.
 // not devirtualized), and for every kernel whether the loop uses packed SIMD
 // arithmetic and whether identical code folding merged it with another
-// kernel. The result is also written to build/asm/check.json.
+// kernel. String kernels (kind "string") must instead keep the string
+// routine in the iteration loop: a call of find/compare/operator new/to_chars
+// (kernels.mjs `work`) inside a loop, or an inner loop when the routine is
+// inlined, so a call hoisted out of the loop fails. The result is also
+// written to build/asm/check.json.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -131,7 +135,91 @@ const isSimd = (i) =>
 const isIndirect = (i) =>
     /^(call|jmp)/.test(i.mnemonic) && i.operands.startsWith("*");
 
+// Packed integer compares/moves of string scans count as SIMD too.
+const isStringSimd = (i) =>
+    isSimd(i) ||
+    (/^v?(pcmpeq|pcmpgt|pmovmsk|pminu|pmaxu|punpck|pmovzx|pand|por|pshuf)/.test(
+        i.mnemonic,
+    ) &&
+        /%[xy]mm/.test(i.operands));
+const span = (body) => [body[0].addr, body[body.length - 1].addr];
+// A demangled callee without the standard-library noise.
+const shortName = (name) =>
+    name
+        .replace(
+            /std::__cxx11::basic_string<(char16_t|char), std::char_traits<\1>, std::allocator<\1> >/g,
+            (_, c) => (c === "char" ? "std::string" : "std::u16string"),
+        )
+        .replace(/\(.*$/, "");
+
+// A string kernel: the iteration loop must still do the string work per
+// iteration. Accepted evidence (row.work): a call in a loop of the kernel to
+// a routine matching `calls` (find, compare, memcmp, operator new, to_chars,
+// ...); or, when the routine is inlined (`nested`), an inner loop inside the
+// iteration loop; or (`load16`, the non-owning view) a 16-bit load in the
+// loop. A routine hoisted out of the loop leaves the call or the inner loop
+// outside every loop body and fails the check.
+function checkString(dump, row) {
+    const code = functionOf(dump, row.cppSymbol);
+    if (!code) return { status: "FAIL", reason: "function not found" };
+    const result = { status: "ok" };
+    if (dump.aliases.has(row.cppSymbol))
+        result.foldedInto = dump.aliases.get(row.cppSymbol);
+    const bodies = loops(code);
+    if (bodies.length === 0)
+        return {
+            ...result,
+            status: "FAIL",
+            reason: "no loop: folded away or hoisted",
+        };
+    const inLoops = bodies.flat();
+    result.loops = bodies.length;
+    result.simd = inLoops.some(isStringSimd);
+    const callees = [
+        ...new Set(
+            inLoops
+                .filter((i) => /^call/.test(i.mnemonic))
+                .map((i) =>
+                    isIndirect(i)
+                        ? "*indirect"
+                        : /<(.+?)(\+0x[0-9a-f]+)?>$/.exec(i.operands)?.[1],
+                )
+                .filter(Boolean),
+        ),
+    ];
+    const work = row.work ?? {};
+    const evidence = [];
+    if (work.calls) {
+        const pattern = new RegExp(work.calls);
+        const matched = callees.filter((name) => pattern.test(name));
+        if (matched.length)
+            evidence.push("calls " + matched.map(shortName).join(", "));
+    }
+    if (work.nested) {
+        const nested = bodies.some((inner) => {
+            const [a, b] = span(inner);
+            return bodies.some((outer) => {
+                const [c, d] = span(outer);
+                return outer !== inner && c <= a && b <= d && d - c > b - a;
+            });
+        });
+        if (nested) evidence.push("inner loop in the iteration loop");
+    }
+    if (work.load16 && inLoops.some((i) => /^movzw/.test(i.mnemonic)))
+        evidence.push("16-bit load in the loop");
+    result.dispatch = evidence.join("; ");
+    result.callees = callees.map(shortName);
+    if (evidence.length === 0)
+        return {
+            ...result,
+            status: "FAIL",
+            reason: `no ${[work.calls && `call of /${work.calls}/`, work.nested && "inner loop", work.load16 && "16-bit load"].filter(Boolean).join(" or ")} in the iteration loop`,
+        };
+    return result;
+}
+
 function check(dump, row) {
+    if (row.kind === "string") return checkString(dump, row);
     const code = functionOf(dump, row.cppSymbol);
     if (!code) return { status: "FAIL", reason: "function not found" };
     const result = { status: "ok" };
@@ -219,6 +307,9 @@ let failed = false,
 for (const build of builds) {
     report[build] = {};
     for (const program of PROGRAMS) {
+        const filter = BUILDS[build]?.rows;
+        if (filter && !KERNELS.some((k) => k.program === program && filter(k)))
+            continue; // build.mjs does not build it
         const file = resolve(asmDir, `${program}-cpp-${build}.objdump.txt`);
         if (!existsSync(file)) {
             console.log(`${build}/${program}: no disassembly (${file})`);
@@ -229,14 +320,19 @@ for (const build of builds) {
         const nm = resolve(asmDir, `${program}-cpp-${build}.nm.txt`);
         if (existsSync(nm)) addAliases(dump, readFileSync(nm, "utf8"));
         console.log(`\n${build}: ${BUILDS[build]?.label ?? ""}`);
+        const programRows = KERNELS.filter((k) => k.program === program);
+        const width = (key) =>
+            Math.max(20, ...programRows.map((k) => k[key].length + 2));
+        const idWidth = width("id"),
+            symbolWidth = width("cppSymbol");
         console.log(
-            "kernel".padEnd(20) +
-                "symbol".padEnd(20) +
+            "kernel".padEnd(idWidth) +
+                "symbol".padEnd(symbolWidth) +
                 "status".padEnd(8) +
                 "simd".padEnd(6) +
                 "dispatch",
         );
-        for (const row of KERNELS.filter((k) => k.program === program)) {
+        for (const row of programRows) {
             const r = check(dump, row);
             checked++;
             report[build][row.id] = { symbol: row.cppSymbol, ...r };
@@ -248,8 +344,8 @@ for (const build of builds) {
                       ? " [devirtualized]"
                       : " [not devirtualized]";
             console.log(
-                row.id.padEnd(20) +
-                    row.cppSymbol.padEnd(20) +
+                row.id.padEnd(idWidth) +
+                    row.cppSymbol.padEnd(symbolWidth) +
                     r.status.padEnd(8) +
                     (r.simd ? "yes" : "no").padEnd(6) +
                     (r.dispatch ?? "") +
