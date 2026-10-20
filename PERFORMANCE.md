@@ -21,6 +21,18 @@ Measured 2026-10-19 on a shared Windows 11 machine, with the Linux x64 servers r
 
 The medians are 37 548 req/s before and 35 900 req/s after for `/json`: no difference beyond the round-to-round noise of about 10 % on this shared machine. The saving (one UTF-16 buffer, one finished string, one `byteLength` scan and one UTF-8 copy per response) is small next to the per-request cost of the HTTP stack at the payload size of this case, so this measurement does not show a throughput gain; a quiet reference VM and the Node.js comparison are still to be run. Absolute numbers are lower than the sections below (different machine and WSL2 networking), so only the before/after pair is comparable.
 
+## Promise reactions on a native promise kind (#44)
+
+Measured 2026-10-20 on the shared Windows 11 x64 machine with Node.js 22.23.2, three runs each. A promise is a native object kind, a `.then` allocates one object that is both the derived promise and its reaction, and for a plain `%Promise%` receiver `then`, settling and the job runner are native (see [architecture.md](docs/architecture.md#javascript-preludes-and-linking)).
+
+| Case                                               | `main` (c6ccad0e) | #44, ms      | Node.js, ms  |
+| -------------------------------------------------- | ----------------- | ------------ | ------------ |
+| `bench/10_async.js --scale 0.1`, `promise1M`       | 175 / 146 / 146   | 39 / 39 / 40 | 14 / 14 / 14 |
+| chain of 100 000 `.then` after the `await`s below  | 111 / 109 / 110   | 41 / 41 / 45 | 15 / 16 / 14 |
+| 100 000 sequential `await i` in one async function | 41 / 39 / 37      | 33 / 36 / 31 | 7 / 7 / 6    |
+
+The chain is now ×2.8 of Node.js, about 0.4 µs per reaction (closure creation and `then` included), inside the issue's target of 1 µs and ×5. `await` gains less: each step still resumes a generator coroutine through the prelude's async driver, which is now the larger part of its cost.
+
 ## Current release (v0.13.0) against Node.js, Deno and Bun
 
 **These are not new measurements.** The v0.13.0 release commit (2026-10-16) was
@@ -132,7 +144,7 @@ runs, ms (libraries from `node bench/real/fetch.mjs`).
 - **Start-up, size and memory:** an order of magnitude ahead of all three: 2.7 ms and 1.1 MB for hello world against 6–47 ms and 91 MB (`bun --compile`).
 - **Loops over numbers, arrays and typed arrays, property reads, string building and searching:** at Node's level or faster (×0.3–×1.4): shapes and inline caches (#114), dense elements, ropes (#46), SIMD scans (#253) and typed-array kernels.
 - **Calls, closures, `apply` and polymorphic methods:** ×3–×10 slower, the cost of a call without a JIT that inlines (#47, #235, #239).
-- **Promise chains (×12), allocation-heavy code (×3.6) and the RegExp engine (×98 on the scan-heavy micro-benchmark, ×13–×31 in acorn and marked):** the largest remaining gaps. The RegExp engine is a bytecode VM written in JavaScript; a native matcher and a native promise kind (#44) are the next steps.
+- **Promise chains (×12), allocation-heavy code (×3.6) and the RegExp engine (×98 on the scan-heavy micro-benchmark, ×13–×31 in acorn and marked):** the largest remaining gaps. The RegExp engine is a bytecode VM written in JavaScript; a native matcher and a native promise kind (#44) are the next steps (the promise kind has landed since: [the #44 note](#promise-reactions-on-a-native-promise-kind-44)).
 
 ## The 2026-10-14 comparison (v0.12.0, superseded)
 
@@ -302,7 +314,7 @@ the cost of the generic path and of copying strings:
 - RegExp is ×227 on this scan-heavy case.
 - Calls, closures and classes are ×4–12, and short-lived objects ×13: call-site caches (#47), inline slots for short-lived objects (#48) and shapes (#114).
 - `JSON.stringify` still builds a UTF-16 string first: a byte-output mode would save about 0.3 µs of a 38 µs `res.end(JSON.stringify(...))` request, so #155 sped up `Buffer.from(string)` (1.93 µs to 0.89 µs for 95 characters) and `Buffer.byteLength(string)` (2.5 µs to 0.28 µs) instead. Since #45 it reads plain data (shaped objects, dense arrays) directly: 30 000 objects take 30 ms instead of 72 ms on the machine of the 2026-10-05 HTTP measurement (Node.js: 17 ms).
-- The Promise chain (×39) keeps one record per `.then` and a linked job queue since #44: on a Linux x64 VM the 100 000-reaction chain went from 1 450 ms to 460 ms (Node.js 31 ms) and 100 000 sequential `await`s from 1 070 ms to 230 ms. A second pass (literal records, an inline `then`, `await` of a primitive without a hidden promise, `typeof` tests compiled to tag checks) brought the chain from 739 ms to 575 ms and the `await`s from 450 ms to 142 ms on a busier VM (20 000 reactions: 376 M to 210 M instructions). Promises are still ordinary objects whose state lives in a WeakMap; about a third of the remaining instructions are allocation and collection of the promise, its state record, the reaction and the WeakMap entry. A dedicated native promise kind is the remaining step.
+- The Promise chain (×39) keeps one record per `.then` and a linked job queue since #44: on a Linux x64 VM the 100 000-reaction chain went from 1 450 ms to 460 ms (Node.js 31 ms) and 100 000 sequential `await`s from 1 070 ms to 230 ms. A second pass (literal records, an inline `then`, `await` of a primitive without a hidden promise, `typeof` tests compiled to tag checks) brought the chain from 739 ms to 575 ms and the `await`s from 450 ms to 142 ms on a busier VM (20 000 reactions: 376 M to 210 M instructions). Promises are still ordinary objects whose state lives in a WeakMap; about a third of the remaining instructions are allocation and collection of the promise, its state record, the reaction and the WeakMap entry. A dedicated native promise kind was the remaining step; it has landed since, see [the #44 note](#promise-reactions-on-a-native-promise-kind-44).
 
 Sections 1–4 (startup, size, build time, memory), the executable size, the
 real-world code and the HTTP server tables are not covered by this update and

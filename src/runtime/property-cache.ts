@@ -171,12 +171,12 @@ export function bumpEpoch(a: Assembler): void {
  * plain objects, arrays, functions, arguments, wrappers, errors, dates,
  * iterators, generators, regular expressions, buffers, views, typed arrays
  * (see ordinaryObject for their numeric names), maps, sets and their
- * iterators and weak variants. Proxies and unknown kinds stay generic.
+ * iterators and weak variants, and promises. Proxies and unknown kinds stay generic.
  */
-// The numbers of ArgumentsKind ... WeakSetKind, spelled out to keep this
+// The numbers of ArgumentsKind ... WeakSetKind and PromiseKind, spelled out to keep this
 // module free of import cycles (tests/fast-paths.test.ts checks them).
 export const namedPropertyKinds = [
-    0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22,
 ];
 export const namedTypedArrayKind = 13;
 /** Jumps to MISS unless the object header in REG has a kind of namedPropertyKinds. Leaves the kind in RAX; clobbers R11. */
