@@ -325,6 +325,12 @@ export interface FunctionIR {
         end: number;
     };
     parameterCount: number;
+    /**
+     * Every parameter is a plain identifier without a default and the rest
+     * parameter (if any) is not destructured: the parameter slots hold their
+     * arguments (or undefined) from entry and never start in their dead zone.
+     */
+    simpleParameters?: boolean;
     localCount: number;
     slotCount: number;
     maxArguments: number;

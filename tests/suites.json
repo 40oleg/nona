@@ -196,6 +196,7 @@
                 "cli",
                 "closures",
                 "capture-initialization",
+                "parameter-initialization",
                 "coercion-hooks",
                 "conformance",
                 "constant-equality",
