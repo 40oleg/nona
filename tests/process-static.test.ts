@@ -1735,7 +1735,7 @@ test("nextTick boundary drains nested ticks before jobs and later ticks after th
 });
 
 const promiseMockBootstrap =
-    'Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;' +
+    'Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;' +
     promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true");
 test("native process exception probes match Node26 stdout and fatal statuses", () => {
     for (const probe of processExceptionProbes) {
