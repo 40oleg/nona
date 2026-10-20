@@ -1,0 +1,34 @@
+{
+ "kernel": "f64_array_1m",
+ "program": "arith",
+ "n": 10000000,
+ "seed": 12345,
+ "frequencyHz": 2000,
+ "event": "cpu-clock",
+ "samples": 292,
+ "output": {
+  "kernel": "f64_array_1m",
+  "n": 10000000,
+  "ns": 118603750,
+  "checksum": "f64:40cce521f6e001aa"
+ },
+ "routines": {
+  "js.fn.25": 113,
+  "rt.elementGet": 83,
+  "rt.elementSet": 44,
+  "rt.toNumber": 14,
+  "js.fn.0": 13,
+  "rt.toInt32": 8,
+  "rt.toNumeric": 3,
+  "rt.toNumber.done": 2,
+  "rt.getLengthCached": 2,
+  "js.main": 2,
+  "rt.shiftLeft": 2,
+  "rt.ownNamedNodeScan": 1,
+  "rt.toPropertyDescriptor": 1,
+  "rt.shiftUnsigned": 1,
+  "rt.enterFrame0": 1,
+  "rt.bitXor": 1,
+  "js.fn.35": 1
+ }
+}

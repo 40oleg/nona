@@ -4,6 +4,8 @@ Matched JavaScript and C++ kernels that measure how close Nona's native code is 
 
 ## Running
 
+The current report is [docs/perf-cpp.md](../../docs/perf-cpp.md).
+
 ```
 npm run build
 node bench/cpp/build.mjs
@@ -25,7 +27,9 @@ Requirements: Node.js and the built compiler (`dist/cli.js`); `g++` and binutils
 - `build.mjs`: builds the kernels and writes `build/meta.json` (Nona version and git SHA, compiler path and version, libstdc++, binutils, flags, source hashes) and the listings in `build/asm/`: Nona's `--print-asm`, `g++ -S`, `objdump -d --no-show-raw-insn -C`, `nm -C` and GCC's vectorizer report (`-fopt-info-vec-optimized`).
 - `check-asm.mjs`: fails when a C++ kernel's loop or its arithmetic is gone (folded away or replaced by a closed form), or when a string kernel's iteration loop no longer calls its string routine (`find`, `compare`, `operator new`, `to_chars`, ...) or contains the inlined routine's inner loop (a hoisted call fails); reports the dispatch of every call kernel (inlined, direct call, indirect call = not devirtualized), packed SIMD use and identical code folding. Writes `build/asm/check.json`.
 - `run.mjs`: the runner; `stats.mjs`: sample statistics; `host.mjs`: running Linux tools natively or through WSL.
-- `results/`: raw samples and metadata of published runs.
+- `report.mjs`: the Markdown tables of the report from one host's results files (headline, arithmetic and calls, diagnostic C++ builds, ns/op at every N, strings, startup).
+- `profile.mjs`: `perf record -e cpu-clock` of one Nona kernel on Linux (or in WSL2), with the samples attributed to runtime routines and compiled functions through the `NONA_ELF_MAP` symbol table.
+- `results/`: raw samples and metadata of published runs, one JSON file per run of `run.mjs`, and the `perf` profiles of the report.
 
 `build/` is generated and not committed.
 

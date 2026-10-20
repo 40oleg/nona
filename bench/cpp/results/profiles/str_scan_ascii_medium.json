@@ -1,0 +1,39 @@
+{
+ "kernel": "str_scan_ascii_medium",
+ "program": "strings",
+ "n": 20000,
+ "seed": 12345,
+ "frequencyHz": 2000,
+ "event": "cpu-clock",
+ "samples": 1570,
+ "output": {
+  "kernel": "str_scan_ascii_medium",
+  "n": 20000,
+  "ns": 790026052,
+  "checksum": "u32:2610280448",
+  "units": 20480000,
+  "allocUnits": 0
+ },
+ "routines": {
+  "js.fn.7": 628,
+  "rt.stringCharCodeAt.fn.code": 219,
+  "rt.toNumber": 163,
+  "rt.toString": 85,
+  "rt.getPropertyCached": 68,
+  "rt.propIndexProbe": 57,
+  "rt.toInt32": 50,
+  "rt.getLengthCached": 46,
+  "rt.invokeSite1": 45,
+  "rt.invoke": 42,
+  "rt.toNumeric": 38,
+  "rt.toNumber.save": 30,
+  "rt.shiftUnsigned": 26,
+  "rt.propertyBase": 25,
+  "rt.icGet": 25,
+  "rt.toString.save": 12,
+  "rt.toNumber.done": 8,
+  "rt.enterFrame1": 1,
+  "rt.instanceOf": 1,
+  "rt.toString.copy": 1
+ }
+}
