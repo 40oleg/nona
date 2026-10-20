@@ -1,7 +1,7 @@
 import type { Assembler, Mem } from "./assembler.js";
 
 // Inline int32 paths of the Number operators, shared by the code generator
-// (operations.ts): the bitwise operators and % (#238).
+// (operations.ts): the bitwise operators (#238, #402) and % (#238).
 
 /**
  * `reg` <- the Number at `operand` when it is an int32 value (the truncation
@@ -24,6 +24,31 @@ export function int32Operand(
     a.shl("r11", 32);
     a.sar("r11", 32);
     a.cmp("r11", reg);
+    a.jcc("ne", slow);
+}
+
+/**
+ * `reg` <- the Number at `operand` as an int64 when it is an integer that
+ * the truncation represents exactly (#402): ToInt32 is the integer modulo
+ * 2^32, so the low 32 bits of `reg` are ToInt32 of the Number. The caller
+ * uses only those bits (a 32-bit conversion, movsxd or a mask), which keeps
+ * a sign extension off the operands' data path. The round trip rejects
+ * fractions, NaN, ±Infinity and |x| >= 2^63 (cvttsd2si gives
+ * 0x8000000000000000, which only round-trips for -2^63, whose low 32 bits,
+ * 0, are also correct); those jump to `slow`. -0 gives 0. Clobbers XMM0
+ * and XMM1.
+ */
+export function toInt32Operand(
+    a: Assembler,
+    operand: Mem,
+    reg: "rcx" | "r10",
+    slow: string,
+): void {
+    a.movsd("xmm0", operand);
+    a.cvttsd2si(reg, "xmm0");
+    a.cvtsi2sd("xmm1", reg);
+    a.ucomisd("xmm1", "xmm0");
+    a.jcc("p", slow);
     a.jcc("ne", slow);
 }
 
