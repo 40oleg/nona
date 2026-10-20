@@ -157,6 +157,15 @@ A function object is an object followed by the fields below (`src/runtime/functi
 
 A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data. Blocks are emitted in IR order, and a jump or the last conditional jump of a branch to the block emitted next is left out. A strict equality with an `undefined`, `null`, Boolean or Number constant operand is an inline tag test (with `ucomisd` for Numbers) instead of a call to `rt.strictEquals`; when the result only decides the block's branch, the test jumps to the branch targets directly. `switch` cases with such constants benefit the same way.
 
+### Register-resident Numbers (#424)
+
+The last pass, `src/ir/representations.ts` (header comment: the proofs), annotates the IR; `src/backend/x64/register-loops.ts` (header comment: the code shape) and `operations.ts` use it. It changes no operation.
+
+- **Eligible slots.** Inside a natural loop, a slot is unboxed when every definition in the loop produces a Number (`numbers.ts`) or copies an eligible slot, and it holds a Number on every entry. Int32 induction variables (`i++`, `i--`, `i += c`, compared with a bound in the direction of the step) and integer temporaries (`& | ^ << >>` results) live in GPRs R12–R15; the other written doubles in XMM2–XMM4. Loops that push or are entered by an exception handler, suspend (generators, `await`), have slots live into a handler, or belong to functions with a mapped `arguments` object or very large functions are not planned.
+- **No deopt guards.** The int32 range of a counter is proven by induction from the loop test (`i < bound`, `bound <= 2^31 - step`). When it depends on a bound that is not a constant, a single test on loop entry (the bound is an integral Number within the limit) selects the register copy or the unchanged loop; nothing is checked or deoptimized inside the loop, and the loop is emitted twice (executables grow by about 2%). Doubles keep their IEEE operations, so NaN, the infinities and -0 behave as before; an int32 slot never holds -0.
+- **GC and exceptions.** Numbers are not roots (the collector scans only String and Object payloads), so a register needs no stack map entry. Before every call the loop makes (runtime calls, safepoint polls, gcStress collections, slow paths, throws), before an operation without a register form, on every loop exit and before a return, each live register slot is written back as a boxed Number into its frame slot, so stack maps, the runtime and handlers outside the loop see ordinary Values; the GPRs are saved on entry and restored on exits, and an exception leaving the loop restores them from the handler record.
+- Tests: `tests/unboxed-numbers.test.ts`, `tests/register-loops.test.ts`; measurements: [docs/perf-cpp-gaps.md](perf-cpp-gaps.md#register-resident-numbers-and-int32-counters-424).
+
 ### Inlining budgets and measured effect
 
 The inliner is bounded by these constants in `src/ir/inline.ts`:
