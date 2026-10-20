@@ -4,6 +4,10 @@
 এই পৃষ্ঠাটি ইংরেজি পৃষ্ঠা [Performance](/guide/performance)-এর অনুবাদ, যা [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md) থেকে তৈরি। ইংরেজি সংস্করণটিই প্রামাণিক এবং সেটি আরও নতুন হতে পারে। `node bench/run.mjs` পরিমাপগুলো পুনরায় তৈরি করে।
 :::
 
+::: tip
+অপ্টিমাইজড C++-এর সঙ্গে তুলনা (গাণিতিক অপারেশন, ফাংশন কল ও UTF-16 স্ট্রিং; 2026-10-20) [docs/perf-cpp.md](https://github.com/40oleg/nona/blob/main/docs/perf-cpp.md)-এ আছে (ইংরেজিতে)।
+:::
+
 ::: warning
 Node.js, Deno ও Bun-এর সঙ্গে 2026-10-14-এর সাম্প্রতিক তুলনা [ইংরেজি পৃষ্ঠায়](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun) আছে: hello world 2.7 ms-এ চালু হয় ও আকার 1.1 MB, অ্যারে, অবজেক্ট, স্ট্রিং ও typed array-এর বেশিরভাগ মাইক্রো-বেঞ্চমার্ক Node.js-এর সমান। নিচে v0.7.0-এর মাপের অনুবাদ।
 :::

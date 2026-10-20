@@ -1,0 +1,23 @@
+{
+    "kernel": "f64_add_direct",
+    "program": "arith",
+    "n": 10000000,
+    "seed": 12345,
+    "frequencyHz": 2000,
+    "event": "cpu-clock",
+    "samples": 363,
+    "output": {
+        "kernel": "f64_add_direct",
+        "n": 10000000,
+        "ns": 181183961,
+        "checksum": "f64:41528f30f05aec80"
+    },
+    "routines": {
+        "js.fn.17": 147,
+        "rt.elementGet": 127,
+        "js.fn.4": 44,
+        "rt.enterFrame2": 43,
+        "rt.namedSetFast": 1,
+        "rt.alloc": 1
+    }
+}
