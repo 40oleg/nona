@@ -12,10 +12,12 @@ import { destinations } from "./locations.js";
  * general dispatch; any other callee takes the usual path.
  *
  * A callee is known when it is the result of `newFunction` in the same
- * block, or a read of a global binding that every store in the program
- * fills with the same function declaration. Generators, async functions and
- * class constructors are never annotated, nor arrow functions that read their
- * lexical this or new.target.
+ * block, a read of a global binding that every store in the program fills
+ * with the same function declaration, or a read of a cell that the binder
+ * knows holds one function declaration for its whole life (`readCell.function`:
+ * a captured declaration that nothing else writes, #239). Generators, async
+ * functions and class constructors are never annotated, nor arrow functions
+ * that read their lexical this or new.target.
  *
  * A callee that reads neither this nor new.target (usesFrameThis) is called
  * without a receiver, and a call that passes exactly its parameters enters
@@ -164,7 +166,9 @@ function annotateKnownCallees(module: ModuleIR): ModuleIR {
                 else if (op.kind === "loadGlobal" && !op.prelude) {
                     const target = globals.get(op.index);
                     if (target) known.set(op.dest, target);
-                } else if (op.kind === "copy" && known.has(op.source))
+                } else if (op.kind === "readCell" && op.function)
+                    known.set(op.dest, op.function);
+                else if (op.kind === "copy" && known.has(op.source))
                     known.set(op.dest, known.get(op.source)!);
                 return result;
             });

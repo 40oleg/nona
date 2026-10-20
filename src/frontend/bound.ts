@@ -21,6 +21,14 @@ export type StorageBinding = {
     silentImmutable?: boolean;
     module?: boolean;
     /** An import binding of nona:ffi define(), compiled statically. */ ffiDefine?: boolean;
+    /**
+     * A local that holds this function for its whole life: its only write is
+     * the initialization by one plain (not generator, not async) function
+     * declaration, and no with object environment or eval var environment can
+     * answer for its name (#239). Reads of its cell are annotated with the
+     * declaration's code label (readCell.function).
+     */
+    knownFunction?: BoundFunction;
 };
 export type Binding = StorageBinding | { kind: "globalProperty"; name: string };
 export interface BoundFunction {
