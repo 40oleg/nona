@@ -78,6 +78,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 Программа всё же может добраться до пропущенной части через имя, вычисленное во время исполнения, например `globalThis['Reg' + 'Exp']`. Для движка RegExp и таблиц Unicode такой вызов бросает `Error`, в сообщении которого названа отсутствующая часть; пропущенный глобальный объект или метод просто отсутствует. Чтобы подключить всё, компилируйте с `--full-runtime` (или параметром `fullRuntime` функции [`compile()`](/ru/reference/api)) ([#62](https://github.com/40oleg/nona/issues/62)). Отдельные части можно добавить через `--link часть,...`, а `--print-link` показывает, что подключено и какое имя выбрало каждую часть ([#182](https://github.com/40oleg/nona/issues/182)).
 
+Именованные импорты встроенных модулей урезаются до выбора частей: `import { existsSync } from "node:fs"` оставляет только код `fs`, до которого доходит `existsSync`, поэтому не подключает движок RegExp, таблицы Unicode и таймеры (1 808 896 байт вместо 5 017 088 на win32-x64). Импорт пространства имён или по умолчанию, `import()`, `require` и `process.getBuiltinModule` оставляют модуль целиком ([устройство и ограничения](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440)).
+
 ## Realms
 
 `$262.createRealm` поддерживается для Test262. Функции, классы и eval-код, созданные из литерального исходника через `Function`, `eval` или динамические конструкторы функций другого realm, выполняются в этом realm, а прототипы по умолчанию и ошибки конструкторов берутся из realm, который указывает ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).

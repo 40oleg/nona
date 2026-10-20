@@ -77,6 +77,8 @@ JavaScript-এ লেখা বিল্ট-ইন লাইব্রেরি, 
 
 রানটাইমে গণনা করা নামের মাধ্যমে, যেমন `globalThis['Reg' + 'Exp']`, প্রোগ্রাম তবুও বাদ পড়া অংশে পৌঁছাতে পারে। RegExp ইঞ্জিন ও Unicode টেবিলের ক্ষেত্রে এমন কল একটি `Error` ছোড়ে, যার বার্তায় অনুপস্থিত অংশের নাম থাকে; বাদ পড়া গ্লোবাল বা মেথড কেবল অনুপস্থিত থাকে। সবকিছু লিঙ্ক করতে `--full-runtime` (অথবা [`compile()`](/bn/reference/api)-এর `fullRuntime` অপশন) দিয়ে কম্পাইল করুন ([#62](https://github.com/40oleg/nona/issues/62))। `--link অংশ,...` দিয়ে আলাদা অংশ যোগ করা যায়, আর `--print-link` দেখায় কী লিঙ্ক হয়েছে এবং কোন নাম প্রতিটি অংশ বেছে নিয়েছে ([#182](https://github.com/40oleg/nona/issues/182))।
 
+বিল্ট-ইন মডিউলের নামযুক্ত import অংশ বাছাইয়ের আগে ছাঁটা হয়: `import { existsSync } from "node:fs"` শুধু `existsSync` যে `fs` কোডে পৌঁছায় তা রাখে, তাই RegExp ইঞ্জিন, Unicode টেবিল ও টাইমার লিংক হয় না (win32-x64-এ ৫,০১৭,০৮৮-এর বদলে ১,৮০৮,৮৯৬ বাইট)। namespace বা default import, `import()`, `require` ও `process.getBuiltinModule` পুরো মডিউল রাখে ([নকশা ও সীমা](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440))।
+
 ## Realm
 
 Test262-এর জন্য `$262.createRealm` সমর্থিত। অন্য realm-এর `Function`, `eval` বা ডায়নামিক ফাংশন কনস্ট্রাক্টর দিয়ে লিটারাল সোর্স থেকে তৈরি ফাংশন, ক্লাস ও eval কোড সেই realm-এই চলে, আর ডিফল্ট প্রোটোটাইপ ও কনস্ট্রাক্টরের ত্রুটি ECMA-262 যে realm নির্ধারণ করে সেখান থেকেই আসে ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176))।

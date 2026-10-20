@@ -77,6 +77,8 @@ Helpers que só certa sintaxe precisa são ligados quando o programa compilado o
 
 Um programa ainda pode alcançar uma parte omitida por meio de um nome calculado em tempo de execução, por exemplo `globalThis['Reg' + 'Exp']`. Para o motor de RegExp e as tabelas Unicode, essa chamada lança um `Error` cuja mensagem nomeia a parte ausente; uma global ou um método omitido simplesmente não existe. Compile com `--full-runtime` (ou a opção `fullRuntime` de [`compile()`](/pt/reference/api)) para ligar tudo ([#62](https://github.com/40oleg/nona/issues/62)). Com `--link parte,...` adicionam-se partes isoladas, e `--print-link` mostra o que foi ligado e qual nome selecionou cada parte ([#182](https://github.com/40oleg/nona/issues/182)).
 
+Os imports nomeados de módulos embutidos são podados antes de escolher as partes: `import { existsSync } from "node:fs"` mantém só o código de `fs` que `existsSync` alcança, e por isso não liga o motor RegExp, as tabelas Unicode nem os temporizadores (1.808.896 bytes em vez de 5.017.088 em win32-x64). Um import de namespace ou padrão, `import()`, `require` e `process.getBuiltinModule` mantêm o módulo inteiro ([projeto e limites](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440)).
+
 ## Realms
 
 `$262.createRealm` é suportado para o Test262. Funções, classes e código eval criados com código-fonte literal por meio de `Function`, `eval` ou dos construtores de funções dinâmicas de outro realm são executados nesse realm, e os protótipos padrão e os erros dos construtores vêm do realm indicado pela ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).

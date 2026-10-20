@@ -73,6 +73,10 @@ Option 1 now; option 2 as the direction for the size of executables.
   `linkedPreludes` and `runtimeRegExpLink`; a change to either must keep
   the report in step (`tests/runtime-link-source.test.ts`).
 
+## Pruning of built-in modules
+
+The built-in modules written in JavaScript (`node:fs`, `node:path`, ...) used to contribute all of their code to the lexical usage. Named imports now keep only the reachable top-level declarations before the usage is collected, so one `fs` function no longer selects `regexp`, `timers` or the Unicode tables ([#440](https://github.com/40oleg/nona/issues/440)). See [builtin-module-pruning.md](builtin-module-pruning.md).
+
 ## Native part `float16`
 
 `float16` ([#321](https://github.com/40oleg/nona/issues/321)) holds the

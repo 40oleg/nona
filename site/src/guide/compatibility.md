@@ -78,6 +78,8 @@ Helpers that only some syntax needs are linked when the compiled program calls t
 
 A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. For the RegExp engine and the Unicode tables such a call throws an `Error` whose message names the missing part; an omitted global or method is simply absent. Compile with `--link part,...` to add the parts such a program needs, or with `--full-runtime` (or the `link` and `fullRuntime` options of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)). `--print-link` lists what was linked and which name selected each part ([#182](https://github.com/40oleg/nona/issues/182)).
 
+Named imports of built-in modules are pruned before the parts are chosen: `import { existsSync } from "node:fs"` keeps only the code of `fs` that `existsSync` reaches, so it does not link the RegExp engine, the Unicode tables or timers (1,808,896 bytes instead of 5,017,088 on win32-x64). A namespace or default import, `import()`, `require` and `process.getBuiltinModule` keep the whole module ([design and limits](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440)).
+
 ## Realms
 
 `$262.createRealm` is supported for Test262. Functions, classes and eval code created with literal source through another realm's `Function`, `eval` or dynamic function constructors run in that realm, and default prototypes and constructor errors come from the realm ECMA-262 names ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).

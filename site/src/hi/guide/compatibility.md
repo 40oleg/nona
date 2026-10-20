@@ -77,6 +77,8 @@ JavaScript में लिखी बिल्ट-इन लाइब्रे�
 
 प्रोग्राम रनटाइम पर बने नाम के ज़रिए, जैसे `globalThis['Reg' + 'Exp']`, छोड़े गए हिस्से तक फिर भी पहुँच सकता है। RegExp इंजन और Unicode टेबल के लिए ऐसी कॉल एक `Error` फेंकती है जिसके संदेश में छूटे हिस्से का नाम होता है; छोड़ा गया ग्लोबल या मेथड बस मौजूद नहीं होता। सब कुछ लिंक करने के लिए `--full-runtime` (या [`compile()`](/hi/reference/api) का `fullRuntime` विकल्प) के साथ कंपाइल करें ([#62](https://github.com/40oleg/nona/issues/62))। `--link हिस्सा,...` से अलग-अलग हिस्से जोड़े जा सकते हैं, और `--print-link` दिखाता है कि क्या लिंक हुआ और किस नाम ने हर हिस्सा चुना ([#182](https://github.com/40oleg/nona/issues/182))।
 
+बिल्ट-इन मॉड्यूल के नामित import रनटाइम भाग चुनने से पहले छाँटे जाते हैं: `import { existsSync } from "node:fs"` केवल वही `fs` कोड रखता है जिस तक `existsSync` पहुँचता है, इसलिए RegExp इंजन, Unicode तालिकाएँ और टाइमर नहीं जुड़ते (win32-x64 पर 5,017,088 की जगह 1,808,896 बाइट)। namespace या default import, `import()`, `require` और `process.getBuiltinModule` पूरा मॉड्यूल रखते हैं ([डिज़ाइन और सीमाएँ](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440))।
+
 ## Realm
 
 Test262 के लिए `$262.createRealm` समर्थित है। दूसरे realm के `Function`, `eval` या डायनामिक फ़ंक्शन कंस्ट्रक्टरों से लिटरल सोर्स द्वारा बने फ़ंक्शन, क्लास और eval कोड उसी realm में चलते हैं, और डिफ़ॉल्ट प्रोटोटाइप तथा कंस्ट्रक्टर की त्रुटियाँ उसी realm से आती हैं जिसे ECMA-262 बताता है ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176))।

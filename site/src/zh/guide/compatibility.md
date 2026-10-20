@@ -77,6 +77,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 程序仍可能通过运行时计算出的名称（例如 `globalThis['Reg' + 'Exp']`）访问被省略的部件。对于 RegExp 引擎和 Unicode 表，这样的调用会抛出 `Error`，其消息指出缺少的部件；被省略的全局对象或方法则直接不存在。使用 `--full-runtime`（或 [`compile()`](/reference/api) 的 `fullRuntime` 选项）编译即可链接所有部件（[#62](https://github.com/40oleg/nona/issues/62)）。 使用 `--link 部件,...` 可单独添加部件，`--print-link` 会列出已链接的内容以及选中每个部件的名称（[#182](https://github.com/40oleg/nona/issues/182)）。
 
+内置模块的具名导入会在选择运行时部分之前被裁剪：`import { existsSync } from "node:fs"` 只保留 `existsSync` 可达的 `fs` 代码，因此不会链接 RegExp 引擎、Unicode 表和定时器（win32-x64 上为 1,808,896 字节，而不是 5,017,088 字节）。命名空间导入、默认导入、`import()`、`require` 和 `process.getBuiltinModule` 会保留整个模块（[设计与限制](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md)，[#440](https://github.com/40oleg/nona/issues/440)）。
+
 ## Realms
 
 `$262.createRealm` 为 Test262 提供支持。通过另一个 realm 的 `Function`、`eval` 或动态函数构造器以字面量源码创建的函数、类和 eval 代码在该 realm 中运行，默认原型和构造器错误来自 ECMA-262 所规定的 realm（[#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)）。
