@@ -126,6 +126,7 @@ export type Operation =
           callApply?: "call" | "apply" | "applyElements";
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
+          /** `Math.imul(a, b)`: when the callee is %Math.imul% and both arguments are Numbers, computed inline (#426). */ intrinsic?: "imul";
           /** `string.charCodeAt(position)` or `string.charAt(position)` with at most one argument: when the callee is the intrinsic %String.prototype.charCodeAt% / %String.prototype.charAt%, the receiver a primitive string and the position missing or a Number, the code unit is read inline. */ stringIndex?:
               "charCodeAt" | "charAt";
       }
@@ -327,6 +328,12 @@ export interface FunctionIR {
         end: number;
     };
     parameterCount: number;
+    /**
+     * Every parameter is a plain identifier without a default and the rest
+     * parameter (if any) is not destructured: the parameter slots hold their
+     * arguments (or undefined) from entry and never start in their dead zone.
+     */
+    simpleParameters?: boolean;
     localCount: number;
     slotCount: number;
     maxArguments: number;
