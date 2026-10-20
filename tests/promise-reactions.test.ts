@@ -5,10 +5,13 @@ import { runOnHost } from "./helpers/host.js";
 
 // One reaction record per then (#44): the job order of every path that
 // creates, settles or adopts a promise must stay the one Node.js produces.
-function expectOracle(source: string): void {
-    const expected = runOracle(source).stdout;
+// A function source gets the gcStress flag, so a test can shorten its program
+// under GC stress; each variant is checked against the oracle.
+function expectOracle(source: string | ((gcStress: boolean) => string)): void {
     for (const gcStress of [true, false]) {
-        const run = runOnHost(source, { gcStress });
+        const program = typeof source === "string" ? source : source(gcStress);
+        const expected = runOracle(program).stdout;
+        const run = runOnHost(program, { gcStress });
         assert.equal(run.error, undefined);
         assert.equal(run.status, 0, run.stderr);
         assert.equal(run.stdout, expected, `gcStress ${gcStress}`);
@@ -116,17 +119,26 @@ test("then, queueMicrotask and await interleave as in Node.js", () =>
  setTimeout(function(){console.log(log.join(' '))},0);
 `));
 
+// All three chains (about 6000 promises) are built before any reaction runs,
+// and GC stress marks that whole live heap on every allocation, so the cost
+// grows faster than the length: 1000 hops took 144 s under GC stress
+// on Windows and hit the timeout on CI (#418). The runtime itself is linear
+// (100 000 hops run in seconds without GC stress), so the long chains run
+// without GC stress and 200 hops (still two thrown values) under it.
 test("handler-less reactions pass values and reasons through long chains", () =>
-    expectOracle(`
+    expectOracle(
+        (gcStress) => `
+ var length=${gcStress ? 200 : 1000};
  var r=Promise.reject(new Error('deep')),f=Promise.resolve('value');
- for(var i=0;i<1000;i++){r=r.then(function(){return 'skipped'});f=f.catch(function(){return 'skipped'})}
- for(var i=0;i<1000;i++){r=r.then(null,undefined);f=f.then(1)}
+ for(var i=0;i<length;i++){r=r.then(function(){return 'skipped'});f=f.catch(function(){return 'skipped'})}
+ for(var i=0;i<length;i++){r=r.then(null,undefined);f=f.then(1)}
  r.catch(function(e){console.log('reason',e.message)});
  f.then(function(v){console.log('value',v)});
  var n=Promise.resolve(0);
- for(var i=0;i<1000;i++)n=n.then(function(v){if(v%100===99)throw v+1;return v+1}).catch(function(e){return e});
+ for(var i=0;i<length;i++)n=n.then(function(v){if(v%100===99)throw v+1;return v+1}).catch(function(e){return e});
  n.then(function(v){console.log('alternating',v)});
-`));
+`,
+    ));
 
 test("non-function handlers, thenable results and a patched Promise fall back to the prelude", () =>
     expectOracle(`
