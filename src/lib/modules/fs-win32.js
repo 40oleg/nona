@@ -296,7 +296,7 @@ const sys = {
     lstat(path) {
         const result = this.stat(path, true);
         if (result && attributes(path) & REPARSE_POINT && linkTarget(path)) {
-            result.kind = "link";
+            result.kind = "symlink";
             result.mode = 0o120666;
         }
         return result;

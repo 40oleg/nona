@@ -60,7 +60,7 @@ function statResult() {
                 : type === 0o100000
                   ? "file"
                   : type === 0o120000
-                    ? "link"
+                    ? "symlink"
                     : "other",
         size,
         mtimeMs: seconds * 1000 + nanos / 1e6,

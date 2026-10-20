@@ -152,6 +152,31 @@ console.log(fs.existsSync('w'));
 `,
     }));
 
+// node:fs resolves and joins paths with nona:internal/path-core (#439).
+test("fs resolves relative, dot-segment and Unicode paths like Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import {existsSync, mkdirSync, writeFileSync, realpathSync, readdirSync, rmSync} from 'node:fs';
+import path from 'node:path';
+const root = 'папка-😀';
+mkdirSync(root + '/ü/./deep', {recursive: true});
+writeFileSync(root + '/ü/файл.txt', 'x');
+writeFileSync(root + '/ü/deep/😀.txt', 'y');
+for (const p of [root, './' + root + '/ü', root + '/ü/../ü/deep/../файл.txt', root + '/ü/deep/😀.txt', root + '/missing', root + '/ü/./deep/..'])
+  console.log(JSON.stringify(p), existsSync(p));
+const real = realpathSync(root + '/ü/deep/../файл.txt');
+console.log(real === path.resolve(root, 'ü', 'файл.txt'), path.isAbsolute(real), real.endsWith(path.join(root, 'ü', 'файл.txt')));
+console.log(realpathSync('.') === path.resolve('.'), realpathSync(root + '/./ü/..') === path.resolve(root));
+for (const d of readdirSync('./' + root + '/ü', {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : 1))
+  console.log(d.name, d.isFile(), d.isDirectory(), d.isSymbolicLink());
+console.log(readdirSync(root + '/ü/deep').join());
+rmSync('./' + root + '/ü/..', {recursive: true});
+console.log(existsSync(root), existsSync(root + '/ü/deep/😀.txt'));
+try { rmSync(root); } catch (e) { console.log(e.code); }
+rmSync(root, {recursive: true, force: true});
+`,
+    }));
+
 test("fs reads symbolic links where the host can create them", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "nona-links-"));
     try {

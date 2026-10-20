@@ -1,14 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import oracle from "node:path";
-import { pathModuleSource } from "../src/frontend/path-module.js";
+import { pathScriptSource } from "../src/frontend/path-module.js";
 import { pathParitySources } from "./helpers/path-cases.js";
 
 // Exercise the actual built-in source independently of native linking. Native
 // module/GC parity is covered by path.test.ts on Windows and Linux in CI.
-const implementation: typeof oracle = new Function(
-    pathModuleSource.replace(/^export .*$/gm, "") + "\nreturn path;",
-)();
+const implementation: typeof oracle = new Function(pathScriptSource())();
 function seededRootPaths() {
     let seed = 9135;
     const random = () => {
@@ -162,13 +160,11 @@ test("path source: Windows flavor resolves from a POSIX host cwd", () => {
         env: {},
         cwd: () => "/tmp/nona/path-tests",
     };
-    const source = pathModuleSource
-        .replace("const pathHost=globalThis.process;", "")
-        .replace(/^export .*$/gm, "");
-    const simulated: typeof oracle = new Function(
-        "pathHost",
-        source + "\nreturn path;",
-    )(host);
+    const source = pathScriptSource().replace(
+        "const pathHost=globalThis.process;",
+        "",
+    );
+    const simulated: typeof oracle = new Function("pathHost", source)(host);
     const originalCwd = process.cwd;
     try {
         process.cwd = host.cwd;
@@ -206,13 +202,11 @@ test("path source: Windows relative handles device-less roots on POSIX hosts", (
         env: {},
         cwd: () => "/tmp/nona/path-tests",
     };
-    const source = pathModuleSource
-        .replace("const pathHost=globalThis.process;", "")
-        .replace(/^export .*$/gm, "");
-    const simulated: typeof oracle = new Function(
-        "pathHost",
-        source + "\nreturn path;",
-    )(host);
+    const source = pathScriptSource().replace(
+        "const pathHost=globalThis.process;",
+        "",
+    );
+    const simulated: typeof oracle = new Function("pathHost", source)(host);
     const originalCwd = process.cwd;
     const values = [
         "/",

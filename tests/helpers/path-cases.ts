@@ -22,6 +22,16 @@ for(const p of [path.posix,path.win32]) {
 }
 console.log(path===path.win32, path===path.posix,path.sep,path.delimiter,path.posix.win32===path.win32,path.win32.posix===path.posix);
 `,
+    // The primitives node:fs shares through nona:internal/path-core (#439).
+    "core primitives": String.raw`
+const paths=['a','./a','../a','a/./b/../../c','/a/./b/..','/../a','папка/ü/😀','/папка/./ü/../😀.txt','C:\\a\\..\\b','C:rel','C:rel\\..\\..\\x','c:/A/./b','\\\\server\\share\\x','\\\\server\\share\\x\\..\\..','//server/share/папка','\\\\?\\C:\\a\\..\\b','\\\\.\\pipe\\x','/usr//lib/./x/','x/','.'];
+for(const p of [path.posix,path.win32]) {
+ for(const s of paths)console.log(JSON.stringify([s,p.normalize(s),p.dirname(s),p.join(s,'..','ü'),p.join('base',s),p.isAbsolute(s),p.resolve('/root',s)]));
+ for(const parts of [['папка','..','😀'],['C:\\x','y','..','z'],['\\\\server','share','x'],['/','a','..'],['a','/b','./c']])console.log(p.join(...parts),p.resolve('/r',...parts));
+}
+for(const p of [path,path.posix,path.win32])console.log(Object.keys(p).join(),Object.keys(p).filter(k=>k!=='format').map(k=>typeof p[k]==='function'?p[k].name:typeof p[k]).join());
+console.log(path.posix.resolve===path.posix.resolve,path.resolve===(path.sep==='/'?path.posix:path.win32).resolve,path._makeLong===path.toNamespacedPath);
+`,
     "argument validation": String.raw`
 for(const p of [path.posix,path.win32]) {
  for(const name of ['normalize','dirname','basename','extname','isAbsolute','parse','resolve','join','relative','matchesGlob'])for(const value of [undefined,null,1,true,[],{},()=>{}]) {
