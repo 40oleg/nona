@@ -97,6 +97,8 @@ export function collectSourceUsage<T>(
     run: () => T,
     options: {
         unavailableReflectivePreludes?: readonly OptionalPrelude[];
+        /** Keep the usage out of an enclosing collection (see mergeSourceUsage). */
+        detached?: boolean;
     } = {},
 ): { result: T; usage: SourceUsage; reasons: LinkReasons } {
     const outer = usage,
@@ -121,21 +123,34 @@ export function collectSourceUsage<T>(
     } finally {
         usage = outer;
         reasons = outerReasons;
-        if (outerReasons)
-            for (const [part, why] of Object.entries(currentReasons))
-                if (!(part in outerReasons)) outerReasons[part] = why;
         unavailableReflectivePreludes = outerUnavailable;
-        if (outer) {
-            outer.regexp ||= current.regexp;
-            outer.unicodeProperties ||= current.unicodeProperties;
-            outer.unicodeSets ||= current.unicodeSets;
-            outer.unicodeStringProperties ||= current.unicodeStringProperties;
-            outer.unicodeNormalization ||= current.unicodeNormalization;
-            outer.float16 ||= current.float16;
-            for (const name of optionalPreludes)
-                outer.preludes[name] ||= current.preludes[name];
-        }
+        if (!options.detached) mergeSourceUsage(current, currentReasons);
     }
+}
+/** Adds usage collected apart (a detached collectSourceUsage) to the current collection. */
+export function mergeSourceUsage(
+    collected: SourceUsage,
+    why: LinkReasons,
+): void {
+    if (reasons)
+        for (const [part, reason] of Object.entries(why))
+            if (!(part in reasons)) reasons[part] = reason;
+    if (!usage) return;
+    usage.regexp ||= collected.regexp;
+    usage.unicodeProperties ||= collected.unicodeProperties;
+    usage.unicodeSets ||= collected.unicodeSets;
+    usage.unicodeStringProperties ||= collected.unicodeStringProperties;
+    usage.unicodeNormalization ||= collected.unicodeNormalization;
+    usage.float16 ||= collected.float16;
+    for (const name of optionalPreludes)
+        usage.preludes[name] ||= collected.preludes[name];
+}
+/** Records what a piece of source can reach, as lexing it would (no tokens are kept). */
+export function recordSourceUsage(
+    source: string,
+    options: { module?: boolean } = {},
+): void {
+    if (usage) lex(source, options);
 }
 /** Trigger name → the preludes it links (see preludeTriggers). */
 const preludeByName = new Map<string, OptionalPrelude[]>();

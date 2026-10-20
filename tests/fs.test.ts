@@ -79,23 +79,29 @@ unlinkSync('g.txt');
     ));
 
 test("fs uses Win32 imports on Windows and system calls on Linux", () => {
+    const imports = (source: string) => {
+        const win = compile(source, {
+            fileName: "main.mjs",
+            target: "win32-x64",
+            module: true,
+        });
+        assert.ok(win.ok);
+        return readPe(win.image)
+            .imports()
+            .map((i) => i.toLowerCase());
+    };
     const source =
         "import {readFileSync} from 'node:fs';\nconsole.log(typeof readFileSync);\n";
-    const win = compile(source, {
-        fileName: "main.mjs",
-        target: "win32-x64",
-        module: true,
-    });
-    assert.ok(win.ok);
-    const imports = readPe(win.image).imports();
-    for (const name of [
-        "kernel32.dll!CreateFileW",
-        "kernel32.dll!FindFirstFileW",
-    ])
-        assert.ok(
-            imports.some((i) => i.toLowerCase() === name.toLowerCase()),
-            name,
-        );
+    const read = imports(source);
+    for (const name of ["kernel32.dll!CreateFileW", "kernel32.dll!ReadFile"])
+        assert.ok(read.includes(name.toLowerCase()), name);
+    // A named import keeps only the Win32 functions it reaches (#440).
+    assert.ok(!read.includes("kernel32.dll!findfirstfilew"));
+    assert.ok(
+        imports(
+            "import {readdirSync} from 'node:fs';\nconsole.log(typeof readdirSync);\n",
+        ).includes("kernel32.dll!findfirstfilew"),
+    );
     assert.ok(
         compile(source, {
             fileName: "main.mjs",

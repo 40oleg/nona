@@ -150,7 +150,7 @@ const sys = {
                 data = new Uint8Array(65536),
                 length = sysReadlink(cpath(candidate), data, data.length);
             if (length === -22) {
-                if (this.stat(candidate) === null)
+                if (sys.stat(candidate) === null)
                     fail("ENOENT", "realpath", path);
                 resolved = candidate;
                 continue;
@@ -162,7 +162,7 @@ const sys = {
             if (destination.startsWith("/")) resolved = "/";
             parts = destination.split("/").filter(Boolean).concat(parts);
         }
-        if (this.stat(resolved) === null) fail("ENOENT", "realpath", path);
+        if (sys.stat(resolved) === null) fail("ENOENT", "realpath", path);
         return resolved;
     },
     readdir(path) {
