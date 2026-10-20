@@ -20,23 +20,32 @@ function expectProgram(source: string): void {
 }
 
 test("array literals: which literals are created with their elements", () => {
-    const flags: (boolean | undefined)[] = [];
+    const flags: (string | undefined)[] = [];
     for (const fn of compileToIR(
-        `const s = [1]; [[], [1, 2], [1, , 3], [...s, 1], [s, s.length], Array(5000).fill(0)];`,
+        `const s = [1]; [[], [1, 2], [1, , 3], [...s, 1], [s, s.length], Array(5000).fill(0), [1, 2, 3, 4, 5, 6, 7, 8, 9]];`,
     ).functions)
         for (const block of fn.blocks)
             for (const op of block.operations as Operation[])
                 if (op.kind === "newObject" && op.array)
-                    flags.push(op.elements);
-    // [1], the outer literal, [], [1, 2], [1, , 3], [...s, 1], [s, s.length]
+                    flags.push(
+                        op.elementValues
+                            ? "filled"
+                            : op.elements
+                              ? "elements"
+                              : undefined,
+                    );
+    // [1], [], [1, 2], [1, , 3], [...s, 1], [s, s.length], the nine
+    // elements, then the outer literal: a literal of up to eight elements is
+    // created after its elements, filled in one pass (#48).
     assert.deepEqual(flags, [
-        true,
-        true,
+        "filled",
         undefined,
-        true,
+        "filled",
         undefined,
         undefined,
-        true,
+        "filled",
+        "elements",
+        "filled",
     ]);
 });
 
@@ -96,6 +105,20 @@ let kept = []; for (let i = 0; i < 3000; i++) { const t = [i, i * 2, [i]]; if (i
 for (const t of kept) t.push('later', 'more', 'still', 'grown', 'again', 'and', 'again');
 out.push(JSON.stringify(kept.map(t => [t[0], t[2][0], t.length])));
 console.log(out.join('|'));`,
+    ],
+    [
+        "small literals filled in one pass: allocation, throws, sizes 1 to 9",
+        `
+let n = 0;
+const boom = () => { if (++n % 4 === 0) throw new Error('boom' + n); return n; };
+const out = [];
+for (let i = 0; i < 12; i++) {
+    try { out.push([boom(), [i, new Array(30).fill(i).join('')], {i}, 'x'.repeat(i)]); } catch (e) { out.push(e.message); }
+}
+const sizes = [[1], [1, 2], [1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9]];
+for (const a of sizes) { a.push('p'); a[a.length + 1] = 'q'; }
+const g = [1, 2, 3]; g.length = 1; g.push(4, 5, 6, 7, 8, 9, 10);
+console.log(JSON.stringify(out), JSON.stringify(sizes), JSON.stringify(g), 3 in sizes[0]);`,
     ],
 ];
 for (const [name, source] of cases)
