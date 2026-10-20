@@ -1594,18 +1594,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             a.cmp("rax", 3);
                             a.jcc("ne", general);
                         }
-                        toInt32Operand(
-                            a,
-                            payload(op.arguments[0]!),
-                            "rcx",
-                            general,
-                        );
-                        toInt32Operand(
-                            a,
-                            payload(op.arguments[1]!),
-                            "r10",
-                            general,
-                        );
+                        const [x, y] = op.arguments;
+                        toInt32Operand(a, payload(x!), "rcx", general);
+                        toInt32Operand(a, payload(y!), "r10", general);
                         a.imul("rcx", "r10");
                         a.shl("rcx", 32);
                         a.sar("rcx", 32);
