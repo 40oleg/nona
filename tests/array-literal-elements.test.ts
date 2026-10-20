@@ -22,7 +22,7 @@ function expectProgram(source: string): void {
 test("array literals: which literals are created with their elements", () => {
     const flags: (string | undefined)[] = [];
     for (const fn of compileToIR(
-        `const s = [1]; [[], [1, 2], [1, , 3], [...s, 1], [s, s.length], Array(5000).fill(0), [1, 2, 3, 4, 5, 6, 7, 8, 9]];`,
+        `const s = [1]; console.log([[], [1, 2], [1, , 3], [...s, 1], [s, s.length], Array(5000).fill(0), [1, 2, 3, 4, 5, 6, 7, 8, 9]]);`,
     ).functions)
         for (const block of fn.blocks)
             for (const op of block.operations as Operation[])

@@ -6,6 +6,7 @@
             "files": [
                 "frontend",
                 "lowering",
+                "scalar-replacement",
                 "liveness",
                 "object-annexb",
                 "with",
@@ -276,6 +277,7 @@
                 "new-target",
                 "nullish",
                 "number-builtins",
+                "number-to-string",
                 "object-collections",
                 "object-literal-methods",
                 "object-methods",

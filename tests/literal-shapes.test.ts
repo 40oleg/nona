@@ -37,7 +37,7 @@ function literalKeys(source: string): (string[] | undefined)[] {
 test("literal shapes: which literals get a static shape", () => {
     assert.deepEqual(
         literalKeys(`const k='c';const s={};
-  [{a:1,b:2,a:3}, {x:1,m(){},'q r':2,$:3}, {}, {[k]:1}, {...s,a:1}, {get a(){return 1}}, {__proto__:null,a:1}, {'__proto__':1}, {0:1,a:2}, {'':1}, {'1x':1}];`),
+  console.log([{a:1,b:2,a:3}, {x:1,m(){},'q r':2,$:3}, {}, {[k]:1}, {...s,a:1}, {get a(){return 1}}, {__proto__:null,a:1}, {'__proto__':1}, {0:1,a:2}, {'':1}, {'1x':1}]);`),
         [
             undefined,
             ["a", "b"],
@@ -60,7 +60,7 @@ test("literal shapes: which literals are filled in one write pass", () => {
     // literal with a method, which needs its home object first.
     const filled: boolean[] = [];
     for (const fn of compileToIR(
-        `[{a: 1, b: [2]}, {m() {}, a: 1}, {a: 1, f: () => 1}, {[String(1)]: 1}];`,
+        `console.log([{a: 1, b: [2]}, {m() {}, a: 1}, {a: 1, f: () => 1}, {[String(1)]: 1}]);`,
     ).functions)
         for (const block of fn.blocks)
             for (const op of block.operations as Operation[])
