@@ -136,6 +136,21 @@ plain name has a record in the data section.
   `Ctor.prototype`), which `rt.icGet` and the `.length` sites check. Filling
   it flags the function like a cached prototype, so deleting or redefining
   the property advances the epoch.
+- Method calls (`MethodCacheLayout`, #47): the read of `object.name` whose
+  value is the callee of the call that follows, with `object` as the
+  receiver (flagged `method` by `src/ir/calls.ts`), has a read record plus
+  four (shape, prototype, node, epoch) entries and calls `rt.icMethod`. A
+  shaped receiver with the shape and prototype of an entry at the current
+  epoch reads the node, so a site that calls one method over several
+  classes needs no shape lookup. Primitives, unshaped receivers and a shape
+  whose first shape entry has the key as its own go to `rt.icGet`; other
+  misses call it and copy what it learned (the shape without the key, the
+  node for the prototype) into a method entry. Only method sites have these
+  entries: every read record growing by them cost about 6 % on lodash.
+  The call itself checks that the callee is a plain function (not bound, a
+  generator or async function, an arrow or a class constructor) and that
+  the receiver is an object or the callee is strict, and then calls its code
+  as a direct call does; anything else is the general call.
 - `.length` of a typed array without own properties whose prototype has an
   entry for the intrinsic `%TypedArray%.prototype.length` accessor is read
   from the typed array (0 when its buffer is detached) without calling the

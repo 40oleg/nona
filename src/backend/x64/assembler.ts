@@ -531,6 +531,14 @@ export class Assembler {
     cvtsi2sd(d: Xmm, s: Reg): void {
         this.instruction([0x0f, 0x2a], regCode(d), s, true, [0xf2]);
     }
+    /** cvtsi2sd of the low 32 bits of `s`, a signed int32. */
+    cvtsi2sd32(d: Xmm, s: Reg): void {
+        this.instruction([0x0f, 0x2a], regCode(d), s, false, [0xf2]);
+    }
+    /** movsxd: `d` <- the low 32 bits of `s`, sign-extended. */
+    movsxd(d: Reg, s: Reg): void {
+        this.instruction([0x63], regCode(d), s, true);
+    }
     cvttsd2si(d: Reg, s: Xmm): void {
         this.instruction([0x0f, 0x2c], regCode(d), s, true, [0xf2]);
     }

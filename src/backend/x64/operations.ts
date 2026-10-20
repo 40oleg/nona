@@ -24,11 +24,12 @@ import {
 import { emitNewObject } from "./literals.js";
 import { ElementsLayout } from "../../runtime/array-elements.js";
 import {
-    int32Operand,
     integerRemainder,
     maskableDivisor,
+    toInt32Operand,
 } from "./integer-ops.js";
 import { emitSwitchTable } from "./switch-table.js";
+import { emitFastSite, type SiteFrame } from "./method-sites.js";
 import type { Assembler, Mem, Condition, Reg } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
 import type {
@@ -55,7 +56,13 @@ import {
     stackMapFragment,
     type StackMapEntry,
 } from "../../runtime/stack-maps.js";
-import { enterFrameStub } from "../../runtime/prologue.js";
+import {
+    enterFrameStub,
+    directEntryFits,
+    emitDirectEntry,
+    type DirectFrame,
+} from "../../runtime/prologue.js";
+import { usesFrameThis } from "../../ir/calls.js";
 import {
     FunctionLayout,
     FunctionKind,
@@ -69,6 +76,7 @@ import {
 } from "../../runtime/environment-layout.js";
 import {
     PropertyCacheLayout,
+    MethodCacheLayout,
     SetCacheLayout,
     cacheableName,
 } from "../../runtime/property-cache.js";
@@ -131,11 +139,13 @@ const movesOnly = new Set<string>([
     "readCell",
     "writeCell",
     "loadCapture",
+    "isFunctionCode",
 ]);
 /** Moves with no effect besides their destination: not emitted when the destination is dead. */
 const deadMoves = new Set<string>([
     "constant",
     "copy",
+    "isFunctionCode",
     "loadGlobal",
     "readCell",
     "loadCapture",
@@ -305,8 +315,24 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     );
     for (const n of liveness.get(fn.blocks[0]!.id)!.liveIn)
         if (!staticConstant(n)) clear = Math.max(clear, location(n) + 1);
+    // Direct calls that pass exactly the parameters enter at `<id>.direct`
+    // (src/ir/calls.ts): an inline prologue at the end of the function when
+    // the frame is small (emitDirectEntry), else the ordinary entry.
+    const copyThis = usesFrameThis(fn),
+        directFrame: DirectFrame = {
+            allocation,
+            parameters: fn.parameterCount,
+            clear,
+            slots: locations.count,
+            copyThis,
+            maps: fn.id + ".maps",
+        },
+        directEntry = fn.directEntry && directEntryFits(directFrame);
+    if (fn.directEntry && !directEntry) a.label(fn.id + ".direct");
     a.lea("r10", { rip: fn.id + ".frame" });
-    a.call(enterFrameStub(fn.parameterCount, clear, allocation));
+    a.call(enterFrameStub(fn.parameterCount, clear, allocation, copyThis));
+    const entered = fn.id + ".entered";
+    a.label(entered);
     // For the unwind information the frame exists once the stub has returned.
     const allocated = a.offset,
         prologSize = a.offset;
@@ -351,6 +377,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             case "popHandler":
             case "immutableWrite":
             case "generatorInitialSuspend":
+            case "isFunctionCode":
                 return true;
             case "binary":
                 return (
@@ -499,10 +526,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             integerRemainder(a, payload(left), mask ?? payload(right), slow);
             setNumber(dest);
         } else {
-            // ToInt32 inline only for operands that already are int32 values:
-            // otherwise the runtime does the modular reduction.
-            int32Operand(a, payload(left), "r10", slow);
-            int32Operand(a, payload(right), "rcx", slow);
+            // ToInt32 inline for integral operands in the int64 range (#402);
+            // fractions, NaN, ±Infinity and larger values take the runtime.
+            toInt32Operand(a, payload(left), "r10", slow);
+            toInt32Operand(a, payload(right), "rcx", slow);
             switch (operator) {
                 case "&":
                     a.and("r10", "rcx");
@@ -516,10 +543,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 case "<<":
                     a.and("rcx", 31);
                     a.shl("r10", "cl");
-                    a.shl("r10", 32);
-                    a.sar("r10", 32);
                     break;
                 case ">>":
+                    a.movsxd("r10", "r10");
                     a.and("rcx", 31);
                     a.sar("r10", "cl");
                     break;
@@ -530,7 +556,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.shr("r10", "cl");
                     break;
             }
-            a.cvtsi2sd("xmm0", "r10");
+            // The result is the low 32 bits as an int32; for >>> it is the
+            // zero-extended uint32.
+            if (operator === ">>>") a.cvtsi2sd("xmm0", "r10");
+            else a.cvtsi2sd32("xmm0", "r10");
             setNumber(dest);
         }
         a.jmp(done);
@@ -588,6 +617,24 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             a.jcc("p", differ);
             a.jcc("ne", differ);
         }
+    };
+    // Jumps to differ unless callee is a function object running code
+    // `target` (the test of a direct call); keeps R11.
+    const testFunctionCode = (
+        op: Extract<Operation, { kind: "isFunctionCode" }>,
+        differ: string,
+    ) => {
+        a.load("rax", value(op.callee));
+        a.cmp("rax", 5);
+        a.jcc("ne", differ);
+        a.load("r10", payload(op.callee));
+        a.load("rax", { base: "r10", disp: O.kind });
+        a.cmp("rax", FunctionKind);
+        a.jcc("ne", differ);
+        a.load("rax", { base: "r10", disp: FunctionLayout.code });
+        a.lea("r10", { rip: op.target });
+        a.cmp("rax", "r10");
+        a.jcc("ne", differ);
     };
     // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
     const knownArithmetic: Record<
@@ -859,6 +906,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         let fused: Extract<Operation, { kind: "binary" }> | undefined;
         let fusedEquality:
             { other: number; k: number; negate: boolean } | undefined;
+        let fusedGuard:
+            Extract<Operation, { kind: "isFunctionCode" }> | undefined;
         for (const [index, op] of block.operations.entries()) {
             const live = liveness.get(block.id)!.before[index]!,
                 dests = destinations(op).filter(
@@ -913,6 +962,28 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 case "globalObject":
                     copy(value(op.dest), { rip: "rt.globalValue" });
                     break;
+                case "isFunctionCode": {
+                    // The guard of an inlined call (src/ir/inline.ts): the test of
+                    // a direct call, fused into this block's branch when only that
+                    // reads it.
+                    if (
+                        index === block.operations.length - 1 &&
+                        block.terminator.kind === "branch" &&
+                        block.terminator.condition === op.dest &&
+                        !isLive(liveness.get(block.id)!.liveOut, op.dest, floor)
+                    ) {
+                        fusedGuard = op;
+                        break;
+                    }
+                    const store = a.unique("functionCode");
+                    a.mov("r11", 0);
+                    testFunctionCode(op, store);
+                    a.mov("r11", 1);
+                    a.label(store);
+                    a.mov("rax", "r11");
+                    setBoolean(op.dest);
+                    break;
+                }
                 case "readGlobalProperty": {
                     // Prelude code is shared by every program and cannot know which
                     // names a script declares, so only user code gets the fast path.
@@ -1633,63 +1704,19 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         a.label(called);
                         break;
                     }
-                    if (
-                        op.hasOwn &&
-                        !op.direct &&
-                        !op.construct &&
-                        op.receiver !== undefined
-                    ) {
-                        const general = a.unique("generalCall"),
-                            called = a.unique("called");
-                        if (
-                            op.hasOwn &&
-                            !op.direct &&
-                            !op.construct &&
-                            op.receiver !== undefined
-                        ) {
-                            // %Object.prototype.hasOwnProperty% called on a shaped object
-                            // with a string key: answered by the site's cache (has-cache.ts).
-                            // The callee is checked at every call; anything else is a call.
-                            const call = op.hasOwn === "call",
-                                self = call ? op.arguments[0]! : op.receiver,
-                                key = call
-                                    ? op.arguments[1]!
-                                    : op.arguments[0]!,
-                                cache = "hc." + fragments.length;
-                            fragments.push({
-                                name: cache,
-                                section: ".data",
-                                alignment: 8,
-                                bytes: new Uint8Array(HasCacheLayout.size),
-                                fixups: [],
-                                symbols: {},
-                            });
-                            const check = (n: number, symbol: string) => {
-                                a.load("rax", value(n));
-                                a.cmp("rax", 5);
-                                a.jcc("ne", general);
-                                a.load("rax", payload(n));
-                                a.lea("r10", { rip: symbol });
-                                a.cmp("rax", "r10");
-                                a.jcc("ne", general);
-                            };
-                            if (call) {
-                                check(op.callee, "rt.functionCall");
-                                check(op.receiver, "rt.objectHasOwn");
-                            } else check(op.callee, "rt.objectHasOwn");
-                            pointer("rcx", op.dest);
-                            pointer("rdx", self);
-                            pointer("r8", key);
-                            a.lea("r9", { rip: cache });
-                            a.call("rt.icHasOwn");
-                            a.test("rax", "rax");
-                            a.jcc("ne", called);
-                        }
-                        a.label(general);
-                        callSite(op);
-                        a.label(called);
-                        break;
-                    }
+                    const frame: SiteFrame = {
+                        a,
+                        value,
+                        payload,
+                        stack,
+                        copy,
+                        pointer,
+                        pushCold,
+                        argsBase,
+                        callSite,
+                        fragments,
+                    };
+                    if (emitFastSite(frame, op)) break;
                     if (!op.direct) {
                         callSite(op);
                         break;
@@ -1716,8 +1743,12 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.jcc("ne", general);
                     // this: unchanged for strict code; sloppy code gets the global
                     // object for undefined/null and an object receiver as is
-                    // (primitives, which need boxing, take the general path).
-                    if (op.receiver === undefined)
+                    // (primitives, which need boxing, take the general path). A
+                    // callee that reads neither this nor new.target gets neither
+                    // (its prologue does not read the pointers).
+                    if (op.directNoThis) {
+                        // No receiver.
+                    } else if (op.receiver === undefined)
                         a.lea("rax", {
                             rip: op.directStrict
                                 ? "rt.undefinedValue"
@@ -1738,13 +1769,15 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         a.lea("rax", value(op.receiver));
                         a.label(ready);
                     }
-                    a.store(stack(32), "rax");
-                    a.lea("rax", { rip: "rt.undefinedValue" });
-                    a.store(stack(40), "rax");
+                    if (!op.directNoThis) {
+                        a.store(stack(32), "rax");
+                        a.lea("rax", { rip: "rt.undefinedValue" });
+                        a.store(stack(40), "rax");
+                    }
                     pointer("rcx", op.dest);
                     a.mov("rdx", op.arguments.length);
                     a.lea("r8", stack(argsBase));
-                    a.call(op.direct);
+                    a.call(op.directEntry ? op.direct + ".direct" : op.direct);
                     // A tail call made by the callee comes back as a marker (rt.invoke
                     // does the same); it and the general call are out of line.
                     const tail = a.unique("tailMarker"),
@@ -1876,17 +1909,22 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         op.keyName !== undefined &&
                         cacheableName(op.keyName)
                     ) {
+                        // The callee of a method call gets a record with method entries.
                         const cache = "ic." + fragments.length;
                         fragments.push({
                             name: cache,
                             section: ".data",
                             alignment: 8,
-                            bytes: new Uint8Array(PropertyCacheLayout.size),
+                            bytes: new Uint8Array(
+                                op.method
+                                    ? MethodCacheLayout.size
+                                    : PropertyCacheLayout.size,
+                            ),
                             fixups: [],
                             symbols: {},
                         });
                         a.lea("r9", { rip: cache });
-                        a.call("rt.icGet");
+                        a.call(op.method ? "rt.icMethod" : "rt.icGet");
                         break;
                     }
                     // `'name' in object`: a per-site cache for shaped receivers (has-cache.ts).
@@ -2292,6 +2330,11 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 });
                 break;
             case "branch": {
+                if (fusedGuard) {
+                    testFunctionCode(fusedGuard, fn.id + ".block." + term.no);
+                    goto(term.yes);
+                    break;
+                }
                 if (fusedEquality) {
                     const equal = fusedEquality.negate ? term.no : term.yes,
                         differ = fusedEquality.negate ? term.yes : term.no;
@@ -2387,6 +2430,13 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     for (const { map, emit } of cold.sort((x, y) => x.map - y.map)) {
         currentMap = map;
         emit();
+    }
+    if (directEntry) {
+        a.label(fn.id + ".direct");
+        if (options.coverage && fn.source && !fn.id.startsWith("js.regexpVm."))
+            a.incrementMemory({ rip: "cov." + fn.id });
+        emitDirectEntry(a, directFrame, fn.id);
+        a.jmp(entered);
     }
     fragments.push(
         stackMapFragment(

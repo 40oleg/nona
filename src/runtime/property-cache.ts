@@ -67,6 +67,26 @@ export const PropertyCacheLayout = {
     size: 160,
 } as const;
 
+/**
+ * Record of the read of a method call `object.name(...)` (#47, rt.icMethod):
+ * a PropertyCacheLayout record (rt.icGet and rt.getPropertyCached use it as
+ * usual) followed by four {shape, prototype, node, epoch} entries, newest
+ * first: a shaped receiver of that shape (which does not have the key) and
+ * that prototype reads the node's value, at that shape epoch. Only method
+ * call sites have them: every read record growing by 128 bytes cost about
+ * 6 % on lodash (#228).
+ */
+export const MethodCacheLayout = {
+    methods: PropertyCacheLayout.size,
+    shape: 0,
+    prototype: 8,
+    node: 16,
+    epoch: 24,
+    entry: 32,
+    entries: 4,
+    size: PropertyCacheLayout.size + 32 * 4,
+} as const;
+
 /** Record of an `object.name = value` site (rt.setPropertyCached). */
 /** {shape, slot, offset}: the slot of the key in receivers of that shape, and its byte offset in the object when it is inline (else 0; generated code writes there itself); {from, to, prototype, epoch}: the transition that adds the key; failed: the epoch at which the chain check failed. */
 export const SetCacheLayout = {
@@ -81,15 +101,7 @@ export const SetCacheLayout = {
     size: 64,
 } as const;
 
-/** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
-export function cacheableName(name: string): boolean {
-    return (
-        name.length > 0 &&
-        !(name.charCodeAt(0) >= 48 && name.charCodeAt(0) <= 57) &&
-        name !== "length" &&
-        name !== "__proto__"
-    );
-}
+export { cacheableName } from "../shape-limits.js";
 
 // FunctionKind and TypedArrayKind, and the typed array and buffer fields
 // that `length` reads, spelled out to keep this module free of import cycles
@@ -489,6 +501,137 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         emitOwnEntryHit(a, done);
         a.label(miss);
         a.call("rt.getPropertyCached");
+        a.label(done);
+    });
+    // The callee read of `object.name(...)`: RCX..R9 as for rt.icGet, R9 a
+    // MethodCacheLayout record. A shaped receiver whose shape and prototype
+    // are those of a method entry at the current shape epoch reads the entry's
+    // node, which polymorphic sites (one method over a few classes) hit
+    // without rt.getPropertyCached's shape lookup. Other receivers (primitives,
+    // unshaped objects, a shape whose first shape entry has the key as its
+    // own) go to rt.icGet with this frame gone. The remaining misses call it;
+    // when it leaves the record knowing the receiver's shape (without the key)
+    // and the node for its prototype at the current epoch, a method entry
+    // takes them.
+    b.fn("rt.icMethod", 72, (a) => {
+        const L = PropertyCacheLayout,
+            M = MethodCacheLayout,
+            other = a.unique("other"),
+            miss = a.unique("miss"),
+            found = a.unique("found"),
+            done = a.unique("done");
+        a.load("rax", { base: "rdx" });
+        a.cmp("rax", 5);
+        a.jcc("ne", other);
+        a.load("r10", { base: "rdx", disp: 8 });
+        a.load("rax", { base: "r10", disp: O.shape });
+        a.test("rax", "rax");
+        a.jcc("e", other);
+        a.load("r10", { base: "r10", disp: O.prototype });
+        for (let i = 0; i < M.entries; i++) {
+            const next = a.unique("method");
+            a.lea("r11", { base: "r9", disp: M.methods + M.entry * i });
+            a.cmpMemory("rax", { base: "r11", disp: M.shape });
+            a.jcc("ne", next);
+            a.cmpMemory("r10", { base: "r11", disp: M.prototype });
+            a.jcc("e", found);
+            a.label(next);
+        }
+        // RAX = the shape: an own key in the first shape entry is rt.icGet's hit.
+        a.cmpMemory("rax", { base: "r9", disp: L.shape });
+        a.jcc("ne", miss);
+        a.load("r11", { base: "r9", disp: L.slot });
+        a.test("r11", "r11");
+        a.jcc("s", miss);
+        a.label(other);
+        a.add("rsp", 72);
+        a.tailJump("rt.icGet");
+        // R11 = the entry for the receiver's shape and prototype.
+        a.label(found);
+        a.load("rax", { base: "r11", disp: M.epoch });
+        a.cmpMemory("rax", { rip: "rt.shapeEpoch" });
+        a.jcc("ne", miss);
+        a.load("r11", { base: "r11", disp: M.node });
+        a.load("rax", { base: "r11", disp: P.attributes });
+        a.and("rax", A.accessor);
+        a.test("rax", "rax");
+        a.jcc("ne", miss);
+        a.load("rax", { base: "r11", disp: P.value });
+        a.cmp("rax", CellTag);
+        a.jcc("e", miss);
+        a.store({ base: "rcx" }, "rax");
+        a.load("rax", { base: "r11", disp: P.value + 8 });
+        a.store({ base: "rcx", disp: 8 }, "rax");
+        a.jmp(done);
+        a.label(miss);
+        a.store(slot(32), "rdx");
+        a.store(slot(40), "r9");
+        a.call("rt.icGet");
+        // Learn: the receiver is shaped, its shape is in a shape entry without
+        // the key, and a prototype entry at the current epoch names the node.
+        a.load("rdx", slot(32));
+        a.load("r9", slot(40));
+        a.load("rax", { base: "rdx" });
+        a.cmp("rax", 5);
+        a.jcc("ne", done);
+        a.load("r10", { base: "rdx", disp: 8 });
+        a.load("rax", { base: "r10", disp: O.shape });
+        a.test("rax", "rax");
+        a.jcc("e", done);
+        {
+            const known = a.unique("shapeKnown");
+            for (let i = 0; i < L.shapeEntries; i++) {
+                const next = a.unique("shapeEntry");
+                a.cmpMemory("rax", {
+                    base: "r9",
+                    disp: L.shape + L.shapeEntry * i,
+                });
+                a.jcc("ne", next);
+                a.load("r11", { base: "r9", disp: L.slot + L.shapeEntry * i });
+                a.jmp(known);
+                a.label(next);
+            }
+            a.jmp(done);
+            a.label(known);
+            a.test("r11", "r11");
+            a.jcc("ns", done);
+        }
+        a.load("r11", { base: "r9", disp: L.epoch });
+        a.cmpMemory("r11", { rip: "rt.shapeEpoch" });
+        a.jcc("ne", done);
+        a.load("r10", { base: "r10", disp: O.prototype });
+        {
+            const node = a.unique("nodeKnown");
+            for (let i = 0; i < L.entries; i++) {
+                const next = a.unique("prototypeEntry");
+                a.cmpMemory("r10", {
+                    base: "r9",
+                    disp: L.prototype + L.entry * i,
+                });
+                a.jcc("ne", next);
+                a.load("rdx", { base: "r9", disp: L.node + L.entry * i });
+                a.jmp(node);
+                a.label(next);
+            }
+            a.jmp(done);
+            a.label(node);
+        }
+        // RAX shape, R10 prototype, RDX node, R11 epoch: shift and insert.
+        for (let i = M.entries - 1; i > 0; i--)
+            for (const field of [M.shape, M.prototype, M.node, M.epoch]) {
+                a.load("rcx", {
+                    base: "r9",
+                    disp: M.methods + M.entry * (i - 1) + field,
+                });
+                a.store(
+                    { base: "r9", disp: M.methods + M.entry * i + field },
+                    "rcx",
+                );
+            }
+        a.store({ base: "r9", disp: M.methods + M.shape }, "rax");
+        a.store({ base: "r9", disp: M.methods + M.prototype }, "r10");
+        a.store({ base: "r9", disp: M.methods + M.node }, "rdx");
+        a.store({ base: "r9", disp: M.methods + M.epoch }, "r11");
         a.label(done);
     });
     // `object.name = value`: RCX..R10 as for rt.setPropertyCached. A shaped

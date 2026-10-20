@@ -88,6 +88,10 @@ export function formatInstruction(
                 ? `movzx ${sized(x as Reg, 32)}, ${memory(y as Mem, sizeName[width])}`
                 : `mov ${sized(x as Reg, width)}, ${memory(y as Mem)}`;
         }
+        case "cvtsi2sd32":
+            return `cvtsi2sd ${x as string}, ${sized(y as Reg, 32)}`;
+        case "movsxd":
+            return `movsxd ${x as string}, ${sized(y as Reg, 32)}`;
         case "loadSigned32":
             return `movsxd ${x as string}, ${memory(y as Mem, "dword")}`;
         case "store": {
