@@ -30,10 +30,10 @@ function fixture(body: (dir: string) => void) {
 test("CLI help and version", () => {
     const help = cli(["--help"]);
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /Nona 0\.20\.0/);
+    assert.match(help.stdout, /Nona 0\.21\.0/);
     const version = cli(["--version"]);
     assert.equal(version.status, 0);
-    assert.equal(version.stdout, "0.20.0\n");
+    assert.equal(version.stdout, "0.21.0\n");
 });
 test("CLI builds nested output and runs executable", () =>
     fixture((dir) => {
