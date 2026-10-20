@@ -1,5 +1,5 @@
 import type { FunctionIR, ModuleIR, Operation, Terminator } from "./model.js";
-import { cacheableName } from "../runtime/property-cache.js";
+import { cacheableName } from "../shape-limits.js";
 import { operationUses } from "./liveness.js";
 import { destinations } from "./locations.js";
 

@@ -101,15 +101,7 @@ export const SetCacheLayout = {
     size: 64,
 } as const;
 
-/** Names the cache may serve: plain names that are not indices, "length" or "__proto__". */
-export function cacheableName(name: string): boolean {
-    return (
-        name.length > 0 &&
-        !(name.charCodeAt(0) >= 48 && name.charCodeAt(0) <= 57) &&
-        name !== "length" &&
-        name !== "__proto__"
-    );
-}
+export { cacheableName } from "../shape-limits.js";
 
 // FunctionKind and TypedArrayKind, and the typed array and buffer fields
 // that `length` reads, spelled out to keep this module free of import cycles
