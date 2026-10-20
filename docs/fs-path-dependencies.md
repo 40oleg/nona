@@ -61,16 +61,16 @@ Nona 0.21.0, before: commit `16371594` (main), after: this change. Node.js
 22.23.2 runs the compiler; default flags (`nona build probe.mjs -o out
 --target <target> --print-link`), Windows 11 host. Probes:
 
-| Probe   | Source                                                                                              |
-| ------- | --------------------------------------------------------------------------------------------------- |
-| `hello` | `console.log("hello");`                                                                             |
-| `exists`| `import { existsSync } from "node:fs"; console.log(existsSync("."));`                               |
-| `rw`    | `import { readFileSync, writeFileSync } from "node:fs"; writeFileSync("probe.txt", "data"); console.log(readFileSync("probe.txt", "utf8"));` |
-| `glob`  | `import path from "node:path"; console.log(path.matchesGlob("a/b", "a/*"));`                        |
+| Probe    | Source                                                                                                                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hello`  | `console.log("hello");`                                                                                                                      |
+| `exists` | `import { existsSync } from "node:fs"; console.log(existsSync("."));`                                                                        |
+| `rw`     | `import { readFileSync, writeFileSync } from "node:fs"; writeFileSync("probe.txt", "data"); console.log(readFileSync("probe.txt", "utf8"));` |
+| `glob`   | `import path from "node:path"; console.log(path.matchesGlob("a/b", "a/*"));`                                                                 |
 
 File sizes in bytes:
 
-| Probe    | PE before | PE after  | PE change  | ELF before | ELF after | ELF change |
+| Probe    | PE before |  PE after |  PE change | ELF before | ELF after | ELF change |
 | -------- | --------: | --------: | ---------: | ---------: | --------: | ---------: |
 | `hello`  | 1,296,384 | 1,296,384 |          0 |  1,269,760 | 1,269,760 |          0 |
 | `exists` | 5,016,576 | 2,340,864 | −2,675,712 |  4,919,296 | 2,256,896 | −2,662,400 |
@@ -79,24 +79,24 @@ File sizes in bytes:
 
 `--print-link` (the same on both targets):
 
-| Probe            | Linked runtime parts                                                                                       |
-| ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `hello`          | `moduleRecords`                                                                                            |
+| Probe            | Linked runtime parts                                                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `hello`          | `moduleRecords`                                                                                                                        |
 | `exists`, before | `regexp`, `unicodeProperties`, `unicodeNormalization`, `regexpProtocol`, `binaryData`, `encoding`, `timers`, `annexB`, `moduleRecords` |
-| `exists`, after  | `binaryData`, `encoding`, `timers`, `moduleRecords`                                                        |
-| `rw`             | as `exists`                                                                                                |
-| `glob`           | `regexp`, `unicodeProperties`, `unicodeNormalization`, `regexpProtocol`, `binaryData`, `timers`, `moduleRecords` (unchanged) |
+| `exists`, after  | `binaryData`, `encoding`, `timers`, `moduleRecords`                                                                                    |
+| `rw`             | as `exists`                                                                                                                            |
+| `glob`           | `regexp`, `unicodeProperties`, `unicodeNormalization`, `regexpProtocol`, `binaryData`, `timers`, `moduleRecords` (unchanged)           |
 
 ### Attribution
 
 `hello` built with `--link` adds each group of parts without any module
 code:
 
-| `hello --link …`                                                     | PE        | ELF       |
-| -------------------------------------------------------------------- | --------: | --------: |
-| `binaryData,encoding,timers`                                         | 1,862,656 | 1,830,912 |
-| … `,regexp,unicodeProperties,unicodeNormalization,regexpProtocol`    | 4,209,664 | 4,169,728 |
-| … `,annexB`                                                          | 4,270,592 | 4,231,168 |
+| `hello --link …`                                                  |        PE |       ELF |
+| ----------------------------------------------------------------- | --------: | --------: |
+| `binaryData,encoding,timers`                                      | 1,862,656 | 1,830,912 |
+| … `,regexp,unicodeProperties,unicodeNormalization,regexpProtocol` | 4,209,664 | 4,169,728 |
+| … `,annexB`                                                       | 4,270,592 | 4,231,168 |
 
 So of the PE saving of 2.68 MB, about 2.35 MB were the RegExp engine, its
 Unicode property tables and the normalization tables, 61 KB Annex B, and the

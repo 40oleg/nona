@@ -17,10 +17,7 @@ import { jsonModuleSource } from "./json-module.js";
 import { netModuleSource } from "./net-module.js";
 import { childProcessModuleSource } from "./child-process-module.js";
 import { httpModuleSource } from "./http-module.js";
-import {
-    pathCoreSourceForTarget,
-    pathModuleSource,
-} from "./path-module.js";
+import { pathCoreSourceForTarget, pathModuleSource } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
 import { httpsModuleSource } from "./https-module.js";

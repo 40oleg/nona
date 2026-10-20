@@ -317,7 +317,8 @@ function pathCoreFlavor(windows) {
 }
 const pathCorePosix = pathCoreFlavor(false),
     pathCoreWin32 = pathCoreFlavor(true),
-    pathCoreHost = pathHost.platform === "win32" ? pathCoreWin32 : pathCorePosix;
+    pathCoreHost =
+        pathHost.platform === "win32" ? pathCoreWin32 : pathCorePosix;
 export {
     pathHost,
     pathInvalid,

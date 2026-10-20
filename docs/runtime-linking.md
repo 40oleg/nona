@@ -72,6 +72,12 @@ Option 1 now; option 2 as the direction for the size of executables.
 - `linkReport` in `src/link.ts` mirrors the dependency resolution of
   `linkedPreludes` and `runtimeRegExpLink`; a change to either must keep
   the report in step (`tests/runtime-link-source.test.ts`).
+- Built-in modules are sources too: a name in a module a program imports
+  selects parts like a name in the program. `node:fs` therefore uses the
+  token-clean `nona:internal/path-core` instead of `node:path`, so a
+  filesystem program does not link globbing, the RegExp engine or the
+  Unicode tables ([fs-path-dependencies.md](fs-path-dependencies.md),
+  #439).
 
 ## Native part `float16`
 
