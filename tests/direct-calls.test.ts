@@ -136,10 +136,24 @@ out.push(many(1,2),many(3));
 const arrow=(x,y)=>x+y;out.push(arrow(1,2),arrow(1));
 function make(k){return function(x){return x+k}}
 const p=make(1),q=make(10);out.push(p(1),q(1));
-function deep(n){return n===0?0:1+deep(n-1)}
-try{deep(1e7);out.push('no overflow')}catch(e){out.push(e instanceof RangeError)}
 console.log(out.join('|'));
 `));
+
+// GC stress collects before every operation, so a recursion as deep as the
+// stack limit (~27000 frames) costs a collection per operation over a stack of
+// that depth: more than two minutes (#434). The overflow itself is checked
+// without gcStress; the frame walk of deep stacks is covered by rec(3000, 0).
+test("lean direct calls overflow the stack with a RangeError", () => {
+    const source = String.raw`
+function deep(n){return n===0?0:1+deep(n-1)}
+const out=[deep(1000)];
+try{deep(1e7);out.push('no overflow')}catch(e){out.push(e instanceof RangeError)}
+console.log(out.join('|'));
+`;
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
+});
 
 test("sloppy lean and this-reading direct callees", () =>
     agree(String.raw`
