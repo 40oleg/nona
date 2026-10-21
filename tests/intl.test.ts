@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { runOnHost } from "./helpers/host.js";
 import { runOracle } from "./helpers/oracle.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
 
 // Nona's own Intl for the en locale (#300), compared with Node.js for en-US
 // under GC stress. The programs name their locale: the host's default locale
@@ -195,7 +196,7 @@ console.log(new Intl.NumberFormat("en-u-nu-arab").resolvedOptions().numberingSys
 
 test("Intl: only programs that use it link the prelude", () => {
     const usage = (source: string) =>
-        collectSourceUsage(() => lex(source)).usage;
+        collectSourceUsage(() => parse(lex(source))).usage;
     for (const source of [
         'console.log("hi")',
         "console.log((5).toFixed(2))",

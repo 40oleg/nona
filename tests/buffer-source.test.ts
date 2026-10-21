@@ -16,6 +16,7 @@ import {
 import { fullRegexpVmPrelude } from "../src/runtime/regexp-vm-source.js";
 import { runtimeRegExpLink } from "../src/link.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
 
 test("Buffer captures the private checked byte-copy adapter", () => {
     let calls = 0;
@@ -78,7 +79,9 @@ test("Buffer captures and removes the private native hex helper", () => {
 });
 
 test("Buffer source links its internal RegExp dependency", () => {
-    const unused = collectSourceUsage(() => lex('console.log("hello")')).usage;
+    const unused = collectSourceUsage(() =>
+        parse(lex('console.log("hello")')),
+    ).usage;
     assert.deepEqual(runtimeRegExpLink(unused), {
         regexp: false,
         unicodeProperties: false,
@@ -86,7 +89,7 @@ test("Buffer source links its internal RegExp dependency", () => {
         unicodeStringProperties: false,
     });
     const linked = collectSourceUsage(() =>
-        lex('URL.revokeObjectURL("blob:nodedata:missing")'),
+        parse(lex('URL.revokeObjectURL("blob:nodedata:missing")')),
     ).usage;
     assert.equal(linked.regexp, false);
     assert.equal(linked.preludes.buffer, true);
