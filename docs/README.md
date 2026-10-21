@@ -9,6 +9,7 @@ The [completeness audit](completeness-audit.md) and [structured inventory](compl
 | [architecture.md](architecture.md)                     | Pipeline, source layout, value and heap layouts, calling convention, machine model, runtime linking                | English  |
 | [runtime-linking.md](runtime-linking.md)               | Decision record: lexical linking of optional runtime parts, `--link` and `--print-link` (#182)                     | English  |
 | [builtin-module-pruning.md](builtin-module-pruning.md) | Reachability pruning of built-in module exports (`node:fs` named imports), size evidence and limits (#440)         | English  |
+| [fs-path-dependencies.md](fs-path-dependencies.md)     | Which runtime parts `node:fs` and `node:path` link, and the `nona:internal/path-core` split (#439)                 | English  |
 | [intrinsics.md](intrinsics.md)                         | Decision record: the logical-x64 machine model and the `__nonaRegexpVm` intrinsic namespace (#183)                 | English  |
 | [roadmap.md](roadmap.md)                               | Performance and platform plan derived from the V8 blog, with status                                                | English  |
 | [simd.md](simd.md)                                     | Where the runtime spends its instructions and which routines vector instructions speed up (#253)                   | English  |

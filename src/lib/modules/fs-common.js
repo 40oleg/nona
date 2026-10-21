@@ -1,4 +1,4 @@
-import { resolve, join, dirname } from "node:path";
+import { resolve, join, dirname } from "nona:internal/path-core";
 const encoder = new TextEncoder(),
     decoder = new TextDecoder();
 const descriptions = {
@@ -121,7 +121,7 @@ export class Stats {
         return this._kind === "dir";
     }
     isSymbolicLink() {
-        return this._kind === "link";
+        return this._kind === "symlink";
     }
     isBlockDevice() {
         return typeOf(this._kind, this.mode) === 0o060000;
@@ -155,7 +155,7 @@ export class Dirent {
         return this._kind === "dir";
     }
     isSymbolicLink() {
-        return this._kind === "link";
+        return this._kind === "symlink";
     }
     isBlockDevice() {
         return typeOf(this._kind, this._mode) === 0o060000;

@@ -17,7 +17,7 @@ import { jsonModuleSource } from "./json-module.js";
 import { netModuleSource } from "./net-module.js";
 import { childProcessModuleSource } from "./child-process-module.js";
 import { httpModuleSource } from "./http-module.js";
-import { pathModuleSourceForTarget } from "./path-module.js";
+import { pathCoreSourceForTarget, pathModuleSource } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
 import { httpsModuleSource } from "./https-module.js";
@@ -135,7 +135,8 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:async_hooks", () => asyncHooksModuleSource],
     ["events", eventsModuleForTarget],
     ["nona:events", eventsModuleForTarget],
-    ["node:path", pathModuleSourceForTarget],
+    ["node:path", () => pathModuleSource],
+    ["nona:internal/path-core", pathCoreSourceForTarget],
     ...["posix", "win32"].map(
         (flavor) =>
             [
@@ -279,7 +280,13 @@ export function withBuiltinModules(
             aliases.get(path)?.source ??
             sources.get(path)?.(target) ??
             host.read(path),
-        builtinAliases: (path) => aliases.get(path)?.aliases,
+        // Internal modules are built-ins without registry names: like the
+        // public ones, their trusted sources skip the getBuiltinModule scan.
+        builtinAliases: (path) =>
+            aliases.get(path)?.aliases ??
+            (path.startsWith("nona:internal/") && sources.has(path)
+                ? []
+                : undefined),
         builtinCandidates: () => inventory.map((record) => record.path),
         ...(host.candidates
             ? { candidates: (referrer: string) => host.candidates!(referrer) }

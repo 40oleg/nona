@@ -76,6 +76,12 @@ selection of #438; the options and `--link`/`--print-link` stand); option 2 as t
 - `linkReport` in `src/link.ts` mirrors the dependency resolution of
   `linkedPreludes` and `runtimeRegExpLink`; a change to either must keep
   the report in step (`tests/runtime-link-source.test.ts`).
+- Built-in modules are sources too: a name in a module a program imports
+  selects parts like a name in the program. `node:fs` therefore uses the
+  token-clean `nona:internal/path-core` instead of `node:path`, so a
+  filesystem program does not link globbing, the RegExp engine or the
+  Unicode tables ([fs-path-dependencies.md](fs-path-dependencies.md),
+  #439).
 
 ## Pruning of built-in modules
 

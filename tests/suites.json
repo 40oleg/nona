@@ -294,6 +294,7 @@
                 "optional-global-shadow",
                 "oracle",
                 "oracle-isolation",
+                "path-core-source",
                 "path-host-source",
                 "pe",
                 "pinned-locals",
