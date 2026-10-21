@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.23.0 — 2026-10-22
+
 ### Performance report
 
 - **Performance report v0.18.0: Nona against Node.js, Deno and Bun with standard suites.** `PERFORMANCE.md` has a new dated section measured on Linux x64 with the 14 [Are-We-Fast-Yet](https://github.com/smarr/are-we-fast-yet) benchmarks (all compile and verify; steady state ×13 slower than Node.js, geometric mean), nine Benchmarks Game programs (×11), real programs (acorn, marked, lodash, Prettier, the `log-scan` case of #387–#389, a 20 MB JSON file; ×11), the micro-benchmarks (×2.1–×4.5 per category), start-up and memory (×0.1: hello world in 1.3 ms and 1 MB), HTTP throughput, Node's JIT warm-up curve against Nona's flat profile, instruction counts and profiles, with a survey of how engines and AOT compilers are compared and an analysis of the causes. `node bench/report.mjs` regenerates every table (`bench/awfy/fetch.mjs` and `bench/real/fetch.mjs` fetch the pinned third-party sources). ([#392](https://github.com/40oleg/nona/issues/392))
