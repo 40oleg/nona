@@ -30,6 +30,7 @@ import {
     builtinModuleRequests,
     resolveRelative,
     type ModuleHost,
+    type ModuleRecord,
 } from "./frontend/modules.js";
 import { readFileSync, statSync, realpathSync } from "node:fs";
 import {
@@ -42,6 +43,7 @@ import {
     builtinSpecifiers,
 } from "./frontend/builtin-modules.js";
 import { resolve as resolvePath } from "node:path";
+import { pruneBuiltinModules } from "./frontend/builtin-pruning.js";
 import { collectSourceUsage, setRegExpValidator } from "./frontend/lexer.js";
 import { validateRegExp } from "./regexp-validator.js";
 import {
@@ -161,6 +163,23 @@ export function nodeModuleHost(
         },
     );
 }
+/**
+ * Prunes the built-in modules of a loaded graph (src/frontend/builtin-pruning.ts);
+ * the modules at `requested` paths are requested by the script and kept whole.
+ * NONA_NO_BUILTIN_PRUNING=1 keeps every built-in whole, to measure the effect.
+ */
+function prunedModuleGraph(
+    records: ModuleRecord[],
+    requested: (string | undefined)[],
+): ModuleRecord[] {
+    pruneBuiltinModules(records, {
+        fullDemand: records
+            .filter((record) => requested.includes(record.path))
+            .map((record) => record.index),
+        disabled: !!process.env.NONA_NO_BUILTIN_PRUNING,
+    });
+    return records;
+}
 /** Frontend and lowering for a module graph rooted at the entry source. */
 export function compileModuleToIR(
     source: string,
@@ -181,12 +200,14 @@ export function compileModuleToIR(
             inPhase("parse", () => parse(lex(scriptPrelude))),
         ),
     );
+    const entry = modulePath(fileName),
+        scriptRequests = builtinModuleRequests(script, host);
     const records = inPhase("module-graph", () =>
-        loadModuleGraph(
-            modulePath(fileName),
-            source,
-            host,
-            builtinModuleRequests(script, host),
+        prunedModuleGraph(
+            loadModuleGraph(entry, source, host, scriptRequests, {
+                deferBuiltinUsage: true,
+            }),
+            scriptRequests.map((specifier) => host.resolve(specifier, entry)),
         ),
     );
     const main: Program = { ...script, module: true, source: scriptPrelude };
@@ -277,7 +298,12 @@ export function compileToIR(
     // Scripts may import() modules; the statically named targets are compiled in.
     const path = modulePath(fileName ?? "builtin-script.js"),
         records = inPhase("module-graph", () =>
-            loadModuleGraph(path, null, host, dynamic),
+            prunedModuleGraph(
+                loadModuleGraph(path, null, host, dynamic, {
+                    deferBuiltinUsage: true,
+                }),
+                dynamic.map((specifier) => host.resolve(specifier, path)),
+            ),
         );
     const scriptRequests = dynamic.flatMap((specifier) => {
         const resolved = host.resolve(specifier, path),

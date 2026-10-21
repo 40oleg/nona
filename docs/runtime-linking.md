@@ -83,6 +83,10 @@ selection of #438; the options and `--link`/`--print-link` stand); option 2 as t
   Unicode tables ([fs-path-dependencies.md](fs-path-dependencies.md),
   #439).
 
+## Pruning of built-in modules
+
+The built-in modules written in JavaScript (`node:fs`, `node:path`, ...) used to contribute all of their code to the lexical usage. Named imports now keep only the reachable top-level declarations before the usage is collected, so one `fs` function no longer selects `regexp`, `timers` or the Unicode tables ([#440](https://github.com/40oleg/nona/issues/440)). See [builtin-module-pruning.md](builtin-module-pruning.md).
+
 ## Native part `float16`
 
 `float16` ([#321](https://github.com/40oleg/nona/issues/321)) holds the

@@ -4,7 +4,7 @@ import type * as A from "./ast.js";
 import { boundNames } from "./declarations.js";
 import { skipImportAttributes } from "./import-attributes.js";
 import { containsTopLevelAwait } from "./top-level-await.js";
-import { recordProgramUsage } from "./link-usage.js";
+import { computedMembers, recordProgramUsage } from "./link-usage.js";
 import { precedence } from "./precedence.js";
 
 const reserved = new Set(
@@ -29,7 +29,7 @@ export function parse(
     const parser = new Parser(tokens, !!options.module),
         program = parser.program();
     // What the program can reach of the optional runtime parts (#438).
-    recordProgramUsage(program, parser.computedMembers);
+    recordProgramUsage(program, computedMembers);
     return program;
 }
 
@@ -40,7 +40,6 @@ class Parser {
     private asyncContext = false;
     private awaitIdentifierForbidden = false;
     private parenthesized = new WeakSet<A.Expression>();
-    readonly computedMembers = new WeakSet<A.Member>();
     constructor(
         private tokens: TokenStream,
         private module = false,
@@ -2088,7 +2087,7 @@ class Parser {
                     {
                         kind: "property",
                         property: expression.property,
-                        computed: this.computedMembers.has(expression),
+                        computed: computedMembers.has(expression),
                         optional: false,
                         span: expression.span,
                     },
@@ -2209,7 +2208,7 @@ class Parser {
                     property,
                     span: this.span(start),
                 };
-                this.computedMembers.add(member);
+                computedMembers.add(member);
                 if (
                     expression.kind === "OptionalChain" &&
                     !this.parenthesized.has(expression)
