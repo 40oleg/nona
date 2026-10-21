@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.22.0 — 2026-10-21
+
 ### Performance
 
 - **`node:fs` no longer links the public path module.** The filesystem module resolves, joins and splits paths with the new internal module `nona:internal/path-core`, which names no RegExp, `\p{…}`, normalization or Annex B method; `node:path` builds its public API on the same core. A program that only uses `existsSync` or `readFileSync`/`writeFileSync` no longer links path globbing, the RegExp engine, the Unicode property and normalization tables or Annex B: on win32-x64 it shrinks from 5,016,576 to 2,340,864 bytes, on linux-x64 from 4,919,296 to 2,256,896. `node:path` and `node:fs` behave as before; programs that import `node:path` still link what it needs. ([#439](https://github.com/40oleg/nona/issues/439), [report](docs/fs-path-dependencies.md))
