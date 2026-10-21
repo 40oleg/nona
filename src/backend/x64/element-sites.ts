@@ -1,4 +1,4 @@
-import type { Assembler, Mem } from "./assembler.js";
+import type { Assembler, Mem, Reg } from "./assembler.js";
 import type { Operation } from "../../ir/model.js";
 import { ObjectLayout as O } from "../../runtime/object-layout.js";
 import { ElementsLayout } from "../../runtime/array-elements.js";
@@ -16,6 +16,8 @@ export interface SiteEmitter {
     pointer(reg: "rcx" | "rdx" | "r8" | "r9", n: number): void;
     /** Code emitted after the blocks, under the stack map of its origin. */
     pushCold(emit: () => void): void;
+    /** The GPR that holds slot n as an integer inside a register loop (register-loops.ts). */
+    integerKey?(n: number): Reg | undefined;
 }
 type PropertyOp = Extract<Operation, { kind: "property" }>;
 type SetPropertyOp = Extract<Operation, { kind: "setProperty" }>;
@@ -30,7 +32,9 @@ const programCode = (fnId: string) => !fnId.startsWith("js.regexpVm.");
  * array over a fixed-length buffer that is not detached and an integer index
  * below its length, with -0 as 0. R10 = the typed array, RAX = the index,
  * R9 = the element type, R11 = the address of element 0; anything else jumps
- * to slow before any slot is written. Changes RCX and XMM0-1.
+ * to slow before any slot is written. Changes RCX and XMM0-1. A key held as
+ * an integer in a register (register-loops.ts) is the index as it is: a
+ * negative one fails the unsigned length test.
  */
 function typedElement(
     s: SiteEmitter,
@@ -39,14 +43,18 @@ function typedElement(
     slow: string,
     unchecked = false,
 ): void {
-    const { a } = s;
+    const { a } = s,
+        integer = s.integerKey?.(key);
     // In a loop versioned by src/ir/typed-loops.ts the guard has established
     // all of it but the integer conversion of the key.
     if (unchecked) {
         a.load("r10", s.payload(object));
         a.load("r11", { base: "r10", disp: TypedArrayLayout.buffer });
-        a.movsd("xmm0", s.payload(key));
-        a.cvttsd2si("rax", "xmm0");
+        if (integer) a.mov("rax", integer);
+        else {
+            a.movsd("xmm0", s.payload(key));
+            a.cvttsd2si("rax", "xmm0");
+        }
         a.load("r9", { base: "r10", disp: TypedArrayLayout.elementType });
         a.load("r11", { base: "r11", disp: ArrayBufferLayout.bytes });
         a.load("rcx", { base: "r10", disp: TypedArrayLayout.byteOffset });
@@ -67,12 +75,15 @@ function typedElement(
     a.load("rax", { base: "r11", disp: ArrayBufferLayout.detached });
     a.test("rax", "rax");
     a.jcc("ne", slow);
-    a.movsd("xmm0", s.payload(key));
-    a.cvttsd2si("rax", "xmm0");
-    a.cvtsi2sd("xmm1", "rax");
-    a.ucomisd("xmm0", "xmm1");
-    a.jcc("ne", slow);
-    a.jcc("p", slow);
+    if (integer) a.mov("rax", integer);
+    else {
+        a.movsd("xmm0", s.payload(key));
+        a.cvttsd2si("rax", "xmm0");
+        a.cvtsi2sd("xmm1", "rax");
+        a.ucomisd("xmm0", "xmm1");
+        a.jcc("ne", slow);
+        a.jcc("p", slow);
+    }
     a.load("r9", { base: "r10", disp: TypedArrayLayout.length });
     a.cmp("rax", "r9");
     a.jcc("ae", slow);
@@ -80,6 +91,29 @@ function typedElement(
     a.load("r11", { base: "r11", disp: ArrayBufferLayout.bytes });
     a.load("rcx", { base: "r10", disp: TypedArrayLayout.byteOffset });
     a.add("r11", "rcx");
+}
+
+/** Whether op is an element site whose inline path reads its key only as an index (typedElement). */
+export function typedElementSite(
+    fnId: string,
+    op: Operation,
+): op is PropertyOp | SetPropertyOp {
+    if (!programCode(fnId)) return false;
+    if (op.kind === "property")
+        return (
+            !!op.numericKey &&
+            op.operation === "get" &&
+            op.keyName === undefined &&
+            !op.typedLength
+        );
+    return (
+        op.kind === "setProperty" &&
+        !!op.numericKey &&
+        !op.define &&
+        op.keyName === undefined &&
+        op.literalElement === undefined &&
+        op.literalSlot === undefined
+    );
 }
 
 /**
