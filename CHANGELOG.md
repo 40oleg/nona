@@ -6,6 +6,10 @@
 
 - **Register-resident Numbers and int32 loop counters.** Inside a counted loop, a proven-Number accumulator lives in an XMM register and a loop counter that provably stays in int32 range (`i < n; i++`, bounds checked once on loop entry) in a general register, so `s = s + t[i & 1023]` no longer loads and compares tags, stores a 16-byte temporary or converts the counter to and from a double. Values are written back as boxed Numbers before calls, safepoints, throws and loop exits; NaN, the infinities and -0 are unchanged (no fast-math), and a loop whose counter may leave int32 range runs the unchanged code. Same host (WSL2, i7-13620H), 11 runs, N = 10M: `f64_add_chain` 128 → 42.0 ms (x3.05; C++ -O3 5.5 ms), `f64_mul_chain` 126 → 58.8 ms, `f64_add_x4` 59.7 → 38.3 ms, `loop_control` 266 → 104 ms (x2.56), `u32_add_chain` 247 → 138 ms, `f64_array_*` 55–59 → 34–36 ms; all beyond the IQR, no neighbour slower. The `arith` executable grows by 80 KiB (+1.8%). See [docs/perf-cpp-gaps.md](docs/perf-cpp-gaps.md#register-resident-numbers-and-int32-counters-424). ([#424](https://github.com/40oleg/nona/issues/424))
 
+### Fixed
+
+- **`bitwise-int64` no longer times out on the arm64 suites.** The full 37 x 37 value matrix allocates thousands of results and long joined strings, and GC stress collects on every allocation, so it took more than 180 s on arm64 (the spawn timeout). It now runs without GC stress, and a reduced matrix covering every operator and edge class stays under GC stress. Test-only change. ([#441](https://github.com/40oleg/nona/issues/441))
+
 ## v0.21.0 — 2026-10-20
 
 ### Performance
