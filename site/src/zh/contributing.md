@@ -51,7 +51,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## 文档网站
 
-网站使用 [VitePress](https://vitepress.dev) 从 `site/` 构建：
+网站使用 [VitePress](https://github.com/vuejs/vitepress) 从 `site/` 构建：
 
 ```sh
 npm run build              # the compiler, needed to check the samples

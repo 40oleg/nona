@@ -10,6 +10,9 @@
         "weakref",
         "finalization-registry",
         "weak-collections",
-        "ropes"
+        "ropes",
+        "string-replace-all",
+        "register-loops",
+        "unboxed-numbers"
     ]
 }

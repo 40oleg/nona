@@ -1,6 +1,6 @@
 # Nona documentation site
 
-The site at https://40oleg.github.io/nona/ is built with [VitePress](https://vitepress.dev) and deployed by `.github/workflows/pages.yml` from `main`.
+The site at https://40oleg.github.io/nona/ is built with [VitePress](https://github.com/vuejs/vitepress) and deployed by `.github/workflows/pages.yml` from `main`.
 
 ```sh
 npm run build            # in the repository root: the compiler, needed by check:samples
@@ -42,6 +42,7 @@ These pages include a document from the repository; edit the source, not the pag
 | `/reference/fs`                  | `docs/fs.md`                  |
 | `/reference/ffi`                 | `docs/ffi.md`                 |
 | `/reference/windows-executables` | `docs/windows-executables.md` |
+| `/reference/completeness-audit`  | `docs/completeness-audit.md`  |
 | `/reference/test262`             | `docs/test262.md`             |
 | `/changelog`                     | `CHANGELOG.md`                |
 

@@ -1,0 +1,891 @@
+{
+    "observedAt": "2026-10-18T20:47:07.420Z",
+    "kind": "historical-ci-not-local-execution",
+    "auditedCommit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+    "runs": [
+        {
+            "run": 39160044403,
+            "url": "https://github.com/40oleg/nona/actions/runs/39160044403",
+            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+            "createdAt": "2026-10-18T19:43:10Z",
+            "conclusion": "failure",
+            "command": "gh run view 39160044403 --repo 40oleg/nona --json headSha,createdAt,status,conclusion,jobs",
+            "jobs": [
+                {
+                    "name": "format",
+                    "id": 117771244194,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771244194",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "linux-native",
+                    "id": 117771244329,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771244329",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "changes",
+                    "id": 117771244357,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771244357",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "route",
+                    "id": 117771244373,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771244373",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-dataview-test262",
+                    "id": 117771275945,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771275945",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-reflect-test262",
+                    "id": 117771275987,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771275987",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-promise-test262",
+                    "id": 117771275988,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771275988",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-arraybuffer-test262",
+                    "id": 117771275993,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771275993",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-sharedarraybuffer-test262",
+                    "id": 117771275996,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771275996",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-typedarray-test262",
+                    "id": 117771276011,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771276011",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-date-test262",
+                    "id": 117771276013,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771276013",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-json-test262",
+                    "id": 117771276020,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771276020",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows-compare",
+                    "id": 117771284161,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771284161",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows (1/4)",
+                    "id": 117771284283,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771284283",
+                    "conclusion": "failure",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/run-shard.mjs --shard 1/4 --exclude \"program-corpus*\" --timings-out work/test-timings-1.json",
+                            "conclusion": "failure"
+                        }
+                    ]
+                },
+                {
+                    "name": "windows (3/4)",
+                    "id": 117771284311,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771284311",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows (4/4)",
+                    "id": 117771284313,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771284313",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "windows (2/4)",
+                    "id": 117771284319,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044403/job/117771284319",
+                    "conclusion": "success",
+                    "steps": []
+                }
+            ]
+        },
+        {
+            "run": 39160044412,
+            "url": "https://github.com/40oleg/nona/actions/runs/39160044412",
+            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+            "createdAt": "2026-10-18T19:43:10Z",
+            "conclusion": "cancelled",
+            "command": "gh run view 39160044412 --repo 40oleg/nona --json headSha,createdAt,status,conclusion,jobs",
+            "jobs": []
+        },
+        {
+            "run": 39160044376,
+            "url": "https://github.com/40oleg/nona/actions/runs/39160044376",
+            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+            "createdAt": "2026-10-18T19:43:10Z",
+            "conclusion": "success",
+            "command": "gh run view 39160044376 --repo 40oleg/nona --json headSha,createdAt,status,conclusion,jobs",
+            "jobs": [
+                {
+                    "name": "native-cli-bsd (freebsd)",
+                    "id": 117771243935,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771243935",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/bootstrap-selfhost.mjs freebsd-x64 work/native-cli-freebsd-x64/compiler --cli",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "native-cli-platforms (windows-11-arm, win32-arm64, compiler.exe)",
+                    "id": 117771244085,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244085",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Bootstrap native CLI for the actual CPU and OS",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run native compiler, executable, cache and output checks",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "native-cli-platforms (macos-15, darwin-arm64, compiler)",
+                    "id": 117771244107,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244107",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Bootstrap native CLI for the actual CPU and OS",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run native compiler, executable, cache and output checks",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "native-cli-platforms (ubuntu-24.04-arm, linux-arm64, compiler)",
+                    "id": 117771244123,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244123",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Bootstrap native CLI for the actual CPU and OS",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run native compiler, executable, cache and output checks",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "native-cli-bsd (openbsd)",
+                    "id": 117771244124,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244124",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/bootstrap-selfhost.mjs openbsd-x64 work/native-cli-openbsd-x64/compiler --cli",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "bootstrap (ubuntu-24.04, linux-x64, stage1)",
+                    "id": 117771244134,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244134",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Verify compiler liveness on the native host",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Build native stage 1 with the development bootstrap",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify native regressions and stage 1 builds stage 2",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify full CLI self-hosting, cache and output protections",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "native-cli-platforms (macos-15-intel, darwin-x64, compiler)",
+                    "id": 117771244184,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244184",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Bootstrap native CLI for the actual CPU and OS",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run native compiler, executable, cache and output checks",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "bootstrap (windows-latest, win32-x64, stage1.exe)",
+                    "id": 117771244189,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044376/job/117771244189",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Verify compiler liveness on the native host",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Build native stage 1 with the development bootstrap",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify native regressions and stage 1 builds stage 2",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify full CLI self-hosting, cache and output protections",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Package the standalone native compiler",
+                            "conclusion": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "run": 39160044385,
+            "url": "https://github.com/40oleg/nona/actions/runs/39160044385",
+            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+            "createdAt": "2026-10-18T19:43:10Z",
+            "conclusion": "success",
+            "command": "gh run view 39160044385 --repo 40oleg/nona --json headSha,createdAt,status,conclusion,jobs",
+            "jobs": [
+                {
+                    "name": "route",
+                    "id": 117771244011,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044385/job/117771244011",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "programs (ubuntu-latest)",
+                    "id": 117771288937,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044385/job/117771288937",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run npm run check:programs",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "programs (windows-latest)",
+                    "id": 117771288995,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39160044385/job/117771288995",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run npm run check:programs",
+                            "conclusion": "success"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "run": 39142649906,
+            "url": "https://github.com/40oleg/nona/actions/runs/39142649906",
+            "commit": "ce350fdf7e1632b258862db1618db4d71bde97f1",
+            "createdAt": "2026-10-18T15:55:18Z",
+            "conclusion": "failure",
+            "command": "gh run view 39142649906 --repo 40oleg/nona --json headSha,createdAt,status,conclusion,jobs",
+            "jobs": [
+                {
+                    "name": "openbsd x64 guest VM on Ubuntu host",
+                    "id": 117739277886,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739277886",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes openbsd-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "darwin-x64 native and portable suites",
+                    "id": 117739277998,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739277998",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Build native probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Execute native loader and runtime probes",
+                            "conclusion": "skipped"
+                        },
+                        {
+                            "name": "Execute native POSIX loader and runtime probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify native process report files",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Core runtime oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Buffer and Blob oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Portable language and built-in oracle suites",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Linux x64 compiler and example regression",
+                    "id": 117739278081,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278081",
+                    "conclusion": "success",
+                    "steps": []
+                },
+                {
+                    "name": "browser-compiler",
+                    "id": 117739278091,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278091",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run npm run check:playground",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run npm run check:samples",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run npm run check:links",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "darwin-arm64 native and portable suites",
+                    "id": 117739278106,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278106",
+                    "conclusion": "failure",
+                    "steps": [
+                        {
+                            "name": "Build native probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Execute native loader and runtime probes",
+                            "conclusion": "skipped"
+                        },
+                        {
+                            "name": "Execute native POSIX loader and runtime probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify native process report files",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Core runtime oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Buffer and Blob oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Portable language and built-in oracle suites",
+                            "conclusion": "failure"
+                        }
+                    ]
+                },
+                {
+                    "name": "freebsd x64 guest VM on Ubuntu host",
+                    "id": 117739278132,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278132",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes freebsd-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Linux userspace fedora:43",
+                    "id": 117739278135,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278135",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes linux-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs work/distro-results",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Linux userspace debian:12",
+                    "id": 117739278140,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278140",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes linux-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs work/distro-results",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "linux-arm64 native and portable suites",
+                    "id": 117739278146,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278146",
+                    "conclusion": "failure",
+                    "steps": [
+                        {
+                            "name": "Build native probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Execute native loader and runtime probes",
+                            "conclusion": "skipped"
+                        },
+                        {
+                            "name": "Execute native POSIX loader and runtime probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify native process report files",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Core runtime oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Buffer and Blob oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Portable language and built-in oracle suites",
+                            "conclusion": "failure"
+                        }
+                    ]
+                },
+                {
+                    "name": "Linux userspace ubuntu:20.04",
+                    "id": 117739278165,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278165",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes linux-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs work/distro-results",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "linux-x64 native and portable suites",
+                    "id": 117739278171,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278171",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Build native probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Execute native loader and runtime probes",
+                            "conclusion": "skipped"
+                        },
+                        {
+                            "name": "Execute native POSIX loader and runtime probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Verify native process report files",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Core runtime oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Buffer and Blob oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Portable language and built-in oracle suites",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "win32-arm64 native and portable suites",
+                    "id": 117739278182,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278182",
+                    "conclusion": "failure",
+                    "steps": [
+                        {
+                            "name": "Build native probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Execute native loader and runtime probes",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Execute native POSIX loader and runtime probes",
+                            "conclusion": "skipped"
+                        },
+                        {
+                            "name": "Verify native process report files",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Core runtime oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Buffer and Blob oracle suites",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Portable language and built-in oracle suites",
+                            "conclusion": "failure"
+                        }
+                    ]
+                },
+                {
+                    "name": "Linux userspace alpine:3.22",
+                    "id": 117739278183,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278183",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes linux-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs work/distro-results",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Linux userspace ubuntu:24.04",
+                    "id": 117739278190,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739278190",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run node scripts/build-platform-probes.mjs work/platform-probes linux-x64",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run node scripts/verify-process-reports.mjs work/distro-results",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "Windows x64 full regression (manual)",
+                    "id": 117739279046,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39142649906/job/117739279046",
+                    "conclusion": "skipped",
+                    "steps": []
+                }
+            ]
+        },
+        {
+            "run": 39155973074,
+            "url": "https://github.com/40oleg/nona/actions/runs/39155973074",
+            "commit": "4dfba3b4dfac4ab8197f7cfb2864fcff6beaed0d",
+            "createdAt": "2026-10-18T18:50:03Z",
+            "conclusion": "success",
+            "command": "gh run view 39155973074 --repo 40oleg/nona --json headSha,createdAt,status,conclusion,jobs",
+            "jobs": [
+                {
+                    "name": "browser-compiler",
+                    "id": 117759157694,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39155973074/job/117759157694",
+                    "conclusion": "success",
+                    "steps": [
+                        {
+                            "name": "Run npm run check:playground",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run npm run check:samples",
+                            "conclusion": "success"
+                        },
+                        {
+                            "name": "Run npm run check:links",
+                            "conclusion": "success"
+                        }
+                    ]
+                },
+                {
+                    "name": "${{ matrix.os }} x64 guest VM on Ubuntu host",
+                    "id": 117759158789,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39155973074/job/117759158789",
+                    "conclusion": "skipped",
+                    "steps": []
+                },
+                {
+                    "name": "Linux userspace ${{ matrix.image }}",
+                    "id": 117759159052,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39155973074/job/117759159052",
+                    "conclusion": "skipped",
+                    "steps": []
+                },
+                {
+                    "name": "${{ matrix.target }} native and portable suites",
+                    "id": 117759159078,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39155973074/job/117759159078",
+                    "conclusion": "skipped",
+                    "steps": []
+                },
+                {
+                    "name": "Linux x64 compiler and example regression",
+                    "id": 117759159103,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39155973074/job/117759159103",
+                    "conclusion": "skipped",
+                    "steps": []
+                },
+                {
+                    "name": "Windows x64 full regression (manual)",
+                    "id": 117759199053,
+                    "url": "https://github.com/40oleg/nona/actions/runs/39155973074/job/117759199053",
+                    "conclusion": "skipped",
+                    "steps": []
+                }
+            ]
+        }
+    ],
+    "logEvidence": [
+        {
+            "run": 39160044403,
+            "command": "gh run view 39160044403 --repo 40oleg/nona --log-failed",
+            "sha256": "66fd90fd080f1c9377f7c3ce38ddcc3c2f497d6a6177b24edc057cf214e59f99",
+            "excerpts": [
+                "windows (1/4)\tUNKNOWN STEP\t2026-10-18T20:06:16.9521665Z test at dist\\tests\\runtime-link.test.js:82:1",
+                "windows (1/4)\tUNKNOWN STEP\t2026-10-18T20:06:16.9524478Z   Error: EPERM, Permission denied: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\nona-link-AYH1ND'",
+                "windows (1/4)\tUNKNOWN STEP\t2026-10-18T20:06:16.9525401Z       at rmSync (node:fs:1566:18)",
+                "windows (1/4)\tUNKNOWN STEP\t2026-10-18T20:06:16.9535176Z     code: 'EPERM',"
+            ]
+        },
+        {
+            "run": 39160044376,
+            "command": "gh run view 39160044376 --repo 40oleg/nona --log",
+            "sha256": "7d2a5b9113b535990b7b64996536b657ec870e2011aa6895d4ffe53eeac2768c",
+            "excerpts": [
+                "native-cli-platforms (windows-11-arm, win32-arm64, compiler.exe)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:45:10.5308540Z Native compiler regression passed: C:\\a\\nona\\nona\\work\\native-cli\\compiler.exe arithmetic.js",
+                "native-cli-platforms (windows-11-arm, win32-arm64, compiler.exe)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:47:25.1624517Z Native compiler regression passed: C:\\a\\nona\\nona\\work\\native-cli\\compiler.exe module.mjs",
+                "native-cli-platforms (windows-11-arm, win32-arm64, compiler.exe)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:48:33.7460191Z Native compiler regression passed: C:\\a\\nona\\nona\\work\\native-cli\\compiler.exe regexp.js",
+                "native-cli-platforms (macos-15, darwin-arm64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:45:12.2379060Z Native compiler regression passed: /Users/runner/work/nona/nona/work/native-cli/compiler arithmetic.js",
+                "native-cli-platforms (macos-15, darwin-arm64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:48:24.1628680Z Native compiler regression passed: /Users/runner/work/nona/nona/work/native-cli/compiler module.mjs",
+                "native-cli-platforms (macos-15, darwin-arm64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:50:00.1253160Z Native compiler regression passed: /Users/runner/work/nona/nona/work/native-cli/compiler regexp.js",
+                "native-cli-platforms (ubuntu-24.04-arm, linux-arm64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:44:27.8237625Z Native compiler regression passed: /home/runner/work/nona/nona/work/native-cli/compiler arithmetic.js",
+                "native-cli-platforms (ubuntu-24.04-arm, linux-arm64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:46:45.8395670Z Native compiler regression passed: /home/runner/work/nona/nona/work/native-cli/compiler module.mjs",
+                "native-cli-platforms (ubuntu-24.04-arm, linux-arm64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:47:53.5799432Z Native compiler regression passed: /home/runner/work/nona/nona/work/native-cli/compiler regexp.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:44:40.6880347Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost/stage1 arithmetic.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:45:14.8184953Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost/stage1 module.mjs",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:45:28.7865107Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost/stage1 regexp.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:54:40.8566469Z Stage 1 built deterministic stage 2 with Node absent from PATH",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:54:46.6742726Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost/stage2 arithmetic.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:55:21.1932363Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost/stage2 module.mjs",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:55:35.6755245Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost/stage2 regexp.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T19:56:10.9334958Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost-cli/stage1 arithmetic.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T19:56:46.2127125Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost-cli/stage1 module.mjs",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T19:57:00.6619545Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost-cli/stage1 regexp.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:06:34.2097165Z Stage 1 built deterministic stage 2 with Node absent from PATH",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:06:40.0823360Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost-cli/stage2 arithmetic.js",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:07:15.4904974Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost-cli/stage2 module.mjs",
+                "bootstrap (ubuntu-24.04, linux-x64, stage1)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:07:30.0552850Z Native compiler regression passed: /home/runner/work/nona/nona/work/selfhost-cli/stage2 regexp.js",
+                "native-cli-platforms (macos-15-intel, darwin-x64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:44:47.1603970Z Native compiler regression passed: /Users/runner/work/nona/nona/work/native-cli/compiler arithmetic.js",
+                "native-cli-platforms (macos-15-intel, darwin-x64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:45:31.1766540Z Native compiler regression passed: /Users/runner/work/nona/nona/work/native-cli/compiler module.mjs",
+                "native-cli-platforms (macos-15-intel, darwin-x64, compiler)\tRun native compiler, executable, cache and output checks\t2026-10-18T19:45:48.5647760Z Native compiler regression passed: /Users/runner/work/nona/nona/work/native-cli/compiler regexp.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:44:58.3654533Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost\\stage1.exe arithmetic.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:45:32.5781100Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost\\stage1.exe module.mjs",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:45:47.2810847Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost\\stage1.exe regexp.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:55:28.5363401Z Stage 1 built deterministic stage 2 with Node absent from PATH",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:55:34.7385063Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost\\stage2.exe arithmetic.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:56:10.7098913Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost\\stage2.exe module.mjs",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify native regressions and stage 1 builds stage 2\t2026-10-18T19:56:26.4520962Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost\\stage2.exe regexp.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T19:57:04.5820685Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost-cli\\stage1.exe arithmetic.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T19:57:41.6599362Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost-cli\\stage1.exe module.mjs",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T19:57:57.1290554Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost-cli\\stage1.exe regexp.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:08:25.9369115Z Stage 1 built deterministic stage 2 with Node absent from PATH",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:08:32.1795802Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost-cli\\stage2.exe arithmetic.js",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:09:07.3680850Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost-cli\\stage2.exe module.mjs",
+                "bootstrap (windows-latest, win32-x64, stage1.exe)\tVerify full CLI self-hosting, cache and output protections\t2026-10-18T20:09:22.2181382Z Native compiler regression passed: D:\\a\\nona\\nona\\work\\selfhost-cli\\stage2.exe regexp.js"
+            ]
+        },
+        {
+            "run": 39160044385,
+            "command": "gh run view 39160044385 --repo 40oleg/nona --job 117771288937 --log",
+            "sha256": "a0c61623f7a1e9c5dc56b20377e0807d2398104b23307bff5d9bd3183cc2100c",
+            "excerpts": [
+                "programs (ubuntu-latest)\tRun npm run check:programs\t2026-10-18T20:22:16.5216407Z ℹ tests 1011",
+                "programs (ubuntu-latest)\tRun npm run check:programs\t2026-10-18T20:22:16.5216901Z ℹ pass 1011",
+                "programs (ubuntu-latest)\tRun npm run check:programs\t2026-10-18T20:22:16.5217110Z ℹ fail 0",
+                "programs (ubuntu-latest)\tRun npm run check:programs\t2026-10-18T20:22:16.5217547Z ℹ skipped 0"
+            ]
+        },
+        {
+            "run": 39160044385,
+            "command": "gh run view 39160044385 --repo 40oleg/nona --job 117771288995 --log",
+            "sha256": "ca6c19825fc3fb716165b35d55ad7f49845ee57e3a4d8e7bee01384bd5bc57a6",
+            "excerpts": [
+                "programs (windows-latest)\tRun npm run check:programs\t2026-10-18T20:41:42.7610741Z ℹ tests 1011",
+                "programs (windows-latest)\tRun npm run check:programs\t2026-10-18T20:41:42.7611290Z ℹ pass 1011",
+                "programs (windows-latest)\tRun npm run check:programs\t2026-10-18T20:41:42.7611540Z ℹ fail 0",
+                "programs (windows-latest)\tRun npm run check:programs\t2026-10-18T20:41:42.7612080Z ℹ skipped 0"
+            ]
+        },
+        {
+            "run": 39142649906,
+            "command": "gh run view 39142649906 --repo 40oleg/nona --log-failed",
+            "sha256": "2567a17af9c7eb492a66356cac1255cfc24563b3ca477e597157209807fd7caa",
+            "excerpts": [
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:39:33.6715230Z ✖ ASCII named RegExp captures avoid Unicode table setup under stress GC (33335.156459ms)",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:46:10.1453740Z ✖ RegExp.escape output matches the input literally (182328.556584ms)",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:05:11.4386760Z ✖ small properties of strings backtrack, look behind and capture (183376.519ms)",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4477050Z ✖ failing tests:",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4482020Z ✖ ASCII named RegExp captures avoid Unicode table setup under stress GC (33335.156459ms)",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4487570Z   + Error: spawnSync /var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/nona-native-8TZa4f/image ETIMEDOUT",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4511560Z   +   code: 'ETIMEDOUT',",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4531090Z     actual: Error: spawnSync /var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/nona-native-8TZa4f/image ETIMEDOUT",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4552420Z ✖ RegExp.escape output matches the input literally (182328.556584ms)",
+                "darwin-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T19:10:22.4577820Z ✖ small properties of strings backtrack, look behind and capture (183376.519ms)",
+                "linux-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:17:02.9087436Z ✖ RegExp.escape output matches the input literally (181018.598704ms)",
+                "linux-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:32:17.6211308Z ✖ small properties of strings backtrack, look behind and capture (181055.597675ms)",
+                "linux-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:32:17.8310811Z ✖ failing tests:",
+                "linux-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:32:17.8311608Z ✖ RegExp.escape output matches the input literally (181018.598704ms)",
+                "linux-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:32:17.8319668Z ✖ small properties of strings backtrack, look behind and capture (181055.597675ms)",
+                "win32-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:23:48.5577518Z ✖ RegExp.escape output matches the input literally (180961.9197ms)",
+                "win32-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:40:00.2964835Z ✖ small properties of strings backtrack, look behind and capture (181125.172ms)",
+                "win32-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:40:00.4946412Z ✖ failing tests:",
+                "win32-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:40:00.4947306Z ✖ RegExp.escape output matches the input literally (180961.9197ms)",
+                "win32-arm64 native and portable suites\tUNKNOWN STEP\t2026-10-18T18:40:00.4954294Z ✖ small properties of strings backtrack, look behind and capture (181125.172ms)"
+            ]
+        }
+    ],
+    "test262Artifacts": {
+        "run": 39160044403,
+        "command": "gh run download 39160044403 --repo 40oleg/nona --pattern 'test262-*-report' --dir work/completeness-ci",
+        "summary": "test262-ci-summary.json",
+        "note": "Source report bytes were downloaded and hashed; summary preserves all filters, denominators and failures/skips. Full artifacts can expire on GitHub."
+    },
+    "weakMemory": {
+        "source": "scripts/check-weak-memory.mjs",
+        "localExecution": "not-run",
+        "ciEvidence": "unavailable in inspected runs",
+        "scope": "Linux/WSL address-space cap 98304 KiB, weak versus strong Map/Set retention. The closure GC probe does not verify reclamation."
+    }
+}

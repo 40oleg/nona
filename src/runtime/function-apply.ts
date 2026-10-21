@@ -9,6 +9,7 @@ import {
     ProxyCallable,
 } from "./object-layout.js";
 import { FunctionKind } from "./functions.js";
+import { ElementsLayout as E, HoleTag } from "./array-elements.js";
 import {
     emitFunctionBuiltin,
     builtinPropertyRoots,
@@ -19,6 +20,8 @@ export const applyStaticProperties = builtinPropertyRoots(
     "apply",
 );
 export const maxApplyArguments = 65536;
+/** rt.applyFast copies at most this many array elements (a frame buffer). */
+export const fastApplyArguments = 16;
 export function emitFunctionApply(b: RuntimeBuilder): void {
     emitFunctionBuiltin(
         b,
@@ -234,6 +237,137 @@ export function emitFunctionApply(b: RuntimeBuilder): void {
             a.call("rt.invoke");
             a.load("rax", slot(72 + R.next));
             a.store({ rip: "rt.gcRoots" }, "rax");
+        },
+    );
+    // `f.apply(thisArg, list)` sites whose callee is %Function.prototype.apply%
+    // (operations.ts): RCX result, RDX target Value*, R8 thisArg Value*, R9 list
+    // Value*. A function object target with an undefined/null list, or an
+    // array whose first `length` (at most fastApplyArguments) elements are all
+    // dense, is called through rt.invoke with the elements copied into this
+    // frame (CreateListFromArrayLike reads only own data properties there, so
+    // nothing observable is skipped): RAX = 1. Anything else returns RAX = 0
+    // having done nothing, and the site makes the general call.
+    // Frame: outgoing this +32; result/target/count +40..56; root record +64;
+    // argument buffer +88.
+    b.fn("rt.applyFast", 88 + 16 * fastApplyArguments, (a) => {
+        const no = a.unique("no"),
+            ready = a.unique("ready"),
+            check = a.unique("check"),
+            copy = a.unique("copy"),
+            done = a.unique("done");
+        a.load("rax", { base: "rdx" });
+        a.cmp("rax", 5);
+        a.jcc("ne", no);
+        a.load("rax", { base: "rdx", disp: 8 });
+        a.load("rax", { base: "rax", disp: O.kind });
+        a.cmp("rax", FunctionKind);
+        a.jcc("ne", no);
+        a.store(slot(32), "r8");
+        a.store(slot(40), "rcx");
+        a.store(slot(48), "rdx");
+        a.mov("r8", 0);
+        a.load("rax", { base: "r9" });
+        a.cmp("rax", 1);
+        a.jcc("be", ready);
+        a.cmp("rax", 5);
+        a.jcc("ne", no);
+        a.load("r9", { base: "r9", disp: 8 });
+        a.load("rax", { base: "r9", disp: O.kind });
+        a.cmp("rax", 1);
+        a.jcc("ne", no);
+        a.load("r8", { base: "r9", disp: O.length });
+        a.cmp("r8", fastApplyArguments);
+        a.jcc("a", no);
+        a.test("r8", "r8");
+        a.jcc("e", ready);
+        a.load("r10", { base: "r9", disp: O.elements });
+        a.test("r10", "r10");
+        a.jcc("e", no);
+        a.load("rax", { base: "r10", disp: E.capacity });
+        a.cmp("r8", "rax");
+        a.jcc("a", no);
+        // Every element must be dense before anything is copied.
+        a.mov("rax", 0);
+        a.lea("r11", { base: "r10", disp: E.values });
+        a.label(check);
+        a.load("rcx", { base: "r11" });
+        a.cmp("rcx", HoleTag);
+        a.jcc("e", no);
+        a.add("r11", 16);
+        a.add("rax", 1);
+        a.cmp("rax", "r8");
+        a.jcc("b", check);
+        a.mov("rax", 0);
+        a.lea("r11", { base: "r10", disp: E.values });
+        a.lea("r9", slot(88));
+        a.label(copy);
+        for (const part of [0, 8]) {
+            a.load("rcx", { base: "r11", disp: part });
+            a.store({ base: "r9", disp: part }, "rcx");
+        }
+        a.add("r11", 16);
+        a.add("r9", 16);
+        a.add("rax", 1);
+        a.cmp("rax", "r8");
+        a.jcc("b", copy);
+        a.label(ready);
+        // The copies stay rooted while the callee runs (rt.functionCall.code).
+        a.store(slot(56), "r8");
+        a.load("rax", { rip: "rt.gcRoots" });
+        a.store(slot(64 + R.next), "rax");
+        a.lea("rax", slot(88));
+        a.store(slot(64 + R.values), "rax");
+        a.store(slot(64 + R.count), "r8");
+        a.lea("rax", slot(64));
+        a.store({ rip: "rt.gcRoots" }, "rax");
+        a.load("rcx", slot(40));
+        a.load("rdx", slot(48));
+        a.lea("r9", slot(88));
+        a.call("rt.invoke");
+        a.load("rax", slot(64 + R.next));
+        a.store({ rip: "rt.gcRoots" }, "rax");
+        a.mov("rax", 1);
+        a.jmp(done);
+        a.label(no);
+        a.mov("rax", 0);
+        a.label(done);
+    });
+    // The general path of `f.apply(thisArg, [elements])` sites whose array
+    // literal was not created (src/ir/calls.ts): RCX result, RDX the argument
+    // area {callee, receiver, thisArg, elements...}, R8 its length. Creates
+    // the array and calls callee with receiver and (thisArg, array).
+    // Frame: outgoing this +32; result/area/length +40..56; thisArg and array +64/+80.
+    rootedFn(
+        b,
+        "rt.applyElements",
+        104,
+        [
+            { kind: "output", register: "rcx" },
+            { kind: "range", register: "rdx", count: "r8" },
+            { kind: "locals", offset: 64, count: 2 },
+        ],
+        (a) => {
+            a.store(slot(40), "rcx");
+            a.store(slot(48), "rdx");
+            a.store(slot(56), "r8");
+            for (const part of [0, 8]) {
+                a.load("rax", { base: "rdx", disp: 32 + part });
+                a.store(slot(64 + part), "rax");
+            }
+            a.lea("rcx", slot(80));
+            a.sub("r8", 3);
+            a.mov("rdx", "r8");
+            a.load("r8", slot(48));
+            a.add("r8", 48);
+            a.mov("r9", 0);
+            a.call("rt.newRestArray");
+            a.load("rdx", slot(48));
+            a.lea("rax", { base: "rdx", disp: 16 });
+            a.store(slot(32), "rax");
+            a.load("rcx", slot(40));
+            a.mov("r8", 2);
+            a.lea("r9", slot(64));
+            a.call("rt.invoke");
         },
     );
 }

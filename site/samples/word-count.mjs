@@ -1,6 +1,6 @@
 // word-count.mjs — count words in text files and write a report.
 // Usage: word-count <file>... (the first argument is process.argv[1]).
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "nona:fs";
 
 const files = process.argv.slice(1);
 if (files.length === 0) {

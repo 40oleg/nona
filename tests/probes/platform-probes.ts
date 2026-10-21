@@ -22,6 +22,10 @@ import { processSignalPlatformProbes } from "./process-signal-platform-probes.js
 import { processReportPlatformProbes } from "./process-report-platform-probes.js";
 import { streamProbes } from "./stream-probes.js";
 import { processNetworkProbe } from "./process-network-probe.js";
+import {
+    childProcessProbeSource,
+    childProcessProbeExpected,
+} from "./child-process-probe.js";
 import { compileToIR } from "../../src/compiler.js";
 import { compileModuleToIR } from "../../src/compiler.js";
 import { collectSourceUsage } from "../../src/frontend/lexer.js";
@@ -252,6 +256,24 @@ export function runtimeProbes(target: Target): {
             expected:
                 "http ok\nidentity true true true\nclosed\nbeforeExit\nexit\n",
             minimalEnvironment: true,
+            timeoutMs: 60000,
+        });
+    }
+    // The BSD VMs have no Node.js to run the child_process oracle tests.
+    if (target === "freebsd-x64" || target === "openbsd-x64") {
+        const childProcess = compile(childProcessProbeSource, {
+            fileName: "child-process.mjs",
+            target,
+            module: true,
+        });
+        if (!childProcess.ok)
+            throw new Error(
+                `${target}/child-process: ${JSON.stringify(childProcess.diagnostics)}`,
+            );
+        probes.push({
+            name: "child-process",
+            image: childProcess.image,
+            expected: childProcessProbeExpected,
             timeoutMs: 60000,
         });
     }

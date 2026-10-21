@@ -515,7 +515,8 @@ test("ASCII named RegExp captures avoid Unicode table setup under stress GC", ()
     const source = `let re=/(?<word>ab)\\k<word>/g;let m=re.exec('xabab');console.log(m[0],m.groups.word,m.index,re.lastIndex);`;
     const run = runNative(
         linkHost(generate(compileToIR(source), { gcStress: true })),
-        30000,
+        // arm64 takes about twice as long as x64 under gcStress.
+        120_000,
     );
     assert.equal(run.error, undefined);
     assert.equal(run.status, 0, run.stderr.toString());

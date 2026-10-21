@@ -4,6 +4,10 @@
 本页译自英文页面 [Performance](/guide/performance)，其内容来自 [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md)。英文版为准，且可能更新。`node bench/run.mjs` 可复现这些测量结果。
 :::
 
+::: tip
+与优化 C++ 的对比（算术、函数调用、UTF-16 字符串；2026-10-20）见 [docs/perf-cpp.md](https://github.com/40oleg/nona/blob/main/docs/perf-cpp.md)（英文）。
+:::
+
 ::: warning
 与 Node.js、Deno 和 Bun 的最新对比（2026-10-18，v0.18.0）见[英文页面](/guide/performance#current-release-v0180-against-nodejs-deno-and-bun)：hello world 启动 1.3 ms、大小 1.1 MB（启动和内存为 Node.js 的 ×0.1），简单循环和集合慢 ×2–×4，Are-We-Fast-Yet 的面向对象基准和真实库慢 ×11–×13，经过 RegExp 引擎的一切慢 ×60–×350。以下是 v0.7.0 测量结果的译文。
 :::

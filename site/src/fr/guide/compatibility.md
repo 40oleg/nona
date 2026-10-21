@@ -17,7 +17,7 @@ Nona compile à l’avance ; `eval` et les constructeurs dynamiques de fonctions
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-Les sources calculés à l’exécution sont suivis dans [#11](https://github.com/40oleg/nona/issues/11).
+C’est une exception permanente et documentée ([#11](https://github.com/40oleg/nona/issues/11), [contrat ES2020](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)) : les exécutables générés ne contiennent ni interpréteur ni compilateur.
 
 ## Différences avec Node.js
 
@@ -44,11 +44,13 @@ Les sources calculés à l’exécution sont suivis dans [#11](https://github.co
 
 Chaque exécutable contient le runtime, mais ses grandes parties optionnelles ne sont liées que si le programme peut les atteindre. Le compilateur en décide d’après le texte de chaque source qu’il compile — le programme, ses modules et les sources de `eval`/`Function` connues à la compilation :
 
-| Partie                                            | Taille         | Liée lorsqu’une source contient                                                                                                                          |
-| ------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Moteur RegExp                                     | environ 1 Mo   | un littéral RegExp, ou le nom `RegExp`, `match`, `matchAll` ou `search` (comme identifiant, nom de propriété ou dans une chaîne ou un gabarit de chaîne) |
-| Tables de propriétés Unicode pour `\p{…}`/`\P{…}` | environ 2 Mo   | `\p{` ou `\P{` dans un littéral RegExp ou une chaîne, ou l’un des noms ci-dessus (un motif peut être construit à l’exécution)                            |
-| Tables de normalisation Unicode                   | environ 0,7 Mo | le nom `normalize` ou `localeCompare`                                                                                                                    |
+| Partie                                            | Taille         | Liée lorsqu’une source contient                                                                                                                           |
+| ------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Moteur RegExp                                     | environ 1 Mo   | un littéral RegExp, ou le nom `RegExp`, `match`, `matchAll` ou `search` (comme identifiant libre, nom de propriété ou chaîne servant de clé de propriété) |
+| Tables de propriétés Unicode pour `\p{…}`/`\P{…}` | environ 2 Mo   | `\p{` ou `\P{` dans un littéral RegExp ou une chaîne, avec le moteur (un motif peut être construit à l’exécution)                                         |
+| Tables de normalisation Unicode                   | environ 0,7 Mo | le nom `normalize` ou `localeCompare`                                                                                                                     |
+
+Un nom sélectionne une partie s’il est un identifiant libre (une variable locale, un paramètre ou un import de ce nom ne sélectionne rien), un nom de propriété (`s.normalize()`) ou une chaîne en position de clé (`s["normalize"]`, `"x" in o`, `Reflect.get(o, "x")`, un spécificateur de module). Une chaîne ordinaire comme `console.log("normalize")` ou une variable locale nommée `small` ne sélectionne rien. Si le programme lit des propriétés avec des clés que le compilateur ne peut pas connaître (`o[name]`), toute chaîne exactement égale à un nom compte aussi. Dans `with` et dans les fonctions avec un `eval` direct non strict, chaque identifiant compte. Un nom de propriété sélectionne sa partie quel que soit le receveur, et le code des modules intégrés importés compte comme le vôtre. Les clés construites à l’exécution (`"nor" + "malize"`) sont invisibles : utilisez `--link` ou `--full-runtime` ([#438](https://github.com/40oleg/nona/issues/438)).
 
 `split`, `replace` et `replaceAll` avec des arguments de type chaîne n’ont pas besoin du moteur RegExp.
 
@@ -76,6 +78,8 @@ Un programme qui appelle `Object.getOwnPropertyNames`, `Object.getOwnPropertyDes
 Les helpers dont seule une certaine syntaxe a besoin sont liés quand le programme compilé les appelle, pas par nom : instructions `with`, `eval` littéral, champs de classe et noms privés, et modules ES avec `import()` et `import.meta` ([#278](https://github.com/40oleg/nona/issues/278)).
 
 Un programme peut tout de même atteindre une partie omise par un nom calculé à l’exécution, par exemple `globalThis['Reg' + 'Exp']`. Pour le moteur RegExp et les tables Unicode, un tel appel lève une `Error` dont le message nomme la partie manquante ; une globale ou une méthode omise est simplement absente. Compilez avec `--full-runtime` (ou l’option `fullRuntime` de [`compile()`](/fr/reference/api)) pour tout lier ([#62](https://github.com/40oleg/nona/issues/62)). `--link partie,...` ajoute des parties isolées, et `--print-link` montre ce qui est lié et quel nom a sélectionné chaque partie ([#182](https://github.com/40oleg/nona/issues/182)).
+
+Les imports nommés des modules intégrés sont élagués avant le choix des parties : `import { existsSync } from "node:fs"` ne garde que le code de `fs` atteint par `existsSync` et ne lie donc ni le moteur RegExp, ni les tables Unicode, ni les minuteurs (1 808 896 octets au lieu de 5 017 088 sur win32-x64). Un import d'espace de noms ou par défaut, `import()`, `require` et `process.getBuiltinModule` conservent le module entier ([conception et limites](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440)).
 
 ## Realms
 

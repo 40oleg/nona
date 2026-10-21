@@ -1,0 +1,1846 @@
+{
+    "schema": 1,
+    "issue": "https://github.com/40oleg/nona/issues/401",
+    "startedAt": "2026-10-20T11:40:55.508Z",
+    "finishedAt": "2026-10-20T11:43:06.968Z",
+    "platform": "linux",
+    "environment": "WSL2",
+    "options": {
+        "sizes": [10000000],
+        "runs": 11,
+        "warmupRuns": 1,
+        "builds": ["o3"],
+        "seed": 12345,
+        "orderSeed": 1495087038,
+        "timeoutSeconds": 300,
+        "only": ["str_format_int_short", "str_slice_ascii_short"],
+        "checksumPolicy": "exact string equality (f64 bit patterns); kernels.mjs tolerance 0 for every kernel",
+        "nsPerOpThresholdMs": 10,
+        "loadavgAfter": "1.00 0.93 0.96 1/399 2820"
+    },
+    "host": {
+        "hostname": "tors",
+        "runnerOs": "win32",
+        "runnerOsRelease": "10.0.26200",
+        "node": "v22.23.2",
+        "logicalCpus": 16,
+        "cpuModel": "13th Gen Intel(R) Core(TM) i7-13620H",
+        "ramBytes": 16869351424,
+        "linux": {
+            "environment": "WSL2",
+            "kernel": "Linux 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64",
+            "os": "Ubuntu 22.04.3 LTS",
+            "cpuModel": "13th Gen Intel(R) Core(TM) i7-13620H",
+            "cpus": 16,
+            "memTotal": "MemTotal: 7980956 kB",
+            "governor": "unavailable",
+            "loadavg": "0.93 0.88 0.95 1/406 1842"
+        },
+        "windows": {
+            "cpu": "13th Gen Intel(R) Core(TM) i7-13620H",
+            "cpuLoadPercent": "1",
+            "ramBytes": "16869351424",
+            "os": "Microsoft Windows 11 Pro",
+            "powerPlan": "GUID схемы питания: 381b4222-f694-41f0-9685-ff5bb260df2e  (Сбалансированная)",
+            "wslVersion": "Версия WSL: 3.0.3.0\r\nВерсия ядра: 6.18.54.1-1\r\nВерсия WSLg: 1.0.79\r\nВерсия MSRDC: 1.2.7391\r\nВерсия Direct3D: 1.611.1-81528511\r\nВерсия DXCore: 10.0.26100.1-240331-1435.ge-release\r\nВерсия Windows: 10.0.26200.9711"
+        }
+    },
+    "build": {
+        "date": "2026-10-20T11:22:34.159Z",
+        "git": {
+            "sha": "2f2ed6fcd2fba729ff9471bc00810acb0afa9ca5",
+            "describe": "v0.20.0-9-g2f2ed6fc",
+            "dirty": false
+        },
+        "node": "v22.23.2",
+        "host": "win32",
+        "nona": {
+            "version": "0.20.0",
+            "cli": "node dist/cli.js build <program>.js -o <out> --target <target> --print-asm",
+            "optimization": "nona build has no optimization levels or flags; every build uses the same pipeline",
+            "binaries": {
+                "arith-nona-linux-x64": {
+                    "program": "arith",
+                    "target": "linux-x64",
+                    "path": "build/bin/arith-nona-linux-x64",
+                    "buildSeconds": 7.2700609,
+                    "status": "ok",
+                    "asm": "build/asm/arith-nona-linux-x64.asm"
+                },
+                "arith-nona-win32-x64": {
+                    "program": "arith",
+                    "target": "win32-x64",
+                    "path": "build/bin/arith-nona-win32-x64.exe",
+                    "buildSeconds": 3.273786399999999,
+                    "status": "ok",
+                    "asm": "build/asm/arith-nona-win32-x64.asm"
+                },
+                "strings-nona-linux-x64": {
+                    "program": "strings",
+                    "target": "linux-x64",
+                    "path": "build/bin/strings-nona-linux-x64",
+                    "buildSeconds": 3.458822900000001,
+                    "status": "ok",
+                    "asm": "build/asm/strings-nona-linux-x64.asm"
+                },
+                "strings-nona-win32-x64": {
+                    "program": "strings",
+                    "target": "win32-x64",
+                    "path": "build/bin/strings-nona-win32-x64.exe",
+                    "buildSeconds": 3.5002172999999983,
+                    "status": "ok",
+                    "asm": "build/asm/strings-nona-win32-x64.asm"
+                }
+            }
+        },
+        "cpp": {
+            "linux": {
+                "platform": "linux",
+                "environment": "WSL2 (wsl -e)",
+                "builds": {
+                    "o3": {
+                        "arith": {
+                            "program": "arith",
+                            "build": "o3",
+                            "label": "optimized (-O3, x86-64 baseline ISA)",
+                            "flags": [
+                                "-std=c++17",
+                                "-O3",
+                                "-DNDEBUG",
+                                "-fno-fast-math",
+                                "-ffp-contract=off",
+                                "-march=x86-64",
+                                "-mtune=generic"
+                            ],
+                            "path": "build/bin/arith-cpp-o3",
+                            "buildSeconds": 1.2585203,
+                            "status": "ok",
+                            "asm": {
+                                "s": "build/asm/arith-cpp-o3.s",
+                                "objdump": "build/asm/arith-cpp-o3.objdump.txt",
+                                "symbols": "build/asm/arith-cpp-o3.nm.txt",
+                                "vectorizer": "build/asm/arith-cpp-o3.vec.txt"
+                            }
+                        },
+                        "strings": {
+                            "program": "strings",
+                            "build": "o3",
+                            "label": "optimized (-O3, x86-64 baseline ISA)",
+                            "flags": [
+                                "-std=c++17",
+                                "-O3",
+                                "-DNDEBUG",
+                                "-fno-fast-math",
+                                "-ffp-contract=off",
+                                "-march=x86-64",
+                                "-mtune=generic"
+                            ],
+                            "path": "build/bin/strings-cpp-o3",
+                            "buildSeconds": 2.337320499999998,
+                            "status": "ok",
+                            "asm": {
+                                "s": "build/asm/strings-cpp-o3.s",
+                                "objdump": "build/asm/strings-cpp-o3.objdump.txt",
+                                "symbols": "build/asm/strings-cpp-o3.nm.txt",
+                                "vectorizer": "build/asm/strings-cpp-o3.vec.txt"
+                            }
+                        }
+                    },
+                    "noinline": {
+                        "arith": {
+                            "program": "arith",
+                            "build": "noinline",
+                            "label": "diagnostic: -fno-inline and noinline callees (call overhead)",
+                            "flags": [
+                                "-std=c++17",
+                                "-O3",
+                                "-DNDEBUG",
+                                "-fno-fast-math",
+                                "-ffp-contract=off",
+                                "-march=x86-64",
+                                "-mtune=generic",
+                                "-fno-inline",
+                                "-DBENCH_NOINLINE"
+                            ],
+                            "path": "build/bin/arith-cpp-noinline",
+                            "buildSeconds": 3.5846824000000015,
+                            "status": "ok",
+                            "asm": {
+                                "s": "build/asm/arith-cpp-noinline.s",
+                                "objdump": "build/asm/arith-cpp-noinline.objdump.txt",
+                                "symbols": "build/asm/arith-cpp-noinline.nm.txt",
+                                "vectorizer": "build/asm/arith-cpp-noinline.vec.txt"
+                            }
+                        }
+                    },
+                    "native": {
+                        "arith": {
+                            "program": "arith",
+                            "build": "native",
+                            "label": "diagnostic: -march=native -flto (host ISA, not portable)",
+                            "flags": [
+                                "-std=c++17",
+                                "-O3",
+                                "-DNDEBUG",
+                                "-fno-fast-math",
+                                "-ffp-contract=off",
+                                "-march=native",
+                                "-flto"
+                            ],
+                            "path": "build/bin/arith-cpp-native",
+                            "buildSeconds": 1.320644400000001,
+                            "status": "ok",
+                            "asm": {
+                                "s": "build/asm/arith-cpp-native.s",
+                                "objdump": "build/asm/arith-cpp-native.objdump.txt",
+                                "symbols": "build/asm/arith-cpp-native.nm.txt",
+                                "vectorizer": "build/asm/arith-cpp-native.vec.txt"
+                            }
+                        },
+                        "strings": {
+                            "program": "strings",
+                            "build": "native",
+                            "label": "diagnostic: -march=native -flto (host ISA, not portable)",
+                            "flags": [
+                                "-std=c++17",
+                                "-O3",
+                                "-DNDEBUG",
+                                "-fno-fast-math",
+                                "-ffp-contract=off",
+                                "-march=native",
+                                "-flto"
+                            ],
+                            "path": "build/bin/strings-cpp-native",
+                            "buildSeconds": 2.4770960999999954,
+                            "status": "ok",
+                            "asm": {
+                                "s": "build/asm/strings-cpp-native.s",
+                                "objdump": "build/asm/strings-cpp-native.objdump.txt",
+                                "symbols": "build/asm/strings-cpp-native.nm.txt",
+                                "vectorizer": "build/asm/strings-cpp-native.vec.txt"
+                            }
+                        }
+                    }
+                },
+                "status": "ok",
+                "compiler": "/usr/bin/g++",
+                "compilerVersion": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+                "libstdcxx": {
+                    "library": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30",
+                    "macros": "#define __GLIBCXX__ 20230528 #define _GLIBCXX_RELEASE 11"
+                },
+                "binutils": "GNU objdump (GNU Binutils for Ubuntu) 2.38",
+                "linker": "GNU ld (GNU Binutils for Ubuntu) 2.38",
+                "linkage": "default g++ linking: dynamic libstdc++, libm, libc (no -static)"
+            },
+            "win": {
+                "platform": "win",
+                "status": "unavailable",
+                "reason": "no g++ on the Windows PATH (MinGW-w64 or MSYS2 UCRT64 g++ would provide one)"
+            }
+        },
+        "sources": {
+            "js/arith.js": "0bd376a088642fd84a91de449e464690f00cb5c66d5c57e97fb57660f20e165f",
+            "cpp/arith.cpp": "4031262754e142a3e7a4be8563a38ac508ba76786d0cafdb17a7b853380172c9",
+            "js/strings.js": "0594ec01cd439ee47ae11d6c9f289cfde78a029687f9d53ecc257ccd0ab1ae78",
+            "cpp/strings.cpp": "175f040bdf41bb5273aab66f5875745dac41de268f0b5ca6293676a3d8dbf7ce"
+        }
+    },
+    "asmCheck": null,
+    "kernels": [
+        {
+            "program": "strings",
+            "tolerance": 0,
+            "id": "str_slice_ascii_short",
+            "js": "str_slice_ascii_short",
+            "cpp": "str_slice_ascii_short",
+            "cppSymbol": "k_str_slice",
+            "kind": "string",
+            "expect": "strwork",
+            "encoding": "ascii",
+            "size": "short",
+            "inputUnits": 16,
+            "divisor": 1,
+            "contract": "UTF-16 code units (std::u16string)",
+            "alloc": true,
+            "unit": "one s.slice(b, b + 4) (owning)",
+            "variant": "owning substring (std::u16string::substr)",
+            "work": {
+                "calls": "operator new|memcpy|memmove|_M_create|_M_construct|_M_append|_M_mutate|_M_replace|reserve|substr"
+            }
+        },
+        {
+            "program": "strings",
+            "tolerance": 0,
+            "id": "str_slice_ascii_short_view",
+            "js": "str_slice_ascii_short",
+            "cpp": "str_slice_ascii_short_view",
+            "cppSymbol": "k_str_slice_view",
+            "kind": "string",
+            "expect": "strwork",
+            "encoding": "ascii",
+            "size": "short",
+            "inputUnits": 16,
+            "divisor": 1,
+            "contract": "UTF-16, non-owning std::u16string_view: lower bound",
+            "alloc": true,
+            "unit": "one s.slice(b, b + 4) (owning)",
+            "variant": "non-owning view (std::u16string_view::substr)",
+            "work": {
+                "load16": true
+            }
+        },
+        {
+            "program": "strings",
+            "tolerance": 0,
+            "id": "str_format_int_short",
+            "js": "str_format_int_short",
+            "cpp": "str_format_int_short",
+            "cppSymbol": "k_str_format",
+            "kind": "string",
+            "expect": "strwork",
+            "encoding": "int",
+            "size": "short",
+            "divisor": 1,
+            "contract": "UTF-16 code units (std::u16string)",
+            "alloc": true,
+            "unit": "one String(x), x an integer-valued double < 2^53",
+            "variant": "number formatting (C++: to_chars fixed, widened to u16string)",
+            "work": {
+                "calls": "to_chars"
+            }
+        },
+        {
+            "program": "strings",
+            "tolerance": 0,
+            "id": "str_format_int_short_bytes",
+            "js": "str_format_int_short",
+            "cpp": "str_format_int_short_bytes",
+            "cppSymbol": "k_str_format_bytes",
+            "kind": "string",
+            "expect": "strwork",
+            "encoding": "int",
+            "size": "short",
+            "divisor": 1,
+            "contract": "char buffer, no string object: lower bound",
+            "alloc": true,
+            "unit": "one String(x), x an integer-valued double < 2^53",
+            "variant": "to_chars into a stack buffer",
+            "work": {
+                "calls": "to_chars"
+            }
+        }
+    ],
+    "startup": {
+        "nona": {
+            "status": "ok",
+            "summaryMs": {
+                "n": 11,
+                "median": 32.661065,
+                "q1": 29.0494025,
+                "q3": 34.601037500000004,
+                "iqr": 5.5516350000000045,
+                "min": 27.605499,
+                "max": 37.445684
+            },
+            "samples": [
+                {
+                    "round": 0,
+                    "status": "ok",
+                    "ms": 32.661065
+                },
+                {
+                    "round": 1,
+                    "status": "ok",
+                    "ms": 37.445684
+                },
+                {
+                    "round": 2,
+                    "status": "ok",
+                    "ms": 27.605499
+                },
+                {
+                    "round": 3,
+                    "status": "ok",
+                    "ms": 29.609477
+                },
+                {
+                    "round": 4,
+                    "status": "ok",
+                    "ms": 33.083575
+                },
+                {
+                    "round": 5,
+                    "status": "ok",
+                    "ms": 29.310014
+                },
+                {
+                    "round": 6,
+                    "status": "ok",
+                    "ms": 28.285158
+                },
+                {
+                    "round": 7,
+                    "status": "ok",
+                    "ms": 37.411454
+                },
+                {
+                    "round": 8,
+                    "status": "ok",
+                    "ms": 28.788791
+                },
+                {
+                    "round": 9,
+                    "status": "ok",
+                    "ms": 33.675551
+                },
+                {
+                    "round": 10,
+                    "status": "ok",
+                    "ms": 35.526524
+                }
+            ]
+        },
+        "cpp-o3": {
+            "status": "ok",
+            "summaryMs": {
+                "n": 11,
+                "median": 5.385273,
+                "q1": 4.9619915,
+                "q3": 5.9356875,
+                "iqr": 0.9736960000000003,
+                "min": 4.00565,
+                "max": 10.220176
+            },
+            "samples": [
+                {
+                    "round": 0,
+                    "status": "ok",
+                    "ms": 5.653322
+                },
+                {
+                    "round": 1,
+                    "status": "ok",
+                    "ms": 4.912056
+                },
+                {
+                    "round": 2,
+                    "status": "ok",
+                    "ms": 5.385273
+                },
+                {
+                    "round": 3,
+                    "status": "ok",
+                    "ms": 5.011927
+                },
+                {
+                    "round": 4,
+                    "status": "ok",
+                    "ms": 4.00565
+                },
+                {
+                    "round": 5,
+                    "status": "ok",
+                    "ms": 5.565432
+                },
+                {
+                    "round": 6,
+                    "status": "ok",
+                    "ms": 5.312142
+                },
+                {
+                    "round": 7,
+                    "status": "ok",
+                    "ms": 10.220176
+                },
+                {
+                    "round": 8,
+                    "status": "ok",
+                    "ms": 9.413625
+                },
+                {
+                    "round": 9,
+                    "status": "ok",
+                    "ms": 4.849422
+                },
+                {
+                    "round": 10,
+                    "status": "ok",
+                    "ms": 6.218053
+                }
+            ]
+        }
+    },
+    "groups": [
+        {
+            "kernel": "str_slice_ascii_short",
+            "js": "str_slice_ascii_short",
+            "cpp": "str_slice_ascii_short",
+            "cppSymbol": "k_str_slice",
+            "kind": "string",
+            "variant": "owning substring (std::u16string::substr)",
+            "unit": "one s.slice(b, b + 4) (owning)",
+            "n": 10000000,
+            "iterations": 10000000,
+            "alloc": true,
+            "contract": "UTF-16 code units (std::u16string)",
+            "encoding": "ascii",
+            "inputUnits": 16,
+            "codeUnitsProcessed": 40000000,
+            "bytesAllocated": 80000000,
+            "seed": 12345,
+            "checksum": "u32:212488039",
+            "status": "ok",
+            "results": {
+                "nona": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 1861.327242,
+                        "q1": 1841.3936775,
+                        "q3": 1893.6748635,
+                        "iqr": 52.281185999999934,
+                        "min": 1826.485282,
+                        "max": 2021.251386
+                    },
+                    "nsPerOp": 186.1327242,
+                    "opsPerSecond": 5372510.418562928,
+                    "codeUnitsPerSecond": 21490041.674251713
+                },
+                "cpp-o3": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 46.482021,
+                        "q1": 45.380033499999996,
+                        "q3": 46.995654,
+                        "iqr": 1.6156205000000057,
+                        "min": 42.973299,
+                        "max": 48.716814
+                    },
+                    "nsPerOp": 4.6482021,
+                    "opsPerSecond": 215136945.09969777,
+                    "codeUnitsPerSecond": 860547780.3987911,
+                    "ratio": 40.04402566747259
+                }
+            },
+            "samples": [
+                {
+                    "binary": "nona",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 0,
+                    "wallMs": 2089.688,
+                    "status": "ok",
+                    "ns": 1952902620,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 1,
+                    "wallMs": 124.472,
+                    "status": "ok",
+                    "ns": 49476118,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 0,
+                    "wallMs": 120.473,
+                    "status": "ok",
+                    "ns": 46482021,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 1,
+                    "wallMs": 2110.222,
+                    "status": "ok",
+                    "ns": 2021251386,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 0,
+                    "wallMs": 1969.712,
+                    "status": "ok",
+                    "ns": 1861327242,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 1,
+                    "wallMs": 128.53,
+                    "status": "ok",
+                    "ns": 46754704,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 0,
+                    "wallMs": 114.643,
+                    "status": "ok",
+                    "ns": 45002773,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 1,
+                    "wallMs": 1966.628,
+                    "status": "ok",
+                    "ns": 1861601520,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 0,
+                    "wallMs": 127.943,
+                    "status": "ok",
+                    "ns": 47192522,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 1,
+                    "wallMs": 2016.52,
+                    "status": "ok",
+                    "ns": 1916663261,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 0,
+                    "wallMs": 188.358,
+                    "status": "ok",
+                    "ns": 42973299,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 1,
+                    "wallMs": 2006.822,
+                    "status": "ok",
+                    "ns": 1870686466,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 0,
+                    "wallMs": 123.692,
+                    "status": "ok",
+                    "ns": 46798786,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 1,
+                    "wallMs": 1997.911,
+                    "status": "ok",
+                    "ns": 1826485282,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 0,
+                    "wallMs": 1958.494,
+                    "status": "ok",
+                    "ns": 1859252674,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 1,
+                    "wallMs": 129.592,
+                    "status": "ok",
+                    "ns": 47679162,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 0,
+                    "wallMs": 1966.928,
+                    "status": "ok",
+                    "ns": 1851091541,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 1,
+                    "wallMs": 124.916,
+                    "status": "ok",
+                    "ns": 44926694,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 0,
+                    "wallMs": 126.248,
+                    "status": "ok",
+                    "ns": 48716814,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 1,
+                    "wallMs": 1938.308,
+                    "status": "ok",
+                    "ns": 1831171728,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 0,
+                    "wallMs": 129.247,
+                    "status": "ok",
+                    "ns": 45757294,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 1,
+                    "wallMs": 1938.939,
+                    "status": "ok",
+                    "ns": 1831695814,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 0,
+                    "wallMs": 135.032,
+                    "status": "ok",
+                    "ns": 46431814,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 1,
+                    "wallMs": 2530.012,
+                    "status": "ok",
+                    "ns": 1957276498,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                }
+            ]
+        },
+        {
+            "kernel": "str_slice_ascii_short_view",
+            "js": "str_slice_ascii_short",
+            "cpp": "str_slice_ascii_short_view",
+            "cppSymbol": "k_str_slice_view",
+            "kind": "string",
+            "variant": "non-owning view (std::u16string_view::substr)",
+            "unit": "one s.slice(b, b + 4) (owning)",
+            "n": 10000000,
+            "iterations": 10000000,
+            "alloc": true,
+            "contract": "UTF-16, non-owning std::u16string_view: lower bound",
+            "encoding": "ascii",
+            "inputUnits": 16,
+            "codeUnitsProcessed": 40000000,
+            "bytesAllocated": 80000000,
+            "seed": 12345,
+            "checksum": "u32:212488039",
+            "status": "ok",
+            "results": {
+                "nona": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 1861.482631,
+                        "q1": 1839.0230219999999,
+                        "q3": 1881.0912665,
+                        "iqr": 42.06824450000022,
+                        "min": 1801.39973,
+                        "max": 2096.129835
+                    },
+                    "nsPerOp": 186.1482631,
+                    "opsPerSecond": 5372061.943241414,
+                    "codeUnitsPerSecond": 21488247.772965655
+                },
+                "cpp-o3": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 19.355765,
+                        "q1": 18.859715,
+                        "q3": 20.0315645,
+                        "iqr": 1.1718495000000004,
+                        "min": 18.377828,
+                        "max": 39.192855
+                    },
+                    "nsPerOp": 1.9355765,
+                    "opsPerSecond": 516641941.0444382,
+                    "codeUnitsPerSecond": 2066567764.1777527,
+                    "ratio": 96.17199997003476
+                }
+            },
+            "samples": [
+                {
+                    "binary": "nona",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 0,
+                    "wallMs": 3176.424,
+                    "status": "ok",
+                    "ns": 1860054766,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 1,
+                    "wallMs": 121.029,
+                    "status": "ok",
+                    "ns": 19512792,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 0,
+                    "wallMs": 93.892,
+                    "status": "ok",
+                    "ns": 19142477,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 1,
+                    "wallMs": 1966.593,
+                    "status": "ok",
+                    "ns": 1856229997,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 0,
+                    "wallMs": 151.821,
+                    "status": "ok",
+                    "ns": 39192855,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 1,
+                    "wallMs": 2637.546,
+                    "status": "ok",
+                    "ns": 2096129835,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 0,
+                    "wallMs": 940.057,
+                    "status": "ok",
+                    "ns": 19500781,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 1,
+                    "wallMs": 1951.685,
+                    "status": "ok",
+                    "ns": 1843311790,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 0,
+                    "wallMs": 1946.933,
+                    "status": "ok",
+                    "ns": 1834734254,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 1,
+                    "wallMs": 109.851,
+                    "status": "ok",
+                    "ns": 18828883,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 0,
+                    "wallMs": 2021.682,
+                    "status": "ok",
+                    "ns": 1909697639,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 1,
+                    "wallMs": 96.557,
+                    "status": "ok",
+                    "ns": 19355765,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 0,
+                    "wallMs": 95.055,
+                    "status": "ok",
+                    "ns": 19382419,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 1,
+                    "wallMs": 1963.857,
+                    "status": "ok",
+                    "ns": 1867946507,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 0,
+                    "wallMs": 1944.611,
+                    "status": "ok",
+                    "ns": 1830254902,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 1,
+                    "wallMs": 107.425,
+                    "status": "ok",
+                    "ns": 18593388,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 0,
+                    "wallMs": 1991.131,
+                    "status": "ok",
+                    "ns": 1894236026,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 1,
+                    "wallMs": 110.914,
+                    "status": "ok",
+                    "ns": 20562348,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 0,
+                    "wallMs": 1926.892,
+                    "status": "ok",
+                    "ns": 1801399730,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 1,
+                    "wallMs": 109.764,
+                    "status": "ok",
+                    "ns": 18377828,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 0,
+                    "wallMs": 1967.914,
+                    "status": "ok",
+                    "ns": 1863057546,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 1,
+                    "wallMs": 136.993,
+                    "status": "ok",
+                    "ns": 18890547,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 0,
+                    "wallMs": 101.713,
+                    "status": "ok",
+                    "ns": 20793540,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 1,
+                    "wallMs": 1979.535,
+                    "status": "ok",
+                    "ns": 1861482631,
+                    "checksum": "u32:212488039",
+                    "units": 40000000,
+                    "allocUnits": 40000000
+                }
+            ]
+        },
+        {
+            "kernel": "str_format_int_short",
+            "js": "str_format_int_short",
+            "cpp": "str_format_int_short",
+            "cppSymbol": "k_str_format",
+            "kind": "string",
+            "variant": "number formatting (C++: to_chars fixed, widened to u16string)",
+            "unit": "one String(x), x an integer-valued double < 2^53",
+            "n": 10000000,
+            "iterations": 10000000,
+            "alloc": true,
+            "contract": "UTF-16 code units (std::u16string)",
+            "encoding": "int",
+            "codeUnitsProcessed": 86057420,
+            "bytesAllocated": 172114840,
+            "seed": 12345,
+            "checksum": "u32:1137588210",
+            "status": "ok",
+            "results": {
+                "nona": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 2519.590392,
+                        "q1": 2504.9138270000003,
+                        "q3": 2535.156547,
+                        "iqr": 30.242719999999736,
+                        "min": 2487.252132,
+                        "max": 2571.832952
+                    },
+                    "nsPerOp": 251.9590392,
+                    "opsPerSecond": 3968899.0844508666,
+                    "codeUnitsPerSecond": 34155321.54482037
+                },
+                "cpp-o3": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 351.997124,
+                        "q1": 349.40924500000006,
+                        "q3": 354.77767700000004,
+                        "iqr": 5.368431999999984,
+                        "min": 345.963542,
+                        "max": 365.161569
+                    },
+                    "nsPerOp": 35.1997124,
+                    "opsPerSecond": 28409323.02617336,
+                    "codeUnitsPerSecond": 244483304.3579072,
+                    "ratio": 7.157985733997077
+                }
+            },
+            "samples": [
+                {
+                    "binary": "cpp-o3",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 0,
+                    "wallMs": 443.916,
+                    "status": "ok",
+                    "ns": 359281900,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 1,
+                    "wallMs": 2636.941,
+                    "status": "ok",
+                    "ns": 2531694833,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 0,
+                    "wallMs": 448.376,
+                    "status": "ok",
+                    "ns": 365161569,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 1,
+                    "wallMs": 2623.159,
+                    "status": "ok",
+                    "ns": 2507037969,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 0,
+                    "wallMs": 447.211,
+                    "status": "ok",
+                    "ns": 350676674,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 1,
+                    "wallMs": 2619.141,
+                    "status": "ok",
+                    "ns": 2507495126,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 0,
+                    "wallMs": 2609.118,
+                    "status": "ok",
+                    "ns": 2519590392,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 1,
+                    "wallMs": 425.146,
+                    "status": "ok",
+                    "ns": 349102632,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 0,
+                    "wallMs": 420.615,
+                    "status": "ok",
+                    "ns": 345963542,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 1,
+                    "wallMs": 2602.213,
+                    "status": "ok",
+                    "ns": 2500642131,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 0,
+                    "wallMs": 424.532,
+                    "status": "ok",
+                    "ns": 349715858,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 1,
+                    "wallMs": 2606.958,
+                    "status": "ok",
+                    "ns": 2487252132,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 0,
+                    "wallMs": 2636.484,
+                    "status": "ok",
+                    "ns": 2529568941,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 1,
+                    "wallMs": 439.15,
+                    "status": "ok",
+                    "ns": 348728827,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 0,
+                    "wallMs": 2650.436,
+                    "status": "ok",
+                    "ns": 2543799921,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 1,
+                    "wallMs": 430.13,
+                    "status": "ok",
+                    "ns": 351997124,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 0,
+                    "wallMs": 2603.692,
+                    "status": "ok",
+                    "ns": 2502789685,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 1,
+                    "wallMs": 429.285,
+                    "status": "ok",
+                    "ns": 352641329,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 0,
+                    "wallMs": 427.15,
+                    "status": "ok",
+                    "ns": 354550340,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 1,
+                    "wallMs": 2641.846,
+                    "status": "ok",
+                    "ns": 2540744153,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 0,
+                    "wallMs": 2713.774,
+                    "status": "ok",
+                    "ns": 2571832952,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 1,
+                    "wallMs": 532.864,
+                    "status": "ok",
+                    "ns": 355005014,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 0,
+                    "wallMs": 435.868,
+                    "status": "ok",
+                    "ns": 359962239,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 1,
+                    "wallMs": 2623.392,
+                    "status": "ok",
+                    "ns": 2526838465,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                }
+            ]
+        },
+        {
+            "kernel": "str_format_int_short_bytes",
+            "js": "str_format_int_short",
+            "cpp": "str_format_int_short_bytes",
+            "cppSymbol": "k_str_format_bytes",
+            "kind": "string",
+            "variant": "to_chars into a stack buffer",
+            "unit": "one String(x), x an integer-valued double < 2^53",
+            "n": 10000000,
+            "iterations": 10000000,
+            "alloc": true,
+            "contract": "char buffer, no string object: lower bound",
+            "encoding": "int",
+            "codeUnitsProcessed": 86057420,
+            "bytesAllocated": 172114840,
+            "seed": 12345,
+            "checksum": "u32:1137588210",
+            "status": "ok",
+            "results": {
+                "nona": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 2550.77106,
+                        "q1": 2530.9482635,
+                        "q3": 2565.7715275,
+                        "iqr": 34.82326400000011,
+                        "min": 2509.041358,
+                        "max": 2819.989489
+                    },
+                    "nsPerOp": 255.077106,
+                    "opsPerSecond": 3920383.1958168754,
+                    "codeUnitsPerSecond": 33737806.32433551
+                },
+                "cpp-o3": {
+                    "status": "ok",
+                    "summaryMs": {
+                        "n": 11,
+                        "median": 238.675235,
+                        "q1": 235.44391050000002,
+                        "q3": 246.055706,
+                        "iqr": 10.611795499999971,
+                        "min": 230.426408,
+                        "max": 270.285249
+                    },
+                    "nsPerOp": 23.8675235,
+                    "opsPerSecond": 41897937.16972773,
+                    "codeUnitsPerSecond": 360562837.61488706,
+                    "ratio": 10.68720456062398
+                }
+            },
+            "samples": [
+                {
+                    "binary": "cpp-o3",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 0,
+                    "wallMs": 350.806,
+                    "status": "ok",
+                    "ns": 261809349,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": true,
+                    "round": -1,
+                    "position": 1,
+                    "wallMs": 2642.536,
+                    "status": "ok",
+                    "ns": 2514912629,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 0,
+                    "wallMs": 2687.813,
+                    "status": "ok",
+                    "ns": 2574898321,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 0,
+                    "position": 1,
+                    "wallMs": 334.578,
+                    "status": "ok",
+                    "ns": 243123339,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 0,
+                    "wallMs": 320.722,
+                    "status": "ok",
+                    "ns": 248988073,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 1,
+                    "position": 1,
+                    "wallMs": 2661.8,
+                    "status": "ok",
+                    "ns": 2540946356,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 0,
+                    "wallMs": 2660.763,
+                    "status": "ok",
+                    "ns": 2556644734,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 2,
+                    "position": 1,
+                    "wallMs": 418.744,
+                    "status": "ok",
+                    "ns": 232403541,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 0,
+                    "wallMs": 543.26,
+                    "status": "ok",
+                    "ns": 230426408,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 3,
+                    "position": 1,
+                    "wallMs": 2661.564,
+                    "status": "ok",
+                    "ns": 2554230602,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 0,
+                    "wallMs": 2658.933,
+                    "status": "ok",
+                    "ns": 2530387260,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 4,
+                    "position": 1,
+                    "wallMs": 317.502,
+                    "status": "ok",
+                    "ns": 235823448,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 0,
+                    "wallMs": 311.008,
+                    "status": "ok",
+                    "ns": 238675235,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 5,
+                    "position": 1,
+                    "wallMs": 2616.616,
+                    "status": "ok",
+                    "ns": 2509041358,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 0,
+                    "wallMs": 3496.245,
+                    "status": "ok",
+                    "ns": 2819989489,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 6,
+                    "position": 1,
+                    "wallMs": 358.171,
+                    "status": "ok",
+                    "ns": 270285249,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 0,
+                    "wallMs": 335.676,
+                    "status": "ok",
+                    "ns": 250566990,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 7,
+                    "position": 1,
+                    "wallMs": 2685.779,
+                    "status": "ok",
+                    "ns": 2578000155,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 0,
+                    "wallMs": 2661.723,
+                    "status": "ok",
+                    "ns": 2550771060,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 8,
+                    "position": 1,
+                    "wallMs": 325.942,
+                    "status": "ok",
+                    "ns": 236605015,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 0,
+                    "wallMs": 323.813,
+                    "status": "ok",
+                    "ns": 241232778,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 9,
+                    "position": 1,
+                    "wallMs": 2636.431,
+                    "status": "ok",
+                    "ns": 2531509267,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "cpp-o3",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 0,
+                    "wallMs": 304.334,
+                    "status": "ok",
+                    "ns": 235064373,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                },
+                {
+                    "binary": "nona",
+                    "warmup": false,
+                    "round": 10,
+                    "position": 1,
+                    "wallMs": 2643.171,
+                    "status": "ok",
+                    "ns": 2515850480,
+                    "checksum": "u32:1137588210",
+                    "units": 86057420,
+                    "allocUnits": 86057420
+                }
+            ]
+        }
+    ]
+}

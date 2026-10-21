@@ -55,7 +55,8 @@ node scripts/test262-summary.mjs work/test262-audit --compare work/previous-audi
 
 The summary classifies each failure as `eval` (the test uses eval; with
 compile-time eval sources these are mostly run-time sources, `$262.evalScript`
-or other realms), `post` (post-ES2020 semantics under an older or missing
+or other realms; run-time sources are the intentional exception of
+[`es2020-contract.md`](es2020-contract.md), [#11](https://github.com/40oleg/nona/issues/11)), `post` (post-ES2020 semantics under an older or missing
 feature tag) or `other`, and lists `other` files (`--evals <file>` lists the
 eval ones). `TEST262_FILE_LIST=<file>` restricts a run of
 `scripts/test262-smoke.mjs <group>` to the listed paths, for example to rerun

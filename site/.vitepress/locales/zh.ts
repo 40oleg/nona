@@ -22,6 +22,7 @@ export const zh: Dictionary = {
         compatibility: "兼容性与限制",
         performance: "性能",
         status: "状态与路线图",
+        completenessAudit: "完整性审计（英文）",
         languageGroup: "语言与兼容性",
         tools: "工具与构建",
         apis: "宿主 API",

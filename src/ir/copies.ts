@@ -29,8 +29,22 @@ function rewriteUses(op: Operation, alias: Map_): Operation {
             return { ...op, source: r(op.source) };
         case "storeGlobal":
             return { ...op, source: r(op.source) };
+        case "isFunctionCode":
+            return { ...op, callee: r(op.callee) };
         case "property":
             return { ...op, object: r(op.object), key: r(op.key) };
+        case "newObject":
+            if (op.literal?.values.some((n) => r(n) !== n))
+                return {
+                    ...op,
+                    literal: {
+                        ...op.literal,
+                        values: op.literal.values.map(r),
+                    },
+                };
+            if (op.elementValues?.some((n) => r(n) !== n))
+                return { ...op, elementValues: op.elementValues.map(r) };
+            return op;
         case "setProperty":
             return {
                 ...op,
@@ -76,6 +90,8 @@ const removable = new Set<Operation["kind"]>([
     "copy",
     "constant",
     "uninitialized",
+    "globalObject",
+    "isFunctionCode",
 ]);
 /**
  * Operations with no effect besides their destination, dropped like moves

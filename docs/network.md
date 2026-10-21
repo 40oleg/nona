@@ -8,7 +8,7 @@ into programs that import them, over a small platform layer: raw system calls
 on Linux, Winsock (`ws2_32.dll`) through [`nona:ffi`](ffi.md) on Windows.
 
 ```js
-import http from "node:http";
+import http from "nona:http";
 
 const server = http.createServer((req, res) => {
     res.setHeader("Content-Type", "text/plain");

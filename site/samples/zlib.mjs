@@ -5,9 +5,9 @@ import {
     createGzip,
     createGunzip,
     crc32,
-} from "node:zlib";
-import { pipeline } from "node:stream/promises";
-import { Readable, Writable } from "node:stream";
+} from "nona:zlib";
+import { pipeline } from "nona:stream/promises";
+import { Readable, Writable } from "nona:stream";
 
 const text = "hello hello hello hello, zlib in a native executable\n".repeat(
     20,

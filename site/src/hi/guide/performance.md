@@ -4,6 +4,10 @@
 यह पेज अंग्रेज़ी पेज [Performance](/guide/performance) का अनुवाद है, जो [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md) से बनता है। अंग्रेज़ी संस्करण ही प्रामाणिक है और उसमें नई जानकारी हो सकती है। `node bench/run.mjs` माप दोबारा तैयार करता है।
 :::
 
+::: tip
+अनुकूलित C++ से तुलना (अंकगणित, फ़ंक्शन कॉल और UTF-16 स्ट्रिंग; 2026-10-20) [docs/perf-cpp.md](https://github.com/40oleg/nona/blob/main/docs/perf-cpp.md) में है (अंग्रेज़ी में)।
+:::
+
 ::: warning
 Node.js, Deno और Bun से 2026-10-18 (v0.18.0) की ताज़ा तुलना [अंग्रेज़ी पेज](/guide/performance#current-release-v0180-against-nodejs-deno-and-bun) पर है: hello world 1.3 ms में शुरू होता है और 1.1 MB का है (स्टार्ट-अप और मेमोरी Node.js का ×0.1), सादे लूप और कलेक्शन ×2–×4 धीमे हैं, Are-We-Fast-Yet के ऑब्जेक्ट-ओरिएंटेड बेंचमार्क और असली लाइब्रेरियाँ ×11–×13, और RegExp इंजन से गुज़रने वाला सब कुछ ×60–×350। नीचे v0.7.0 मापों का अनुवाद है।
 :::

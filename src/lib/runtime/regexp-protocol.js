@@ -1,7 +1,7 @@
 // RegExpExec (ES2020 21.2.5.2.1): a callable exec wins, otherwise the builtin one.
-__nonaRegexpVm.regExpExec = (function (builtinExec, apply) {
-    return function (R, S) {
-        var exec = R.exec;
+// regExpExecWith takes the exec that was already read from R.
+__nonaRegexpVm.regExpExecWith = (function (builtinExec, apply) {
+    return function (R, S, exec) {
         if (typeof exec === "function") {
             var result = apply(exec, R, S);
             if (
@@ -18,6 +18,43 @@ __nonaRegexpVm.regExpExec = (function (builtinExec, apply) {
     };
 })(
     RegExp.prototype.exec,
+    Function.prototype.call.bind(Function.prototype.call),
+);
+__nonaRegexpVm.regExpExec = function (R, S) {
+    return __nonaRegexpVm.regExpExecWith(R, S, R.exec);
+};
+// Whether exec, just read from R, is the builtin one and every later read
+// of R.exec returns it without running user code (#389): R is a genuine
+// RegExp (not a Proxy: the source getter throws for anything else) without
+// an own exec, whose prototype is the original RegExp.prototype with its
+// exec a data property. [Symbol.match] may then let the engine run the
+// whole global loop.
+__nonaRegexpVm.isBuiltinExec = (function (
+    builtinExec,
+    regexpPrototype,
+    sourceGetter,
+    getOwnPropertyDescriptor,
+    getPrototypeOf,
+    apply,
+) {
+    return function (R, exec) {
+        if (exec !== builtinExec || R === regexpPrototype) return false;
+        try {
+            apply(sourceGetter, R);
+        } catch (error) {
+            return false;
+        }
+        if (getOwnPropertyDescriptor(R, "exec") !== undefined) return false;
+        if (getPrototypeOf(R) !== regexpPrototype) return false;
+        var own = getOwnPropertyDescriptor(regexpPrototype, "exec");
+        return own !== undefined && own.value === builtinExec;
+    };
+})(
+    RegExp.prototype.exec,
+    RegExp.prototype,
+    Object.getOwnPropertyDescriptor(RegExp.prototype, "source").get,
+    Object.getOwnPropertyDescriptor,
+    Object.getPrototypeOf,
     Function.prototype.call.bind(Function.prototype.call),
 );
 Object.defineProperty(RegExp.prototype, Symbol.match, {
@@ -43,9 +80,27 @@ Object.defineProperty(RegExp.prototype, Symbol.match, {
                 return single;
             }
             this.lastIndex = 0;
-            var matches = [];
+            var matches = [],
+                safe = __nonaRegexpVm,
+                exec = this.exec,
+                result;
+            if (safe.isBuiltinExec(this, exec)) {
+                // The engine collects the matched strings in one call of
+                // the builtin exec when the expression's own flags agree;
+                // otherwise that call was the first exec of the loop.
+                safe.collect = unicode ? 2 : 1;
+                safe.collected = false;
+                try {
+                    result = safe.safeCall(exec, this, input);
+                } finally {
+                    safe.collect = 0;
+                }
+                if (safe.collected) {
+                    safe.collected = false;
+                    return result;
+                }
+            } else result = safe.regExpExecWith(this, input, exec);
             while (true) {
-                var result = __nonaRegexpVm.regExpExec(this, input);
                 if (result === null)
                     return matches.length === 0 ? null : matches;
                 if (typeof result !== "object" && typeof result !== "function")
@@ -67,6 +122,7 @@ Object.defineProperty(RegExp.prototype, Symbol.match, {
                                 : 1);
                     } else this.lastIndex = index + 1;
                 }
+                result = safe.regExpExec(this, input);
             }
         },
     }[Symbol.match],
@@ -189,6 +245,10 @@ Object.defineProperty(RegExp.prototype, Symbol.replace, {
                     global &&
                     (flags.indexOf("u") >= 0 || flags.indexOf("v") >= 0);
             if (global) this.lastIndex = 0;
+            // A replacement without $ is used as it is, not expanded per match (#387).
+            var literal =
+                !functional &&
+                safe.replaceIndexOf.call(replacement, "$", 0) < 0;
             var results = [];
             while (true) {
                 var result = __nonaRegexpVm.regExpExec(this, input);
@@ -291,7 +351,8 @@ Object.defineProperty(RegExp.prototype, Symbol.replace, {
                     value = String(
                         safe.replaceApply.call(replaceValue, undefined, args),
                     );
-                } else {
+                } else if (literal) value = replacement;
+                else {
                     for (var j = 0; j < replacement.length; j++) {
                         var c = replacement[j];
                         if (c !== "$" || j + 1 >= replacement.length) {
@@ -709,63 +770,83 @@ Object.defineProperty(String.prototype, "replaceAll", {
                     );
                 replacement = String(replaceValue);
             }
-            var pieces = [],
-                end = 0,
-                position = input.indexOf(search, 0);
-            var add = function (piece) {
-                Object.defineProperty(pieces, pieces.length, {
+            var safe = __nonaRegexpVm,
+                pieces = [],
+                parts = null,
+                constant = "";
+            var add = function (list, piece) {
+                Object.defineProperty(list, list.length, {
                     value: piece,
                     writable: true,
                     enumerable: true,
                     configurable: true,
                 });
             };
+            if (!functional) {
+                // The replacement is expanded once (#387): for a string search
+                // only the prefix and suffix patterns depend on the match. parts then
+                // alternates the constant pieces with 1 (prefix) and 2 (suffix).
+                var from = 0,
+                    at = safe.replaceIndexOf.call(replacement, "$", 0);
+                while (at >= 0 && at + 1 < replacement.length) {
+                    constant += safe.replaceSlice.call(replacement, from, at);
+                    var next = safe.replaceCharCodeAt.call(replacement, at + 1);
+                    from = at + 2;
+                    if (next === 36) constant += "$";
+                    else if (next === 38) constant += search;
+                    else if (next === 96 || next === 39) {
+                        if (parts === null) parts = [];
+                        add(parts, constant);
+                        add(parts, next === 96 ? 1 : 2);
+                        constant = "";
+                    } else {
+                        constant += "$";
+                        from = at + 1;
+                    }
+                    at = safe.replaceIndexOf.call(replacement, "$", from);
+                }
+                constant += safe.replaceSlice.call(replacement, from);
+                // A literal replacement of a non-empty search: one native scan
+                // and one copy into a result of the final length.
+                if (
+                    parts === null &&
+                    search.length > 0 &&
+                    safe.replaceAllUnits !== null
+                )
+                    return safe.replaceAllUnits(input, search, constant);
+            }
+            var end = 0,
+                position = safe.replaceIndexOf.call(input, search, 0);
             while (position >= 0) {
-                add(input.slice(end, position));
-                var value = "";
+                add(pieces, safe.replaceSlice.call(input, end, position));
+                var value = constant;
                 if (functional)
                     value = String(replaceValue(search, position, input));
-                else {
-                    for (var i = 0; i < replacement.length; i++) {
-                        var c = replacement[i];
-                        if (c !== "$" || i + 1 >= replacement.length) {
-                            value += c;
-                            continue;
-                        }
-                        var next = replacement[i + 1];
-                        if (next === "$") {
-                            value += "$";
-                            i++;
-                            continue;
-                        }
-                        if (next === "&") {
-                            value += search;
-                            i++;
-                            continue;
-                        }
-                        if (next.charCodeAt(0) === 96) {
-                            value += input.slice(0, position);
-                            i++;
-                            continue;
-                        }
-                        if (next === "'") {
-                            value += input.slice(position + search.length);
-                            i++;
-                            continue;
-                        }
-                        value += "$";
+                else if (parts !== null) {
+                    value = "";
+                    for (var i = 0; i < parts.length; i++) {
+                        var part = parts[i];
+                        if (part === 1)
+                            value += safe.replaceSlice.call(input, 0, position);
+                        else if (part === 2)
+                            value += safe.replaceSlice.call(
+                                input,
+                                position + search.length,
+                            );
+                        else value += part;
                     }
+                    value += constant;
                 }
-                add(value);
+                add(pieces, value);
                 end = position + search.length;
                 var nextPosition =
                     position + (search.length === 0 ? 1 : search.length);
                 position =
                     nextPosition > input.length
                         ? -1
-                        : input.indexOf(search, nextPosition);
+                        : safe.replaceIndexOf.call(input, search, nextPosition);
             }
-            add(input.slice(end));
+            add(pieces, safe.replaceSlice.call(input, end));
             return __nonaRegexpVm.replaceJoin.call(pieces, "");
         },
     }.replaceAll,
@@ -776,6 +857,12 @@ __nonaRegexpVm.replaceSlice = String.prototype.slice;
 __nonaRegexpVm.replaceIndexOf = String.prototype.indexOf;
 __nonaRegexpVm.replaceCharCodeAt = String.prototype.charCodeAt;
 __nonaRegexpVm.replaceJoin = Array.prototype.join;
+// The native literal replaceAll (#387): a host global wherever this prelude is.
+__nonaRegexpVm.replaceAllUnits =
+    typeof __nonaReplaceAllInternal === "function"
+        ? __nonaReplaceAllInternal
+        : null;
+delete globalThis.__nonaReplaceAllInternal;
 __nonaRegexpVm.positionArrayConstructor = Uint32Array;
 __nonaRegexpVm.byteArrayConstructor = Uint8Array;
 __nonaRegexpVm.byteArrayFill = Uint8Array.prototype.fill;

@@ -17,7 +17,7 @@ Nona 是提前编译的，因此 `eval` 和动态函数构造器需要在编译�
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-运行时源码的支持在 [#11](https://github.com/40oleg/nona/issues/11) 中跟踪。
+这是一个长期的、已记录的例外（[#11](https://github.com/40oleg/nona/issues/11)，[ES2020 约定](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)）：生成的可执行文件不包含解释器或编译器。
 
 ## 与 Node.js 的差异
 
@@ -44,11 +44,13 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 每个可执行文件都包含运行时，但其中较大的可选部件只有在程序可能用到时才会被链接。编译器根据它编译的每个源文件的文本来判断：程序本身、它的模块以及编译期的 `eval`/`Function` 源码：
 
-| 部件                              | 大小      | 当源码包含以下内容时链接                                                                                          |
-| --------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------- |
-| RegExp 引擎                       | 约 1 MB   | RegExp 字面量，或名称 `RegExp`、`match`、`matchAll`、`search`（作为标识符、属性名，或出现在字符串或模板字面量中） |
-| `\p{…}`/`\P{…}` 的 Unicode 属性表 | 约 2 MB   | RegExp 字面量或字符串中的 `\p{` 或 `\P{`，或上述名称之一（模式可能在运行时构造）                                  |
-| Unicode 规范化表                  | 约 0.7 MB | 名称 `normalize` 或 `localeCompare`                                                                               |
+| 部件                              | 大小      | 当源码包含以下内容时链接                                                                              |
+| --------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| RegExp 引擎                       | 约 1 MB   | RegExp 字面量，或名称 `RegExp`、`match`、`matchAll`、`search`（作为自由标识符、属性名或属性键字符串） |
+| `\p{…}`/`\P{…}` 的 Unicode 属性表 | 约 2 MB   | RegExp 字面量或字符串中的 `\p{` 或 `\P{`，且同时链接了引擎（模式可能在运行时构造）                    |
+| Unicode 规范化表                  | 约 0.7 MB | 名称 `normalize` 或 `localeCompare`                                                                   |
+
+名称在以下情况选中部件：它是自由标识符（同名的局部变量、参数或导入不会选中任何部件）、属性名（`s.normalize()`），或处于键位置的字符串（`s["normalize"]`、`"x" in o`、`Reflect.get(o, "x")`、模块说明符）。普通字符串如 `console.log("normalize")`，或名为 `small` 的局部变量，不会选中任何部件。如果程序用编译器无法得知的键读取属性（`o[name]`），则每个与名称完全相等的字符串也会计入。在 `with` 内以及含非严格直接 `eval` 的函数中，每个标识符都会计入。属性名无论接收者是什么都会选中对应部件，所导入的内置模块的代码与你自己的代码同样计入。运行时构造的键（`"nor" + "malize"`）不可见：请使用 `--link` 或 `--full-runtime`（[#438](https://github.com/40oleg/nona/issues/438)）。
 
 带字符串参数的 `split`、`replace` 和 `replaceAll` 不需要 RegExp 引擎。
 
@@ -76,6 +78,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 只有部分语法需要的辅助函数在编译后的程序调用它们时链接，而不是按名称：`with` 语句、字面量 `eval`、类字段与私有名称，以及带 `import()` 和 `import.meta` 的 ES 模块（[#278](https://github.com/40oleg/nona/issues/278)）。
 
 程序仍可能通过运行时计算出的名称（例如 `globalThis['Reg' + 'Exp']`）访问被省略的部件。对于 RegExp 引擎和 Unicode 表，这样的调用会抛出 `Error`，其消息指出缺少的部件；被省略的全局对象或方法则直接不存在。使用 `--full-runtime`（或 [`compile()`](/reference/api) 的 `fullRuntime` 选项）编译即可链接所有部件（[#62](https://github.com/40oleg/nona/issues/62)）。 使用 `--link 部件,...` 可单独添加部件，`--print-link` 会列出已链接的内容以及选中每个部件的名称（[#182](https://github.com/40oleg/nona/issues/182)）。
+
+内置模块的具名导入会在选择运行时部分之前被裁剪：`import { existsSync } from "node:fs"` 只保留 `existsSync` 可达的 `fs` 代码，因此不会链接 RegExp 引擎、Unicode 表和定时器（win32-x64 上为 1,808,896 字节，而不是 5,017,088 字节）。命名空间导入、默认导入、`import()`、`require` 和 `process.getBuiltinModule` 会保留整个模块（[设计与限制](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md)，[#440](https://github.com/40oleg/nona/issues/440)）。
 
 ## Realms
 

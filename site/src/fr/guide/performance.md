@@ -4,6 +4,10 @@
 Cette page est une traduction de la page anglaise [Performance](/guide/performance), générée à partir de [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md). La version anglaise fait foi et peut être plus récente. `node bench/run.mjs` reproduit les mesures.
 :::
 
+::: tip
+La comparaison avec du C++ optimisé (arithmétique, appels et chaînes UTF-16 ; 2026-10-20) se trouve dans [docs/perf-cpp.md](https://github.com/40oleg/nona/blob/main/docs/perf-cpp.md) (en anglais).
+:::
+
 ::: warning
 La comparaison actuelle avec Node.js, Deno et Bun (2026-10-18, v0.18.0) se trouve sur la [page anglaise](/guide/performance#current-release-v0180-against-nodejs-deno-and-bun) : hello world démarre en 1,3 ms et pèse 1,1 Mo (démarrage et mémoire : ×0,1 de Node.js), les boucles et collections simples sont ×2–×4 plus lentes, les tests orientés objet d'Are-We-Fast-Yet et les bibliothèques réelles ×11–×13, et tout ce qui passe par le moteur RegExp ×60–×350. Ci-dessous, la traduction des mesures de v0.7.0.
 :::

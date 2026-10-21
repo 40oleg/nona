@@ -2,7 +2,7 @@
 
 ## Version actuelle
 
-**v0.19.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
+**v0.22.0** — voir le [journal des modifications](/changelog) (en anglais). Nona est expérimental : il n’a fait l’objet d’aucun audit de sécurité et ne remplace pas Node.js tel quel.
 
 ## Audit Test262
 
@@ -36,7 +36,6 @@ L’audit de v0.8.0 a aussi relevé sept plantages (`Array.prototype.indexOf` su
 
 Lacunes du langage et de la bibliothèque :
 
-- [#11](https://github.com/40oleg/nona/issues/11) — `eval` et `Function` avec un source calculé à l’exécution.
 - [#44](https://github.com/40oleg/nona/issues/44) — réactions des Promise : un genre de promesse dédié et un enregistrement par `then`.
 
 Performances, l’axe principal de la [feuille de route](https://github.com/40oleg/nona/blob/main/docs/roadmap.md) :

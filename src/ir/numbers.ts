@@ -13,7 +13,8 @@ import { analyzeLiveness, isLive, liveFloor } from "./liveness.js";
  * arithmetic, comparison or update operation whose operands are all such
  * slots is marked `numeric`; the code generator then emits it without tag
  * checks and without the generic runtime fallback, and since it cannot reach
- * the runtime, without clearing dead slots before it.
+ * the runtime, without clearing dead slots before it. An element read or
+ * assignment whose key is such a slot is marked `numericKey` (#240).
  *
  * Numbers come from number constants, from + - * / on Numbers, and from the
  * numeric/increment/decrement/negation unary operators on Numbers. BigInt
@@ -35,13 +36,33 @@ const arithmetic = new Set(["+", "-", "*", "/"]);
 const relation = new Set(["<", "<=", ">", ">=", "==", "===", "!=", "!=="]);
 const numericUnary = new Set(["numeric", "increment", "decrement", "-", "+"]);
 
+/**
+ * `object[key]` reads and `object[key] = value` assignments whose key is not
+ * a literal name: with a Number key (marked `numericKey`) the code generator
+ * may access a typed array element inline (#240).
+ */
+function elementSite(
+    op: Operation,
+): op is Extract<Operation, { kind: "property" | "setProperty" }> {
+    return (
+        (op.kind === "property" &&
+            op.operation === "get" &&
+            op.keyName === undefined) ||
+        (op.kind === "setProperty" &&
+            !op.define &&
+            op.keyName === undefined &&
+            op.literalSlot === undefined &&
+            op.literalElement === undefined)
+    );
+}
+
 type State = Set<number> | null;
 function intersect(a: State, b: ReadonlySet<number>): Set<number> {
     if (a === null) return new Set(b);
     for (const slot of a) if (!b.has(slot)) a.delete(slot);
     return a;
 }
-function isNumericOperation(
+export function isNumericOperation(
     operation: Operation,
     state: ReadonlySet<number>,
 ): boolean {
@@ -72,7 +93,8 @@ const numberWithNumber = new Set([
     "<<",
     ">>",
 ]);
-function producesNumber(
+/** Whether operation's result is a Number when the slots in state hold Numbers (or it throws). */
+export function producesNumber(
     operation: Operation,
     state: ReadonlySet<number>,
 ): boolean {
@@ -94,7 +116,8 @@ function producesNumber(
         );
     return false;
 }
-function step(operation: Operation, state: Set<number>): void {
+/** The Number facts across one operation. */
+export function stepNumbers(operation: Operation, state: Set<number>): void {
     if (operation.kind === "constant") {
         if (typeof operation.value === "number") state.add(operation.dest);
         else state.delete(operation.dest);
@@ -119,15 +142,22 @@ function step(operation: Operation, state: Set<number>): void {
     if ("dest" in operation) state.delete(operation.dest);
 }
 
-export function markNumericOperations(fn: FunctionIR): FunctionIR {
-    if (
-        !fn.blocks.some((block) =>
-            block.operations.some(
-                (op) => op.kind === "binary" || op.kind === "unary",
-            ),
-        )
-    )
-        return fn;
+/**
+ * A forward must-analysis over fn's blocks (shared with representations.ts):
+ * the slots with some property at each block's entry, null where no block
+ * reaches. `step` updates the set across one operation; `edge` may add
+ * facts that hold on one terminator edge. Exception edges carry what holds
+ * at every point of the block. Entry sets keep only slots live there.
+ */
+export function solveForwardMust(
+    fn: FunctionIR,
+    step: (operation: Operation, state: Set<number>) => void,
+    edge?: (
+        block: number,
+        target: number,
+        out: Set<number>,
+    ) => ReadonlySet<number>,
+): (Set<number> | null)[] {
     const index = new Map(fn.blocks.map((block, i) => [block.id, i]));
     const liveness = analyzeLiveness(fn),
         floor = liveFloor(fn);
@@ -141,10 +171,6 @@ export function markNumericOperations(fn: FunctionIR): FunctionIR {
     const entry: State[] = fn.blocks.map((_, i) =>
         i === 0 ? new Set<number>() : null,
     );
-    const successors = (i: number): number[] => {
-        return terminatorTargets(fn.blocks[i]!.terminator);
-    };
-    const guards = fn.blocks.map(typeofGuard);
     let changed = true;
     while (changed) {
         changed = false;
@@ -170,16 +196,40 @@ export function markNumericOperations(fn: FunctionIR): FunctionIR {
                     changed = true;
                 }
             };
-            const guard = guards[i];
-            for (const target of successors(i)) {
-                if (guard?.target !== target || state.has(guard.slot))
-                    flow(target, state);
-                else flow(target, new Set([...state, guard.slot]));
-            }
+            for (const target of terminatorTargets(block.terminator))
+                flow(target, edge ? edge(i, target, state) : state);
             if (block.exceptionTarget !== undefined)
                 flow(block.exceptionTarget, everywhere);
         });
     }
+    return entry;
+}
+
+/** The slots that hold a Number at the entry of each block (null: unreachable). */
+export function numberStates(fn: FunctionIR): (Set<number> | null)[] {
+    const guards = fn.blocks.map(typeofGuard);
+    return solveForwardMust(fn, stepNumbers, (i, target, state) => {
+        const guard = guards[i];
+        return guard?.target !== target || state.has(guard.slot)
+            ? state
+            : new Set([...state, guard.slot]);
+    });
+}
+
+export function markNumericOperations(fn: FunctionIR): FunctionIR {
+    if (
+        !fn.blocks.some((block) =>
+            block.operations.some(
+                (op) =>
+                    op.kind === "binary" ||
+                    op.kind === "unary" ||
+                    elementSite(op),
+            ),
+        )
+    )
+        return fn;
+    const entry = numberStates(fn),
+        step = stepNumbers;
     return {
         ...fn,
         blocks: fn.blocks.map((block, i) => {
@@ -188,6 +238,11 @@ export function markNumericOperations(fn: FunctionIR): FunctionIR {
             const state = new Set(start);
             let marked = false;
             const operations = block.operations.map((operation) => {
+                if (elementSite(operation) && state.has(operation.key)) {
+                    step(operation, state);
+                    marked = true;
+                    return { ...operation, numericKey: true } as Operation;
+                }
                 const numeric = isNumericOperation(operation, state);
                 step(operation, state);
                 if (!numeric) return operation;

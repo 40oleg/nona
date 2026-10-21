@@ -1,0 +1,33 @@
+{
+    "revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+    "totalTestFiles": 53597,
+    "denominator": "All tracked test/**/*.js excluding _FIXTURE, as enumerated by the existing runner; file counts, not strict/sloppy variants. Groups may overlap: do not sum blindly.",
+    "reports": [
+        {
+            "file": "work\\completeness-test262-local\\coalesce.json",
+            "sha256": "8abc2d1f0307449077be5864b8bae7c174a79e6fd7a2658007a14e0c953362c8",
+            "date": "2026-10-18T20:41:50.308Z",
+            "revision": "7ab7fafa0003f73fc85c1b95d88094d33f7eb8bd",
+            "target": "win32-x64",
+            "group": "language/expressions/coalesce",
+            "totalInGroup": 24,
+            "selected": 8,
+            "excludedBeforeSelection": 16,
+            "evaluated": 8,
+            "runtimeExecuted": 6,
+            "compilerOnly": 2,
+            "passed": 8,
+            "failed": 0,
+            "skipped": 0,
+            "filters": {
+                "path": "",
+                "excludePaths": [],
+                "excludeFeatures": [],
+                "directOnly": false,
+                "runAsync": false
+            },
+            "originalJobs": 1,
+            "failuresAndSkips": []
+        }
+    ]
+}

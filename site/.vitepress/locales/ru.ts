@@ -22,6 +22,7 @@ export const ru: Dictionary = {
         compatibility: "Совместимость и ограничения",
         performance: "Производительность",
         status: "Статус и планы",
+        completenessAudit: "Аудит полноты (англ.)",
         languageGroup: "Язык и совместимость",
         tools: "Инструменты и сборка",
         apis: "API хоста",

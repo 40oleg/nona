@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pathModuleSourceForTarget } from "../src/frontend/path-module.js";
+import { pathScriptSource } from "../src/frontend/path-module.js";
 import { compileModuleToIR } from "../src/compiler.js";
 import { collectSourceUsage } from "../src/frontend/lexer.js";
 import { generate } from "../src/backend/x64/codegen.js";
@@ -88,13 +88,10 @@ function adapter(
         }
         throw Error("Unexpected Path host declaration " + name);
     };
-    const source = pathModuleSourceForTarget(target)
-        .replace(/^import .*$/gm, "")
-        .replace(/^export .*$/gm, "");
     const implementation = new Function(
         "define",
         "globalThis",
-        source + "\nreturn path;",
+        pathScriptSource(target),
     )(define, global) as typeof path;
     return {
         implementation,

@@ -22,6 +22,7 @@ export const pt: Dictionary = {
         compatibility: "Compatibilidade e limitações",
         performance: "Desempenho",
         status: "Status e roteiro",
+        completenessAudit: "Auditoria de completude (inglês)",
         languageGroup: "Linguagem e compatibilidade",
         tools: "Ferramentas e compilação",
         apis: "APIs do host",

@@ -1,4 +1,4 @@
-import { resolve, join, dirname } from "node:path";
+import { resolve, join, dirname } from "nona:internal/path-core";
 const encoder = new TextEncoder(),
     decoder = new TextDecoder();
 const descriptions = {
@@ -121,7 +121,7 @@ export class Stats {
         return this._kind === "dir";
     }
     isSymbolicLink() {
-        return this._kind === "link";
+        return this._kind === "symlink";
     }
     isBlockDevice() {
         return typeOf(this._kind, this.mode) === 0o060000;
@@ -155,7 +155,7 @@ export class Dirent {
         return this._kind === "dir";
     }
     isSymbolicLink() {
-        return this._kind === "link";
+        return this._kind === "symlink";
     }
     isBlockDevice() {
         return typeOf(this._kind, this._mode) === 0o060000;
@@ -319,7 +319,13 @@ export function rmSync(path, options) {
     }
     for (const name of sys.readdir(path))
         rmSync(join(path, name), { recursive: true, force });
-    sys.rmdir(path);
+    try {
+        sys.rmdir(path);
+    } catch (e) {
+        // A path through ".." (e.g. "a/b/..") stops resolving on POSIX once its
+        // child "b" is removed; Node.js treats the directory as already gone.
+        if (e.code !== "ENOENT") throw e;
+    }
     return undefined;
 }
 export function rmdirSync(path) {
@@ -369,23 +375,6 @@ function promiseForm(operation) {
         return new Promise((resolve) => resolve(operation(...args)));
     };
 }
-const synchronous = {
-    readFile: readFileSync,
-    writeFile: writeFileSync,
-    appendFile: appendFileSync,
-    access: accessSync,
-    stat: statSync,
-    lstat: lstatSync,
-    readlink: readlinkSync,
-    realpath: realpathSync,
-    readdir: readdirSync,
-    mkdir: mkdirSync,
-    rm: rmSync,
-    rmdir: rmdirSync,
-    unlink: unlinkSync,
-    rename: renameSync,
-    copyFile: copyFileSync,
-};
 export const readFile = callbackForm(readFileSync),
     writeFile = callbackForm(writeFileSync),
     appendFile = callbackForm(appendFileSync),
@@ -406,10 +395,24 @@ export function exists(path, callback) {
     const result = existsSync(path);
     setImmediate(() => callback(result));
 }
-/** fs.promises, also the node:fs/promises module. */
-export const promises = {};
-for (const name of Object.keys(synchronous))
-    promises[name] = promiseForm(synchronous[name]);
+/** fs.promises, also the node:fs/promises module (a literal, so unused code can be pruned, #440). */
+export const promises = {
+    readFile: promiseForm(readFileSync),
+    writeFile: promiseForm(writeFileSync),
+    appendFile: promiseForm(appendFileSync),
+    access: promiseForm(accessSync),
+    stat: promiseForm(statSync),
+    lstat: promiseForm(lstatSync),
+    readlink: promiseForm(readlinkSync),
+    realpath: promiseForm(realpathSync),
+    readdir: promiseForm(readdirSync),
+    mkdir: promiseForm(mkdirSync),
+    rm: promiseForm(rmSync),
+    rmdir: promiseForm(rmdirSync),
+    unlink: promiseForm(unlinkSync),
+    rename: promiseForm(renameSync),
+    copyFile: promiseForm(copyFileSync),
+};
 export const constants = {
     COPYFILE_EXCL: 1,
     F_OK: 0,

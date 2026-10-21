@@ -1,6 +1,9 @@
 import type * as A from "../../frontend/ast.js";
 import { CompileError } from "../../diagnostics.js";
-import { maxInlineCapacity } from "../../shape-limits.js";
+import {
+    maxInlineCapacity,
+    inlineElementCapacity,
+} from "../../shape-limits.js";
 import { ControlLowerer } from "./control.js";
 
 /**
@@ -542,6 +545,62 @@ export abstract class ExpressionLowerer extends ControlLowerer {
             e.elements.length > 0 &&
             e.elements.length <= maxLiteralElements &&
             e.elements.every((item) => item !== null);
+        // An object literal with known keys and no methods (whose home object
+        // would have to exist first) evaluates its values before the object
+        // is created, which is not observable: newObject then allocates and
+        // fills the object in one write pass, without a slot-clearing pass
+        // and with nothing in between that could reach a collection (#48).
+        if (
+            e.kind === "ObjectLiteral" &&
+            keys &&
+            !e.properties.some(
+                (p) =>
+                    !("spread" in p) &&
+                    p.value.kind === "FunctionExpression" &&
+                    p.value.method,
+            )
+        ) {
+            const values: number[] = new Array(keys.length),
+                keySlots = keys.map((key) => this.constant(key));
+            for (const p of e.properties) {
+                if ("spread" in p) continue;
+                const name = (p.key as A.Literal).value as string;
+                // A later definition of a duplicate key replaces the value
+                // and keeps the first position.
+                values[keys.indexOf(name)] = this.expression(p.value, name);
+            }
+            const dest = this.slot();
+            this.emit({
+                kind: "newObject",
+                dest,
+                array: false,
+                length: 0,
+                slots: e.properties.length,
+                keys,
+                literal: { keys: keySlots, values, strict: this.strict },
+            });
+            return dest;
+        }
+        // So does a small array literal whose table fits in its cell.
+        if (
+            e.kind === "ArrayLiteral" &&
+            elements &&
+            e.elements.length <= inlineElementCapacity
+        ) {
+            const elementValues = e.elements.map((item) =>
+                    this.expression(item as A.Expression),
+                ),
+                dest = this.slot();
+            this.emit({
+                kind: "newObject",
+                dest,
+                array: true,
+                length: e.elements.length,
+                elements: true,
+                elementValues,
+            });
+            return dest;
+        }
         const dest = this.slot();
         this.emit({
             kind: "newObject",

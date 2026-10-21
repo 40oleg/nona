@@ -73,12 +73,24 @@ export const metricInfo = {
         search: ["Substring search", "strings"],
         split: ["`split`/`replaceAll`", "strings"],
         keys: ["Long `Map` keys", "strings"],
+        regexp: ["Global `match` with alternations over a log", "strings"],
+        replaceAll: [
+            "`replaceAll`/`replace`/`split` with many matches",
+            "strings",
+        ],
     },
     "17_typed_arrays": {
         fill: ["Typed array `fill`", "compute"],
         copy: ["Typed array `copyWithin`/`set`", "compute"],
         search: ["Typed array searches", "compute"],
         loops: ["Typed array loops", "compute"],
+    },
+    "18_sort": {
+        sort: ["`sort()` of N log lines", "strings"],
+        compare: ["`sort` of N log lines with a comparator", "strings"],
+        toSorted: ["`toSorted()` of N log lines", "strings"],
+        numbers: ["`sort()` of N numbers (as strings)", "strings"],
+        numericCompare: ["`sort((a, b) => a - b)` of N numbers", "compute"],
     },
     acorn: {
         first: ["acorn 8.18.0: first parse of its own 230 KB", "real"],

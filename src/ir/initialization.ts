@@ -13,6 +13,12 @@ import {
  * that is a compare and branch per read although the binding was
  * initialized before the loop.
  *
+ * At entry, the parameter slots of a function whose parameters are plain
+ * identifiers (FunctionIR.simpleParameters) are initialized: they hold the
+ * arguments or undefined, never the marker (#428). A function with defaults
+ * or destructured parameters starts with none, as its prologue puts every
+ * parameter binding in its dead zone.
+ *
  * A slot is initialized after an operation that cannot produce the
  * uninitialized marker (constants, arithmetic, calls, object creation, …),
  * after a copy from an initialized slot, and after checkInitialized itself
@@ -53,6 +59,7 @@ const producesValue = new Set<Operation["kind"]>([
     "forInHas",
     "forOfValue",
     "globalObject",
+    "isFunctionCode",
     "currentFunction",
     "newCell",
     "superGet",
@@ -311,8 +318,19 @@ function analyze(
                 kept.add(slot);
         return kept;
     };
+    // Plain parameter slots hold their arguments from entry: the caller or
+    // the frame stub fills missing ones with undefined (#428). With defaults
+    // or destructuring, the prologue copies the uninitialized marker into
+    // every parameter binding (lowering's needsInitialization), and those
+    // functions are not seeded at all rather than relying on that copy to
+    // remove the slots again. Plain slot numbers only: a captured
+    // parameter's cell becomes initialized at its newCell from the slot.
+    const parameters = new Set<number>();
+    if (fn.simpleParameters)
+        for (let slot = 0; slot < fn.parameterCount; slot++)
+            parameters.add(slot);
     const entry: State[] = fn.blocks.map((_, i) =>
-        i === 0 ? new Set<number>() : null,
+        i === 0 ? parameters : null,
     );
     const successors = (i: number): number[] => {
         return terminatorTargets(fn.blocks[i]!.terminator);

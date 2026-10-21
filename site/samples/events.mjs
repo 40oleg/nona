@@ -1,4 +1,4 @@
-import EventEmitter, { once } from "node:events";
+import EventEmitter, { once } from "nona:events";
 
 const emitter = new EventEmitter();
 emitter.once("ready", (value) => console.log("ready:", value));

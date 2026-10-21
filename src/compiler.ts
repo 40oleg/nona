@@ -5,7 +5,7 @@ import { CompileError, inPhase, internalError } from "./diagnostics.js";
 import { lex } from "./frontend/lexer.js";
 import { parse } from "./frontend/parser.js";
 import { bind } from "./frontend/binder.js";
-import { lower } from "./ir/lower.js";
+import { lower, type LowerOptions } from "./ir/lower.js";
 import type { FfiDeclarationIR, ModuleIR } from "./ir/model.js";
 import { checkFfiNames } from "./ffi.js";
 import type { Program } from "./frontend/ast.js";
@@ -30,6 +30,7 @@ import {
     builtinModuleRequests,
     resolveRelative,
     type ModuleHost,
+    type ModuleRecord,
 } from "./frontend/modules.js";
 import { readFileSync, statSync, realpathSync } from "node:fs";
 import {
@@ -42,6 +43,7 @@ import {
     builtinSpecifiers,
 } from "./frontend/builtin-modules.js";
 import { resolve as resolvePath } from "node:path";
+import { pruneBuiltinModules } from "./frontend/builtin-pruning.js";
 import { collectSourceUsage, setRegExpValidator } from "./frontend/lexer.js";
 import { validateRegExp } from "./regexp-validator.js";
 import {
@@ -161,6 +163,23 @@ export function nodeModuleHost(
         },
     );
 }
+/**
+ * Prunes the built-in modules of a loaded graph (src/frontend/builtin-pruning.ts);
+ * the modules at `requested` paths are requested by the script and kept whole.
+ * NONA_NO_BUILTIN_PRUNING=1 keeps every built-in whole, to measure the effect.
+ */
+function prunedModuleGraph(
+    records: ModuleRecord[],
+    requested: (string | undefined)[],
+): ModuleRecord[] {
+    pruneBuiltinModules(records, {
+        fullDemand: records
+            .filter((record) => requested.includes(record.path))
+            .map((record) => record.index),
+        disabled: !!process.env.NONA_NO_BUILTIN_PRUNING,
+    });
+    return records;
+}
 /** Frontend and lowering for a module graph rooted at the entry source. */
 export function compileModuleToIR(
     source: string,
@@ -168,6 +187,7 @@ export function compileModuleToIR(
     host?: ModuleHost,
     scriptPrelude = "",
     target: Target = requireHostTarget(),
+    lowering: LowerOptions = { inline: true },
 ): ModuleIR {
     host ??= nodeModuleHost(target, { fileName, source });
     // The entry's createRequire table, as for the modules it imports.
@@ -180,17 +200,22 @@ export function compileModuleToIR(
             inPhase("parse", () => parse(lex(scriptPrelude))),
         ),
     );
+    const entry = modulePath(fileName),
+        scriptRequests = builtinModuleRequests(script, host);
     const records = inPhase("module-graph", () =>
-        loadModuleGraph(
-            modulePath(fileName),
-            source,
-            host,
-            builtinModuleRequests(script, host),
+        prunedModuleGraph(
+            loadModuleGraph(entry, source, host, scriptRequests, {
+                deferBuiltinUsage: true,
+            }),
+            scriptRequests.map((specifier) => host.resolve(specifier, entry)),
         ),
     );
     const main: Program = { ...script, module: true, source: scriptPrelude };
     const bound = inPhase("bind", () => bind(main, records));
-    return { ...inPhase("lower", () => lower(bound)), runtimePrelude: true };
+    return {
+        ...inPhase("lower", () => lower(bound, lowering)),
+        runtimePrelude: true,
+    };
 }
 export type CompileResult =
     | {
@@ -207,6 +232,7 @@ export function compileToIR(
     fileName?: string,
     host?: ModuleHost,
     target: Target = requireHostTarget(),
+    lowering: LowerOptions = { inline: true },
 ): ModuleIR {
     // A script entry that is CommonJS (or an ES module by its syntax) is
     // compiled as the module graph it starts.
@@ -224,12 +250,20 @@ export function compileToIR(
                 node,
                 "",
                 target,
+                lowering,
             );
         if (
             format === "module" &&
             (fileName.endsWith(".mjs") || entryHasModuleSyntax(source))
         )
-            return compileModuleToIR(source, fileName, node, "", target);
+            return compileModuleToIR(
+                source,
+                fileName,
+                node,
+                "",
+                target,
+                lowering,
+            );
         host = node;
     }
     host = withBuiltinModules(host ?? fileModuleHost, target);
@@ -257,14 +291,19 @@ export function compileToIR(
     if (!dynamic.length) {
         const bound = inPhase("bind", () => bind(script));
         return {
-            ...inPhase("lower", () => lower(bound)),
+            ...inPhase("lower", () => lower(bound, lowering)),
             runtimePrelude: true,
         };
     }
     // Scripts may import() modules; the statically named targets are compiled in.
     const path = modulePath(fileName ?? "builtin-script.js"),
         records = inPhase("module-graph", () =>
-            loadModuleGraph(path, null, host, dynamic),
+            prunedModuleGraph(
+                loadModuleGraph(path, null, host, dynamic, {
+                    deferBuiltinUsage: true,
+                }),
+                dynamic.map((specifier) => host.resolve(specifier, path)),
+            ),
         );
     const scriptRequests = dynamic.flatMap((specifier) => {
         const resolved = host.resolve(specifier, path),
@@ -274,7 +313,10 @@ export function compileToIR(
     const bound = inPhase("bind", () =>
         bind({ ...script, scriptPath: path, scriptRequests }, records),
     );
-    return { ...inPhase("lower", () => lower(bound)), runtimePrelude: true };
+    return {
+        ...inPhase("lower", () => lower(bound, lowering)),
+        runtimePrelude: true,
+    };
 }
 /** PE resources from compile options; a GUI program gets a default manifest. */
 /**
@@ -443,6 +485,14 @@ function compileOnTarget(
                       options.conditions,
                   )
                 : undefined);
+        // Coverage and call statistics count every call: no call is inlined.
+        // NONA_NO_INLINE=1 disables the inliner (#235) to measure its effect.
+        const lowering: LowerOptions = {
+            inline:
+                !options.coverage &&
+                !options.callStats &&
+                !process.env.NONA_NO_INLINE,
+        };
         const {
             result: { ir: loweredIR, agentIRs },
             usage,
@@ -454,6 +504,7 @@ function compileOnTarget(
                     undefined,
                     undefined,
                     options.target,
+                    lowering,
                 ),
             ),
             ir: options.module
@@ -463,12 +514,14 @@ function compileOnTarget(
                       moduleHost,
                       options.scriptPrelude,
                       options.target,
+                      lowering,
                   )
                 : compileToIR(
                       source,
                       options.fileName,
                       moduleHost,
                       options.target,
+                      lowering,
                   ),
         }));
         const unknownParts = (options.link ?? []).filter(

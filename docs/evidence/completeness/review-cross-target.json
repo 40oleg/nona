@@ -1,0 +1,383 @@
+{
+    "date": "2026-10-18T21:19:55.071Z",
+    "baseline": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
+    "checkout": "1a9e10510629efc3db1fac4edf6468f3c488cfdb",
+    "compilerHost": {
+        "platform": "win32",
+        "arch": "x64",
+        "node": "v26.9.0"
+    },
+    "mode": "Windows cross compilation; Linux x64 execution in WSL2 Ubuntu, no CPU emulation; Windows Node oracle only",
+    "cases": [
+        {
+            "id": "linux-cli",
+            "target": "linux-x64",
+            "gcStress": false,
+            "source": "import minimist from \"minimist\";\nimport fs from \"node:fs\";\nconst options = minimist([\"--count\", \"3\", \"--no-color\", \"input.json\"], {\n    alias: { count: \"n\" },\n});\nfs.writeFileSync(options._[0], JSON.stringify({ count: options.n }));\nconst data = JSON.parse(fs.readFileSync(options._[0], \"utf8\"));\nconsole.log(\"cli\", data.count, options.color, options._.join(\",\"));\nfs.unlinkSync(options._[0]);\n",
+            "expected": "cli 3 false input.json\n",
+            "oracleScope": "Windows Node 26.9.0; platform-sensitive Linux expectation separately derived from POSIX adapter and WSL id",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\cli.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-cli",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "cli 3 false input.json\n",
+                "stderr": "",
+                "durationMs": 62
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\cli.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-cli\\program",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 6318
+            },
+            "artifactSha256": "deda290b0c09ed4eccc5525ed04041d88e9ccb9ad3b747260cb392a650c7f08b",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-cli",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "cli 3 false input.json\n",
+                "stderr": "",
+                "durationMs": 563
+            },
+            "agreement": true
+        },
+        {
+            "id": "linux-filesystem",
+            "target": "linux-x64",
+            "gcStress": false,
+            "source": "import fs from \"fs-extra\";\nawait fs.ensureDir(\"nested/data\");\nawait fs.outputJson(\"nested/data/input.json\", { items: [2, 3] });\nawait fs.copy(\"nested\", \"copied\");\nconst data = await fs.readJson(\"copied/data/input.json\");\nconsole.log(\n    \"filesystem\",\n    data.items.reduce((a, b) => a + b, 0),\n);\nawait fs.remove(\"nested\");\nawait fs.remove(\"copied\");\n",
+            "expected": "filesystem 5\n",
+            "oracleScope": "Windows Node 26.9.0; platform-sensitive Linux expectation separately derived from POSIX adapter and WSL id",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\filesystem.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-filesystem",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "filesystem 5\n",
+                "stderr": "",
+                "durationMs": 96
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\tests\\fixtures\\completeness\\filesystem.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-filesystem\\program",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 5908
+            },
+            "artifactSha256": "a2896e1e342f451cbbee8610affc0cdd02315b62bd949836f64ceb68c1670af1",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-filesystem",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 1,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "",
+                "stderr": "Nona runtime error\r\n",
+                "durationMs": 156
+            },
+            "agreement": false
+        },
+        {
+            "id": "linux-gc",
+            "target": "linux-x64",
+            "gcStress": true,
+            "source": "function make(x){return ()=>x;} const keep=[]; for(let i=0;i<100;i++)keep.push(make({i,text:'value-'+i})); console.log('roots',keep.length,keep[0]().text,keep[99]().i);",
+            "expected": "roots 100 value-0 99\n",
+            "oracleScope": "Windows Node 26.9.0; platform-sensitive Linux expectation separately derived from POSIX adapter and WSL id",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-gc\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-gc",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "roots 100 value-0 99\n",
+                "stderr": "",
+                "durationMs": 51
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-gc\\main.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-gc\\program",
+                    "true"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 625
+            },
+            "artifactSha256": "d4d9066ea6aaf149737b35e96862c7ad306e8494c2aa97861b720a56f02f6bee",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-gc",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "roots 100 value-0 99\n",
+                "stderr": "",
+                "durationMs": 331
+            },
+            "agreement": true
+        },
+        {
+            "id": "linux-identity",
+            "target": "linux-x64",
+            "gcStress": false,
+            "source": "console.log('identity', process.platform, typeof process.getuid, typeof process.getuid === 'function' ? process.getuid() >= 0 : 'absent');",
+            "expected": "identity linux function true\n",
+            "oracleScope": "Windows Node 26.9.0; platform-sensitive Linux expectation separately derived from POSIX adapter and WSL id",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-identity\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-identity",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "identity win32 undefined absent\n",
+                "stderr": "",
+                "durationMs": 44
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-identity\\main.mjs",
+                    "linux-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\linux-identity\\program",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 1804
+            },
+            "artifactSha256": "a46a9c4bbb3d9d41c6e5e0814656da0f7382ceb7a37270659c3ca7866dcea24c",
+            "execution": {
+                "command": [
+                    "wsl.exe",
+                    "-d",
+                    "Ubuntu",
+                    "--cd",
+                    "/mnt/c/Users/oleg/Documents/Codex/2026-10-18/https-github-com-40oleg-nona-harness/nona-harness/.nona/repos/40oleg__nona/worktrees/issue-394/work/completeness-review-execution/linux-identity",
+                    "--exec",
+                    "timeout",
+                    "15s",
+                    "./program"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 20000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "identity linux function true\n",
+                "stderr": "",
+                "durationMs": 230
+            },
+            "agreement": true
+        },
+        {
+            "id": "windows-identity",
+            "target": "win32-x64",
+            "gcStress": false,
+            "source": "console.log('identity', process.platform, typeof process.getuid, typeof process.getuid === 'function' ? process.getuid() >= 0 : 'absent');",
+            "expected": "identity win32 undefined absent\n",
+            "oracleScope": "Windows Node 26.9.0; platform-sensitive Linux expectation separately derived from POSIX adapter and WSL id",
+            "oracle": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\windows-identity\\main.mjs"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\windows-identity",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "identity win32 undefined absent\n",
+                "stderr": "",
+                "durationMs": 47
+            },
+            "compilation": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-tools\\node.exe",
+                    "--max-old-space-size=768",
+                    "scripts/completeness-probes.mjs",
+                    "--compile",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\windows-identity\\main.mjs",
+                    "win32-x64",
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\windows-identity\\program.exe",
+                    "false"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+                "timeoutMs": 45000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "{\"ok\":true,\"diagnostics\":[]}\n",
+                "stderr": "",
+                "durationMs": 1951
+            },
+            "artifactSha256": "3dd8204f4f2939745466437a1268be0dbfea063ac78b4d3a1457541508d33bd6",
+            "execution": {
+                "command": [
+                    "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\windows-identity\\program.exe"
+                ],
+                "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\work\\completeness-review-execution\\windows-identity",
+                "timeoutMs": 15000,
+                "exit": 0,
+                "signal": null,
+                "timedOut": false,
+                "truncated": false,
+                "error": null,
+                "stdout": "identity win32 undefined absent\n",
+                "stderr": "",
+                "durationMs": 441
+            },
+            "agreement": true
+        }
+    ],
+    "linuxEnvironment": {
+        "command": [
+            "wsl.exe",
+            "-d",
+            "Ubuntu",
+            "--exec",
+            "sh",
+            "-lc",
+            "uname -a; cat /etc/os-release; id -u; command -v node; node --version"
+        ],
+        "cwd": "C:\\Users\\oleg\\Documents\\Codex\\2026-10-18\\https-github-com-40oleg-nona-harness\\nona-harness\\.nona\\repos\\40oleg__nona\\worktrees\\issue-394\\",
+        "timeoutMs": 15000,
+        "exit": 127,
+        "signal": null,
+        "timedOut": false,
+        "truncated": false,
+        "error": null,
+        "stdout": "Linux tors 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\nPRETTY_NAME=\"Ubuntu 22.04.3 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"22.04\"\nVERSION=\"22.04.3 LTS (Jammy Jellyfish)\"\nVERSION_CODENAME=jammy\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=jammy\n1000\n",
+        "stderr": "sh: 1: node: not found\n",
+        "durationMs": 5292
+    },
+    "cleanup": "passed",
+    "finishedAt": "2026-10-18T21:20:19.523Z"
+}

@@ -30,7 +30,7 @@ Tout se déroule dans le processus du compilateur ; il n’y a ni assembleur, ni
 
 [`src/ir`](https://github.com/40oleg/nona/tree/main/src/ir) abaisse le programme lié vers une IR de type registres composée de blocs, d’opérations et de terminateurs (`lower.ts`, `model.ts`) et calcule la vivacité (`liveness.ts`) pour que le ramasse-miettes ne voie que les valeurs vivantes à chaque point sûr (safepoint).
 
-Avant la génération de code, l’IR de chaque fonction passe par des optimisations qui préservent exactement la sémantique de JavaScript : repliement et propagation des constantes avec suppression des branches à condition connue, suppression des vérifications de zone morte temporelle, propagation des copies et suppression du code mort, inférence du type Number et appels directs aux fonctions connues ([architecture](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)).
+Avant la génération de code, l’IR de chaque fonction passe par des optimisations qui préservent exactement la sémantique de JavaScript : repliement et propagation des constantes avec suppression des branches à condition connue, suppression des vérifications de zone morte temporelle, propagation des copies et suppression du code mort, remplacement scalaire des littéraux d’objet et de tableau qui n’échappent pas, inférence du type Number et appels directs aux fonctions connues ([architecture](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)).
 
 ## Génération de code
 

@@ -44,7 +44,12 @@ export type Operation =
     /** Writes a private field of object; TypeError without it. */
     | { kind: "privateSet"; object: number; name: number; source: number }
     | { kind: "newCell"; dest: number; source: number }
-    | { kind: "readCell"; dest: number; cell: number }
+    /**
+     * function: the code label of the function declaration the cell holds for
+     * its whole life (binder knownFunction, #239). Direct calls use it; later
+     * passes (inlining) may rely on it as well.
+     */
+    | { kind: "readCell"; dest: number; cell: number; function?: string }
     | { kind: "writeCell"; cell: number; source: number }
     | { kind: "loadCapture"; dest: number; index: number }
     | { kind: "currentFunction"; dest: number }
@@ -86,6 +91,12 @@ export type Operation =
       }
     | { kind: "currentThis"; dest: number }
     | { kind: "globalObject"; dest: number }
+    /**
+     * The guard of an inlined call (src/ir/inline.ts): true when callee is a
+     * function object whose code is label `target`, otherwise false. Runs no
+     * user code and never throws.
+     */
+    | { kind: "isFunctionCode"; dest: number; callee: number; target: string }
     | {
           kind: "readGlobalProperty";
           dest: number;
@@ -103,8 +114,26 @@ export type Operation =
           tail?: boolean;
           /** Code label of the function the callee is expected to be (src/ir/calls.ts). */ direct?: string;
           /** That function is strict (receives this unchanged). */ directStrict?: boolean;
+          /** That function reads neither this nor new.target (usesFrameThis): the call passes no receiver. */ directNoThis?: boolean;
+          /** The call passes exactly that function's parameters: it enters at `<direct>.direct`. */ directEntry?: boolean;
+          /** `object.name(...)` (src/ir/calls.ts): a plain function callee's code is called directly. */ method?: boolean;
+          /**
+           * `f.call(thisArg, ...args)` or `f.apply(thisArg, list)` (src/ir/calls.ts): when the callee is
+           * %Function.prototype.call% / %Function.prototype.apply% and `f` a function object, `f` is called
+           * without the builtin. "applyElements": `f.apply(thisArg, [elements])` with the array literal not
+           * created, its elements are arguments[1..].
+           */
+          callApply?: "call" | "apply" | "applyElements";
           /** `object.hasOwnProperty(key)` ('method') or `f.call(object, key)` ('call'): when the callee is %Object.prototype.hasOwnProperty% (or `call` of it), a shaped object may be answered by a per-site cache (has-cache.ts). */ hasOwn?:
               "method" | "call";
+          /** `Math.imul(a, b)`: when the callee is %Math.imul% and both arguments are Numbers, computed inline (#426). */ intrinsic?: "imul";
+          /**
+           * `string.charCodeAt(position)` or `string.charAt(position)` with at most one argument:
+           * when the callee is the intrinsic %String.prototype.charCodeAt% / %String.prototype.charAt%,
+           * the receiver a primitive string and the position missing or a Number, the code unit is
+           * read inline (#425, string-index-site.ts).
+           */
+          stringIndex?: "charCodeAt" | "charAt";
       }
     | {
           kind: "invokeArray";
@@ -163,6 +192,12 @@ export type Operation =
           slots?: number;
           /** An object literal whose keys are all known (#194): its distinct keys in order. The final shape is resolved once per site. */ keys?: string[];
           /** An array literal of `length` elements without holes or spread (#48): created with its element table, every element undefined until its definition stores it. */ elements?: boolean;
+          /** An object literal with `keys` whose values were evaluated before it (#48): the slots of the key constants and of each key's last value; newObject defines every property. */ literal?: {
+              keys: number[];
+              values: number[];
+              strict: boolean;
+          };
+          /** An array literal with `elements` of at most inlineElementCapacity elements, evaluated before it (#48): created with these values. */ elementValues?: number[];
       }
     | { kind: "forInKeys"; dest: number; object: number }
     | { kind: "forInHas"; dest: number; object: number; key: number }
@@ -185,6 +220,10 @@ export type Operation =
           object: number;
           key: number;
           /** The key is this literal name (`object.name`): the read may use an inline cache. */ keyName?: string;
+          /** The read is the callee of a method call `object.name(...)` (src/ir/calls.ts): its cache record has method entries (MethodCacheLayout). */ method?: boolean;
+          /** The key is a Number (src/ir/numbers.ts): a typed array element may be read inline. */ numericKey?: boolean;
+          /** In a loop versioned by src/ir/typed-loops.ts: object is a typed array over a fixed-length attached buffer and key an integer index below its length. */ unchecked?: boolean;
+          /** In a loop versioned by src/ir/typed-loops.ts: `object.length` of such a typed array, read from the view (the getter is the intrinsic one). */ typedLength?: boolean;
       }
     | {
           kind: "setProperty";
@@ -196,6 +235,8 @@ export type Operation =
           /** `object.name = value`: the write may use an inline cache. */ keyName?: string;
           /** The initial definition of key `keys[literalSlot]` of the object literal `object` (a newObject with keys). */ literalSlot?: number;
           /** The initial definition of element `literalElement` of the array literal `object` (a newObject with elements). */ literalElement?: number;
+          /** The key is a Number (src/ir/numbers.ts): a typed array element may be written inline. */ numericKey?: boolean;
+          /** As for property: the element is known to exist (src/ir/typed-loops.ts); the value is a primitive. */ unchecked?: boolean;
       }
     | {
           kind: "defineAccessor";
@@ -226,6 +267,7 @@ export type Operation =
           operator: string;
           argument: number;
           /** The argument is a Number (src/ir/numbers.ts). */ numeric?: boolean;
+          /** The result is an int32 Number when the operation completes (src/ir/representations.ts): `~` of a Number, or the update of an int32 induction variable. */ int32?: boolean;
       }
     | {
           kind: "binary";
@@ -234,6 +276,8 @@ export type Operation =
           left: number;
           right: number;
           /** Both operands are Numbers (src/ir/numbers.ts). */ numeric?: boolean;
+          /** The result is an int32 Number when the operation completes (src/ir/representations.ts): `& | ^ << >>` with a Number operand, or the update of an int32 induction variable. */ int32?: boolean;
+          /** The result is a uint32 Number when the operation completes (`>>>`, src/ir/representations.ts). */ uint32?: boolean;
       }
     | { kind: "call"; dest: number; target: string; arguments: number[] };
 export type Terminator =
@@ -276,6 +320,85 @@ export function terminatorUse(t: Terminator): number {
             ? t.value
             : -1;
 }
+/**
+ * A loop induction variable `i` (src/ir/representations.ts): the header
+ * ends in `i <op> bound` into the loop, i is changed in the loop only by
+ * int32 constant steps of one direction, and the loop does not change bound.
+ */
+export interface InductionVariableIR {
+    slot: number;
+    /** The comparison as `slot <op> bound` (operands swapped if needed). */
+    operator: "<" | "<=" | ">" | ">=";
+    /** The bound's slot. */
+    bound: number;
+    /** The bound's value where it is a known constant. */
+    boundValue?: number;
+    /** The largest step magnitude; positive steps count up, negative down. */
+    step: number;
+    /** i holds an int32 everywhere in the loop and after it, without any check. */
+    int32: boolean;
+    /**
+     * Without `int32`: i holds an int32 in the loop and after it when, on
+     * entry to the loop, bound is a Number no greater than `max` (counting
+     * up) or no less than `min` (counting down). NaN fails the check.
+     */
+    entryCheck?: { max: number } | { min: number };
+}
+/** Where an unboxed slot's value is read as a Value or must be in its stack slot (src/ir/representations.ts). */
+export interface UnboxedEscapeIR {
+    slot: number;
+    /**
+     * call: an operand of a call or construction; cell: written to a cell or
+     * captured; store: stored to a property, element, binding or literal;
+     * copy: copied to a slot that is not unboxed; return / throw: the
+     * terminator's value; generic: an operand of any other operation;
+     * suspend: live across yield or await; handler: live into the handler
+     * of a block that may throw; exit: live on an edge leaving the loop.
+     * key: the Number key of an element access; convert: the operand of
+     * a bit operation (ToInt32 of a Number); branch: a branch condition.
+     * These read the Number as it is (no boxing).
+     */
+    kind:
+        | "call"
+        | "cell"
+        | "store"
+        | "copy"
+        | "return"
+        | "throw"
+        | "generic"
+        | "suspend"
+        | "handler"
+        | "exit"
+        | "key"
+        | "convert"
+        | "branch";
+    block: number;
+    /** The operation's index in the block; -1 for the terminator, an exit edge or a handler. */
+    index: number;
+    /** The exit edge's target (exit) or the handler block (handler). */
+    target?: number;
+    /** The value must be a boxed Value (tag and payload) there. */
+    box: boolean;
+}
+/** A slot that may be kept unboxed (a raw double, or an int32) inside a loop. */
+export interface UnboxedSlotIR {
+    slot: number;
+    read: boolean;
+    written: boolean;
+    /** Live into the header: a Number there on every entry. */
+    liveIn: boolean;
+    /** An int32 induction variable proven without a check. */
+    int32?: boolean;
+}
+/** Representation facts of one natural loop (src/ir/representations.ts). */
+export interface LoopRepresentationIR {
+    header: number;
+    /** The loop's blocks (the header first). */
+    blocks: number[];
+    induction: InductionVariableIR[];
+    unboxed: UnboxedSlotIR[];
+    escapes: UnboxedEscapeIR[];
+}
 export interface BlockIR {
     id: number;
     exceptionTarget?: number;
@@ -292,12 +415,25 @@ export interface FunctionIR {
         end: number;
     };
     parameterCount: number;
+    /**
+     * Every parameter is a plain identifier without a default and the rest
+     * parameter (if any) is not destructured: the parameter slots hold their
+     * arguments (or undefined) from entry and never start in their dead zone.
+     */
+    simpleParameters?: boolean;
     localCount: number;
     slotCount: number;
     maxArguments: number;
     handlerCount?: number;
     derivedConstructor?: boolean;
     generator?: boolean;
+    /** Some direct call enters at `<id>.direct` (src/ir/calls.ts). */ directEntry?: boolean;
+    /**
+     * Loop representation facts (src/ir/representations.ts), for the IR as
+     * optimizeFunction returns it: a pass that removes or reorders
+     * operations afterwards drops them.
+     */
+    representations?: LoopRepresentationIR[];
     blocks: BlockIR[];
 }
 export interface FfiDeclarationIR {

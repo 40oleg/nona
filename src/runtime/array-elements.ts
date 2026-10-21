@@ -12,6 +12,7 @@ import { TypedArrayKind, TypedArrayLayout } from "./typed-array.js";
 import { emitViewCheck } from "./view-bounds.js";
 import { ArrayBufferLayout } from "./array-buffer.js";
 import type { Assembler } from "../backend/machine/context.js";
+import { inlineElementCapacity } from "../shape-limits.js";
 
 /**
  * Dense element storage for arrays and plain objects.
@@ -55,16 +56,58 @@ export const ElementsLayout = {
     nodes: 16,
     values: 24,
 } as const;
-/**
- * Array literals of up to this many table slots keep the table inside the
- * array's own cell, right after the header (rt.newArrayLiteral): the table
- * of an object whose `elements` is its payload + ObjectLayout.size is never
- * released on its own. Growing it moves the elements to a raw-heap table.
- */
-export const inlineElementCapacity = 8;
+export { inlineElementCapacity };
 const E = ElementsLayout;
 /** Value tag of an empty slot; never a JavaScript-observable value. */
 export const HoleTag = 255;
+
+/** Table slots of an array literal of `length` elements (rt.newArrayLiteral): at least four, a power of two. */
+export function arrayLiteralCapacity(length: number): number {
+    let capacity = 4;
+    while (capacity < length) capacity *= 2;
+    return capacity;
+}
+
+/**
+ * Writes an array literal of `length` elements (at most
+ * inlineElementCapacity) into the cell RAX from rt.allocRaw of
+ * arrayLiteralBytes(length) bytes, as rt.newArrayLiteral does: the header,
+ * the table inside the cell and holes past `length`. The caller stores the
+ * `length` element values before anything can reach a safepoint.
+ * Clobbers R10, R11.
+ */
+export function emitArrayLiteralCell(a: Assembler, length: number): void {
+    const capacity = arrayLiteralCapacity(length);
+    a.mov("r10", HeapKind.object);
+    a.store({ base: "rax", disp: H.kind - H.size }, "r10");
+    a.mov("r10", 1);
+    a.store({ base: "rax", disp: O.kind }, "r10");
+    a.mov("r10", 0);
+    for (const offset of [O.properties, O.shape, O.flags, O.index])
+        a.store({ base: "rax", disp: offset }, "r10");
+    a.mov("r11", length);
+    a.store({ base: "rax", disp: O.length }, "r11");
+    a.store({ base: "rax", disp: O.size + E.count }, "r11");
+    a.store({ base: "rax", disp: O.size + E.nodes }, "r10");
+    a.mov("r11", capacity);
+    a.store({ base: "rax", disp: O.size + E.capacity }, "r11");
+    a.mov("r11", HoleTag);
+    for (let i = length; i < capacity; i++) {
+        a.store({ base: "rax", disp: O.size + E.values + 16 * i }, "r11");
+        a.store({ base: "rax", disp: O.size + E.values + 16 * i + 8 }, "r10");
+    }
+    a.lea("r10", { rip: "rt.arrayPrototype" });
+    a.store({ base: "rax", disp: O.prototype }, "r10");
+    a.mov("r10", keyFilterValid);
+    a.store({ base: "rax", disp: O.keys }, "r10");
+    a.lea("r10", { base: "rax", disp: O.size });
+    a.store({ base: "rax", disp: O.elements }, "r10");
+}
+
+/** Payload bytes of the cell of an array literal of `length` elements whose table is inside it. */
+export function arrayLiteralBytes(length: number): number {
+    return O.size + E.values + 16 * arrayLiteralCapacity(length);
+}
 
 export function emitArrayElements(b: RuntimeBuilder): void {
     // Nonzero once Array.prototype or Object.prototype has an array-index key.

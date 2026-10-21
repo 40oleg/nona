@@ -4,6 +4,10 @@
 Это перевод английской страницы [Performance](/guide/performance), созданной из [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md). Английская версия — основная и может быть новее. `node bench/run.mjs` воспроизводит измерения.
 :::
 
+::: tip
+Сравнение с оптимизированным C++ (арифметика, вызовы, строки UTF-16; 2026-10-20) — в [docs/perf-cpp.md](https://github.com/40oleg/nona/blob/main/docs/perf-cpp.md) (англ.).
+:::
+
 ::: warning
 Актуальное сравнение с Node.js, Deno и Bun от 2026-10-18 (v0.18.0) есть на [английской странице](/guide/performance#current-release-v0180-against-nodejs-deno-and-bun): hello world запускается за 1,3 мс и весит 1,1 МБ (запуск и память — ×0,1 от Node.js), простые циклы и коллекции медленнее в ×2–×4, объектно-ориентированные тесты Are-We-Fast-Yet и реальные библиотеки — в ×11–×13, а всё, что упирается в движок RegExp, — в ×60–×350. Ниже — перевод замеров v0.7.0.
 :::

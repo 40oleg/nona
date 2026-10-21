@@ -52,6 +52,24 @@ const keyHashEntry = (a: Assembler) => {
     a.add("r10", "r11");
 };
 
+/** The bit rt.keyFilterBit gives the string key `name` (the same arithmetic, at build time). */
+export function keyFilterBitOf(name: string): bigint {
+    const mask = (1n << 64n) - 1n,
+        k = 0x9e3779b1n,
+        mix = (h: bigint, unit: number) => ((h ^ BigInt(unit)) * k) & mask;
+    const length = name.length;
+    let h = BigInt(length);
+    if (length) {
+        h = (h * k) & mask;
+        h = mix(h, name.charCodeAt(0));
+        h = mix(h, name.charCodeAt(length - 1));
+        h = mix(h, name.charCodeAt(length >> 1));
+    }
+    let bit = (h >> 20n) & 63n;
+    if (bit === 63n) bit = 62n;
+    return 1n << bit;
+}
+
 export function emitPropertyIndex(b: RuntimeBuilder): void {
     // RCX key (string or symbol record) -> RAX hash. Pure, no calls.
     // String keys remember their hash in rt.keyHashCache, a direct-mapped table
@@ -115,7 +133,8 @@ export function emitPropertyIndex(b: RuntimeBuilder): void {
         }
         a.label(hit);
     });
-    // RCX key record -> RAX its bit in an object's key filter: one of bits
+    // RCX key record -> RAX its bit in an object's key filter (keyFilterBitOf
+    // computes it at build time for a string key): one of bits
     // 0-62 (bit 63 is keyFilterValid), chosen from the length and the first,
     // middle and last code units of a string (a symbol: from its address), so
     // equal keys always get the same bit without hashing the whole name.

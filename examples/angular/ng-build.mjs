@@ -24,7 +24,7 @@ import {
     readdirSync,
     statSync,
     writeFileSync,
-} from "node:fs";
+} from "nona:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { loadTypeScript } from "./typescript.generated.mjs";
 

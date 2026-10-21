@@ -30,6 +30,8 @@ export interface Dictionary {
         compatibility: string;
         performance: string;
         status: string;
+        /** The completeness report (English only). */
+        completenessAudit: string;
         /** Group labels of the reference and of the language pages. */
         languageGroup: string;
         tools: string;

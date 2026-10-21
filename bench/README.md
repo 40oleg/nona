@@ -1,6 +1,8 @@
 # Benchmarks
 
-Micro-benchmarks (`05_*` ... `17_*`), the real-world corpus (`real/`), the Are-We-Fast-Yet suite (`awfy/`), the Benchmarks Game programs (`game/`), the start-up cases (`01_hello.js`, `startup/`) and the HTTP server cases (`http/`) behind [`PERFORMANCE.md`](../PERFORMANCE.md).
+Micro-benchmarks (`05_*` ... `18_*`), the real-world corpus (`real/`), the Are-We-Fast-Yet suite (`awfy/`), the Benchmarks Game programs (`game/`), the start-up cases (`01_hello.js`, `startup/`) and the HTTP server cases (`http/`) behind [`PERFORMANCE.md`](../PERFORMANCE.md).
+
+[`cpp/`](cpp/README.md) holds the separate comparison of Nona with optimized C++ (#401): matched arithmetic, call and UTF-16 string kernels, its own build, assembly check and runner. The current results are in [docs/perf-cpp.md](../docs/perf-cpp.md) (2026-10-20).
 
 ## The report (`report.mjs`)
 
@@ -15,7 +17,7 @@ node bench/report.mjs [--suite startup,corpus,micro,real,awfy,game,profile] [--r
 
 - `startup`: hello world and `startup/lodash-hello.mjs` with [hyperfine](https://github.com/sharkdp/hyperfine) when installed (30 runs after 5 warm-ups, `--startup-runs`), executable size, build time (median of 3 builds) and peak RSS; `bun build --compile` when Bun is installed.
 - `corpus`: ten programs of [`programs/`](../programs/), whole-process time.
-- `micro`: the `05_*`–`17_*` scripts (per-phase timings from the scripts' JSON lines; labels and categories in `lib/metrics.mjs`).
+- `micro`: the `05_*`–`18_*` scripts (per-phase timings from the scripts' JSON lines; labels and categories in `lib/metrics.mjs`).
 - `real`: `real/*.mjs|js` (acorn, marked, lodash, Prettier, the `log-scan` case of #387–#389 and a 20 MB JSON file); `--real-scale` sets their SCALE (default 1).
 - `awfy`: the 14 Are-We-Fast-Yet benchmarks through `awfy/awfy.js`, `--iterations` (default 10) timed iterations per process with the suite's standard inner-iteration counts; first iteration and steady state (median of iterations 4–n) are reported, with the per-iteration warm-up curve.
 - `game`: the nine programs of `game/` with their sizes in `report.mjs`, whole-process time and md5 of stdout compared between runtimes; `fasta` output (N = 250 000) is generated once into `build/`.

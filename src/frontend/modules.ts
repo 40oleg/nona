@@ -3,7 +3,13 @@ import { lowerLiteralEval } from "./eval-aot.js";
 import { boundNames } from "./declarations.js";
 import { CompileError } from "../diagnostics.js";
 import type * as A from "./ast.js";
-import { lex, requireRuntimePrelude } from "./lexer.js";
+import {
+    collectSourceUsage,
+    lex,
+    requireRuntimePrelude,
+    type LinkReasons,
+    type SourceUsage,
+} from "./lexer.js";
 import { parse } from "./parser.js";
 
 /** A parsed module in the statically known graph. Index 0 is the entry. */
@@ -19,6 +25,10 @@ export interface ModuleRecord {
     staticRequests: number[];
     /** Exact registry names for an implemented builtin; absent for user modules. */
     builtinAliases?: string[];
+    /** Modules reached by a request that is not a static import or export (import(), builtin lookups). */
+    dynamicRequests: number[];
+    /** A builtin's source usage, kept out of the program's until its unused code is pruned (builtin-pruning.ts). */
+    deferredUsage?: { usage: SourceUsage; reasons: LinkReasons };
 }
 
 /** Host hooks. Paths are canonical, '/'-separated strings chosen by the host. */
@@ -641,6 +651,7 @@ export function loadModuleGraph(
     entrySource: string | null,
     host: ModuleHost,
     scriptRequests: string[] = [],
+    options: { deferBuiltinUsage?: boolean } = {},
 ): ModuleRecord[] {
     const records: ModuleRecord[] = [],
         byPath = new Map<string, ModuleRecord>();
@@ -650,14 +661,21 @@ export function loadModuleGraph(
         dynamic = false,
     ): ModuleRecord => {
         let ast: A.Program, loadError: string | undefined;
+        const builtinAliases = host.builtinAliases?.(path);
+        let deferredUsage: ModuleRecord["deferredUsage"];
         try {
-            ast =
+            const read = () =>
                 host.program?.(path) ??
                 lowerLiteralEval(
                     lowerDynamicFunctions(
                         parse(lex(source, { module: true }), { module: true }),
                     ),
                 );
+            if (builtinAliases && options.deferBuiltinUsage) {
+                const collected = collectSourceUsage(read, { detached: true });
+                ast = collected.result;
+                deferredUsage = collected;
+            } else ast = read();
             checkModuleNames(ast, path);
         } catch (error) {
             if (!(error instanceof CompileError)) throw error;
@@ -678,14 +696,15 @@ export function loadModuleGraph(
             };
             loadError = error.diagnostics[0]?.message ?? "Invalid module";
         }
-        const builtinAliases = host.builtinAliases?.(path);
         const record: ModuleRecord = {
             index: records.length,
             path,
             ast,
             requests: new Map(),
             staticRequests: [],
+            dynamicRequests: [],
             ...(builtinAliases ? { builtinAliases } : {}),
+            ...(deferredUsage ? { deferredUsage } : {}),
             ...(loadError === undefined ? {} : { loadError }),
         };
         records.push(record);
@@ -722,6 +741,8 @@ export function loadModuleGraph(
             record.requests.set(specifier, target.index);
             if (isStatic && !record.staticRequests.includes(target.index))
                 record.staticRequests.push(target.index);
+            if (!isStatic && !record.dynamicRequests.includes(target.index))
+                record.dynamicRequests.push(target.index);
         }
         return record;
     };

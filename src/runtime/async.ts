@@ -6,6 +6,7 @@ import {
     prependFunctionBuiltin,
     builtinPropertyRoots,
 } from "./function-builtin.js";
+import { emitPromiseNative, promiseIntrinsics } from "./promise-native.js";
 
 // Runtime helpers implemented by the Promise prelude and called from IR.
 export const preludeHelpers = [
@@ -33,17 +34,19 @@ export const preludeHelpers = [
     "evalDeclareVars",
     "evalGlobalDeclarations",
     "callWithGlobalThis",
+    "endJson",
 ] as const;
 // Intrinsic prototypes of async functions and async generators. Their
 // methods and metadata are installed by the Promise prelude, which owns the
 // job queue and the async drivers.
-// One job queue per agent: every realm's Promise prelude shares the first one's.
-export const asyncPropertyRoots = builtinPropertyRoots(
-    "rt.sharedQueueInternal",
-    "__nonaSharedQueueInternal",
+// The promise intrinsics (#44): a promise is a PromiseKind object whose
+// internal slots (promise-layout.ts) the prelude reads and writes through
+// them; the job queue they work on is shared by every realm.
+export const asyncPropertyRoots = promiseIntrinsics.flatMap(([symbol, name]) =>
+    builtinPropertyRoots(symbol, name),
 );
 export const asyncRoots = [
-    "rt.sharedQueueInternal",
+    ...promiseIntrinsics.map(([symbol]) => symbol),
     "rt.asyncFunctionPrototype",
     "rt.asyncGeneratorFunctionPrototype",
     "rt.asyncGeneratorPrototype",
@@ -88,35 +91,7 @@ export function emitAsync(b: RuntimeBuilder): void {
         a.lea("r10", { rip: "rt.asyncGeneratorFunctionPrototype" });
         a.store({ base: "rax", disp: O.prototype }, "r10");
     });
-    b.data("rt.sharedJobQueue", new Uint8Array(16), ".data");
-    prependFunctionBuiltin(
-        b,
-        "rt.sharedQueueInternal",
-        "__nonaSharedQueueInternal",
-        1,
-        "rt.functionPrototype",
-    );
-    // __nonaSharedQueueInternal(): the registered enqueue function; (fn): register it.
-    b.fn("rt.sharedQueueInternal.code", 40, (a) => {
-        const read = a.unique("read"),
-            done = a.unique("done");
-        a.test("rdx", "rdx");
-        a.jcc("e", read);
-        for (const offset of [0, 8]) {
-            a.load("rax", { base: "r8", disp: offset });
-            a.store({ rip: "rt.sharedJobQueue", addend: offset }, "rax");
-        }
-        a.mov("rax", 0);
-        a.store({ base: "rcx" }, "rax");
-        a.store({ base: "rcx", disp: 8 }, "rax");
-        a.jmp(done);
-        a.label(read);
-        for (const offset of [0, 8]) {
-            a.load("rax", { rip: "rt.sharedJobQueue", addend: offset });
-            a.store({ base: "rcx", disp: offset }, "rax");
-        }
-        a.label(done);
-    });
+    emitPromiseNative(b);
     // rt.prelude.NAME: RCX output, RDX argc, R8 argv; calls __nonaRegexpVm.NAME.
     for (const name of preludeHelpers) {
         b.bundle.fragments.push(stringLiteral("rt.str.prelude." + name, name));

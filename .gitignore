@@ -14,6 +14,8 @@ site/src/public/playground-worker.js
 bench/real/vendor/
 bench/awfy/vendor/
 bench/results/
+# Kernels, listings and meta.json of the Nona vs C++ comparison (bench/cpp/build.mjs)
+bench/cpp/build/
 src/lib/sources.generated.ts
 
 # Written by process.report tests run from the repository root

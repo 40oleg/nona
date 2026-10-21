@@ -22,6 +22,7 @@ export const hi: Dictionary = {
         compatibility: "संगतता और सीमाएँ",
         performance: "प्रदर्शन",
         status: "स्थिति और रोडमैप",
+        completenessAudit: "पूर्णता ऑडिट (अंग्रेज़ी)",
         languageGroup: "भाषा और संगतता",
         tools: "टूल और बिल्ड",
         apis: "होस्ट API",
