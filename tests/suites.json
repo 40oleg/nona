@@ -190,6 +190,7 @@
                 "buffer-events-source",
                 "buffer-source",
                 "builtin-constructors",
+                "builtin-pruning",
                 "builtin-shadowing",
                 "call-apply-sites",
                 "call-sites",
