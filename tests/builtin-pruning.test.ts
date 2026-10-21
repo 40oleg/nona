@@ -21,9 +21,9 @@ import { runModulesOnHost } from "./helpers/host.js";
 
 // Reachability pruning of built-in modules (#440).
 //
-// Evidence, win32-x64, `nona build <file> --target win32-x64 --print-link`,
-// compiler commit 75b366ad (the size without pruning is the same build with
-// NONA_NO_BUILTIN_PRUNING=1):
+// Evidence, win32-x64, `node bench/size-builtin.mjs` (`nona build <file>
+// --target win32-x64 --print-link`), compiler commit 4aafd672 (the size
+// without pruning is the same build with NONA_NO_BUILTIN_PRUNING=1):
 //
 //   console.log("hello");                       1,296,384 bytes, links moduleRecords
 //   import { existsSync } from "node:fs";
@@ -33,8 +33,9 @@ import { runModulesOnHost } from "./helpers/host.js";
 //       encoding ("TextEncoder"), timers ("setImmediate"), annexB ("link" in
 //       a string), moduleRecords; every fs, fs-win32 and path declaration
 //       survives into the IR
-//     with pruning                              1,808,384 bytes, links binaryData
+//     with pruning                              1,808,896 bytes, links binaryData
 //       ("Uint8Array"), encoding ("TextDecoder"), moduleRecords
+//   readFileSync, writeFileSync, statSync       5,024,256 -> 1,946,112 bytes
 //
 // Kept in node:fs for existsSync: the FFI imports CreateFileW,
 // GetFileInformationByHandle(Ex), CloseHandle, GetFileAttributesExW, the
