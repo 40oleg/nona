@@ -4,6 +4,8 @@ import type { Token, TokenStream } from "./token.js";
 // importable from the lexer.
 export {
     collectSourceUsage,
+    mergeSourceUsage,
+    recordKeptUsage,
     requireRuntimePrelude,
     type LinkReasons,
     type SourceUsage,

@@ -369,23 +369,6 @@ function promiseForm(operation) {
         return new Promise((resolve) => resolve(operation(...args)));
     };
 }
-const synchronous = {
-    readFile: readFileSync,
-    writeFile: writeFileSync,
-    appendFile: appendFileSync,
-    access: accessSync,
-    stat: statSync,
-    lstat: lstatSync,
-    readlink: readlinkSync,
-    realpath: realpathSync,
-    readdir: readdirSync,
-    mkdir: mkdirSync,
-    rm: rmSync,
-    rmdir: rmdirSync,
-    unlink: unlinkSync,
-    rename: renameSync,
-    copyFile: copyFileSync,
-};
 export const readFile = callbackForm(readFileSync),
     writeFile = callbackForm(writeFileSync),
     appendFile = callbackForm(appendFileSync),
@@ -406,10 +389,24 @@ export function exists(path, callback) {
     const result = existsSync(path);
     setImmediate(() => callback(result));
 }
-/** fs.promises, also the node:fs/promises module. */
-export const promises = {};
-for (const name of Object.keys(synchronous))
-    promises[name] = promiseForm(synchronous[name]);
+/** fs.promises, also the node:fs/promises module (a literal, so unused code can be pruned, #440). */
+export const promises = {
+    readFile: promiseForm(readFileSync),
+    writeFile: promiseForm(writeFileSync),
+    appendFile: promiseForm(appendFileSync),
+    access: promiseForm(accessSync),
+    stat: promiseForm(statSync),
+    lstat: promiseForm(lstatSync),
+    readlink: promiseForm(readlinkSync),
+    realpath: promiseForm(realpathSync),
+    readdir: promiseForm(readdirSync),
+    mkdir: promiseForm(mkdirSync),
+    rm: promiseForm(rmSync),
+    rmdir: promiseForm(rmdirSync),
+    unlink: promiseForm(unlinkSync),
+    rename: promiseForm(renameSync),
+    copyFile: promiseForm(copyFileSync),
+};
 export const constants = {
     COPYFILE_EXCL: 1,
     F_OK: 0,

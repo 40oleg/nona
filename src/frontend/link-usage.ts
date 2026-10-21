@@ -101,6 +101,14 @@ export function collectSourceUsage<T>(
     run: () => T,
     options: {
         unavailableReflectivePreludes?: readonly OptionalPrelude[];
+        /** Keep the usage out of an enclosing collection (see mergeSourceUsage). */
+        detached?: boolean;
+        /**
+         * First-party code (a built-in module) whose computed keys are known
+         * not to name optional methods: its strings are not matched against
+         * its dynamic property accesses.
+         */
+        trustDynamicKeys?: boolean;
     } = {},
 ): { result: T; usage: SourceUsage; reasons: LinkReasons } {
     const outer = usage,
@@ -130,7 +138,7 @@ export function collectSourceUsage<T>(
         const result = run();
         // The strings are linked once every source is known; an enclosing
         // collection decides again over its own sources and these.
-        if (dynamicKey)
+        if (dynamicKey && !options.trustDynamicKeys)
             for (const text of currentCandidates)
                 selectName(
                     text,
@@ -142,24 +150,43 @@ export function collectSourceUsage<T>(
         usage = outer;
         reasons = outerReasons;
         candidates = outerCandidates;
-        dynamicKey = outerDynamicKey || (!!outer && currentDynamicKey);
-        if (outerReasons)
+        dynamicKey = options.detached
+            ? outerDynamicKey
+            : outerDynamicKey || (!!outer && currentDynamicKey);
+        if (outerReasons && !options.detached)
             for (const [part, why] of Object.entries(currentReasons))
                 if (!(part in outerReasons)) outerReasons[part] = why;
-        if (outerCandidates)
+        if (outerCandidates && !options.detached)
             for (const text of currentCandidates) outerCandidates.add(text);
         unavailableReflectivePreludes = outerUnavailable;
-        if (outer) {
-            outer.regexp ||= current.regexp;
-            outer.unicodeProperties ||= current.unicodeProperties;
-            outer.unicodeSets ||= current.unicodeSets;
-            outer.unicodeStringProperties ||= current.unicodeStringProperties;
-            outer.unicodeNormalization ||= current.unicodeNormalization;
-            outer.float16 ||= current.float16;
-            for (const name of optionalPreludes)
-                outer.preludes[name] ||= current.preludes[name];
-        }
+        if (!options.detached && outer) mergeInto(outer, current);
     }
+}
+function mergeInto(to: SourceUsage, from: SourceUsage): void {
+    to.regexp ||= from.regexp;
+    to.unicodeProperties ||= from.unicodeProperties;
+    to.unicodeSets ||= from.unicodeSets;
+    to.unicodeStringProperties ||= from.unicodeStringProperties;
+    to.unicodeNormalization ||= from.unicodeNormalization;
+    to.float16 ||= from.float16;
+    for (const name of optionalPreludes)
+        to.preludes[name] ||= from.preludes[name];
+}
+/** Adds usage collected apart (a detached collectSourceUsage) to the current collection. */
+export function mergeSourceUsage(
+    collected: SourceUsage,
+    why: LinkReasons,
+): void {
+    if (reasons)
+        for (const [part, reason] of Object.entries(why))
+            if (!(part in reasons)) reasons[part] = reason;
+    if (usage) mergeInto(usage, collected);
+}
+/** Computed member expressions (a["x"]) of every parsed program; their names are strings. */
+export const computedMembers = new WeakSet<A.Member>();
+/** Records what a program (for example a pruned built-in) can reach, as if it had just been parsed. */
+export function recordKeptUsage(program: A.Program): void {
+    recordProgramUsage(program, computedMembers);
 }
 /** Trigger name → the preludes it links (see preludeTriggers). */
 const preludeByName = new Map<string, OptionalPrelude[]>();

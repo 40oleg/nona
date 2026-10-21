@@ -67,3 +67,7 @@ file system work with other code.
 by the WHATWG Encoding standard: `encode(string)`, `decode(bufferSource)`,
 the `fatal` and `ignoreBOM` options, U+FFFD replacement of invalid sequences
 and lone surrogates. Other encodings throw `RangeError`.
+
+## Executable size
+
+`node:fs` is large, but a program that imports only some of its functions by name (`import { existsSync } from "node:fs"`) links only the code those functions reach: the other operations, `node:path` and the runtime parts they would select (the RegExp engine, timers, ...) are removed before linking. A namespace or default import, `import("node:fs")`, `require` and `process.getBuiltinModule` keep the whole module. `existsSync` alone builds to 1,808,896 bytes on win32-x64 instead of 5,017,088; see [builtin-module-pruning.md](builtin-module-pruning.md) for the design, the retained map and the limits ([#440](https://github.com/40oleg/nona/issues/440)).

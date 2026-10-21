@@ -79,6 +79,8 @@ EvalError: Nona compiles ahead of time: eval and Function need source text known
 
 يستطيع البرنامج مع ذلك الوصول إلى جزء محذوف عبر اسم يُحسب وقت التشغيل، مثل `globalThis['Reg' + 'Exp']`. وفي حالة محرك RegExp وجداول Unicode يرمي هذا الاستدعاء `Error` تسمّي رسالته الجزء المفقود؛ أما الكائن العام أو التابع المحذوف فيكون غائبًا ببساطة. ترجم مع `--full-runtime` (أو الخيار `fullRuntime` في [`compile()`](/ar/reference/api)) لربط كل شيء ([#62](https://github.com/40oleg/nona/issues/62)). يضيف `--link جزء,...` أجزاء منفردة، ويعرض `--print-link` ما رُبط والاسم الذي اختار كل جزء ([#182](https://github.com/40oleg/nona/issues/182)).
 
+تُقتطع الاستيرادات المسمّاة من الوحدات المضمّنة قبل اختيار الأجزاء: يُبقي `import { existsSync } from "node:fs"` فقط شيفرة `fs` التي يصل إليها `existsSync`، فلا يربط محرك RegExp ولا جداول Unicode ولا المؤقتات (1,808,896 بايت بدلاً من 5,017,088 على win32-x64). أما استيراد فضاء الأسماء أو الاستيراد الافتراضي و`import()` و`require` و`process.getBuiltinModule` فتُبقي الوحدة كاملة ([التصميم والقيود](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md)، [#440](https://github.com/40oleg/nona/issues/440)).
+
 ## العوالم (Realms)
 
 ‏`$262.createRealm` مدعوم لأجل Test262. الدوال والأصناف وشيفرة eval المُنشأة بمصدر حرفي عبر `Function` أو `eval` أو مُنشئات الدوال الديناميكية لعالم آخر تعمل في ذلك العالم، وتأتي النماذج الأولية الافتراضية وأخطاء المُنشئات من العالم الذي تحدده ECMA-262 ([#7](https://github.com/40oleg/nona/issues/7), [#176](https://github.com/40oleg/nona/issues/176)).
