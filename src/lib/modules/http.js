@@ -1803,14 +1803,21 @@ export class Server extends net.Server {
         for (const socket of this._connections.values()) socket.destroy();
     }
     closeIdleConnections() {
+        // As in Node.js, a connection is idle when no request is being
+        // received and its response has ended (end() was called), even if
+        // the write that completes it has not reported back yet; such a
+        // socket closes once its queued bytes are out.
         for (const socket of this._connections.values()) {
             const connection = socket._httpConnection;
-            if (
-                connection &&
-                connection.incoming.length === 0 &&
-                !socket._httpMessage
-            )
-                socket.destroy();
+            if (!connection || connection.waiting.length > 0) continue;
+            const incoming = connection.incoming,
+                message = socket._httpMessage;
+            if (incoming.length > 0 && !incoming[incoming.length - 1].complete)
+                continue;
+            if (message) {
+                if (!message.finished) continue;
+                socket.destroySoon();
+            } else if (incoming.length === 0) socket.destroy();
         }
     }
 }
