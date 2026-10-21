@@ -319,7 +319,13 @@ export function rmSync(path, options) {
     }
     for (const name of sys.readdir(path))
         rmSync(join(path, name), { recursive: true, force });
-    sys.rmdir(path);
+    try {
+        sys.rmdir(path);
+    } catch (e) {
+        // A path through ".." (e.g. "a/b/..") stops resolving on POSIX once its
+        // child "b" is removed; Node.js treats the directory as already gone.
+        if (e.code !== "ENOENT") throw e;
+    }
     return undefined;
 }
 export function rmdirSync(path) {
