@@ -1,7 +1,11 @@
 import type * as A from "./ast.js";
 import type { ModuleRecord } from "./modules.js";
 import { boundNames } from "./declarations.js";
-import { mergeSourceUsage, recordSourceUsage } from "./lexer.js";
+import {
+    collectSourceUsage,
+    mergeSourceUsage,
+    recordKeptUsage,
+} from "./lexer.js";
 
 /**
  * Reachability pruning of built-in modules (#440).
@@ -1399,11 +1403,12 @@ export function pruneBuiltinModules(
         }
         const body = analysis.emit.flatMap((emit) => emit(analysis.kept));
         record.ast = { ...record.ast, body };
-        const source = record.ast.source ?? "";
-        for (const statement of body)
-            if (statement.kind === "Import" || statement.kind === "Export")
-                if (statement.source !== undefined)
-                    recordSourceUsage(JSON.stringify(statement.source));
+        const program = record.ast;
+        const collected = collectSourceUsage(() => recordKeptUsage(program), {
+            detached: true,
+            trustDynamicKeys: true,
+        });
+        mergeSourceUsage(collected.usage, collected.reasons);
         const kept: string[] = [],
             removed: string[] = [];
         analysis.units.forEach((unit, index) => {
@@ -1412,12 +1417,6 @@ export function pruneBuiltinModules(
                 return;
             }
             kept.push(unit.label);
-            recordSourceUsage(
-                typeof unit.usage === "string"
-                    ? unit.usage
-                    : source.slice(unit.usage.start, unit.usage.end),
-                { module: true },
-            );
         });
         report.push({
             path: record.path,

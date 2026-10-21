@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { runOnHost } from "./helpers/host.js";
 import { runOracle } from "./helpers/oracle.js";
 import { collectSourceUsage, lex } from "../src/frontend/lexer.js";
+import { parse } from "../src/frontend/parser.js";
 import { compile, hostTarget } from "../src/compiler.js";
 
 // The ES2025 Set methods (#316), compared with Node.js under GC stress.
@@ -100,7 +101,7 @@ for (const [name, source] of Object.entries(programs))
 
 test("Set methods are linked only for programs that name them", () => {
     const linked = (source: string) =>
-        collectSourceUsage(() => lex(source)).usage.preludes.setMethods;
+        collectSourceUsage(() => parse(lex(source))).usage.preludes.setMethods;
     assert.equal(linked("const s = new Set([1]); s.add(2); s.has(1);"), false);
     for (const source of [
         "a.union(b)",

@@ -292,7 +292,7 @@ these are source boundaries. E2 separately reproduces a subset; it does not veri
 | `api.timers.promises`, `api.text-codecs`                     | Several cancellation/ref/streaming codec options are unimplemented; TextDecoder UTF-8-only                                                    | [promise timers](../src/lib/modules/timers-promises.js), [encoding](../src/lib/runtime/encoding.js). Check cancellation after registration and split UTF-8 sequences                  |
 | `api.crypto.keys-subtle`                                     | Public crypto lacks ciphers/key/signature/subtle APIs; internal TLS primitives are private                                                    | [crypto](../src/lib/modules/crypto.js). Probe missing exports and user workload impact                                                                                                |
 | `dx.stacks`, `dx.source-maps-debugger`                       | Stack capture uses anonymous placeholder call sites; source maps and source debugger interface not found                                      | [error stack prelude](../src/lib/runtime/error-stack.js), [module facade](../src/lib/modules/module.js). Distinguish compile spans from runtime stack locations                       |
-| `compiler.link`, `runtime.iterator-helpers`                  | Lexical trigger selection can omit helpers reached through computed/common names                                                              | [link triggers](../src/link.ts). Compare default linking with `--link iteratorHelpers`/`--full-runtime`                                                                               |
+| `compiler.link`, `runtime.iterator-helpers`                  | Name-based trigger selection can omit helpers reached through computed/common names                                                           | [link triggers](../src/link.ts). Compare default linking with `--link iteratorHelpers`/`--full-runtime`                                                                               |
 | `assurance.formal`                                           | Lean proves a pure straight-line model; production TS refinement, GC, CFGs and generated machine code excluded                                | [formal verification boundary](formal-verification.md), [model](../verification/Nona/MoveRules.lean). No whole-compiler proof claim                                                   |
 
 ### Public contracts and namespaces
@@ -407,8 +407,9 @@ so numerical/ABI validation must cover both paths.
 
 ### Runtime linking, values, roots and exceptions
 
-[link.ts](../src/link.ts) selects optional preludes/tables using identifiers,
-property names and string literals seen by the lexer, plus required syntax
+[link.ts](../src/link.ts) selects optional preludes/tables using free identifiers,
+property names and key-position strings found by the scope-aware AST walk
+(`src/frontend/link-usage.ts`), plus required syntax
 helpers from lowered IR and dependency closure. `--print-link` explains
 selection; `--link <part>` and `--full-runtime` explicitly include parts.
 This is not semantic export-level tree shaking. For example `map` alone does

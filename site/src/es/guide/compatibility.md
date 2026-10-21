@@ -44,11 +44,13 @@ Es una excepción permanente y documentada ([#11](https://github.com/40oleg/nona
 
 Todo ejecutable contiene el runtime, pero sus partes opcionales grandes solo se enlazan cuando el programa puede alcanzarlas. El compilador lo decide a partir del texto de cada fuente que compila: el programa, sus módulos y las fuentes de `eval`/`Function` en tiempo de compilación:
 
-| Parte                                              | Tamaño      | Se enlaza cuando una fuente contiene                                                                                                                         |
-| -------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Motor de RegExp                                    | unos 1 MB   | un literal RegExp, o el nombre `RegExp`, `match`, `matchAll` o `search` (como identificador, nombre de propiedad o dentro de una cadena o plantilla literal) |
-| Tablas de propiedades Unicode para `\p{…}`/`\P{…}` | unos 2 MB   | `\p{` o `\P{` en un literal RegExp o en una cadena, o uno de los nombres anteriores (un patrón puede construirse en tiempo de ejecución)                     |
-| Tablas de normalización Unicode                    | unos 0,7 MB | el nombre `normalize` o `localeCompare`                                                                                                                      |
+| Parte                                              | Tamaño      | Se enlaza cuando una fuente contiene                                                                                                                           |
+| -------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Motor de RegExp                                    | unos 1 MB   | un literal RegExp, o el nombre `RegExp`, `match`, `matchAll` o `search` (como identificador libre, nombre de propiedad o cadena usada como clave de propiedad) |
+| Tablas de propiedades Unicode para `\p{…}`/`\P{…}` | unos 2 MB   | `\p{` o `\P{` en un literal RegExp o en una cadena, junto con el motor (un patrón puede construirse en tiempo de ejecución)                                    |
+| Tablas de normalización Unicode                    | unos 0,7 MB | el nombre `normalize` o `localeCompare`                                                                                                                        |
+
+Un nombre selecciona una parte cuando es un identificador libre (una variable local, parámetro o import con ese nombre no selecciona nada), un nombre de propiedad (`s.normalize()`) o una cadena en posición de clave (`s["normalize"]`, `"x" in o`, `Reflect.get(o, "x")`, un especificador de módulo). Una cadena corriente como `console.log("normalize")` o una variable local llamada `small` no selecciona nada. Si el programa lee propiedades con claves que el compilador no puede conocer (`o[name]`), también cuenta toda cadena exactamente igual a un nombre. Dentro de `with` y en funciones con `eval` directo no estricto, cuenta cada identificador. Un nombre de propiedad selecciona su parte sea cual sea el receptor, y el código de los módulos integrados importados cuenta como el suyo. Las claves construidas en tiempo de ejecución (`"nor" + "malize"`) son invisibles: use `--link` o `--full-runtime` ([#438](https://github.com/40oleg/nona/issues/438)).
 
 `split`, `replace` y `replaceAll` con argumentos de cadena no necesitan el motor de RegExp.
 
