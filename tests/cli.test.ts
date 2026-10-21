@@ -145,6 +145,30 @@ test("CLI --link adds single parts and --print-link explains the link", () =>
                 .stdout,
             "No optional runtime parts are linked.\n",
         );
+        // Ordinary strings and local names link nothing (#438).
+        const data = join(dir, "data.js");
+        writeFileSync(
+            data,
+            'const bold = 1, small = 2; console.log("normalize", "link", bold + small);',
+        );
+        assert.equal(
+            cli(["build", data, "--target", "linux-x64", "--print-link"])
+                .stdout,
+            "No optional runtime parts are linked.\n",
+        );
+        writeFileSync(data, 'console.log("a".normalize(), "a".link("x"));');
+        const used = cli([
+            "build",
+            data,
+            "--target",
+            "linux-x64",
+            "--print-link",
+        ]).stdout;
+        assert.match(
+            used,
+            /\n {2}unicodeNormalization +"normalize" in the source\n/,
+        );
+        assert.match(used, /\n {2}annexB +"link" in the source\n/);
         const unknown = cli([
             "build",
             input,
