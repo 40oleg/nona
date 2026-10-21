@@ -6,6 +6,10 @@
 
 - **Built-in module exports are pruned by reachability.** A named import or re-export of a built-in module (`import { existsSync } from "node:fs"`) keeps only the top-level declarations of the module that it reaches (a fixpoint over the built-in graph; effectful statements are kept), and the lexical usage that selects optional runtime parts is collected from the kept code. `existsSync` alone builds to 1,808,896 bytes on win32-x64 (`--print-link`, compiler 4aafd672) instead of 5,017,088 on v0.21.0 and no longer links `regexp`, the Unicode tables, `timers` or `annexB`; `readFileSync`+`writeFileSync`+`statSync` 1,946,112 instead of 5,021,184. Namespace and default imports, `export *`, `import()`, `require` and `process.getBuiltinModule` keep the module whole. `NONA_NO_BUILTIN_PRUNING=1` disables the pass. Fixtures: `bench/size/` and `bench/size-builtin.mjs`; design, retained map and limits: [docs/builtin-module-pruning.md](docs/builtin-module-pruning.md). ([#440](https://github.com/40oleg/nona/issues/440))
 
+### Fixed
+
+- **`bitwise-int64` no longer times out on the arm64 suites.** The full 37 x 37 value matrix allocates thousands of results and long joined strings, and GC stress collects on every allocation, so it took more than 180 s on arm64 (the spawn timeout). It now runs without GC stress, and a reduced matrix covering every operator and edge class stays under GC stress. Test-only change. ([#441](https://github.com/40oleg/nona/issues/441))
+
 ## v0.21.0 — 2026-10-20
 
 ### Performance
