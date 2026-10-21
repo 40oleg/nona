@@ -372,5 +372,8 @@ function elideApplyLiterals(fn: FunctionIR): FunctionIR {
                 .filter((_, index) => !dropped.has(index)),
         };
     });
-    return changed ? { ...fn, blocks, maxArguments } : fn;
+    if (!changed) return fn;
+    // Operation indices moved: the loop facts are dropped (optional).
+    const { representations: _, ...rest } = fn;
+    return { ...rest, blocks, maxArguments };
 }
