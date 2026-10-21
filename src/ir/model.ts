@@ -267,6 +267,7 @@ export type Operation =
           operator: string;
           argument: number;
           /** The argument is a Number (src/ir/numbers.ts). */ numeric?: boolean;
+          /** The result is an int32 Number when the operation completes (src/ir/representations.ts): `~` of a Number, or the update of an int32 induction variable. */ int32?: boolean;
       }
     | {
           kind: "binary";
@@ -275,6 +276,8 @@ export type Operation =
           left: number;
           right: number;
           /** Both operands are Numbers (src/ir/numbers.ts). */ numeric?: boolean;
+          /** The result is an int32 Number when the operation completes (src/ir/representations.ts): `& | ^ << >>` with a Number operand, or the update of an int32 induction variable. */ int32?: boolean;
+          /** The result is a uint32 Number when the operation completes (`>>>`, src/ir/representations.ts). */ uint32?: boolean;
       }
     | { kind: "call"; dest: number; target: string; arguments: number[] };
 export type Terminator =
@@ -317,6 +320,85 @@ export function terminatorUse(t: Terminator): number {
             ? t.value
             : -1;
 }
+/**
+ * A loop induction variable `i` (src/ir/representations.ts): the header
+ * ends in `i <op> bound` into the loop, i is changed in the loop only by
+ * int32 constant steps of one direction, and the loop does not change bound.
+ */
+export interface InductionVariableIR {
+    slot: number;
+    /** The comparison as `slot <op> bound` (operands swapped if needed). */
+    operator: "<" | "<=" | ">" | ">=";
+    /** The bound's slot. */
+    bound: number;
+    /** The bound's value where it is a known constant. */
+    boundValue?: number;
+    /** The largest step magnitude; positive steps count up, negative down. */
+    step: number;
+    /** i holds an int32 everywhere in the loop and after it, without any check. */
+    int32: boolean;
+    /**
+     * Without `int32`: i holds an int32 in the loop and after it when, on
+     * entry to the loop, bound is a Number no greater than `max` (counting
+     * up) or no less than `min` (counting down). NaN fails the check.
+     */
+    entryCheck?: { max: number } | { min: number };
+}
+/** Where an unboxed slot's value is read as a Value or must be in its stack slot (src/ir/representations.ts). */
+export interface UnboxedEscapeIR {
+    slot: number;
+    /**
+     * call: an operand of a call or construction; cell: written to a cell or
+     * captured; store: stored to a property, element, binding or literal;
+     * copy: copied to a slot that is not unboxed; return / throw: the
+     * terminator's value; generic: an operand of any other operation;
+     * suspend: live across yield or await; handler: live into the handler
+     * of a block that may throw; exit: live on an edge leaving the loop.
+     * key: the Number key of an element access; convert: the operand of
+     * a bit operation (ToInt32 of a Number); branch: a branch condition.
+     * These read the Number as it is (no boxing).
+     */
+    kind:
+        | "call"
+        | "cell"
+        | "store"
+        | "copy"
+        | "return"
+        | "throw"
+        | "generic"
+        | "suspend"
+        | "handler"
+        | "exit"
+        | "key"
+        | "convert"
+        | "branch";
+    block: number;
+    /** The operation's index in the block; -1 for the terminator, an exit edge or a handler. */
+    index: number;
+    /** The exit edge's target (exit) or the handler block (handler). */
+    target?: number;
+    /** The value must be a boxed Value (tag and payload) there. */
+    box: boolean;
+}
+/** A slot that may be kept unboxed (a raw double, or an int32) inside a loop. */
+export interface UnboxedSlotIR {
+    slot: number;
+    read: boolean;
+    written: boolean;
+    /** Live into the header: a Number there on every entry. */
+    liveIn: boolean;
+    /** An int32 induction variable proven without a check. */
+    int32?: boolean;
+}
+/** Representation facts of one natural loop (src/ir/representations.ts). */
+export interface LoopRepresentationIR {
+    header: number;
+    /** The loop's blocks (the header first). */
+    blocks: number[];
+    induction: InductionVariableIR[];
+    unboxed: UnboxedSlotIR[];
+    escapes: UnboxedEscapeIR[];
+}
 export interface BlockIR {
     id: number;
     exceptionTarget?: number;
@@ -346,6 +428,12 @@ export interface FunctionIR {
     derivedConstructor?: boolean;
     generator?: boolean;
     /** Some direct call enters at `<id>.direct` (src/ir/calls.ts). */ directEntry?: boolean;
+    /**
+     * Loop representation facts (src/ir/representations.ts), for the IR as
+     * optimizeFunction returns it: a pass that removes or reorders
+     * operations afterwards drops them.
+     */
+    representations?: LoopRepresentationIR[];
     blocks: BlockIR[];
 }
 export interface FfiDeclarationIR {

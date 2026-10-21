@@ -11,6 +11,8 @@
         "finalization-registry",
         "weak-collections",
         "ropes",
-        "string-replace-all"
+        "string-replace-all",
+        "register-loops",
+        "unboxed-numbers"
     ]
 }
