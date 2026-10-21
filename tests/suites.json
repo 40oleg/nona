@@ -24,7 +24,8 @@
                 "lib-sources",
                 "intrinsics",
                 "source-budget",
-                "top-level-await"
+                "top-level-await",
+                "bench-report"
             ]
         },
         "path": {

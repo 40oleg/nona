@@ -9,7 +9,7 @@
 :::
 
 ::: warning
-Node.js, Deno ও Bun-এর সঙ্গে 2026-10-14-এর সাম্প্রতিক তুলনা [ইংরেজি পৃষ্ঠায়](/guide/performance#current-release-v0130-against-nodejs-deno-and-bun) আছে: hello world 2.7 ms-এ চালু হয় ও আকার 1.1 MB, অ্যারে, অবজেক্ট, স্ট্রিং ও typed array-এর বেশিরভাগ মাইক্রো-বেঞ্চমার্ক Node.js-এর সমান। নিচে v0.7.0-এর মাপের অনুবাদ।
+Node.js, Deno ও Bun-এর সঙ্গে 2026-10-18 (v0.18.0)-এর সাম্প্রতিক তুলনা [ইংরেজি পৃষ্ঠায়](/guide/performance#current-release-v0180-against-nodejs-deno-and-bun) আছে: hello world 1.3 ms-এ চালু হয় ও আকার 1.1 MB (স্টার্ট-আপ ও মেমরি Node.js-এর ×0.1), সাধারণ লুপ ও কালেকশন ×2–×4 ধীর, Are-We-Fast-Yet-এর অবজেক্ট-ওরিয়েন্টেড বেঞ্চমার্ক ও বাস্তব লাইব্রেরি ×11–×13, আর RegExp ইঞ্জিনের মধ্য দিয়ে যাওয়া সবকিছু ×60–×350। নিচে v0.7.0-এর মাপের অনুবাদ।
 :::
 
 2026-10-01 তারিখে Nona `v0.7.0` (কমিট `b31c4d6`)-এর ওপর পরিমাপ করা। স্ক্রিপ্টগুলো আছে [`bench/`](https://github.com/40oleg/nona/blob/main/bench/)-এ; `node bench/run.mjs` নিচের প্রতিটি টেবিল পুনরায় তৈরি করে।

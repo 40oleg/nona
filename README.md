@@ -18,7 +18,7 @@ The executable contains your program's machine code and Nona's runtime, and noth
 
 The [v0.20.0 completeness audit](docs/completeness-audit.md) records API/target limits, pinned package results, versioned alternatives, risks and a ranked roadmap at `453418c1`. Windows x64 and the narrower Windows-built Linux x64 sample in WSL2 include both successes and runtime failures; broader npm/platform readiness is not established. The report preserves its v0.18.0 comparison and separately dates the later v0.19.0 release. The [independent review record](docs/completeness-review.md#step-6-final-independent-review) gives the final verdict, reproduced checks and remaining limitations.
 
-- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them; named imports of built-in modules such as `import { existsSync } from "node:fs"` keep only the code they reach ([docs](docs/builtin-module-pruning.md)). Importing `node:fs` no longer pulls in path globbing, Unicode property or normalization tables: a basic filesystem program is about 2.3 MB ([size analysis](docs/fs-path-dependencies.md)). In the historical 2026-10-14 post-v0.12.0 Linux measurement it starts in about 3 ms with about 1 MB of peak memory (Node.js: 47 ms and 44 MB, Deno: 41 ms, Bun: 6 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0130-against-nodejs-deno-and-bun)).
+- **Small and fast to start.** A hello world is about 1.1 MB, because the RegExp engine, Unicode tables and libraries such as `Proxy`, timers or `process` are linked only when the program can reach them; named imports of built-in modules such as `import { existsSync } from "node:fs"` keep only the code they reach ([docs](docs/builtin-module-pruning.md)). Importing `node:fs` no longer pulls in path globbing, Unicode property or normalization tables: a basic filesystem program is about 2.3 MB ([size analysis](docs/fs-path-dependencies.md)). In the v0.18.0 Linux measurement (2026-10-18/19) it starts in about 1.3 ms with about 1 MB of peak memory (Node.js: 38 ms and 45 MB, Deno: 17.5 ms, Bun: 5.3 ms; see [PERFORMANCE.md](PERFORMANCE.md#current-release-v0180-against-nodejs-deno-and-bun)).
 - **No dependencies at run time.** Windows executables import system DLLs required by their selected services. Default Linux/BSD output uses direct kernel calls without libc; macOS may use the system dyld and libSystem. Explicit shared-library FFI adds loader/library dependencies.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
@@ -131,15 +131,28 @@ The [language support matrix](docs/language-support.md) lists exact behaviour an
 
 Nona wins where an executable without a runtime should: startup, size and memory. Inside the program, plain computation is still several times to tens of times slower than V8's JIT, and closing that gap is the main line of the [roadmap](docs/roadmap.md).
 
-Nona's own HTTP server against Node.js on the same program ([bench/http](bench/http/server.mjs), Linux x64, measured for v0.9.0):
+Geometric mean of the Nona / Node.js time ratio per category, v0.18.0 on Linux x64 against Node.js 22 (below 1 is a Nona win; [PERFORMANCE.md](PERFORMANCE.md#summary) has every table and the method):
+
+| Category                                                          | Cases | Nona / Node |
+| ----------------------------------------------------------------- | ----- | ----------- |
+| Start-up and memory (hello world, lodash loaded, corpus programs) | 12    | **×0.1**    |
+| Compute (calls, numbers, typed arrays)                            | 16    | ×2.1        |
+| Allocation, objects and collections                               | 10    | ×2.4        |
+| Strings, RegExp and JSON                                          | 20    | ×4.5        |
+| I/O and the event loop                                            | 5     | ×2.8        |
+| Real programs (acorn, marked, lodash, Prettier)                   | 9     | ×11         |
+| Are-We-Fast-Yet, steady state                                     | 14    | ×13         |
+| Benchmarks Game programs, whole process                           | 9     | ×11         |
+
+Nona's own HTTP server against Node.js on the same program ([bench/http](bench/http/server.mjs), Linux x64, two runs on the shared v0.18.0 reference VM):
 
 | Case                       | Node.js req/s | Nona req/s | Memory, Node.js / Nona |
 | -------------------------- | ------------- | ---------- | ---------------------- |
-| hello (keep-alive)         | 71–72k        | 61–70k     | 80 / 16 MB             |
-| JSON response              | 66–68k        | 55–61k     | 79 / 16 MB             |
-| new connection per request | 25–27k        | 22–26k     | 70 / 18 MB             |
-| 64 KiB response            | 20–21k        | **33–38k** | 91 / 16 MB             |
-| 16 KiB request body        | 49–54k        | 41k        | 78 / 16 MB             |
+| hello (keep-alive)         | 41k           | 39k        | 73 / 17 MB             |
+| JSON response              | 40–41k        | 36–40k     | 75 / 16 MB             |
+| new connection per request | 12–13k        | 13k        | 70 / 23 MB             |
+| 64 KiB response            | 13–15k        | **23–27k** | 78 / 17 MB             |
+| 16 KiB request body        | 38k           | 20–22k     | 79 / 19 MB             |
 
 [PERFORMANCE.md](PERFORMANCE.md) has the full comparison with Node.js, Deno and Bun, the method and the known slow spots. [docs/perf-cpp.md](docs/perf-cpp.md) compares Nona with optimized C++ on arithmetic, call and string kernels and explains the measured gaps (10 million double additions: 119 ms vs 5.45 ms in WSL2).
 
