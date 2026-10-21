@@ -6,6 +6,10 @@
 
 - **`node:fs` no longer links the public path module.** The filesystem module resolves, joins and splits paths with the new internal module `nona:internal/path-core`, which names no RegExp, `\p{…}`, normalization or Annex B method; `node:path` builds its public API on the same core. A program that only uses `existsSync` or `readFileSync`/`writeFileSync` no longer links path globbing, the RegExp engine, the Unicode property and normalization tables or Annex B: on win32-x64 it shrinks from 5,016,576 to 2,340,864 bytes, on linux-x64 from 4,919,296 to 2,256,896. `node:path` and `node:fs` behave as before; programs that import `node:path` still link what it needs. ([#439](https://github.com/40oleg/nona/issues/439), [report](docs/fs-path-dependencies.md))
 
+### Fixed
+
+- **`bitwise-int64` no longer times out on the arm64 suites.** The full 37 x 37 value matrix allocates thousands of results and long joined strings, and GC stress collects on every allocation, so it took more than 180 s on arm64 (the spawn timeout). It now runs without GC stress, and a reduced matrix covering every operator and edge class stays under GC stress. Test-only change. ([#441](https://github.com/40oleg/nona/issues/441))
+
 ## v0.21.0 — 2026-10-20
 
 ### Performance
