@@ -156,7 +156,8 @@ export function emitObjectCoercion(b: RuntimeBuilder): void {
         (a) => {
             a.store(slot(184), "r8");
             a.mov("rax", 0);
-            for (const offset of [216, 224, 232]) a.store(slot(offset), "rax");
+            for (const offset of [216, 224, 232, 240])
+                a.store(slot(offset), "rax");
             a.store(slot(40), "rcx");
             a.store(slot(48), "rdx");
             a.load("r10", { base: "rdx", disp: 8 });

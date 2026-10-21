@@ -2,7 +2,7 @@
 
 ## 当前版本
 
-**v0.19.0**——参见[更新日志](/changelog)（英文）。Nona 仍处于实验阶段：它没有经过安全审计，也不能直接替代 Node.js。
+**v0.22.0**——参见[更新日志](/changelog)（英文）。Nona 仍处于实验阶段：它没有经过安全审计，也不能直接替代 Node.js。
 
 ## Test262 审计
 
@@ -36,7 +36,6 @@ v0.8.0 的审计还发现了七个崩溃（对带元素的 `Math` 调用 `Array.
 
 语言和库方面的缺口：
 
-- [#11](https://github.com/40oleg/nona/issues/11)——源码在运行时计算的 `eval` 和 `Function`。
 - [#44](https://github.com/40oleg/nona/issues/44)——Promise 反应：专用的 promise 类型，以及每个 `then` 对应一条记录。
 
 性能，[路线图](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)的主线：

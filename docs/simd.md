@@ -20,7 +20,7 @@ node scripts/profile-runtime.mjs bench/16_string_scan.js --scale 0.2 --group
 - `bench/` micro-benchmarks, at SCALE 0.02:
     - `05_array`, `06_objects`, `07_strings`, `09_gc`;
     - `11_json`.
-- `bench/16_string_scan.js`, at SCALE 0.2. It is new and covers long-string equality and ordering, `indexOf`/`includes`/`lastIndexOf`, `split`/`replaceAll` and long `Map` keys.
+- `bench/16_string_scan.js`, at SCALE 0.2. It is new and covers long-string equality and ordering, `indexOf`/`includes`/`lastIndexOf`, `split`/`replaceAll`, long `Map` keys, and global `match` with alternations ([#389](https://github.com/40oleg/nona/issues/389)).
 - acorn 8.18.0 parsing `src/lib/modules/util.js` (26 KB) once.
 - marked 12.0.2 rendering 8 generated sections.
 - Six npm packages from the #249 corpus, running their test programs: js-yaml, semver, validator, zod, diff and mustache.

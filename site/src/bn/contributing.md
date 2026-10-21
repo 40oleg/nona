@@ -51,7 +51,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## ডকুমেন্টেশন সাইট
 
-সাইটটি `site/` থেকে [VitePress](https://vitepress.dev) দিয়ে বিল্ড হয়:
+সাইটটি `site/` থেকে [VitePress](https://github.com/vuejs/vitepress) দিয়ে বিল্ড হয়:
 
 ```sh
 npm run build              # the compiler, needed to check the samples

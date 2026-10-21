@@ -2,7 +2,7 @@
 
 ## Current release
 
-**v0.19.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
+**v0.22.0** — see the [changelog](/changelog). Nona is experimental: it has not had a security audit and is not a drop-in replacement for Node.js.
 
 ## Test262 audit
 
@@ -42,7 +42,6 @@ The audit of v0.8.0 also found seven crashes (`Array.prototype.indexOf` on `Math
 
 Language and library gaps:
 
-- [#11](https://github.com/40oleg/nona/issues/11) — `eval` and `Function` with source computed at run time.
 - [#44](https://github.com/40oleg/nona/issues/44) — Promise reactions: a dedicated promise kind and one record per `then`.
 
 Performance, the main line of the [roadmap](https://github.com/40oleg/nona/blob/main/docs/roadmap.md):

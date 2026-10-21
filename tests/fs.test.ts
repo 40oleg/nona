@@ -79,23 +79,29 @@ unlinkSync('g.txt');
     ));
 
 test("fs uses Win32 imports on Windows and system calls on Linux", () => {
+    const imports = (source: string) => {
+        const win = compile(source, {
+            fileName: "main.mjs",
+            target: "win32-x64",
+            module: true,
+        });
+        assert.ok(win.ok);
+        return readPe(win.image)
+            .imports()
+            .map((i) => i.toLowerCase());
+    };
     const source =
         "import {readFileSync} from 'node:fs';\nconsole.log(typeof readFileSync);\n";
-    const win = compile(source, {
-        fileName: "main.mjs",
-        target: "win32-x64",
-        module: true,
-    });
-    assert.ok(win.ok);
-    const imports = readPe(win.image).imports();
-    for (const name of [
-        "kernel32.dll!CreateFileW",
-        "kernel32.dll!FindFirstFileW",
-    ])
-        assert.ok(
-            imports.some((i) => i.toLowerCase() === name.toLowerCase()),
-            name,
-        );
+    const read = imports(source);
+    for (const name of ["kernel32.dll!CreateFileW", "kernel32.dll!ReadFile"])
+        assert.ok(read.includes(name.toLowerCase()), name);
+    // A named import keeps only the Win32 functions it reaches (#440).
+    assert.ok(!read.includes("kernel32.dll!findfirstfilew"));
+    assert.ok(
+        imports(
+            "import {readdirSync} from 'node:fs';\nconsole.log(typeof readdirSync);\n",
+        ).includes("kernel32.dll!findfirstfilew"),
+    );
     assert.ok(
         compile(source, {
             fileName: "main.mjs",
@@ -149,6 +155,50 @@ try { rmSync('w'); } catch (e) { console.log(e.code); }
 await rmP('w', {recursive: true}); rmSync('w', {force: true});
 console.log(fs.existsSync('w'));
 })();
+`,
+    }));
+
+// node:fs resolves and joins paths with nona:internal/path-core (#439).
+test("fs resolves relative, dot-segment and Unicode paths like Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import {existsSync, mkdirSync, writeFileSync, realpathSync, readdirSync, rmSync} from 'node:fs';
+import path from 'node:path';
+const root = 'папка-😀';
+mkdirSync(root + '/ü/./deep', {recursive: true});
+writeFileSync(root + '/ü/файл.txt', 'x');
+writeFileSync(root + '/ü/deep/😀.txt', 'y');
+for (const p of [root, './' + root + '/ü', root + '/ü/../ü/deep/../файл.txt', root + '/ü/deep/😀.txt', root + '/missing', root + '/ü/./deep/..'])
+  console.log(JSON.stringify(p), existsSync(p));
+const real = realpathSync(root + '/ü/deep/../файл.txt');
+// The working directory may be reached through a short name or a link, so compare against its real path.
+const base = realpathSync('.');
+console.log(real === path.resolve(base, root, 'ü', 'файл.txt'), path.isAbsolute(real), real.endsWith(path.join(root, 'ü', 'файл.txt')));
+console.log(base === path.resolve(base), realpathSync(root + '/./ü/..') === path.resolve(base, root));
+for (const d of readdirSync('./' + root + '/ü', {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : 1))
+  console.log(d.name, d.isFile(), d.isDirectory(), d.isSymbolicLink());
+console.log(readdirSync(root + '/ü/deep').join());
+rmSync('./' + root + '/ü/..', {recursive: true});
+console.log(existsSync(root), existsSync(root + '/ü/deep/😀.txt'));
+try { rmSync(root); } catch (e) { console.log(e.code); }
+rmSync(root, {recursive: true, force: true});
+`,
+    }));
+
+// On POSIX "r/a/.." stops resolving once "a" is removed; the recursive rm still succeeds (#449).
+test("fs removes a directory named through a '..' segment like Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import {existsSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {rm} from 'node:fs/promises';
+mkdirSync('r/a/b', {recursive: true});
+writeFileSync('r/a/b/f.txt', 'x');
+rmSync('r/a/..', {recursive: true});
+console.log(existsSync('r'));
+mkdirSync('q/a', {recursive: true});
+await rm('./q/a/..', {recursive: true});
+console.log(existsSync('q'));
+try { rmSync('r/a/..', {recursive: true}); } catch (e) { console.log(e.code); }
 `,
     }));
 

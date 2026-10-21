@@ -72,6 +72,33 @@ test("ARM64 binary64 arithmetic uses native FP registers and instructions", () =
     );
 });
 
+test("ARM64 int32 conversion and sign extension of a register's low 32 bits (#402)", () => {
+    const a = assembler();
+    a.cvtsi2sd32("xmm0", "r10");
+    a.movsxd("r10", "r10");
+    assert.deepEqual(words(a.finish().bytes), [0x1e620120, 0x93407d29]);
+});
+
+test("ARM64 register loops: counters in x19-x22 and doubles in d2-d5 (#424)", () => {
+    const a = assembler();
+    a.cvtsi2sd("xmm2", "r12");
+    a.movsd("xmm3", "xmm2");
+    a.addsd("xmm2", "xmm3");
+    a.add("r12", 1);
+    a.cmp("r12", "r13");
+    a.mov("rax", "r14");
+    a.storesd({ base: "rbp", disp: -8 }, "xmm5");
+    const code = words(a.finish().bytes);
+    assert.deepEqual(code.slice(0, 3), [0x9e620262, 0x1e604043, 0x1e632842]); // scvtf d2, x19; fmov d3, d2; fadd d2, d2, d3
+    assert.ok(code.includes(0xab0d0273)); // adds x19, x19, x13
+    assert.ok(code.includes(0xeb14026c)); // subs x12, x19, x20
+    assert.ok(code.includes(0xaa1503e0)); // mov x0, x21
+    assert.equal(code.at(-1), 0xfd000165); // str d5, [x11]
+    const b = assembler();
+    b.cvttsd2si("r15", "xmm4");
+    assert.ok(words(b.finish().bytes).includes(0x9e780096)); // fcvtzs x22, d4
+});
+
 test("ARM64 CPU execution probe links arithmetic, flags, division, FP and atomic checks", async () => {
     const path = "../tests/probes/arm64-cpu-probe.js";
     const { arm64CpuProbe } = await import(path),

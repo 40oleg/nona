@@ -17,7 +17,7 @@ Nona compiles ahead of time, so `eval` and the dynamic function constructors nee
 EvalError: Nona compiles ahead of time: eval and Function need source text known at compile time
 ```
 
-Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
+This is a permanent, documented exception ([#11](https://github.com/40oleg/nona/issues/11), [ES2020 contract](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md)): generated executables contain no interpreter or compiler.
 
 ## Differences from Node.js
 
@@ -44,11 +44,13 @@ Run-time sources are tracked in [#11](https://github.com/40oleg/nona/issues/11).
 
 Every executable contains the runtime, but its large optional parts are linked only when the program can reach them. The compiler decides from the text of every source it compiles — the program, its modules and compile-time `eval`/`Function` sources:
 
-| Part                                        | Size         | Linked when a source contains                                                                                                                      |
-| ------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RegExp engine                               | about 1 MB   | a RegExp literal, or the name `RegExp`, `match`, `matchAll` or `search` (as an identifier, a property name or inside a string or template literal) |
-| Unicode property tables for `\p{…}`/`\P{…}` | about 2 MB   | `\p{` or `\P{` in a RegExp literal or a string, or one of the names above (a pattern may be built at run time)                                     |
-| Unicode normalization tables                | about 0.7 MB | the name `normalize` or `localeCompare`                                                                                                            |
+| Part                                        | Size         | Linked when a source contains                                                                                                            |
+| ------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| RegExp engine                               | about 1 MB   | a RegExp literal, or the name `RegExp`, `match`, `matchAll` or `search` (as a free identifier, a property name or a property-key string) |
+| Unicode property tables for `\p{…}`/`\P{…}` | about 2 MB   | `\p{` or `\P{` in a RegExp literal or a string together with the engine (a pattern may be built at run time)                             |
+| Unicode normalization tables                | about 0.7 MB | the name `normalize` or `localeCompare`                                                                                                  |
+
+A name selects a part when it is a free identifier (a local variable, parameter or import with that name selects nothing), a property name (`s.normalize()`), or a string in a key position (`s["normalize"]`, `"x" in o`, `Reflect.get(o, "x")`, a module specifier). An ordinary string such as `console.log("normalize")` or a local named `small` selects nothing. If the program reads properties with keys the compiler cannot know (`o[name]`), every string that exactly equals a name counts as well. Inside `with` and in functions with a sloppy direct `eval`, every identifier counts. A property name selects its part whatever the receiver is, and the code of the built-in modules you import counts like your own. Keys built at run time (`"nor" + "malize"`) are invisible: use `--link` or `--full-runtime` ([#438](https://github.com/40oleg/nona/issues/438)).
 
 `split`, `replace` and `replaceAll` with string arguments do not need the RegExp engine.
 
@@ -77,6 +79,8 @@ A program that calls `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescrip
 Helpers that only some syntax needs are linked when the compiled program calls them, not by name: `with` statements, literal `eval`, class fields and private names, and ES modules with `import()` and `import.meta` ([#278](https://github.com/40oleg/nona/issues/278)).
 
 A program can still reach an omitted part through a name computed at run time, for example `globalThis['Reg' + 'Exp']`. For the RegExp engine and the Unicode tables such a call throws an `Error` whose message names the missing part; an omitted global or method is simply absent. Compile with `--link part,...` to add the parts such a program needs, or with `--full-runtime` (or the `link` and `fullRuntime` options of [`compile()`](/reference/api)) to link everything ([#62](https://github.com/40oleg/nona/issues/62)). `--print-link` lists what was linked and which name selected each part ([#182](https://github.com/40oleg/nona/issues/182)).
+
+Named imports of built-in modules are pruned before the parts are chosen: `import { existsSync } from "node:fs"` keeps only the code of `fs` that `existsSync` reaches, so it does not link the RegExp engine, the Unicode tables or timers (1,808,896 bytes instead of 5,017,088 on win32-x64). A namespace or default import, `import()`, `require` and `process.getBuiltinModule` keep the whole module ([design and limits](https://github.com/40oleg/nona/blob/main/docs/builtin-module-pruning.md), [#440](https://github.com/40oleg/nona/issues/440)).
 
 ## Realms
 

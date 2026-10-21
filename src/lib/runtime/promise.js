@@ -1,25 +1,153 @@
 var __nonaPromiseDrainJobs = (function () {
-    // The job queue is a linked list of job records (next): a record's job
-    // function runs with the record as its argument. A reaction record is its
-    // own job, and a promise's pending reactions form a list that settling
-    // splices into the queue whole.
-    var queueHead,
-        queueTail,
-        unhandled = [],
-        handledLater = [],
-        states = new WeakMap(),
-        defineProperty = Object.defineProperty;
+    var defineProperty = Object.defineProperty;
     var failOnUnhandled = __NONA_FAIL_ON_UNHANDLED__;
-    var getState = WeakMap.prototype.get.bind(states),
-        setState = WeakMap.prototype.set.bind(states);
     var objectCreate = Object.create,
+        objectGetPrototypeOf = Object.getPrototypeOf,
         reflectApply = Reflect.apply;
+    // A promise is a native object (PromiseKind, src/runtime/promise-layout.ts)
+    // whose internal slots these intrinsics read and write: slot 0 the state
+    // bits (kind 0 pending, 1 fulfilled, 2 rejected; 4 handled: it has had a
+    // reaction; 8 reported: its rejection was reported as unhandled; 16
+    // target: it is the derived promise of its own reaction; 32 result: the
+    // native runner left the handler's object result in slot 5), or -1 for a
+    // value that is not a promise; 1 the value; 2 and 3 the first and last
+    // pending reaction; 4 next; 5 onFulfilled; 6 onRejected; 7 the async
+    // context record; 8 the capability; 9 the source promise.
+    //
+    // A reaction is a promise object too (react): the derived promise of a
+    // then, or a hidden one. The job queue and the lists of rejections to
+    // report are agent-wide, linked through slot 4 (take). The capability of
+    // a reaction is undefined for its own derived promise or no result, an
+    // existing promise to resolve, a record {resolve, reject} of a foreign
+    // capability, or for a job that calls no handler the function of the
+    // realm that runs it.
+    var FP = Function.prototype,
+        promiseCreate = FP.__nonaPromiseCreateInternal,
+        promiseGet = FP.__nonaPromiseGetInternal,
+        promiseSet = FP.__nonaPromiseSetInternal,
+        promiseReact = FP.__nonaPromiseReactInternal,
+        promiseThen = FP.__nonaPromiseThenInternal,
+        promiseUpdate = FP.__nonaPromiseUpdateInternal,
+        promiseTake = FP.__nonaPromiseTakeInternal,
+        promiseRun = FP.__nonaPromiseRunInternal,
+        promiseConfig = FP.__nonaPromiseConfigInternal;
+    function isObject(value) {
+        return (
+            value !== null &&
+            (typeof value === "object" || typeof value === "function")
+        );
+    }
+    // Hosts without the intrinsics (source tests on Node) keep the slots in a
+    // WeakMap and run every job in the prelude.
+    if (promiseCreate === undefined) {
+        var promiseSlots = new WeakMap(),
+            getSlots = WeakMap.prototype.get.bind(promiseSlots),
+            setSlots = WeakMap.prototype.set.bind(promiseSlots),
+            lists = [];
+        var listAppend = function (list, first, last) {
+            var tail = lists[2 * list + 1];
+            if (tail === undefined) lists[2 * list] = first;
+            else getSlots(tail)[4] = first;
+            lists[2 * list + 1] = last;
+        };
+        var newSlots = function (prototype, bits) {
+            var promise = objectCreate(isObject(prototype) ? prototype : null);
+            var slots = [bits];
+            for (var i = 1; i < 10; i++) slots[i] = undefined;
+            setSlots(promise, slots);
+            return promise;
+        };
+        var markSlots = function (promise, slots) {
+            var bits = slots[0];
+            if (bits & 4) return;
+            slots[0] = bits | 4;
+            if (bits & 8) listAppend(2, promise, promise);
+        };
+        promiseCreate = function (prototype) {
+            return newSlots(prototype, 0);
+        };
+        promiseGet = function (value, slot) {
+            var slots = isObject(value) ? getSlots(value) : undefined;
+            if (slots !== undefined) return slots[slot];
+            if (slot !== 0) throw new TypeError("Not a promise");
+            return -1;
+        };
+        promiseSet = function (promise, slot, value) {
+            getSlots(promise)[slot] = value;
+        };
+        promiseReact = function (
+            source,
+            prototype,
+            onFulfilled,
+            onRejected,
+            context,
+            capability,
+        ) {
+            var node = newSlots(prototype, isObject(prototype) ? 16 : 0),
+                slots = getSlots(node),
+                from = isObject(source) ? getSlots(source) : undefined;
+            slots[5] = onFulfilled;
+            slots[6] = onRejected;
+            slots[7] = context;
+            slots[8] = capability;
+            if (from === undefined) {
+                slots[0] |= 5;
+                slots[1] = source;
+                slots[9] = node;
+                listAppend(0, node, node);
+                return node;
+            }
+            slots[9] = source;
+            markSlots(source, from);
+            if ((from[0] & 3) !== 0) listAppend(0, node, node);
+            else {
+                if (from[3] === undefined) from[2] = node;
+                else getSlots(from[3])[4] = node;
+                from[3] = node;
+            }
+            return node;
+        };
+        promiseThen = function () {};
+        promiseUpdate = function (promise, operation, value) {
+            var slots = getSlots(promise);
+            if (operation === 4) markSlots(promise, slots);
+            else if (operation === 8) {
+                for (var i = 5; i < 10; i++) slots[i] = undefined;
+                slots[0] &= ~32;
+            } else {
+                var bits = slots[0];
+                if ((bits & 3) !== 0) return;
+                slots[0] = bits | operation;
+                slots[1] = value;
+                if (operation === 2 && !(bits & 4))
+                    listAppend(1, promise, promise);
+                if (slots[2] === undefined) return;
+                listAppend(0, slots[2], slots[3]);
+                slots[2] = slots[3] = undefined;
+            }
+        };
+        promiseTake = function (list) {
+            if (list >= 3) return lists[2 * (list - 3)];
+            var node = lists[2 * list];
+            if (node === undefined) return;
+            var slots = getSlots(node);
+            lists[2 * list] = slots[4];
+            if (slots[4] === undefined) lists[2 * list + 1] = undefined;
+            slots[4] = undefined;
+            return node;
+        };
+        promiseRun = function () {
+            return promiseTake(0);
+        };
+        promiseConfig = function () {};
+    }
     // Read once: a global read per reaction is a lookup by name.
     var vm = __nonaRegexpVm,
         speciesSymbol = Symbol.species;
     // The async context tracker (async_hooks sets it): reads of an absent
     // property of the large prelude object scan its whole property list, so
     // the property is an accessor over this variable, which the reactions read.
+    // While one is set, the native runner leaves every reaction to the prelude.
     var asyncContext = vm.asyncContext;
     defineProperty(vm, "asyncContext", {
         get: function () {
@@ -27,10 +155,12 @@ var __nonaPromiseDrainJobs = (function () {
         },
         set: function (value) {
             asyncContext = value;
+            promiseConfig(!!value);
         },
         enumerable: true,
         configurable: true,
     });
+    if (asyncContext) promiseConfig(true);
     // CreateDataProperty at the end, natively (Array.__nonaAppendInternal).
     // Hosts without the intrinsic (source tests on Node) use one reused descriptor.
     var appendDescriptor = {
@@ -49,160 +179,106 @@ var __nonaPromiseDrainJobs = (function () {
     function append(array, value) {
         nativeAppend(array, value);
     }
-    // Appends the list first..last (linked through next) to the queue.
-    function enqueueList(first, last) {
-        if (queueTail === undefined) queueHead = first;
-        else queueTail.next = first;
-        queueTail = last;
-    }
-    // Realms created later reuse the first realm's queue and drain.
-    var sharedQueue = Function.prototype.__nonaSharedQueueInternal,
-        hostEnqueue = sharedQueue();
-    if (typeof hostEnqueue === "function")
-        enqueueList = function (first, last) {
-            hostEnqueue(first, last);
-        };
-    else sharedQueue(enqueueList);
-    function enqueue(record) {
-        enqueueList(record, record);
-    }
     // A job without an argument (queueMicrotask, module evaluation).
-    function callJob(record) {
-        var callback = record.callback;
+    function callJob(node) {
+        var callback = promiseGet(node, 5);
+        promiseUpdate(node, 8);
         callback();
     }
-    function CallbackJob(callback) {
-        return { job: callJob, next: undefined, callback: callback };
-    }
     function enqueueCallback(callback) {
-        enqueue(CallbackJob(callback));
+        promiseReact(
+            undefined,
+            undefined,
+            callback,
+            undefined,
+            undefined,
+            callJob,
+        );
+    }
+    // A job the native runner left to the prelude.
+    function runJob(node) {
+        var job = promiseGet(node, 8);
+        if (typeof job === "function") job(node);
+        else runReaction(node);
     }
     function drain() {
-        while (queueHead !== undefined) {
-            var node = queueHead,
-                job = node.job;
-            queueHead = node.next;
-            if (queueHead === undefined) queueTail = undefined;
-            node.next = undefined;
+        for (;;) {
+            var node = promiseRun();
+            if (node === undefined) break;
             try {
-                job(node);
+                runJob(node);
             } catch (error) {
                 if (typeof __nonaRegexpVm.dispatchUncaught !== "function")
                     throw error;
                 __nonaRegexpVm.dispatchUncaught(error, "uncaughtException");
             }
         }
-        // The lists are replaced only when one holds something (drain runs
-        // after every I/O callback, usually with nothing to report); the
-        // reports below may add to the new lists, never to the ones reported.
-        var handled = handledLater,
-            pending = unhandled;
-        if (handled.length !== 0 || pending.length !== 0) {
-            handledLater = [];
-            unhandled = [];
+        var handled, pending, promise;
+        while ((promise = promiseTake(2)) !== undefined) {
+            if (handled === undefined) handled = [];
+            append(handled, promise);
         }
-        for (var i = 0; i < pending.length; i++) {
-            var state = pending[i];
-            if (state.handled) continue;
-            state.reported = true;
-            if (typeof __nonaRegexpVm.reportUnhandledRejection === "function")
-                __nonaRegexpVm.reportUnhandledRejection(
-                    state.value,
-                    state.promise,
-                    failOnUnhandled,
-                );
-            else if (failOnUnhandled) throw state.value;
+        while ((promise = promiseTake(1)) !== undefined) {
+            if (pending === undefined) pending = [];
+            append(pending, promise);
         }
-        for (var i = 0; i < handled.length; i++)
-            if (typeof __nonaRegexpVm.reportRejectionHandled === "function")
-                __nonaRegexpVm.reportRejectionHandled(handled[i].promise);
+        if (pending !== undefined)
+            for (var i = 0; i < pending.length; i++) {
+                promise = pending[i];
+                var bits = promiseGet(promise, 0);
+                if (bits & 4) continue;
+                promiseSet(promise, 0, bits | 8);
+                var reason = promiseGet(promise, 1);
+                if (
+                    typeof __nonaRegexpVm.reportUnhandledRejection ===
+                    "function"
+                )
+                    __nonaRegexpVm.reportUnhandledRejection(
+                        reason,
+                        promise,
+                        failOnUnhandled,
+                    );
+                else if (failOnUnhandled) throw reason;
+            }
+        if (handled !== undefined)
+            for (var i = 0; i < handled.length; i++)
+                if (typeof __nonaRegexpVm.reportRejectionHandled === "function")
+                    __nonaRegexpVm.reportRejectionHandled(handled[i]);
     }
-    function markHandled(state) {
-        if (state.handled) return;
-        state.handled = true;
-        if (state.reported) append(handledLater, state);
+    function markHandled(promise) {
+        promiseUpdate(promise, 4);
     }
     __nonaRegexpVm.markPromiseHandled = function (promise) {
         markHandled(record(promise));
     };
     function record(value) {
-        var state = getState(value);
-        if (state === undefined)
+        if (promiseGet(value, 0) < 0)
             throw new TypeError("Incompatible Promise receiver");
-        return state;
+        return value;
     }
-    // The internal slots of a promise: kind 0 pending, 1 fulfilled, 2 rejected;
-    // first..last is the list of pending reactions.
-    // Records are object literals with fixed keys: each site resolves its
-    // shape once and stores the values into the slots (no construct call).
-    function PromiseState(promise) {
-        return {
-            kind: 0,
-            value: undefined,
-            first: undefined,
-            last: undefined,
-            handled: false,
-            reported: false,
-            promise: promise,
-        };
+    function settle(promise, kind, value) {
+        promiseUpdate(promise, kind, value);
     }
-    // One record per then: both handlers and either the derived promise's
-    // state (target) or a foreign capability's functions; source is the
-    // promise whose settlement the job delivers.
-    function Reaction(
-        target,
-        onFulfilled,
-        onRejected,
-        resolve,
-        reject,
-        context,
-    ) {
-        return {
-            job: runReaction,
-            next: undefined,
-            target: target,
-            onFulfilled: onFulfilled,
-            onRejected: onRejected,
-            resolve: resolve,
-            reject: reject,
-            context: context,
-            source: undefined,
-        };
-    }
-    function addReaction(state, reaction) {
-        reaction.source = state;
-        if (!state.handled) {
-            state.handled = true;
-            if (state.reported) append(handledLater, state);
+    // NewPromiseReactionJob, for the reactions the native runner leaves.
+    function runReaction(node) {
+        var bits = promiseGet(node, 0);
+        if (bits & 32) {
+            // The handler has run; its result is an object to resolve to.
+            var resolution = promiseGet(node, 5);
+            promiseUpdate(node, 8);
+            resolvePromise(node, resolution);
+            return;
         }
-        if (state.kind !== 0) enqueueList(reaction, reaction);
-        else {
-            if (state.last === undefined) state.first = reaction;
-            else state.last.next = reaction;
-            state.last = reaction;
-        }
-    }
-    function settle(state, kind, value) {
-        if (state.kind !== 0) return;
-        state.kind = kind;
-        state.value = value;
-        if (kind === 2 && !state.handled) append(unhandled, state);
-        var first = state.first;
-        if (first === undefined) return;
-        enqueueList(first, state.last);
-        state.first = undefined;
-        state.last = undefined;
-    }
-    // NewPromiseReactionJob.
-    function runReaction(reaction) {
-        var source = reaction.source,
-            kind = source.kind,
-            value = source.value;
-        reaction.source = undefined;
+        var source = promiseGet(node, 9),
+            kind = promiseGet(source, 0) & 3,
+            value = promiseGet(source, 1),
+            handler = promiseGet(node, kind === 1 ? 5 : 6),
+            snapshot = promiseGet(node, 7),
+            capability = promiseGet(node, 8);
+        promiseUpdate(node, 8);
         var context = asyncContext,
             previous = context ? context.activeRecord : undefined;
-        var handler = kind === 1 ? reaction.onFulfilled : reaction.onRejected,
-            result,
+        var result,
             failed = false;
         if (typeof handler !== "function") {
             result = value;
@@ -216,11 +292,9 @@ var __nonaPromiseDrainJobs = (function () {
             }
         } else {
             try {
-                var snapshot =
-                    reaction.context ||
-                    (context ? context.defaultRecord : undefined);
+                if (!snapshot) snapshot = context.defaultRecord;
                 result =
-                    context && snapshot && snapshot !== context.activeRecord
+                    snapshot && snapshot !== context.activeRecord
                         ? context.runCapturedUnary(snapshot, handler, value)
                         : handler(value);
             } catch (error) {
@@ -228,32 +302,26 @@ var __nonaPromiseDrainJobs = (function () {
                 failed = true;
             }
         }
+        // The derived promise is the reaction itself or an existing promise.
+        var target =
+            bits & 16
+                ? node
+                : capability !== undefined && promiseGet(capability, 0) >= 0
+                  ? capability
+                  : undefined;
         try {
-            var target = reaction.target;
             if (target !== undefined) {
                 if (failed) settle(target, 2, result);
-                else if (
-                    result !== null &&
-                    (typeof result === "object" || typeof result === "function")
-                )
-                    resolveState(target, result);
-                // Fulfilment with a primitive: settle(target, 1, result) written out.
-                else if (target.kind === 0) {
-                    target.kind = 1;
-                    target.value = result;
-                    var first = target.first;
-                    if (first !== undefined) {
-                        enqueueList(first, target.last);
-                        target.first = undefined;
-                        target.last = undefined;
-                    }
+                else if (isObject(result)) resolvePromise(target, result);
+                else settle(target, 1, result);
+            } else if (capability !== undefined) {
+                if (failed) {
+                    var reject = capability.reject;
+                    reject(result);
+                } else {
+                    var resolve = capability.resolve;
+                    resolve(result);
                 }
-            } else if (failed) {
-                var reject = reaction.reject;
-                if (reject !== undefined) reject(result);
-            } else {
-                var resolve = reaction.resolve;
-                if (resolve !== undefined) resolve(result);
             }
         } catch (error) {
             restoreContext(context, previous);
@@ -271,43 +339,43 @@ var __nonaPromiseDrainJobs = (function () {
             context.restoreRecord(previous);
     }
     // The resolve function of a promise's resolving functions (the alreadyResolved check is the caller's).
-    function resolveState(state, value) {
-        if (value === state.promise) {
-            settle(state, 2, new TypeError("Promise self resolution"));
+    function resolvePromise(promise, value) {
+        if (value === promise) {
+            settle(promise, 2, new TypeError("Promise self resolution"));
             return;
         }
-        if (
-            value !== null &&
-            (typeof value === "object" || typeof value === "function")
-        ) {
+        if (isObject(value)) {
             var then;
             try {
                 then = value.then;
             } catch (error) {
-                settle(state, 2, error);
+                settle(promise, 2, error);
                 return;
             }
             if (typeof then === "function") {
-                enqueue(ThenableJob(state, value, then));
+                // NewPromiseResolveThenableJob.
+                promiseReact(
+                    undefined,
+                    undefined,
+                    promise,
+                    value,
+                    then,
+                    resolveThenableJob,
+                );
                 return;
             }
         }
-        settle(state, 1, value);
+        settle(promise, 1, value);
     }
-    // NewPromiseResolveThenableJob: the thenable gets fresh resolving functions.
-    function ThenableJob(state, thenable, then) {
-        return {
-            job: resolveThenableJob,
-            next: undefined,
-            state: state,
-            thenable: thenable,
-            then: then,
-        };
-    }
-    function resolveThenableJob(job) {
-        var functions = resolving(job.state);
+    // The thenable gets fresh resolving functions.
+    function resolveThenableJob(node) {
+        var promise = promiseGet(node, 5),
+            thenable = promiseGet(node, 6),
+            then = promiseGet(node, 7);
+        promiseUpdate(node, 8);
+        var functions = resolving(promise);
         try {
-            reflectApply(job.then, job.thenable, functions);
+            reflectApply(then, thenable, functions);
         } catch (error) {
             var reject = functions[1];
             reject(error);
@@ -315,18 +383,18 @@ var __nonaPromiseDrainJobs = (function () {
     }
     // The resolving functions are anonymous (name ""): arrows in an array
     // literal get no name, so nothing has to be redefined afterwards.
-    function resolving(state) {
+    function resolving(promise) {
         var called = false;
         return [
             (value) => {
                 if (called) return;
                 called = true;
-                resolveState(state, value);
+                resolvePromise(promise, value);
             },
             (reason) => {
                 if (called) return;
                 called = true;
-                settle(state, 2, reason);
+                settle(promise, 2, reason);
             },
         ];
     }
@@ -338,25 +406,25 @@ var __nonaPromiseDrainJobs = (function () {
             throw new TypeError("Promise requires new");
         if (typeof executor !== "function")
             throw new TypeError("Promise executor must be callable");
+        // The receiver of the ordinary [[Construct]] only supplies the
+        // prototype (GetPrototypeFromConstructor): the promise is a new
+        // object, which the constructor returns in its place.
         promiseRealm(this, false);
-        var state = PromiseState(this);
-        setState(this, state);
-        var functions = resolving(state);
+        var promise = promiseCreate(objectGetPrototypeOf(this));
+        var functions = resolving(promise);
         try {
             executor(functions[0], functions[1]);
         } catch (error) {
             var reject = functions[1];
             reject(error);
         }
+        return promise;
     }
     var promisePrototype = Promise.prototype;
     // new %Promise%(executor) whose resolving functions are never observable:
-    // the caller settles the returned state directly.
-    function newPromiseState() {
-        var promise = objectCreate(promisePrototype),
-            state = PromiseState(promise);
-        setState(promise, state);
-        return state;
+    // the caller settles the returned promise directly.
+    function newPromise() {
+        return promiseCreate(promisePrototype);
     }
     function species(value) {
         var constructor = value.constructor;
@@ -391,8 +459,17 @@ var __nonaPromiseDrainJobs = (function () {
     }
     var then = {
         then(onFulfilled, onRejected) {
-            var state = getState(this);
-            if (state === undefined)
+            // A promise whose SpeciesConstructor is %Promise% without
+            // observable lookups: the reaction is the derived promise.
+            var context = asyncContext,
+                derived = promiseThen(
+                    this,
+                    onFulfilled,
+                    onRejected,
+                    context ? context.activeRecord : undefined,
+                );
+            if (derived !== undefined) return derived;
+            if (promiseGet(this, 0) < 0)
                 throw new TypeError("Incompatible Promise receiver");
             // SpeciesConstructor(this, %Promise%), as species() does.
             var C = Promise,
@@ -408,45 +485,23 @@ var __nonaPromiseDrainJobs = (function () {
                 C = constructor[speciesSymbol];
                 if (C === undefined || C === null) C = Promise;
             }
-            if (C === Promise) {
-                // The derived promise and the reaction, written out (one call each
-                // would cost more than the record).
-                var promise = objectCreate(promisePrototype),
-                    context = asyncContext;
-                var target = {
-                    kind: 0,
-                    value: undefined,
-                    first: undefined,
-                    last: undefined,
-                    handled: false,
-                    reported: false,
-                    promise: promise,
-                };
-                setState(promise, target);
-                addReaction(state, {
-                    job: runReaction,
-                    next: undefined,
-                    target: target,
-                    onFulfilled: onFulfilled,
-                    onRejected: onRejected,
-                    resolve: undefined,
-                    reject: undefined,
-                    context: context ? context.activeRecord : undefined,
-                    source: undefined,
-                });
-                return promise;
-            }
-            var next = capability(C);
-            addReaction(
-                state,
-                Reaction(
-                    undefined,
+            if (C === Promise)
+                return promiseReact(
+                    this,
+                    promisePrototype,
                     onFulfilled,
                     onRejected,
-                    next.resolve,
-                    next.reject,
                     currentContext(),
-                ),
+                    undefined,
+                );
+            var next = capability(C);
+            promiseReact(
+                this,
+                undefined,
+                onFulfilled,
+                onRejected,
+                currentContext(),
+                next,
             );
             return next.promise;
         },
@@ -469,9 +524,9 @@ var __nonaPromiseDrainJobs = (function () {
     var rejected = {
         reject(reason) {
             if (this === Promise) {
-                var state = newPromiseState();
-                settle(state, 2, reason);
-                return state.promise;
+                var promise = newPromise();
+                settle(promise, 2, reason);
+                return promise;
             }
             var next = capability(this),
                 reject = next.reject;
@@ -497,14 +552,14 @@ var __nonaPromiseDrainJobs = (function () {
         if (
             value !== null &&
             (typeof value === "object" || typeof value === "function") &&
-            getState(value) !== undefined &&
+            promiseGet(value, 0) >= 0 &&
             value.constructor === C
         )
             return value;
         if (C === Promise) {
-            var state = newPromiseState();
-            resolveState(state, value);
-            return state.promise;
+            var promise = newPromise();
+            resolvePromise(promise, value);
+            return promise;
         }
         var next = capability(C),
             resolve = next.resolve;
@@ -685,6 +740,7 @@ var __nonaPromiseDrainJobs = (function () {
     Function.prototype.__nonaMarkNativeInternal(speciesGetter);
     Function.prototype.__nonaMarkPromiseInternal(Promise);
     promiseRealm(Promise.prototype, true);
+    promiseConfig(Promise, Promise.prototype, speciesGetter);
 
     // Async functions and generators run on internal generator coroutines.
     // Each await suspends the coroutine with an own "await" flag in its result.
@@ -697,41 +753,31 @@ var __nonaPromiseDrainJobs = (function () {
     function noop() {}
     // PerformPromiseThen without a result capability.
     function performThen(promise, onFulfilled, onRejected) {
-        addReaction(
+        promiseReact(
             record(promise),
-            Reaction(
-                undefined,
-                onFulfilled,
-                onRejected,
-                undefined,
-                undefined,
-                currentContext(),
-            ),
+            undefined,
+            onFulfilled,
+            onRejected,
+            currentContext(),
+            undefined,
         );
     }
     // Await(value): PromiseResolve(%Promise%, value), then PerformPromiseThen.
-    // A primitive becomes a fulfilled promise nobody else can see, whose
-    // reaction is queued at once: only the reaction is created, with that
-    // promise's settled state as its source.
+    // For a primitive the reaction itself is the fulfilled source nobody else
+    // can see, and it is queued at once.
     function awaitValue(value, onFulfilled, onRejected) {
         if (
             value === null ||
             (typeof value !== "object" && typeof value !== "function")
         ) {
-            var context = asyncContext,
-                reaction = {
-                    job: runReaction,
-                    next: undefined,
-                    target: undefined,
-                    onFulfilled: onFulfilled,
-                    onRejected: onRejected,
-                    resolve: undefined,
-                    reject: undefined,
-                    context: context ? context.activeRecord : undefined,
-                    source: undefined,
-                };
-            reaction.source = { kind: 1, value: value };
-            enqueueList(reaction, reaction);
+            promiseReact(
+                value,
+                undefined,
+                onFulfilled,
+                onRejected,
+                currentContext(),
+                undefined,
+            );
             return;
         }
         performThen(promiseResolve(Promise, value), onFulfilled, onRejected);
@@ -749,7 +795,7 @@ var __nonaPromiseDrainJobs = (function () {
         return result.await === true;
     }
     __nonaRegexpVm.asyncFunctionStart = function (coroutine) {
-        var state = newPromiseState(),
+        var promise = newPromise(),
             resumeNext,
             resumeThrow;
         function step(mode, value) {
@@ -757,7 +803,7 @@ var __nonaPromiseDrainJobs = (function () {
             try {
                 result = resume(coroutine, mode, value);
             } catch (error) {
-                settle(state, 2, error);
+                settle(promise, 2, error);
                 return;
             }
             if (isAwait(result)) {
@@ -777,10 +823,10 @@ var __nonaPromiseDrainJobs = (function () {
                 }
                 return;
             }
-            resolveState(state, result.value);
+            resolvePromise(promise, result.value);
         }
         step(0, undefined);
-        return state.promise;
+        return promise;
     };
 
     var asyncGeneratorStates = new WeakMap();
@@ -800,8 +846,8 @@ var __nonaPromiseDrainJobs = (function () {
             state.queue = [];
             state.head = 0;
         }
-        if (rejected) settle(request.state, 2, value);
-        else resolveState(request.state, value);
+        if (rejected) settle(request.promise, 2, value);
+        else resolvePromise(request.promise, value);
     }
     // AsyncGeneratorResumeNext: states 0 suspendedStart, 1 suspendedYield,
     // 2 executing, 3 awaiting-return, 4 completed.
@@ -928,7 +974,7 @@ var __nonaPromiseDrainJobs = (function () {
         return generator;
     };
     function enqueueRequest(generator, mode, value) {
-        var promise = newPromiseState();
+        var promise = newPromise();
         var state =
             generator !== null &&
             (typeof generator === "object" || typeof generator === "function")
@@ -936,11 +982,11 @@ var __nonaPromiseDrainJobs = (function () {
                 : undefined;
         if (state === undefined) {
             settle(promise, 2, new TypeError("Not an async generator"));
-            return promise.promise;
+            return promise;
         }
-        append(state.queue, { mode: mode, value: value, state: promise });
+        append(state.queue, { mode: mode, value: value, promise: promise });
         if (state.state !== 2) resumeNextRequest(generator);
-        return promise.promise;
+        return promise;
     }
     function define(target, name, value, writable) {
         Object.defineProperty(target, name, {
@@ -997,12 +1043,6 @@ var __nonaPromiseDrainJobs = (function () {
     // GetIterator(obj, async) and %AsyncFromSyncIteratorPrototype%.
     var asyncIteratorSymbol = Symbol.asyncIterator,
         iteratorSymbol = Symbol.iterator;
-    function isObject(value) {
-        return (
-            value !== null &&
-            (typeof value === "object" || typeof value === "function")
-        );
-    }
     var asyncFromSyncStates = new WeakMap();
     var getSyncRecord = WeakMap.prototype.get.bind(asyncFromSyncStates),
         setSyncRecord = WeakMap.prototype.set.bind(asyncFromSyncStates);
@@ -1053,18 +1093,15 @@ var __nonaPromiseDrainJobs = (function () {
                     : function (error) {
                           closeSyncIterator(record, true, error);
                       };
-            addReaction(
+            promiseReact(
                 record_(wrapper),
-                Reaction(
-                    promise,
-                    function (unwrapped) {
-                        return iterResult(unwrapped, done);
-                    },
-                    onRejected,
-                    undefined,
-                    undefined,
-                    undefined,
-                ),
+                undefined,
+                function (unwrapped) {
+                    return iterResult(unwrapped, done);
+                },
+                onRejected,
+                undefined,
+                promise,
             );
         } catch (error) {
             settle(promise, 2, error);
@@ -1074,14 +1111,14 @@ var __nonaPromiseDrainJobs = (function () {
     function asyncFromSyncMethod(name, body) {
         var method = {
             [name](value) {
-                var promise = newPromiseState();
+                var promise = newPromise();
                 try {
                     var record = syncRecord(this);
                     body(record, arguments.length > 0, value, promise);
                 } catch (error) {
                     settle(promise, 2, error);
                 }
-                return promise.promise;
+                return promise;
             },
         }[name];
         nativeMethod(asyncFromSyncPrototype, name, method);
@@ -1097,7 +1134,7 @@ var __nonaPromiseDrainJobs = (function () {
     asyncFromSyncMethod("return", function (record, present, value, promise) {
         var method = record.iterator.return;
         if (method === undefined || method === null) {
-            resolveState(promise, iterResult(value, true));
+            resolvePromise(promise, iterResult(value, true));
             return;
         }
         var result = present
@@ -1234,10 +1271,11 @@ var __nonaPromiseDrainJobs = (function () {
         evaluate: evaluateModule,
         instantiate: instantiateModule,
         linkError: linkError,
-        newPromiseState: newPromiseState,
+        newPromise: newPromise,
+        promiseGet: promiseGet,
         enqueue: enqueueCallback,
         settle: settle,
-        resolve: resolveState,
+        resolve: resolvePromise,
         performThen: performThen,
         append: append,
     };
@@ -1341,9 +1379,9 @@ var __nonaPromiseDrainJobs = (function () {
     __nonaRegexpVm.enqueueJob = enqueueCallback;
     __nonaRegexpVm.hasPendingPromiseJobs = function () {
         return (
-            queueHead !== undefined ||
-            handledLater.length > 0 ||
-            unhandled.length > 0
+            promiseTake(3) !== undefined ||
+            promiseTake(4) !== undefined ||
+            promiseTake(5) !== undefined
         );
     };
     return drain;

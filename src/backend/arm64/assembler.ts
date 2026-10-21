@@ -147,9 +147,14 @@ export class Arm64Assembler extends Assembler {
         this.nativeWord(this.os === "darwin" ? 0xd4001001 : 0xd4000001);
         if (this.os === "darwin") this.nativeWord(0xd53b4217);
         if (this.os === "linux" && number === 220) {
+            // A thread child starts on its new stack (x1, which the kernel
+            // preserves); a fork-like clone (x1 = 0) keeps a copy of the
+            // caller's stack and its logical stack pointer.
             const parent = this.unique("cloneParent");
-            this.nativeWord(0xf100001f);
+            this.nativeWord(0xf100001f); // cmp x0,#0
             this.nativeConditional(1, parent);
+            this.nativeWord(0xf100003f); // cmp x1,#0
+            this.nativeConditional(0, parent);
             this.initializeStack();
             this.label(parent);
         }
@@ -962,6 +967,17 @@ export class Arm64Assembler extends Assembler {
     override cvtsi2sd(dst: Xmm, src: Reg): void {
         this.nativeWord(
             (0x9e620000 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
+        );
+    }
+    override cvtsi2sd32(dst: Xmm, src: Reg): void {
+        this.nativeWord(
+            (0x1e620000 | (arm64Registers[src] << 5) | this.vector(dst)) >>> 0,
+        );
+    }
+    override movsxd(dst: Reg, src: Reg): void {
+        this.nativeWord(
+            (0x93407c00 | (arm64Registers[src] << 5) | arm64Registers[dst]) >>>
+                0,
         );
     }
     override movqToXmm(dst: Xmm, src: Reg): void {

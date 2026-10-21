@@ -1,5 +1,4 @@
 import { createAssembler } from "../machine/context.js";
-import { recordName } from "./function-names.js";
 import {
     HandlerLayout as H,
     preservedGp,
@@ -15,20 +14,33 @@ import {
     emptyLiteralCapacity,
     LiteralSiteLayout,
 } from "../../runtime/shapes.js";
+import {
+    emitLiteralStore,
+    emitTypedElementGet,
+    emitTypedElementSet,
+    emitTypedLength,
+    typedElementSite,
+    type SiteEmitter,
+} from "./element-sites.js";
+import { planRegisterLoops, type RegisterLoop } from "./register-loops.js";
+import { emitNewObject } from "./literals.js";
 import { ElementsLayout } from "../../runtime/array-elements.js";
 import {
-    int32Operand,
     integerRemainder,
     maskableDivisor,
+    toInt32Operand,
 } from "./integer-ops.js";
 import { emitSwitchTable } from "./switch-table.js";
-import type { Assembler, Mem, Condition, Reg } from "./assembler.js";
+import { emitFastSite, type SiteFrame } from "./method-sites.js";
+import { emitStringIndexSite } from "./string-index-site.js";
+import type { Assembler, Mem, Condition, Reg, Xmm } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
-import type {
-    ModuleIR,
-    FunctionIR,
-    BlockIR,
-    Operation,
+import {
+    terminatorUse,
+    type ModuleIR,
+    type FunctionIR,
+    type BlockIR,
+    type Operation,
 } from "../../ir/model.js";
 import { failIf } from "../../runtime/abi.js";
 import {
@@ -48,7 +60,13 @@ import {
     stackMapFragment,
     type StackMapEntry,
 } from "../../runtime/stack-maps.js";
-import { enterFrameStub } from "../../runtime/prologue.js";
+import {
+    enterFrameStub,
+    directEntryFits,
+    emitDirectEntry,
+    type DirectFrame,
+} from "../../runtime/prologue.js";
+import { usesFrameThis } from "../../ir/calls.js";
 import {
     FunctionLayout,
     FunctionKind,
@@ -62,6 +80,7 @@ import {
 } from "../../runtime/environment-layout.js";
 import {
     PropertyCacheLayout,
+    MethodCacheLayout,
     SetCacheLayout,
     cacheableName,
 } from "../../runtime/property-cache.js";
@@ -124,11 +143,13 @@ const movesOnly = new Set<string>([
     "readCell",
     "writeCell",
     "loadCapture",
+    "isFunctionCode",
 ]);
 /** Moves with no effect besides their destination: not emitted when the destination is dead. */
 const deadMoves = new Set<string>([
     "constant",
     "copy",
+    "isFunctionCode",
     "loadGlobal",
     "readCell",
     "loadCapture",
@@ -221,7 +242,6 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     // Stack +32 belongs to the outgoing fifth argument; never keep saved state there.
     const liveness = analyzeLiveness(fn),
         locations = assignLocations(fn, liveness);
-    recordName(fn);
     const a = createAssembler(fn.id),
         rootBase = JF.roots,
         valueBase = JF.values,
@@ -248,11 +268,6 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         base: "rbp",
         disp: disp - frameBias,
     });
-    const allocation = alignedFrame(
-        handlerBase + H.size * (fn.handlerCount ?? 0),
-    );
-    if (!Number.isSafeInteger(allocation) || allocation > 0x7ffffff0)
-        throw new RangeError("Function stack frame exceeds supported range");
     // Coverage: one call count per function of the program (not the preludes).
     if (options.coverage && fn.source && !fn.id.startsWith("js.regexpVm."))
         a.incrementMemory({ rip: "cov." + fn.id });
@@ -289,6 +304,18 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         definitions.get(n) === 1 && constants.has(n) && n >= fn.localCount
             ? constantValue(constants.get(n))
             : undefined;
+    // Loops that keep Numbers in registers (register-loops.ts); the GPRs
+    // they use are saved above the handler records.
+    const registerLoops = planRegisterLoops(fn, liveness, liveFloor(fn), (n) =>
+        definitions.get(n) === 1 && constants.has(n) && n >= fn.localCount
+            ? { value: constants.get(n) }
+            : undefined,
+    );
+    const saveBase = handlerBase + H.size * (fn.handlerCount ?? 0),
+        saveSlots = Math.max(0, ...registerLoops.map((p) => p.saved.length));
+    const allocation = alignedFrame(saveBase + 8 * saveSlots);
+    if (!Number.isSafeInteger(allocation) || allocation > 0x7ffffff0)
+        throw new RangeError("Function stack frame exceeds supported range");
     // Only the slots of locations live at entry (variables read before they
     // are assigned), the always live ones (stack-maps.ts) and the parameters
     // start as undefined: any other location is written before a stack map
@@ -299,8 +326,24 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     );
     for (const n of liveness.get(fn.blocks[0]!.id)!.liveIn)
         if (!staticConstant(n)) clear = Math.max(clear, location(n) + 1);
+    // Direct calls that pass exactly the parameters enter at `<id>.direct`
+    // (src/ir/calls.ts): an inline prologue at the end of the function when
+    // the frame is small (emitDirectEntry), else the ordinary entry.
+    const copyThis = usesFrameThis(fn),
+        directFrame: DirectFrame = {
+            allocation,
+            parameters: fn.parameterCount,
+            clear,
+            slots: locations.count,
+            copyThis,
+            maps: fn.id + ".maps",
+        },
+        directEntry = fn.directEntry && directEntryFits(directFrame);
+    if (fn.directEntry && !directEntry) a.label(fn.id + ".direct");
     a.lea("r10", { rip: fn.id + ".frame" });
-    a.call(enterFrameStub(fn.parameterCount, clear, allocation));
+    a.call(enterFrameStub(fn.parameterCount, clear, allocation, copyThis));
+    const entered = fn.id + ".entered";
+    a.label(entered);
     // For the unwind information the frame exists once the stub has returned.
     const allocated = a.offset,
         prologSize = a.offset;
@@ -345,6 +388,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             case "popHandler":
             case "immutableWrite":
             case "generatorInitialSuspend":
+            case "isFunctionCode":
                 return true;
             case "binary":
                 return (
@@ -403,7 +447,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             }
     }
     const flattenSlot = (n: number) => {
-        if (staticConstant(n) || !ropeSlots.has(n)) return;
+        // (A slot held in a register loop's register is a Number.)
+        if (staticConstant(n) || !ropeSlots.has(n) || held(n)) return;
         const flat = a.unique("flat"),
             check = a.unique("ropeCheck");
         a.load("rax", value(n));
@@ -493,10 +538,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             integerRemainder(a, payload(left), mask ?? payload(right), slow);
             setNumber(dest);
         } else {
-            // ToInt32 inline only for operands that already are int32 values:
-            // otherwise the runtime does the modular reduction.
-            int32Operand(a, payload(left), "r10", slow);
-            int32Operand(a, payload(right), "rcx", slow);
+            // ToInt32 inline for integral operands in the int64 range (#402);
+            // fractions, NaN, ±Infinity and larger values take the runtime.
+            toInt32Operand(a, payload(left), "r10", slow);
+            toInt32Operand(a, payload(right), "rcx", slow);
             switch (operator) {
                 case "&":
                     a.and("r10", "rcx");
@@ -510,10 +555,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 case "<<":
                     a.and("rcx", 31);
                     a.shl("r10", "cl");
-                    a.shl("r10", 32);
-                    a.sar("r10", 32);
                     break;
                 case ">>":
+                    a.movsxd("r10", "r10");
                     a.and("rcx", 31);
                     a.sar("r10", "cl");
                     break;
@@ -524,7 +568,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.shr("r10", "cl");
                     break;
             }
-            a.cvtsi2sd("xmm0", "r10");
+            // The result is the low 32 bits as an int32; for >>> it is the
+            // zero-extended uint32.
+            if (operator === ">>>") a.cvtsi2sd("xmm0", "r10");
+            else a.cvtsi2sd32("xmm0", "r10");
             setNumber(dest);
         }
         a.jmp(done);
@@ -583,6 +630,24 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             a.jcc("ne", differ);
         }
     };
+    // Jumps to differ unless callee is a function object running code
+    // `target` (the test of a direct call); keeps R11.
+    const testFunctionCode = (
+        op: Extract<Operation, { kind: "isFunctionCode" }>,
+        differ: string,
+    ) => {
+        a.load("rax", value(op.callee));
+        a.cmp("rax", 5);
+        a.jcc("ne", differ);
+        a.load("r10", payload(op.callee));
+        a.load("rax", { base: "r10", disp: O.kind });
+        a.cmp("rax", FunctionKind);
+        a.jcc("ne", differ);
+        a.load("rax", { base: "r10", disp: FunctionLayout.code });
+        a.lea("r10", { rip: op.target });
+        a.cmp("rax", "r10");
+        a.jcc("ne", differ);
+    };
     // Operands proven Numbers by src/ir/numbers.ts: no tag checks, no runtime fallback.
     const knownArithmetic: Record<
         string,
@@ -605,6 +670,33 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         ae: "b",
         e: "ne",
     };
+    // A proven Number operand: its frame slot, or in a register loop's
+    // register copy (`view`) its register (an integer converted exactly).
+    const numberInto = (x: Xmm, n: number) => {
+        const integer = intReg(n),
+            double = xmmReg(n);
+        if (integer) a.cvtsi2sd(x, integer);
+        else if (double) {
+            if (double !== x) a.movsd(x, double);
+        } else a.movsd(x, payload(n));
+    };
+    const numberOperand = (n: number, scratch: Xmm): Xmm | Mem => {
+        const integer = intReg(n),
+            double = xmmReg(n);
+        if (integer) {
+            a.cvtsi2sd(scratch, integer);
+            return scratch;
+        }
+        return double ?? payload(n);
+    };
+    // dest <- the Number in XMM0.
+    const setNumberDest = (dest: number) => {
+        const integer = intReg(dest),
+            double = xmmReg(dest);
+        if (integer) a.cvttsd2si(integer, "xmm0");
+        else if (double) a.movsd(double, "xmm0");
+        else setNumber(dest);
+    };
     const emitKnownNumberBinary = (
         dest: number,
         operator: string,
@@ -612,17 +704,27 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         right: number,
     ): boolean => {
         if (operator in knownArithmetic) {
-            a.movsd("xmm0", payload(left));
-            a[knownArithmetic[operator]!]("xmm0", payload(right));
-            setNumber(dest);
+            // Into a double register directly unless it is the right operand.
+            const target = xmmReg(dest);
+            if (target && target !== xmmReg(right)) {
+                numberInto(target, left);
+                a[knownArithmetic[operator]!](
+                    target,
+                    numberOperand(right, "xmm1"),
+                );
+                return true;
+            }
+            numberInto("xmm0", left);
+            a[knownArithmetic[operator]!]("xmm0", numberOperand(right, "xmm1"));
+            setNumberDest(dest);
             return true;
         }
         if (!(operator in knownRelation)) return false;
         const negated = operator === "!=" || operator === "!==",
             holds = a.unique("holds"),
             store = a.unique("store");
-        a.movsd("xmm0", payload(left));
-        a.ucomisd("xmm0", payload(right));
+        numberInto("xmm0", left);
+        a.ucomisd("xmm0", numberOperand(right, "xmm1"));
         a.mov("rax", 0);
         a.jcc("p", store);
         a.jcc(knownRelation[operator]!, holds);
@@ -641,7 +743,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     ): boolean => {
         if (!["numeric", "increment", "decrement", "-", "+"].includes(operator))
             return false;
-        a.movsd("xmm0", payload(argument));
+        numberInto("xmm0", argument);
         if (operator === "increment" || operator === "decrement") {
             a.mov("rax", 1);
             a.cvtsi2sd("xmm1", "rax");
@@ -654,7 +756,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             a.xor("r10", "rax");
             a.movqToXmm("xmm0", "r10");
         }
-        setNumber(dest);
+        setNumberDest(dest);
         return true;
     };
     const emitNumberUnary = (
@@ -775,9 +877,65 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             return;
         entries.push({ offset: a.offset, map: currentMap });
     };
+    // Register loops (register-loops.ts). `region` is the loop whose
+    // register copy is being emitted, `spill` the slots held in its
+    // registers that are live at the operation being emitted: they are
+    // written back as boxed Numbers before each call, and the doubles among
+    // them (in volatile XMM registers) are reloaded after it. `view` is set
+    // while an operation is emitted in its register form: the Number
+    // helpers below then read and write the registers instead of the slots.
+    let region: RegisterLoop | undefined,
+        spill: number[] = [],
+        view = false;
+    // The first 8 bytes of a Number constant: tag 3, stored without a GPR.
+    const numberTag: Mem = { rip: constantValue(0) };
+    const intReg = (n: number): Reg | undefined =>
+        view ? region?.integers.get(n)?.reg : undefined;
+    const xmmReg = (n: number): Xmm | undefined =>
+        view ? region?.doubles.get(n) : undefined;
+    const held = (n: number): boolean =>
+        !!region && (region.integers.has(n) || region.doubles.has(n));
+    const liveHeld = (live: ReadonlySet<number>): number[] =>
+        region
+            ? [...region.integers.keys(), ...region.doubles.keys()].filter(
+                  (n) => isLive(live, n, floor),
+              )
+            : [];
+    // Writes slot n's register to its frame slot as a boxed Number (XMM5 is
+    // the scratch: the generated code passes no argument in it).
+    const writeBack = (slots: Iterable<number>) => {
+        const list = [...slots].filter(held);
+        if (!list.length) return;
+        a.movsd("xmm5", numberTag);
+        for (const n of list) a.storesd(value(n), "xmm5");
+        for (const n of list) {
+            const integer = region!.integers.get(n);
+            if (integer) {
+                a.cvtsi2sd("xmm5", integer.reg);
+                a.storesd(payload(n), "xmm5");
+            } else a.storesd(payload(n), region!.doubles.get(n)!);
+        }
+    };
+    // Loads slot n's register from its frame slot (a Number; an integer
+    // slot's double is integral and in range, so the truncation is exact).
+    const reloadSlot = (n: number) => {
+        const integer = region?.integers.get(n);
+        if (integer) {
+            a.movsd("xmm5", payload(n));
+            a.cvttsd2si(integer.reg, "xmm5");
+        } else if (region?.doubles.has(n))
+            a.movsd(region.doubles.get(n)!, payload(n));
+    };
+    const saveRegisters = (loop: RegisterLoop) =>
+        loop.saved.forEach((reg, i) => a.store(stack(saveBase + 8 * i), reg));
+    const restoreRegisters = (loop: RegisterLoop) =>
+        loop.saved.forEach((reg, i) => a.load(reg, stack(saveBase + 8 * i)));
     const callUnderMap = (emit: () => void) => {
+        const written = spill;
+        writeBack(written);
         emit();
         record();
+        for (const n of written) if (region?.doubles.has(n)) reloadSlot(n);
     };
     const assembler = a as {
         call(s: string): void;
@@ -790,14 +948,38 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     assembler.call = (s: string) => callUnderMap(() => originalCall(s));
     assembler.callRegister = (r: Reg) =>
         callUnderMap(() => originalCallRegister(r));
-    assembler.callUnless = (c: Condition, s: string) =>
-        callUnderMap(() => originalCallUnless(c, s));
-    // Slow paths emitted after the blocks, so that the common paths stay
-    // dense; grouped by map, so that their calls share entries.
-    const cold: { map: number; emit: () => void }[] = [];
-    const pushCold = (emit: () => void) => {
-        cold.push({ map: currentMap, emit });
+    assembler.callUnless = (c: Condition, s: string) => {
+        if (!spill.length) {
+            callUnderMap(() => originalCallUnless(c, s));
+            return;
+        }
+        // The write-backs run only when the call does.
+        const skip = a.unique("noCall");
+        a.jcc(c, skip);
+        callUnderMap(() => originalCall(s));
+        a.label(skip);
     };
+    // Slow paths emitted after the blocks, so that the common paths stay
+    // dense; grouped by map, so that their calls share entries. They run
+    // under the register state of their origin.
+    const cold: {
+        map: number;
+        emit: () => void;
+        region: RegisterLoop | undefined;
+        spill: number[];
+    }[] = [];
+    const pushCold = (emit: () => void) => {
+        cold.push({ map: currentMap, emit, region, spill });
+    };
+    const sites: SiteEmitter = {
+        a,
+        value,
+        payload,
+        pointer,
+        pushCold,
+        integerKey: (n) => region?.integers.get(n)?.reg,
+    };
+    const frame = { a, value, payload, pointer, pushCold };
     // A derived constructor's this starts uninitialized, in a cell that its
     // arrow functions may share (the stub copied the receiver to the super
     // receiver slot already).
@@ -815,6 +997,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
     // collection or user code.
     const inline = (op: Operation): boolean => {
         if (movesOnly.has(op.kind) || constantEquality(op)) return true;
+        if (op.kind === "property" && op.typedLength) return true;
         if (
             op.kind === "binary" &&
             op.numeric &&
@@ -843,13 +1026,443 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
         );
     };
     // A block of inline operations allocates nothing: it needs no safepoint.
+    // In a register copy the steps and the fused comparisons of its
+    // induction variables are inline too.
+    const inlineHere = (op: Operation): boolean =>
+        inline(op) ||
+        (!!region && (region.compares.has(op) || region.steps.has(op)));
     const needsSafepoint = (block: BlockIR): boolean =>
-        !block.operations.every(inline);
-    for (const [blockIndex, block] of fn.blocks.entries()) {
-        a.label(fn.id + ".block." + block.id);
+        !block.operations.every(inlineHere);
+    // The blocks in emission order. A register loop is emitted at its
+    // header's place: the entry stub (labelled as the header, so that every
+    // entry edge reaches it), the register copy of its blocks (`.r` labels)
+    // and, when the stub tests a bound, the unchanged copy (`.generic`) that a
+    // failed test runs.
+    type Emission =
+        | { block: BlockIR; copy: "plain" }
+        | { block: BlockIR; copy: "register" | "generic"; loop: RegisterLoop }
+        | { stub: RegisterLoop };
+    const emissions: Emission[] = [];
+    {
+        const byId = new Map(fn.blocks.map((b) => [b.id, b])),
+            planOf = new Map<number, RegisterLoop>();
+        for (const loop of registerLoops)
+            for (const id of loop.members) planOf.set(id, loop);
+        for (const block of fn.blocks) {
+            const loop = planOf.get(block.id);
+            if (!loop) emissions.push({ block, copy: "plain" });
+            else if (block.id === loop.header) {
+                emissions.push({ stub: loop });
+                for (const id of loop.blocks)
+                    emissions.push({
+                        block: byId.get(id)!,
+                        copy: "register",
+                        loop,
+                    });
+                if (loop.checks.length)
+                    for (const id of loop.blocks)
+                        emissions.push({
+                            block: byId.get(id)!,
+                            copy: "generic",
+                            loop,
+                        });
+            }
+        }
+    }
+    const startLabel = (e: Emission): string =>
+        "stub" in e
+            ? fn.id + ".block." + e.stub.header
+            : fn.id +
+              ".block." +
+              e.block.id +
+              (e.copy === "register"
+                  ? ".r"
+                  : e.copy === "generic"
+                    ? ".generic"
+                    : "");
+    // The copy being emitted, for its jump targets: inside a loop's copy the
+    // copy's own blocks, out of the register copy the exit stub that writes
+    // back the registers live there and restores the saved GPRs.
+    let emitting: Exclude<Emission, { stub: RegisterLoop }> | undefined;
+    const exitStubs = new Map<string, string>();
+    const exitLabel = (from: number, to: number): string => {
+        const key = from + ":" + to,
+            known = exitStubs.get(key);
+        if (known) return known;
+        const label = a.unique("loopExit"),
+            loop = region!,
+            into = liveness.get(to)!.liveIn;
+        exitStubs.set(key, label);
+        cold.push({
+            map: currentMap,
+            region: loop,
+            spill: [],
+            emit: () => {
+                a.label(label);
+                writeBack(
+                    [...loop.integers.keys(), ...loop.doubles.keys()].filter(
+                        (n) => isLive(into, n, floor),
+                    ),
+                );
+                restoreRegisters(loop);
+                a.jmp(fn.id + ".block." + to);
+            },
+        });
+        return label;
+    };
+    const blockLabel = (id: number): string => {
+        const plain = fn.id + ".block." + id;
+        if (!emitting || emitting.copy === "plain") return plain;
+        if (!emitting.loop.members.has(id))
+            return emitting.copy === "register"
+                ? exitLabel(emitting.block.id, id)
+                : plain;
+        return plain + (emitting.copy === "register" ? ".r" : ".generic");
+    };
+    // The entry stub: the bound tests (an integral Number within the limit,
+    // so that the induction variables stay int32 and compare as integers),
+    // then the saved GPRs and the registers of the slots live into the header.
+    const emitEntryStub = (loop: RegisterLoop) => {
+        const generic = fn.id + ".block." + loop.header + ".generic",
+            into = liveness.get(loop.header)!.liveIn;
+        a.label(fn.id + ".block." + loop.header);
+        for (const c of loop.checks) {
+            a.load("rax", value(c.slot));
+            a.cmp("rax", 3);
+            a.jcc("ne", generic);
+            a.movsd("xmm0", payload(c.slot));
+            a.cvttsd2si("rax", "xmm0");
+            a.cvtsi2sd("xmm1", "rax");
+            a.ucomisd("xmm0", "xmm1");
+            a.jcc("p", generic);
+            a.jcc("ne", generic);
+            if (c.max !== undefined) {
+                a.cmp("rax", c.max);
+                a.jcc("g", generic);
+            } else {
+                a.cmp("rax", c.min!);
+                a.jcc("l", generic);
+            }
+        }
+        saveRegisters(loop);
+        for (const [n, reg] of loop.bounds) {
+            a.movsd("xmm0", payload(n));
+            a.cvttsd2si(reg, "xmm0");
+        }
+        for (const [n, { reg }] of loop.integers)
+            if (isLive(into, n, floor)) {
+                a.movsd("xmm0", payload(n));
+                a.cvttsd2si(reg, "xmm0");
+            }
+        for (const [n, x] of loop.doubles)
+            if (isLive(into, n, floor)) a.movsd(x, payload(n));
+    };
+    // The register forms of the register copy's operations (view is set).
+    const signed: Record<string, Condition> = {
+        "<": "l",
+        "<=": "le",
+        ">": "g",
+        ">=": "ge",
+    };
+    const swapped: Record<string, string> = {
+        "<": ">",
+        "<=": ">=",
+        ">": "<",
+        ">=": "<=",
+    };
+    const invertSigned: Partial<Record<Condition, Condition>> = {
+        l: "ge",
+        ge: "l",
+        le: "g",
+        g: "le",
+    };
+    const staticInt32 = (n: number): number | undefined => {
+        const c = staticConstant(n) ? constants.get(n) : undefined;
+        return typeof c === "number" &&
+            Number.isInteger(c) &&
+            c >= -(2 ** 31) &&
+            c < 2 ** 31 &&
+            !Object.is(c, -0)
+            ? c
+            : undefined;
+    };
+    // An integer comparand: a register, the bound converted on entry or a constant.
+    const integerComparand = (n: number): Reg | number | undefined =>
+        intReg(n) ?? region!.bounds.get(n) ?? staticInt32(n);
+    // dest <- the integer in reg (exact as a double).
+    const integerResult = (dest: number, reg: Reg) => {
+        const target = intReg(dest);
+        if (target) {
+            if (target !== reg) a.mov(target, reg);
+            return;
+        }
+        a.cvtsi2sd("xmm0", reg);
+        setNumberDest(dest);
+    };
+    // & | ^ << >> >>> with an integer operand or destination: the low 32
+    // bits of each operand are its ToInt32 (an integer register as it is, a
+    // double through the exact truncation, other values through the
+    // runtime), the result an int32 sign-extended (a uint32 zero-extended).
+    const emitIntegerBitwise = (op: Extract<Operation, { kind: "binary" }>) => {
+        const slow = a.unique("generic"),
+            done = a.unique("fastDone");
+        let slowUsed = false;
+        const operand = (n: number, scratch: "r10" | "rcx"): Reg | number => {
+            const integer = intReg(n);
+            if (integer) return integer;
+            const c = staticConstant(n) ? constants.get(n) : undefined;
+            if (typeof c === "number") return c | 0;
+            slowUsed = true;
+            const double = xmmReg(n);
+            if (double) {
+                a.cvttsd2si(scratch, double);
+                a.cvtsi2sd("xmm1", scratch);
+                a.ucomisd("xmm1", double);
+                a.jcc("p", slow);
+                a.jcc("ne", slow);
+                return scratch;
+            }
+            if (!op.numeric) {
+                a.load("rax", value(n));
+                a.cmp("rax", 3);
+                a.jcc("ne", slow);
+            }
+            toInt32Operand(a, payload(n), scratch, slow);
+            return scratch;
+        };
+        const left = operand(op.left, "r10"),
+            right = operand(op.right, "rcx");
+        if (left !== "r10") a.mov("r10", left);
+        const shift = (emit: (count: number | "cl") => void) => {
+            if (typeof right === "number") emit(right & 31);
+            else {
+                if (right !== "rcx") a.mov("rcx", right);
+                a.and("rcx", 31);
+                emit("cl");
+            }
+        };
+        switch (op.operator) {
+            case "&":
+                a.and("r10", right);
+                break;
+            case "|":
+                a.or("r10", right);
+                break;
+            case "^":
+                a.xor("r10", right);
+                break;
+            case "<<":
+                shift((c) => a.shl("r10", c));
+                break;
+            case ">>":
+                a.movsxd("r10", "r10");
+                shift((c) => a.sar("r10", c));
+                break;
+            case ">>>":
+                a.mov("r11", 0xffffffff);
+                a.and("r10", "r11");
+                shift((c) => a.shr("r10", c));
+                break;
+        }
+        if (op.operator !== ">>" && op.operator !== ">>>")
+            a.movsxd("r10", "r10");
+        integerResult(op.dest, "r10");
+        if (!slowUsed) return;
+        a.jmp(done);
+        pushCold(() => {
+            a.label(slow);
+            pointer("rcx", op.dest);
+            pointer("rdx", op.left);
+            pointer("r8", op.right);
+            a.call("rt." + binary[op.operator]);
+            reloadSlot(op.dest);
+            a.jmp(done);
+        });
+        a.label(done);
+    };
+    type IntegerFusion = {
+        left: Reg;
+        right: Reg | number;
+        condition: Condition;
+    };
+    type RegisterForm =
+        | "done"
+        | { fuse: Extract<Operation, { kind: "binary" }> }
+        | { fuseInteger: IntegerFusion };
+    // The register form of op in the register copy of region, or undefined:
+    // then op runs on the frame slots (written back first, reloaded after).
+    const registerForm = (
+        op: Operation,
+        block: BlockIR,
+        index: number,
+    ): RegisterForm | undefined => {
+        const loop = region!;
+        switch (op.kind) {
+            case "copy": {
+                const si = intReg(op.source),
+                    sd = xmmReg(op.source),
+                    di = intReg(op.dest),
+                    dd = xmmReg(op.dest);
+                if (di) {
+                    if (!si) return undefined;
+                    if (di !== si) a.mov(di, si);
+                    return "done";
+                }
+                // (The source of a double slot's copy holds a Number.)
+                if (dd) {
+                    numberInto(dd, op.source);
+                    return "done";
+                }
+                if (!si && !sd) return undefined;
+                numberInto("xmm0", op.source);
+                setNumber(op.dest);
+                return "done";
+            }
+            case "constant": {
+                const dd = xmmReg(op.dest);
+                if (!dd || typeof op.value !== "number") return undefined;
+                a.movsd(dd, { rip: constantValue(op.value), addend: 8 });
+                return "done";
+            }
+            case "unary": {
+                const di = intReg(op.dest),
+                    ai = intReg(op.argument);
+                if (
+                    di &&
+                    ai &&
+                    (loop.steps.has(op) || op.int32) &&
+                    (op.operator === "increment" || op.operator === "decrement")
+                ) {
+                    if (di !== ai) a.mov(di, ai);
+                    a.add(di, op.operator === "increment" ? 1 : -1);
+                    return "done";
+                }
+                if (op.operator === "~" && op.int32 && ai) {
+                    a.mov("r10", ai);
+                    a.not("r10");
+                    a.movsxd("r10", "r10");
+                    integerResult(op.dest, "r10");
+                    return "done";
+                }
+                if (
+                    op.numeric &&
+                    !di &&
+                    (held(op.dest) || held(op.argument)) &&
+                    emitKnownNumberUnary(op.dest, op.operator, op.argument)
+                )
+                    return "done";
+                return undefined;
+            }
+            case "binary": {
+                const di = intReg(op.dest);
+                // An integer plus or minus an int32 constant (steps, int53 temporaries).
+                if (di && (op.operator === "+" || op.operator === "-")) {
+                    const li = intReg(op.left),
+                        ri = intReg(op.right),
+                        lc = staticInt32(op.left),
+                        rc = staticInt32(op.right);
+                    let source: Reg | undefined, delta: number | undefined;
+                    if (li && rc !== undefined) {
+                        source = li;
+                        delta = op.operator === "+" ? rc : -rc;
+                    } else if (op.operator === "+" && ri && lc !== undefined) {
+                        source = ri;
+                        delta = lc;
+                    }
+                    if (
+                        source &&
+                        delta !== undefined &&
+                        delta >= -(2 ** 31) &&
+                        delta < 2 ** 31
+                    ) {
+                        if (di !== source) a.mov(di, source);
+                        if (delta) a.add(di, delta);
+                        return "done";
+                    }
+                }
+                if (
+                    ["&", "|", "^", "<<", ">>", ">>>"].includes(op.operator) &&
+                    (op.int32 || op.uint32) &&
+                    (di || intReg(op.left) || intReg(op.right))
+                ) {
+                    emitIntegerBitwise(op);
+                    return "done";
+                }
+                const decides =
+                    index === block.operations.length - 1 &&
+                    block.terminator.kind === "branch" &&
+                    block.terminator.condition === op.dest &&
+                    !isLive(liveness.get(block.id)!.liveOut, op.dest, floor);
+                if (
+                    decides &&
+                    op.operator in signed &&
+                    (loop.compares.has(op) || op.numeric)
+                ) {
+                    const l = integerComparand(op.left),
+                        r = integerComparand(op.right);
+                    if (typeof l === "string" && r !== undefined)
+                        return {
+                            fuseInteger: {
+                                left: l,
+                                right: r,
+                                condition: signed[op.operator]!,
+                            },
+                        };
+                    if (typeof r === "string" && l !== undefined)
+                        return {
+                            fuseInteger: {
+                                left: r,
+                                right: l,
+                                condition: signed[swapped[op.operator]!]!,
+                            },
+                        };
+                    return { fuse: op };
+                }
+                if (
+                    decides &&
+                    op.numeric &&
+                    op.operator in knownRelation &&
+                    (held(op.left) || held(op.right))
+                )
+                    return { fuse: op };
+                if (
+                    op.numeric &&
+                    !di &&
+                    (held(op.dest) || held(op.left) || held(op.right)) &&
+                    emitKnownNumberBinary(
+                        op.dest,
+                        op.operator,
+                        op.left,
+                        op.right,
+                    )
+                )
+                    return "done";
+                return undefined;
+            }
+        }
+        return undefined;
+    };
+    for (const [emissionIndex, emission] of emissions.entries()) {
+        if ("stub" in emission) {
+            emitting = undefined;
+            region = undefined;
+            emitEntryStub(emission.stub);
+            continue;
+        }
+        const block = emission.block,
+            following = emissions[emissionIndex + 1];
+        const nextLabel = following ? startLabel(following) : undefined;
+        emitting = emission;
+        region = emission.copy === "register" ? emission.loop : undefined;
+        spill = [];
+        view = false;
+        a.label(startLabel(emission));
+        let fusedInteger: IntegerFusion | undefined;
         let fused: Extract<Operation, { kind: "binary" }> | undefined;
         let fusedEquality:
             { other: number; k: number; negate: boolean } | undefined;
+        let fusedGuard:
+            Extract<Operation, { kind: "isFunctionCode" }> | undefined;
         for (const [index, op] of block.operations.entries()) {
             const live = liveness.get(block.id)!.before[index]!,
                 dests = destinations(op).filter(
@@ -863,12 +1476,14 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             // accumulate by its length. GC stress collects before every operation
             // to catch rooting errors.
             currentMap = mapOf(live);
+            spill = liveHeld(live);
+            view = false;
             if (options.gcStress) a.call("rt.collect");
             else if (index === 0 && needsSafepoint(block)) {
                 a.cmpByte({ rip: "rt.gcNeeded" }, 0);
                 a.callUnless("e", "rt.collect");
             }
-            if (!inline(op)) {
+            if (!inlineHere(op)) {
                 // The map of this operation's calls: the live slots and the
                 // destinations, which the runtime may keep its result in across a
                 // nested call (construction keeps the instance there). A destination
@@ -900,10 +1515,54 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 )
             )
                 continue;
+            // In the register copy: the register form, or the operation on
+            // the frame slots (its register operands written back, except an
+            // element key the inline path reads from its register).
+            let reloads: number[] = [];
+            if (region) {
+                view = true;
+                const form = registerForm(op, block, index);
+                view = false;
+                if (form) {
+                    if (form !== "done") {
+                        if ("fuse" in form) fused = form.fuse;
+                        else fusedInteger = form.fuseInteger;
+                    }
+                    continue;
+                }
+                const key =
+                    typedElementSite(fn.id, op) && region.integers.has(op.key)
+                        ? op.key
+                        : -1;
+                writeBack(operationUses(op).filter((n) => n !== key));
+                reloads = destinations(op).filter(held);
+            }
             switch (op.kind) {
                 case "globalObject":
                     copy(value(op.dest), { rip: "rt.globalValue" });
                     break;
+                case "isFunctionCode": {
+                    // The guard of an inlined call (src/ir/inline.ts): the test of
+                    // a direct call, fused into this block's branch when only that
+                    // reads it.
+                    if (
+                        index === block.operations.length - 1 &&
+                        block.terminator.kind === "branch" &&
+                        block.terminator.condition === op.dest &&
+                        !isLive(liveness.get(block.id)!.liveOut, op.dest, floor)
+                    ) {
+                        fusedGuard = op;
+                        break;
+                    }
+                    const store = a.unique("functionCode");
+                    a.mov("r11", 0);
+                    testFunctionCode(op, store);
+                    a.mov("r11", 1);
+                    a.label(store);
+                    a.mov("rax", "r11");
+                    setBoolean(op.dest);
+                    break;
+                }
                 case "readGlobalProperty": {
                     // Prelude code is shared by every program and cannot know which
                     // names a script declares, so only user code gets the fast path.
@@ -1513,62 +2172,62 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         );
                     };
                     if (
-                        op.hasOwn &&
+                        op.intrinsic === "imul" &&
+                        op.arguments.length === 2 &&
                         !op.direct &&
                         !op.construct &&
-                        op.receiver !== undefined
+                        !op.tail
                     ) {
+                        // %Math.imul% with two Numbers whose truncations fit in
+                        // 64 bits: ToInt32 of each and a 32-bit product inline
+                        // (#426). The callee is checked at every call; anything
+                        // else (NaN, Infinity, huge values, non-Numbers, another
+                        // function) is the call, out of line.
                         const general = a.unique("generalCall"),
-                            called = a.unique("called");
-                        if (
-                            op.hasOwn &&
-                            !op.direct &&
-                            !op.construct &&
-                            op.receiver !== undefined
-                        ) {
-                            // %Object.prototype.hasOwnProperty% called on a shaped object
-                            // with a string key: answered by the site's cache (has-cache.ts).
-                            // The callee is checked at every call; anything else is a call.
-                            const call = op.hasOwn === "call",
-                                self = call ? op.arguments[0]! : op.receiver,
-                                key = call
-                                    ? op.arguments[1]!
-                                    : op.arguments[0]!,
-                                cache = "hc." + fragments.length;
-                            fragments.push({
-                                name: cache,
-                                section: ".data",
-                                alignment: 8,
-                                bytes: new Uint8Array(HasCacheLayout.size),
-                                fixups: [],
-                                symbols: {},
-                            });
-                            const check = (n: number, symbol: string) => {
-                                a.load("rax", value(n));
-                                a.cmp("rax", 5);
-                                a.jcc("ne", general);
-                                a.load("rax", payload(n));
-                                a.lea("r10", { rip: symbol });
-                                a.cmp("rax", "r10");
-                                a.jcc("ne", general);
-                            };
-                            if (call) {
-                                check(op.callee, "rt.functionCall");
-                                check(op.receiver, "rt.objectHasOwn");
-                            } else check(op.callee, "rt.objectHasOwn");
-                            pointer("rcx", op.dest);
-                            pointer("rdx", self);
-                            pointer("r8", key);
-                            a.lea("r9", { rip: cache });
-                            a.call("rt.icHasOwn");
-                            a.test("rax", "rax");
-                            a.jcc("ne", called);
+                            called = a.unique("called"),
+                            call = op;
+                        a.load("rax", value(op.callee));
+                        a.cmp("rax", 5);
+                        a.jcc("ne", general);
+                        a.load("rax", payload(op.callee));
+                        a.lea("r10", { rip: "rt.Math.imul.fn" });
+                        a.cmp("rax", "r10");
+                        a.jcc("ne", general);
+                        for (const n of op.arguments) {
+                            a.load("rax", value(n));
+                            a.cmp("rax", 3);
+                            a.jcc("ne", general);
                         }
-                        a.label(general);
-                        callSite(op);
+                        const [x, y] = op.arguments;
+                        toInt32Operand(a, payload(x!), "rcx", general);
+                        toInt32Operand(a, payload(y!), "r10", general);
+                        a.imul("rcx", "r10");
+                        a.shl("rcx", 32);
+                        a.sar("rcx", 32);
+                        a.cvtsi2sd("xmm0", "rcx");
+                        setNumber(op.dest);
+                        pushCold(() => {
+                            a.label(general);
+                            callSite(call);
+                            a.jmp(called);
+                        });
                         a.label(called);
                         break;
                     }
+                    const frame: SiteFrame = {
+                        a,
+                        value,
+                        payload,
+                        stack,
+                        copy,
+                        pointer,
+                        pushCold,
+                        argsBase,
+                        callSite,
+                        fragments,
+                    };
+                    if (emitStringIndexSite(frame, op)) break;
+                    if (emitFastSite(frame, op)) break;
                     if (!op.direct) {
                         callSite(op);
                         break;
@@ -1595,8 +2254,12 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.jcc("ne", general);
                     // this: unchanged for strict code; sloppy code gets the global
                     // object for undefined/null and an object receiver as is
-                    // (primitives, which need boxing, take the general path).
-                    if (op.receiver === undefined)
+                    // (primitives, which need boxing, take the general path). A
+                    // callee that reads neither this nor new.target gets neither
+                    // (its prologue does not read the pointers).
+                    if (op.directNoThis) {
+                        // No receiver.
+                    } else if (op.receiver === undefined)
                         a.lea("rax", {
                             rip: op.directStrict
                                 ? "rt.undefinedValue"
@@ -1617,13 +2280,15 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         a.lea("rax", value(op.receiver));
                         a.label(ready);
                     }
-                    a.store(stack(32), "rax");
-                    a.lea("rax", { rip: "rt.undefinedValue" });
-                    a.store(stack(40), "rax");
+                    if (!op.directNoThis) {
+                        a.store(stack(32), "rax");
+                        a.lea("rax", { rip: "rt.undefinedValue" });
+                        a.store(stack(40), "rax");
+                    }
                     pointer("rcx", op.dest);
                     a.mov("rdx", op.arguments.length);
                     a.lea("r8", stack(argsBase));
-                    a.call(op.direct);
+                    a.call(op.directEntry ? op.direct + ".direct" : op.direct);
                     // A tail call made by the callee comes back as a marker (rt.invoke
                     // does the same); it and the general call are out of line.
                     const tail = a.unique("tailMarker"),
@@ -1698,35 +2363,9 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.cmp("rax", 5);
                     failIf(a, "ne", "rt.throwTypeError");
                     break;
-                case "newObject": {
-                    const capacity = Math.min(
-                        Math.max(op.slots ?? 0, emptyLiteralCapacity),
-                        maxInlineCapacity,
-                    );
-                    // An object literal with known keys (#194): a per-site record whose
-                    // shape the first evaluation resolves; its objects start with it.
-                    const site = literalSites.get(op.dest);
-                    if (site && op.keys && !op.array) {
-                        pointer("rcx", op.dest);
-                        a.lea("rdx", { rip: site });
-                        a.call("rt.newLiteralObject");
-                        break;
-                    }
-                    if (op.array && op.elements) {
-                        pointer("rcx", op.dest);
-                        a.mov("rdx", op.length);
-                        a.call("rt.newArrayLiteral");
-                        break;
-                    }
-                    pointer("rcx", op.dest);
-                    a.mov("rdx", op.array ? 1 : 0);
-                    a.mov("r8", op.length);
-                    if (op.slots !== undefined && !op.array) {
-                        a.mov("r9", capacity);
-                        a.call("rt.newObjectSlots");
-                    } else a.call("rt.newObject");
+                case "newObject":
+                    emitNewObject(frame, op, literalSites.get(op.dest));
                     break;
-                }
                 case "forInKeys":
                     pointer("rcx", op.dest);
                     pointer("rdx", op.object);
@@ -1766,6 +2405,11 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.call("rt.forOfValue");
                     break;
                 case "property":
+                    if (
+                        emitTypedLength(sites, op) ||
+                        emitTypedElementGet(sites, fn.id, op)
+                    )
+                        break;
                     pointer("rcx", op.dest);
                     pointer("rdx", op.object);
                     pointer("r8", op.key);
@@ -1776,17 +2420,22 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         op.keyName !== undefined &&
                         cacheableName(op.keyName)
                     ) {
+                        // The callee of a method call gets a record with method entries.
                         const cache = "ic." + fragments.length;
                         fragments.push({
                             name: cache,
                             section: ".data",
                             alignment: 8,
-                            bytes: new Uint8Array(PropertyCacheLayout.size),
+                            bytes: new Uint8Array(
+                                op.method
+                                    ? MethodCacheLayout.size
+                                    : PropertyCacheLayout.size,
+                            ),
                             fixups: [],
                             symbols: {},
                         });
                         a.lea("r9", { rip: cache });
-                        a.call("rt.icGet");
+                        a.call(op.method ? "rt.icMethod" : "rt.icGet");
                         break;
                     }
                     // `'name' in object`: a per-site cache for shaped receivers (has-cache.ts).
@@ -1840,91 +2489,16 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     }
                     break;
                 case "setProperty":
-                    // An element of an array literal created with its table (#48) is
-                    // stored into its slot.
                     if (
-                        op.literalElement !== undefined &&
-                        arrayLiterals.has(op.object)
-                    ) {
-                        const slow = a.unique("elementSlow"),
-                            done = a.unique("elementDone"),
-                            generic = op,
-                            offset =
-                                ElementsLayout.values + 16 * op.literalElement;
-                        a.load("r10", payload(op.object));
-                        a.load("r10", { base: "r10", disp: O.elements });
-                        a.test("r10", "r10");
-                        a.jcc("e", slow);
-                        a.load("rax", {
-                            base: "r10",
-                            disp: ElementsLayout.capacity,
-                        });
-                        a.cmp("rax", op.literalElement);
-                        a.jcc("be", slow);
-                        a.load("rax", value(op.source));
-                        a.store({ base: "r10", disp: offset }, "rax");
-                        a.load("rax", payload(op.source));
-                        a.store({ base: "r10", disp: offset + 8 }, "rax");
-                        pushCold(() => {
-                            a.label(slow);
-                            pointer("rcx", generic.object);
-                            pointer("rdx", generic.key);
-                            pointer("r8", generic.source);
-                            a.mov(
-                                "r9",
-                                (generic.define ? 1 : 0) |
-                                    (generic.strict ? 2 : 0),
-                            );
-                            a.call("rt.setProperty");
-                            a.jmp(done);
-                        });
-                        a.label(done);
+                        emitLiteralStore(
+                            sites,
+                            op,
+                            arrayLiterals.has(op.object),
+                            literalSites.get(op.object),
+                        ) ||
+                        emitTypedElementSet(sites, fn.id, op)
+                    )
                         break;
-                    }
-                    // A definition in an object literal with known keys stores its slot
-                    // directly while the object still has the site's shape.
-                    if (
-                        op.literalSlot !== undefined &&
-                        literalSites.has(op.object)
-                    ) {
-                        const site = literalSites.get(op.object)!,
-                            slow = a.unique("literalSlow"),
-                            done = a.unique("literalDone"),
-                            generic = op;
-                        a.load("r10", payload(op.object));
-                        a.load("r11", { base: "r10", disp: O.shape });
-                        a.load("rax", { rip: site });
-                        a.cmp("r11", "rax");
-                        a.jcc("ne", slow);
-                        a.load("rax", value(op.source));
-                        a.store(
-                            { base: "r10", disp: O.size + 16 * op.literalSlot },
-                            "rax",
-                        );
-                        a.load("rax", payload(op.source));
-                        a.store(
-                            {
-                                base: "r10",
-                                disp: O.size + 16 * op.literalSlot + 8,
-                            },
-                            "rax",
-                        );
-                        pushCold(() => {
-                            a.label(slow);
-                            pointer("rcx", generic.object);
-                            pointer("rdx", generic.key);
-                            pointer("r8", generic.source);
-                            a.mov(
-                                "r9",
-                                (generic.define ? 1 : 0) |
-                                    (generic.strict ? 2 : 0),
-                            );
-                            a.call("rt.setProperty");
-                            a.jmp(done);
-                        });
-                        a.label(done);
-                        break;
-                    }
                     pointer("rcx", op.object);
                     pointer("rdx", op.key);
                     pointer("r8", op.source);
@@ -2248,14 +2822,32 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.call(op.target);
                     break;
             }
+            for (const n of reloads) reloadSlot(n);
         }
         const term = block.terminator;
         currentMap = mapOf(liveness.get(block.id)!.beforeTerminator);
+        // In the register copy the terminator reads its operand from the
+        // frame slot unless a comparison was fused into it; a return restores
+        // the saved GPRs (a throw leaves that to the handler record).
+        if (region) {
+            spill = liveHeld(liveness.get(block.id)!.beforeTerminator);
+            const use = terminatorUse(term);
+            if (
+                use >= 0 &&
+                !(term.kind === "branch" && (fused || fusedInteger))
+            )
+                writeBack([use]);
+            if (term.kind === "return") {
+                restoreRegisters(region);
+                spill = [];
+            }
+            view = true;
+        }
         // A jump to the block emitted next falls through (#146).
-        const following = fn.blocks[blockIndex + 1]?.id,
-            goto = (target: number) => {
-                if (target !== following) a.jmp(fn.id + ".block." + target);
-            };
+        const goto = (target: number) => {
+            const label = blockLabel(target);
+            if (label !== nextLabel) a.jmp(label);
+        };
         switch (term.kind) {
             case "jump":
                 goto(term.target);
@@ -2267,24 +2859,41 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 });
                 break;
             case "branch": {
+                if (fusedGuard) {
+                    testFunctionCode(fusedGuard, blockLabel(term.no));
+                    goto(term.yes);
+                    break;
+                }
                 if (fusedEquality) {
                     const equal = fusedEquality.negate ? term.no : term.yes,
                         differ = fusedEquality.negate ? term.yes : term.no;
-                    testConstant(fusedEquality, fn.id + ".block." + differ);
+                    testConstant(fusedEquality, blockLabel(differ));
                     goto(equal);
+                    break;
+                }
+                if (fusedInteger) {
+                    const { left, right, condition } = fusedInteger,
+                        yes = blockLabel(term.yes),
+                        no = blockLabel(term.no);
+                    a.cmp(left, right);
+                    if (yes === nextLabel) a.jcc(invertSigned[condition]!, no);
+                    else {
+                        a.jcc(condition, yes);
+                        goto(term.no);
+                    }
                     break;
                 }
                 if (fused) {
                     // ucomisd: unordered (NaN) sets parity; only != holds then.
-                    const yes = fn.id + ".block." + term.yes,
-                        no = fn.id + ".block." + term.no,
+                    const yes = blockLabel(term.yes),
+                        no = blockLabel(term.no),
                         negated =
                             fused.operator === "!=" || fused.operator === "!==";
-                    a.movsd("xmm0", payload(fused.left));
-                    a.ucomisd("xmm0", payload(fused.right));
+                    numberInto("xmm0", fused.left);
+                    a.ucomisd("xmm0", numberOperand(fused.right, "xmm1"));
                     if (negated) {
                         a.jcc("p", yes);
-                        if (term.no === following) a.jcc("ne", yes);
+                        if (blockLabel(term.no) === nextLabel) a.jcc("ne", yes);
                         else {
                             a.jcc("e", no);
                             goto(term.yes);
@@ -2292,7 +2901,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     } else {
                         a.jcc("p", no);
                         const c = knownRelation[fused.operator]!;
-                        if (term.yes === following) a.jcc(inverse[c]!, no);
+                        if (blockLabel(term.yes) === nextLabel)
+                            a.jcc(inverse[c]!, no);
                         else {
                             a.jcc(c, yes);
                             goto(term.no);
@@ -2304,8 +2914,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 // the other tags go through rt.toBoolean.
                 const slow = a.unique("branchSlow"),
                     test = a.unique("branchTest"),
-                    yes = fn.id + ".block." + term.yes,
-                    no = fn.id + ".block." + term.no;
+                    yes = blockLabel(term.yes),
+                    no = blockLabel(term.no);
                 a.load("rax", value(term.condition));
                 a.load("r10", payload(term.condition));
                 a.cmp("rax", 2);
@@ -2331,7 +2941,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 }
                 a.label(test);
                 a.test("r10", "r10");
-                if (term.yes === following) a.jcc("e", no);
+                if (blockLabel(term.yes) === nextLabel) a.jcc("e", no);
                 else {
                     a.jcc("ne", yes);
                     goto(term.no);
@@ -2359,9 +2969,21 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 break;
         }
     }
-    for (const { map, emit } of cold.sort((x, y) => x.map - y.map)) {
-        currentMap = map;
-        emit();
+    for (const c of cold.sort((x, y) => x.map - y.map)) {
+        currentMap = c.map;
+        region = c.region;
+        spill = c.spill;
+        view = false;
+        c.emit();
+    }
+    region = undefined;
+    spill = [];
+    if (directEntry) {
+        a.label(fn.id + ".direct");
+        if (options.coverage && fn.source && !fn.id.startsWith("js.regexpVm."))
+            a.incrementMemory({ rip: "cov." + fn.id });
+        emitDirectEntry(a, directFrame, fn.id);
+        a.jmp(entered);
     }
     fragments.push(
         stackMapFragment(

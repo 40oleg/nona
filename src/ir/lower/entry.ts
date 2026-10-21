@@ -398,6 +398,9 @@ export abstract class EntryLowerer extends AssignmentCallLowerer {
                   }
                 : {}),
             parameterCount: this.fn?.parameters.length ?? 0,
+            ...(this.fn && !needsInitialization
+                ? { simpleParameters: true }
+                : {}),
             localCount: this.fn?.locals.length ?? this.bound.mainLocals.length,
             slotCount: this.slots,
             maxArguments: this.maxArguments,

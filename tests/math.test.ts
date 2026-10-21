@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import { expectProgram } from "./helpers/program.js";
 import { runOracle } from "./helpers/oracle.js";
-import { compileToIR } from "../src/compiler.js";
+import { compile, compileToIR } from "../src/compiler.js";
 import { generate } from "../src/backend/x64/codegen.js";
 import { linkHost } from "./helpers/program.js";
 import { runNative } from "./helpers/native.js";
+import { runOnHost } from "./helpers/host.js";
 import assert from "node:assert/strict";
 
 const cases: [string, string][] = [
@@ -523,4 +524,80 @@ test("Math: large-angle reduction across binary exponents", () => {
                     8e-13 * Math.max(1, Math.abs(value)),
             `${i}: ${actual[i]} vs ${value}`,
         );
+});
+
+// Math.imul inline behind a callee check (#426): every case runs under GC
+// stress and without it and is compared with Node.js.
+function expectImul(source: string): void {
+    const expected = runOracle(source).stdout;
+    for (const gcStress of [true, false]) {
+        const native = runOnHost(source, { gcStress });
+        assert.equal(native.error, undefined);
+        assert.equal(native.status, 0, native.stderr);
+        assert.equal(native.stdout, expected, `gcStress: ${gcStress}`);
+    }
+}
+const imulCases: [string, string][] = [
+    [
+        "int32 and uint32 operands",
+        `function f(a,b){return Math.imul(a,b);}console.log(f(3,4),f(-5,7),f(-5,-7),f(0x7fffffff,2),f(0xffffffff,5),f(0x80000000,-1),f(-0x80000000,-0x80000000),f(65535,65537),f(0xdeadbeef,0x9e3779b9));`,
+    ],
+    [
+        "operands of 2^31 and above",
+        `function f(a,b){return Math.imul(a,b);}var xs=[2**31,2**32,2**32+3,2**53,-(2**53),2**53+2,2**63,-(2**63),2**64,2**70+2**40,1e300,-1e300,Number.MAX_VALUE,Number.MIN_VALUE];var out=[];for(var x of xs)out.push(f(x,3),f(7,x),f(x,x));console.log(out.join(' '));`,
+    ],
+    [
+        "NaN, infinities and signed zero",
+        `function f(a,b){return Math.imul(a,b);}console.log(f(NaN,3),f(3,NaN),f(Infinity,2),f(-Infinity,2),f(2,Infinity),Object.is(f(-0,5),0),Object.is(f(-5,0),0),Object.is(f(-0,-0),0),Object.is(f(0,-1),-0));`,
+    ],
+    [
+        "fractions",
+        `function f(a,b){return Math.imul(a,b);}console.log(f(2.9,3.9),f(-2.9,3.9),f(-0.5,8),f(0.99,-7),f(1e9+0.5,1e9+0.75),f(-(2**31)-0.5,1),f(2**32-0.5,1));`,
+    ],
+    [
+        "strings, booleans, null and undefined",
+        `function f(a,b){return Math.imul(a,b);}console.log(f('7',3),f('0x10','2'),f('abc',3),f(' 12 ',2),f(true,9),f(null,4),f(undefined,4),f([3],[5]));`,
+    ],
+    [
+        "objects with valueOf convert in order",
+        `var log=[];function v(n,x){return {valueOf(){log.push(n);return x;}};}function f(a,b){return Math.imul(a,b);}console.log(f(v('a',6),v('b',7)),f(5,v('c',-3)),f(v('d',2**32+5),4),log.join(''));`,
+    ],
+    [
+        "BigInt and Symbol throw TypeError",
+        `function f(a,b){return Math.imul(a,b);}for(var p of [[1n,2],[2,1n],[Symbol(),1],[1,Symbol()]]){try{f(p[0],p[1]);console.log('no');}catch(e){console.log(e instanceof TypeError);}}var log='';try{Math.imul({valueOf(){log+='a';return 1;}},1n);}catch(e){console.log(e instanceof TypeError,log);}`,
+    ],
+    [
+        "zero, one and three arguments",
+        `console.log(Math.imul(),Math.imul(5),Math.imul(3,4,5),Math.imul(...[6,7]),Math.imul.length,Math.imul.name);`,
+    ],
+    [
+        "Math.imul replaced, deleted or read through a getter",
+        `function f(a,b){return Math.imul(a,b);}var r=[f(3,4)];var original=Math.imul;Math.imul=function(a,b){return a+b;};r.push(f(3,4));delete Math.imul;try{f(3,4);}catch(e){r.push(e instanceof TypeError);}var log='';Object.defineProperty(Math,'imul',{configurable:true,get(){log+='g';return original;}});r.push(Math.imul((log+='a',3),(log+='b',5)),log);Object.defineProperty(Math,'imul',{configurable:true,writable:true,value:original});r.push(f(3,4));console.log(r.join(' '));`,
+    ],
+    [
+        "a local Math and a reassigned global Math",
+        `function g(a,b){return Math.imul(a,b);}var r=[g(6,7)];{const Math={imul:(a,b)=>a+b};r.push(Math.imul(6,7));}var saved=globalThis.Math;globalThis.Math={imul:(a,b)=>a-b};r.push(g(6,7));globalThis.Math=saved;r.push(g(6,7));console.log(r.join(' '));`,
+    ],
+    [
+        "call, apply and other receivers",
+        `var o={imul:Math.imul};console.log(Math.imul.call(null,6,7),Math.imul.apply(undefined,[0xffffffff,3]),o.imul(5,-5),[1,2,3].map((x)=>Math.imul(x,x)).join());`,
+    ],
+    [
+        "hot loops: a product chain and FNV-1a",
+        `var t=new Float64Array(1024);for(var i=0;i<1024;i++)t[i]=(i*2654435761)%4294967296;function chain(){var p=1;for(var i=0;i<3000;i++)p=Math.imul(p,t[i&1023]|1)>>>0;return p;}function fnv(s){var h=2166136261;for(var j=0;j<s.length;j++)h=Math.imul(h^s.charCodeAt(j),16777619)>>>0;return h;}var p=chain(),h=0,s='the quick brown fox jumps over the lazy dog';for(var k=0;k<20;k++)h^=fnv(s+k);console.log(p,h>>>0);`,
+    ],
+];
+for (const [name, source] of imulCases)
+    test(`Math.imul: ${name}`, () => expectImul(source));
+
+test("Math.imul(a, b) is multiplied inline behind the callee check", () => {
+    const source = `function f(a,b){return Math.imul(a,b);}console.log(f(3,4));`;
+    const result = compile(source, {
+        fileName: "/app.js",
+        target: "linux-x64",
+        printAsm: true,
+    });
+    assert.ok(result.ok, result.ok ? "" : JSON.stringify(result.diagnostics));
+    assert.match(result.assembly!, /lea r10, \[rip\+rt\.Math\.imul\.fn\]/);
+    assert.match(result.assembly!, /imul rcx, r10/);
 });

@@ -71,6 +71,8 @@ export abstract class CallLowerer extends ClassLowerer {
         newTarget?: number,
         tail = false,
         hasOwn?: "method" | "call",
+        intrinsic?: "imul",
+        stringIndex?: "charCodeAt" | "charAt",
     ): void {
         if ("array" in args)
             this.emit({
@@ -94,6 +96,8 @@ export abstract class CallLowerer extends ClassLowerer {
                 ...(newTarget === undefined ? {} : { newTarget }),
                 ...(tail ? { tail: true } : {}),
                 ...(hasOwn ? { hasOwn } : {}),
+                ...(intrinsic ? { intrinsic } : {}),
+                ...(stringIndex && !construct && !tail ? { stringIndex } : {}),
             });
         }
     }
@@ -116,6 +120,35 @@ export abstract class CallLowerer extends ClassLowerer {
         if (callee.property.value === "call" && args.fixed.length >= 2)
             return "call";
         return undefined;
+    }
+    /** `x.charCodeAt(i)` or `x.charAt(i)` with at most one argument: the code unit may be read inline (codegen checks the callee and the receiver). */
+    protected stringIndexCall(
+        callee: A.Member,
+        args: { fixed: number[] } | { array: number },
+    ): "charCodeAt" | "charAt" | undefined {
+        if (
+            !("fixed" in args) ||
+            args.fixed.length > 1 ||
+            callee.property.kind !== "Literal" ||
+            callee.object.kind === "Super"
+        )
+            return undefined;
+        const name = callee.property.value;
+        return name === "charCodeAt" || name === "charAt" ? name : undefined;
+    }
+    /** `Math.imul(a, b)`: the call may be computed inline when the callee is %Math.imul% at run time (#426). */
+    protected intrinsicCall(
+        callee: A.Member,
+        args: { fixed: number[] } | { array: number },
+    ): "imul" | undefined {
+        return "fixed" in args &&
+            args.fixed.length === 2 &&
+            callee.object.kind === "Identifier" &&
+            callee.object.name === "Math" &&
+            callee.property.kind === "Literal" &&
+            callee.property.value === "imul"
+            ? "imul"
+            : undefined;
     }
     protected arrayOf(values: number[]): number {
         const array = this.slot();
@@ -248,6 +281,88 @@ export abstract class CallLowerer extends ClassLowerer {
             arguments: args,
         });
         return dest;
+    }
+    /**
+     * `x.end(JSON.stringify(a, r, s))` (#155): x.end, then JSON.stringify, then
+     * the arguments are evaluated as usual, and rt.prelude.endJson ends the
+     * message with the UTF-8 bytes of the JSON text when x.end is node:http's
+     * own end and the function read is the intrinsic JSON.stringify (whatever
+     * `JSON` resolves to). Otherwise it returns undefined and the two calls are
+     * made as written.
+     */
+    protected endJsonCall(e: A.Call): number | undefined {
+        const callee = e.callee,
+            argument = e.arguments[0];
+        const named = (node: A.Expression, name: string) =>
+            node.kind === "Literal" && node.value === name;
+        if (
+            callee.kind !== "Member" ||
+            callee.object.kind === "Super" ||
+            !named(callee.property, "end") ||
+            e.arguments.length !== 1 ||
+            argument!.kind !== "Call"
+        )
+            return undefined;
+        const inner = argument as A.Call,
+            stringify = inner.callee;
+        if (
+            stringify.kind !== "Member" ||
+            stringify.object.kind !== "Identifier" ||
+            stringify.object.name !== "JSON" ||
+            !named(stringify.property, "stringify") ||
+            inner.arguments.length > 3 ||
+            inner.arguments.some((arg) => arg.kind === "SpreadElement")
+        )
+            return undefined;
+        const endRef = this.reference(callee) as {
+                object: number;
+                key: number;
+            },
+            end = this.getReference(endRef),
+            jsonRef = this.reference(stringify) as {
+                object: number;
+                key: number;
+            },
+            fn = this.getReference(jsonRef),
+            args = inner.arguments.map((arg) =>
+                this.expression(arg as A.Expression),
+            );
+        const missing = this.constant(undefined),
+            fast = this.preludeCall("endJson", [
+                endRef.object,
+                end,
+                fn,
+                ...[0, 1, 2].map((i) => args[i] ?? missing),
+            ]);
+        const result = this.slot(),
+            nullish = this.slot(),
+            slow = this.block(),
+            done = this.block(),
+            join = this.block();
+        this.emit({
+            kind: "unary",
+            dest: nullish,
+            operator: "isNullish",
+            argument: fast,
+        });
+        this.end({
+            kind: "branch",
+            condition: nullish,
+            yes: slow.id,
+            no: done.id,
+        });
+        this.select(done);
+        this.emit({ kind: "copy", dest: result, source: fast });
+        this.end({ kind: "jump", target: join.id });
+        this.select(slow);
+        const text = this.slot(),
+            value = this.slot();
+        this.invokeWithArguments(text, fn, { fixed: args }, jsonRef.object);
+        this.invokeWithArguments(value, end, { fixed: [text] }, endRef.object);
+        this.emit({ kind: "copy", dest: result, source: value });
+        this.end({ kind: "jump", target: join.id });
+        this.select(join);
+        return result;
     }
     /** Annex B.3.8: a call expression target is evaluated, then ReferenceError. */
     protected callTargetError(call: A.Call): number {

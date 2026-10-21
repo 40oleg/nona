@@ -1,0 +1,239 @@
+platform linux (WSL2), sizes 10000000, 11 runs, builds o3, noinline, order seed 1470193416
+
+startup (loop_control, n = 0), ms: median [IQR] (min–max)
+  nona           — [—–—] (—–—) failed-runs
+  cpp-o3         — [—–—] (—–—) failed-runs
+
+kernel                                      n  binary         median ms  IQR            min–max           ns/op    Mop/s    Mcu/s  nona/C++  status
+str_scan_ascii_short                 10000000  nona                7043  6957–7119      6805–7197           704     1.42     22.7            ok
+                                               cpp-o3              21.7  20.8–22.8      19.7–24.4          2.17      461     7383      ×325  
+str_scan_ascii_short_bytes           10000000  nona                7027  6914–7078      6799–7956           703     1.42     22.8            ok
+                                               cpp-o3              23.4  23.0–23.9      21.9–25.7          2.34      427     6824      ×300  [bytes (not equivalent)]
+str_equal_ascii_short                10000000  nona                 130  127–134        125–142            13.0     77.1     1098            ok
+                                               cpp-o3              54.6  54.2–54.9      52.0–66.3          5.46      183     2608     ×2.37  
+str_compare_ascii_short              10000000  nona                 175  173–183        171–224            17.5     57.1      814            ok
+                                               cpp-o3              73.0  71.1–75.5      70.2–92.2          7.30      137     1952     ×2.40  
+str_slice_ascii_short                10000000  nona                2142  2076–2203      2046–2262           214     4.67     18.7            ok
+                                               cpp-o3              49.6  48.9–50.2      44.2–53.1          4.96      201      806     ×43.2  
+str_slice_ascii_short_view           10000000  nona                2074  2064–2100      2046–2137           207     4.82     19.3            ok
+                                               cpp-o3              21.1  20.9–21.8      19.7–23.6          2.11      474     1895     ×98.3  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_ascii_short_n4           10000000  nona                1064  1054–1078      1047–1101           106     9.40      129            ok
+                                               cpp-o3              98.7  95.4–102       91.5–111           9.87      101     1394     ×10.8  
+str_indexof_ascii_short_n4_bytes     10000000  nona                1068  1056–1097      1045–1124           107     9.37      129            ok
+                                               cpp-o3              98.5  95.6–101       92.2–104           9.85      102     1397     ×10.8  [bytes (not equivalent)]
+str_concat_ascii_short               10000000  nona                1223  1204–1242      1192–1267           122     8.18     81.8            ok
+                                               cpp-o3               177  176–179        173–184            17.7     56.5      565     ×6.91  
+str_concat_ascii_short_append        10000000  nona                1202  1178–1233      1158–1247           120     8.32     83.2            ok
+                                               cpp-o3              32.3  31.4–33.0      29.8–34.3          3.23      310     3097     ×37.2  [UTF-16, mutable s += piece: lower bound]
+str_builder_ascii_short               1000000  nona                 234  233–237        226–243             234     4.27     17.1            ok
+                                               cpp-o3              3.06  2.64–3.27      2.50–3.35         <10ms      327     1308     ×76.6  [UTF-16, reserved std::u16string append: architectural lower bound of push + join]
+str_builder_ascii_short_join          1000000  nona                 239  236–242        233–248             239     4.18     16.7            ok
+                                               cpp-o3              22.7  22.1–23.2      19.5–33.1          22.7     44.0      176     ×10.5  
+str_splitjoin_ascii_short             1000000  nona                1055  1043–1075      1026–1104          1055    0.948     15.2            ok
+                                               cpp-o3               124  121–128        118–131             124     8.06      129     ×8.50  
+str_replace_ascii_short               1000000  nona                 605  591–612        553–619             605     1.65     26.4            ok
+                                               cpp-o3              31.5  31.0–32.3      30.5–35.3          31.5     31.7      508     ×19.2  
+str_replaceall_ascii_short            1000000  nona                1628  1609–1674      1559–1699          1628    0.614     9.83            ok
+                                               cpp-o3              56.9  55.8–57.8      54.8–68.9          56.9     17.6      281     ×28.6  
+str_scan_ascii_medium                  100000  nona                4546  4488–4588      4287–4655         45462   0.0220     22.5            ok
+                                               cpp-o3              7.45  7.25–7.73      6.83–8.62         <10ms     13.4    13744      ×610  
+str_scan_ascii_medium_bytes            100000  nona                4442  4379–4547      4310–4773         44424   0.0225     23.1            ok
+                                               cpp-o3              7.44  6.69–8.01      6.61–8.49         <10ms     13.4    13762      ×597  [bytes (not equivalent)]
+str_equal_ascii_medium                 100000  nona                8.16  7.96–8.46      7.63–9.17         <10ms     12.3    10989            ok
+                                               cpp-o3              27.6  26.8–27.9      25.6–29.0           276     3.62     3247    ×0.295  
+str_compare_ascii_medium               100000  nona                9.54  9.12–9.75      8.16–10.6         <10ms     10.5     9399            ok
+                                               cpp-o3              38.9  38.8–41.2      37.2–43.9           389     2.57     2302    ×0.245  
+str_slice_ascii_medium                1000000  nona                 281  279–285        270–320             281     3.55      910            ok
+                                               cpp-o3              19.7  19.0–21.3      17.8–23.1          19.7     50.8    13014     ×14.3  
+str_slice_ascii_medium_view           1000000  nona                 278  274–290        250–304             278     3.59      919            ok
+                                               cpp-o3              2.23  2.18–2.32      2.07–2.65         <10ms      449   114848      ×125  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_ascii_medium_n4            100000  nona                51.1  50.5–52.9      47.6–56.8           511     1.96     1550            ok
+                                               cpp-o3              53.4  51.2–55.5      48.5–58.4           534     1.87     1484    ×0.957  
+str_indexof_ascii_medium_n4_bytes      100000  nona                53.0  51.6–54.2      46.9–59.7           530     1.89     1497            ok
+                                               cpp-o3              43.1  42.1–44.5      39.9–46.4           431     2.32     1840     ×1.23  [bytes (not equivalent)]
+str_indexof_ascii_medium_n64           100000  nona                48.1  47.0–52.0      44.6–56.3           481     2.08     1684            ok
+                                               cpp-o3              53.1  49.8–55.0      45.8–56.9           531     1.88     1526    ×0.907  
+str_indexof_ascii_medium_n64_bytes     100000  nona                46.6  45.7–47.8      44.7–53.8           466     2.15     1739            ok
+                                               cpp-o3              29.6  29.1–30.7      28.4–35.6           296     3.38     2740     ×1.58  [bytes (not equivalent)]
+str_concat_ascii_medium               1000000  nona                52.8  52.3–53.3      50.3–59.5          52.8     18.9     9841            ok
+                                               cpp-o3              33.7  33.0–35.5      30.9–38.5          33.7     29.7    15452     ×1.57  
+str_concat_ascii_medium_append        1000000  nona                52.5  52.2–54.0      49.3–54.2          52.5     19.1     9912            ok
+                                               cpp-o3              2.17  2.15–2.32      2.11–2.49         <10ms      461   239736     ×24.2  [UTF-16, mutable s += piece: lower bound]
+str_builder_ascii_medium              1000000  nona                 132  130–135        119–149             132     7.60      122            ok
+                                               cpp-o3              2.14  2.09–2.27      2.03–3.08         <10ms      467     7466     ×61.4  [UTF-16, reserved std::u16string append: architectural lower bound of push + join]
+str_builder_ascii_medium_join         1000000  nona                 131  127–139        123–153             131     7.64      122            ok
+                                               cpp-o3              10.1  9.40–10.7      8.71–11.3          10.1     99.2     1587     ×13.0  
+str_splitjoin_ascii_medium              10000  nona                 237  229–249        222–264           23738   0.0421     43.1            ok
+                                               cpp-o3              31.5  30.1–33.2      29.4–43.8          3149    0.318      325     ×7.54  
+str_replace_ascii_medium               100000  nona                 165  163–172        156–175            1652    0.605      620            ok
+                                               cpp-o3              28.1  27.6–29.9      27.0–30.6           281     3.56     3650     ×5.89  
+str_replaceall_ascii_medium             10000  nona                30.4  29.4–30.9      28.7–34.1          3036    0.329      337            ok
+                                               cpp-o3              6.11  5.91–6.52      4.90–8.46         <10ms     1.64     1675     ×4.97  
+str_scan_ascii_large                      100  nona                4517  4496–4610      4459–4673      451669440.0000221     23.2            ok
+                                               cpp-o3              7.26  7.11–7.43      6.58–8.15         <10ms   0.0138    14447      ×622  
+str_scan_ascii_large_bytes                100  nona                4633  4478–4669      4381–4886      463306960.0000216     22.6            ok
+                                               cpp-o3              7.30  7.02–7.77      6.91–8.16         <10ms   0.0137    14362      ×635  [bytes (not equivalent)]
+str_equal_ascii_large                     100  nona                9.20  7.41–9.88      6.93–12.5         <10ms   0.0109     9972            ok
+                                               cpp-o3              25.6  25.3–26.4      24.5–32.5        255887  0.00391     3586    ×0.360  
+str_compare_ascii_large                   100  nona                8.37  7.73–8.86      6.96–13.1         <10ms   0.0120    10967            ok
+                                               cpp-o3              37.9  36.5–38.4      35.4–43.2        379173  0.00264     2420    ×0.221  
+str_slice_ascii_large                    1000  nona                46.2  45.0–48.4      41.8–60.4         46194   0.0216     5675            ok
+                                               cpp-o3              22.7  21.7–24.3      20.4–25.1         22748   0.0440    11524     ×2.03  
+str_slice_ascii_large_view               1000  nona                49.0  46.9–52.5      43.4–55.8         48963   0.0204     5354            ok
+                                               cpp-o3             0.186  0.180–0.195    0.175–0.214       <10ms     5.37  1407984      ×263  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_ascii_large_n4                100  nona                12.7  11.8–13.2      11.3–15.1        127346  0.00785     1144            ok
+                                               cpp-o3              14.3  13.9–14.8      12.8–21.9        142517  0.00702     1022    ×0.894  
+str_indexof_ascii_large_n4_bytes          100  nona                12.9  12.6–14.1      10.0–15.8        128645  0.00777     1132            ok
+                                               cpp-o3              8.03  7.54–8.51      6.85–9.45         <10ms   0.0125     1813     ×1.60  [bytes (not equivalent)]
+str_indexof_ascii_large_n64               100  nona                75.4  72.7–79.2      69.2–89.1        753987  0.00133     1056            ok
+                                               cpp-o3               100  93.8–109       88.2–129        1000245 0.001000      796    ×0.754  
+str_indexof_ascii_large_n64_bytes         100  nona                73.8  71.4–79.0      69.0–85.8        737643  0.00136     1080            ok
+                                               cpp-o3              53.6  53.3–56.3      46.6–59.0        535896  0.00187     1486     ×1.38  [bytes (not equivalent)]
+str_concat_ascii_large                   2000  nona                2.09  1.94–2.22      1.82–2.70         <10ms    0.957   490684            ok
+                                               cpp-o3               186  183–190        180–203           93198   0.0107     5502   ×0.0112  
+str_concat_ascii_large_append            2000  nona                1.97  1.91–2.10      1.64–2.35         <10ms     1.01   519827            ok
+                                               cpp-o3              1.50  1.34–1.58      1.32–1.65         <10ms     1.33   684415     ×1.32  [UTF-16, mutable s += piece: lower bound]
+str_builder_ascii_large                100000  nona                 144  142–150        114–157            1439    0.695      711            ok
+                                               cpp-o3              7.76  7.53–8.07      7.14–9.36         <10ms     12.9    13203     ×18.6  [UTF-16, reserved std::u16string append: architectural lower bound of push + join]
+str_builder_ascii_large_join           100000  nona                 141  136–148        125–157            1410    0.709      726            ok
+                                               cpp-o3              8.70  8.19–8.92      7.70–10.0         <10ms     11.5    11770     ×16.2  
+str_splitjoin_ascii_large                  10  nona                 304  293–330        290–384        303709950.0000329     34.5            ok
+                                               cpp-o3              75.0  71.0–76.9      66.0–89.1       7497172 0.000133      140     ×4.05  
+str_replace_ascii_large                   100  nona                44.8  43.2–49.8      36.8–51.7        448365  0.00223     2339            ok
+                                               cpp-o3              8.79  8.52–9.36      7.94–9.79         <10ms   0.0114    11933     ×5.10  
+str_replaceall_ascii_large                100  nona                 179  175–183        161–193         1786708 0.000560      587            ok
+                                               cpp-o3               144  138–146        127–166         1441126 0.000694      728     ×1.24  
+str_scan_bmp_short                   10000000  nona                7436  7358–7507      7184–7662           744     1.34     21.5            ok
+                                               cpp-o3              20.0  19.5–20.9      18.9–21.9          2.00      499     7987      ×371  
+str_equal_bmp_short                  10000000  nona                 125  121–130        120–140            12.5     80.3     1144            ok
+                                               cpp-o3              52.1  51.2–53.5      50.8–76.2          5.21      192     2734     ×2.39  
+str_compare_bmp_short                10000000  nona                 168  166–173        162–178            16.8     59.6      850            ok
+                                               cpp-o3              71.3  69.4–73.2      68.3–103           7.13      140     1999     ×2.35  
+str_slice_bmp_short                  10000000  nona                2178  2140–2253      2106–2320           218     4.59     18.4            ok
+                                               cpp-o3              48.2  47.5–48.6      44.5–51.8          4.82      208      830     ×45.2  
+str_slice_bmp_short_view             10000000  nona                2206  2170–2225      2059–2276           221     4.53     18.1            ok
+                                               cpp-o3              22.2  21.7–23.0      20.8–23.9          2.22      450     1800     ×99.3  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_bmp_short_n4             10000000  nona                1131  1116–1149      1054–1292           113     8.84      122            ok
+                                               cpp-o3               110  99.6–116       88.9–128           11.0     91.0     1251     ×10.3  
+str_concat_bmp_short                 10000000  nona                1274  1240–1304      1190–1418           127     7.85     78.5            ok
+                                               cpp-o3               174  172–179        165–196            17.4     57.6      576     ×7.34  
+str_concat_bmp_short_append          10000000  nona                1276  1258–1322      1206–1368           128     7.84     78.4            ok
+                                               cpp-o3              31.3  30.4–31.9      29.5–32.7          3.13      320     3199     ×40.8  [UTF-16, mutable s += piece: lower bound]
+str_builder_bmp_short                 1000000  nona                 233  229–235        220–266             233     4.29     17.2            ok
+                                               cpp-o3              2.97  2.71–3.04      2.56–3.86         <10ms      337     1347     ×78.5  [UTF-16, reserved std::u16string append: architectural lower bound of push + join]
+str_builder_bmp_short_join            1000000  nona                 245  233–258        213–270             245     4.08     16.3            ok
+                                               cpp-o3              20.2  19.7–22.1      18.0–23.6          20.2     49.4      198     ×12.1  
+str_splitjoin_bmp_short               1000000  nona                1118  1059–1128      1005–1188          1118    0.894     14.3            ok
+                                               cpp-o3               126  124–130        121–145             126     7.92      127     ×8.86  
+str_replace_bmp_short                 1000000  nona                 613  587–635        570–662             613     1.63     26.1            ok
+                                               cpp-o3              30.2  29.7–30.7      29.2–50.2          30.2     33.1      529     ×20.3  
+str_replaceall_bmp_short              1000000  nona                1724  1691–1753      1637–1780          1724    0.580     9.28            ok
+                                               cpp-o3              55.7  53.7–57.1      51.0–59.2          55.7     17.9      287     ×30.9  
+str_scan_bmp_medium                    100000  nona                4675  4628–4768      4502–4946         46751   0.0214     21.9            ok
+                                               cpp-o3              7.41  6.88–7.65      6.48–10.8         <10ms     13.5    13823      ×631  
+str_equal_bmp_medium                   100000  nona                8.04  7.72–8.47      7.49–9.33         <10ms     12.4    11147            ok
+                                               cpp-o3              26.8  26.4–27.5      25.7–31.3           268     3.74     3349    ×0.300  
+str_compare_bmp_medium                 100000  nona                9.00  8.32–9.11      8.12–15.2         <10ms     11.1     9957            ok
+                                               cpp-o3              40.3  39.2–43.2      36.3–52.7           403     2.48     2226    ×0.224  
+str_slice_bmp_medium                  1000000  nona                 282  268–293        257–325             282     3.55      909            ok
+                                               cpp-o3              18.0  17.5–18.9      16.9–29.2          18.0     55.5    14201     ×15.6  
+str_slice_bmp_medium_view             1000000  nona                 274  268–284        251–310             274     3.64      933            ok
+                                               cpp-o3              2.14  2.00–2.40      1.88–2.49         <10ms      467   119583      ×128  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_bmp_medium_n4              100000  nona                51.0  50.4–58.5      49.2–68.7           510     1.96     1556            ok
+                                               cpp-o3              52.4  51.2–53.5      50.6–57.6           524     1.91     1514    ×0.973  
+str_indexof_bmp_medium_n64             100000  nona                46.9  45.4–48.1      44.7–55.5           469     2.13     1727            ok
+                                               cpp-o3              50.7  49.1–52.8      47.9–64.8           507     1.97     1598    ×0.925  
+str_concat_bmp_medium                 1000000  nona                49.8  49.4–52.8      48.7–59.8          49.8     20.1    10452            ok
+                                               cpp-o3              32.9  31.7–34.3      30.4–37.5          32.9     30.4    15794     ×1.51  
+str_concat_bmp_medium_append          1000000  nona                52.0  51.5–53.1      48.2–63.1          52.0     19.2     9995            ok
+                                               cpp-o3              2.23  2.16–2.44      2.00–2.89         <10ms      448   232815     ×23.3  [UTF-16, mutable s += piece: lower bound]
+str_builder_bmp_medium                1000000  nona                 129  122–132        116–147             129     7.77      124            ok
+                                               cpp-o3              2.27  2.15–2.60      1.94–3.40         <10ms      440     7043     ×56.6  [UTF-16, reserved std::u16string append: architectural lower bound of push + join]
+str_builder_bmp_medium_join           1000000  nona                 127  126–131        115–149             127     7.88      126            ok
+                                               cpp-o3              9.94  9.67–10.8      8.36–12.4         <10ms      101     1610     ×12.8  
+str_splitjoin_bmp_medium                10000  nona                 232  229–237        214–263           23239   0.0430     44.1            ok
+                                               cpp-o3              31.9  28.9–32.9      27.4–40.9          3187    0.314      321     ×7.29  
+str_replace_bmp_medium                 100000  nona                 129  127–135        121–163            1291    0.775      793            ok
+                                               cpp-o3              16.4  16.1–17.7      15.9–19.6           164     6.09     6237     ×7.86  
+str_replaceall_bmp_medium               10000  nona                28.0  27.4–29.5      26.0–32.9          2802    0.357      365            ok
+                                               cpp-o3              6.27  5.71–6.74      5.02–9.99         <10ms     1.59     1632     ×4.47  
+str_scan_bmp_large                        100  nona                4655  4455–4784      4311–4905      465497600.0000215     22.5            ok
+                                               cpp-o3              7.17  7.02–7.76      6.52–10.1         <10ms   0.0139    14619      ×649  
+str_equal_bmp_large                       100  nona                9.08  7.79–9.26      7.08–10.2         <10ms   0.0110    10102            ok
+                                               cpp-o3              27.8  27.3–28.2      26.5–28.8        277843  0.00360     3302    ×0.327  
+str_compare_bmp_large                     100  nona                8.10  7.78–8.63      7.39–9.43         <10ms   0.0123    11323            ok
+                                               cpp-o3              38.4  37.5–39.4      36.0–41.4        384401  0.00260     2387    ×0.211  
+str_slice_bmp_large                      1000  nona                46.9  45.7–48.7      41.3–51.2         46882   0.0213     5592            ok
+                                               cpp-o3              22.9  22.1–23.9      21.9–24.4         22884   0.0437    11455     ×2.05  
+str_slice_bmp_large_view                 1000  nona                45.7  44.8–47.8      40.4–49.8         45716   0.0219     5734            ok
+                                               cpp-o3             0.191  0.186–0.204    0.178–0.246       <10ms     5.24  1374605      ×240  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_bmp_large_n4                  100  nona                12.2  11.7–12.5      11.4–12.8        121989  0.00820     1194            ok
+                                               cpp-o3              14.7  14.5–15.4      13.7–16.9        147380  0.00679      988    ×0.828  
+str_indexof_bmp_large_n64                 100  nona                73.7  71.6–75.6      69.6–81.5        737163  0.00136     1080            ok
+                                               cpp-o3              95.4  94.0–96.8      91.0–100         953634  0.00105      835    ×0.773  
+str_concat_bmp_large                     2000  nona                1.91  1.85–1.97      1.75–2.18         <10ms     1.05   536938            ok
+                                               cpp-o3               184  181–187        164–193           92003   0.0109     5574   ×0.0104  
+str_concat_bmp_large_append              2000  nona                1.83  1.75–1.93      1.57–2.22         <10ms     1.09   560235            ok
+                                               cpp-o3              1.52  1.45–1.68      1.39–1.86         <10ms     1.31   673283     ×1.20  [UTF-16, mutable s += piece: lower bound]
+str_builder_bmp_large                  100000  nona                 139  129–144        122–149            1385    0.722      739            ok
+                                               cpp-o3              7.62  7.28–8.00      7.10–8.75         <10ms     13.1    13432     ×18.2  [UTF-16, reserved std::u16string append: architectural lower bound of push + join]
+str_builder_bmp_large_join             100000  nona                 140  137–141        122–149            1401    0.714      731            ok
+                                               cpp-o3              8.60  8.38–8.76      8.00–9.21         <10ms     11.6    11908     ×16.3  
+str_splitjoin_bmp_large                    10  nona                 309  306–314        284–324        309455060.0000323     33.9            ok
+                                               cpp-o3              77.5  76.4–81.6      70.3–86.7       7748157 0.000129      135     ×3.99  
+str_replace_bmp_large                     100  nona                47.5  44.8–48.5      41.8–52.8        475332  0.00210     2206            ok
+                                               cpp-o3              8.91  8.44–9.26      7.99–9.57         <10ms   0.0112    11775     ×5.34  
+str_replaceall_bmp_large                  100  nona                 179  174–181        159–187         1790245 0.000559      586            ok
+                                               cpp-o3               117  112–123        104–149         1173549 0.000852      894     ×1.53  
+str_scan_astral_short                10000000  nona                7361  7327–7464      7155–7758           736     1.36     21.7            ok
+                                               cpp-o3              20.4  19.8–21.4      19.5–27.6          2.04      491     7859      ×362  
+str_slice_astral_short               10000000  nona                2182  2153–2210      2106–2274           218     4.58     18.3            ok
+                                               cpp-o3              47.4  46.5–49.6      45.2–54.4          4.74      211      844     ×46.0  
+str_slice_astral_short_view          10000000  nona                2101  2094–2168      2078–2203           210     4.76     19.0            ok
+                                               cpp-o3              21.3  20.9–22.2      20.5–23.4          2.13      469     1876     ×98.6  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_astral_short_n4          10000000  nona                1188  1181–1219      1171–1245           119     8.42      119            ok
+                                               cpp-o3               120  117–124        116–127            12.0     83.0     1178     ×9.86  
+str_replace_astral_short              1000000  nona                 603  587–606        583–619             603     1.66     26.6            ok
+                                               cpp-o3              32.1  31.6–32.4      29.4–34.6          32.1     31.2      499     ×18.8  
+str_replaceall_astral_short           1000000  nona                1722  1685–1745      1652–1758          1722    0.581     9.29            ok
+                                               cpp-o3              69.1  67.4–71.7      65.0–73.2          69.1     14.5      231     ×24.9  
+str_scan_astral_medium                 100000  nona                4555  4481–4613      4404–4663         45548   0.0220     22.5            ok
+                                               cpp-o3              7.91  7.40–8.36      7.05–9.04         <10ms     12.6    12946      ×576  
+str_slice_astral_medium               1000000  nona                 281  275–282        261–289             281     3.56      913            ok
+                                               cpp-o3              18.4  17.8–20.2      17.2–20.9          18.4     54.4    13921     ×15.3  
+str_slice_astral_medium_view          1000000  nona                 276  268–285        246–297             276     3.62      926            ok
+                                               cpp-o3              2.16  2.11–2.29      2.07–2.69         <10ms      462   118375      ×128  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_astral_medium_n4           100000  nona                57.6  56.3–58.6      54.2–63.1           576     1.74     1208            ok
+                                               cpp-o3              49.0  48.4–50.6      46.9–51.2           490     2.04     1418     ×1.17  
+str_indexof_astral_medium_n64          100000  nona                63.5  62.3–64.8      59.7–69.3           635     1.58     1314            ok
+                                               cpp-o3              56.6  55.4–57.3      53.6–59.9           566     1.77     1473     ×1.12  
+str_replace_astral_medium              100000  nona                90.6  88.6–94.1      83.1–102            906     1.10     1130            ok
+                                               cpp-o3              5.66  5.23–5.80      4.63–6.83         <10ms     17.7    18096     ×16.0  
+str_replaceall_astral_medium            10000  nona                57.4  56.9–58.1      56.4–60.5          5743    0.174      178            ok
+                                               cpp-o3              11.9  11.8–12.7      11.6–17.3          1189    0.841      861     ×4.83  
+str_scan_astral_large                     100  nona                4646  4616–4673      4585–4884      464649500.0000215     22.6            ok
+                                               cpp-o3              7.16  6.87–7.69      6.73–8.60         <10ms   0.0140    14635      ×649  
+str_slice_astral_large                   1000  nona                47.5  46.1–48.9      41.0–50.7         47526   0.0210     5516            ok
+                                               cpp-o3              23.2  22.7–23.4      21.6–24.4         23163   0.0432    11317     ×2.05  
+str_slice_astral_large_view              1000  nona                48.2  47.1–49.8      42.1–51.3         48156   0.0208     5444            ok
+                                               cpp-o3             0.187  0.181–0.193    0.174–0.261       <10ms     5.36  1404092      ×258  [UTF-16, non-owning std::u16string_view: lower bound]
+str_indexof_astral_large_n4               100  nona                1.32  1.30–1.51      1.19–1.65         <10ms   0.0755      839            ok
+                                               cpp-o3              1.34  1.31–1.40      1.23–1.63         <10ms   0.0749      832    ×0.991  
+str_indexof_astral_large_n64              100  nona                 106  104–109        96.5–110        1061539 0.000942      722            ok
+                                               cpp-o3               141  137–143        134–144         1414379 0.000707      542    ×0.751  
+str_replace_astral_large                  100  nona                43.0  40.5–52.3      36.6–55.3        430212  0.00232     2437            ok
+                                               cpp-o3              9.91  9.37–10.7      7.93–11.3         <10ms   0.0101    10581     ×4.34  
+str_replaceall_astral_large               100  nona                 532  525–538        511–615         5317093 0.000188      197            ok
+                                               cpp-o3               414  400–419        355–446         4137891 0.000242      253     ×1.28  
+str_replaceall_log_large                   10  nona                13.5  13.2–13.7      12.7–16.0       1353230 0.000739      775            ok
+                                               cpp-o3              12.7  12.0–13.3      10.8–14.0       1274834 0.000784      823     ×1.06  
+str_format_int_short                 10000000  nona                3398  3377–3425      3259–3484           340     2.94     25.3            ok
+                                               cpp-o3               431  402–444        390–493            43.1     23.2      200     ×7.88  
+str_format_int_short_bytes           10000000  nona                3356  3294–3432      3214–3522           336     2.98     25.6            ok
+                                               cpp-o3               271  266–276        251–283            27.1     37.0      318     ×12.4  [char buffer, no string object: lower bound]
+str_parse_int_short                  10000000  nona                8396  8358–8522      8169–8749           840     1.19     9.75            ok
+                                               cpp-o3               153  150–160        148–173            15.3     65.3      535     ×54.9  
+str_parse_int_short_bytes            10000000  nona                8540  8483–8709      8341–9248           854     1.17     9.59            ok
+                                               cpp-o3               107  103–108        97.2–112           10.7     93.8      768     ×80.1  [std::string digits, no narrowing: lower bound]
+
+wrote bench/cpp/results/2026-10-20-tors-linux-wsl2-strings.json

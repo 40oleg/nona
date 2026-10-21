@@ -62,7 +62,7 @@ test("folded builtin access selects the actual process runtime and usage resets"
 function boundary() {
     const context = createContext({ __nonaRegexpVm: {} });
     runInContext(
-        'Function.prototype.__nonaSharedQueueInternal=function(){};Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};Function.prototype.__nonaProxyCreateInternal=function(target,handler){return new Proxy(target,handler)};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;' +
+        'Function.prototype.__nonaMarkNativeInternal=function(){};Function.prototype.__nonaMarkPromiseInternal=function(){};Function.prototype.__nonaProxyCreateInternal=function(target,handler){return new Proxy(target,handler)};__nonaRegexpVm.isConstructor=function(value){return typeof value==="function"};__nonaRegexpVm.AggregateError=AggregateError;' +
             promisePreludeSource.replace("__NONA_FAIL_ON_UNHANDLED__", "true") +
             // Module records are a separate part since #278.
             moduleRecordsPreludeSource,

@@ -203,6 +203,8 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             this.invokeWithArguments(dest, callee, args, receiver);
             return dest;
         }
+        const json = this.endJsonCall(e);
+        if (json !== undefined) return json;
         const optional =
             e.callee.kind === "OptionalChain"
                 ? this.optionalChainCallee(e.callee)
@@ -228,6 +230,8 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             undefined,
             this.tailCalls.has(e),
             ref ? this.hasOwnCall(e.callee as A.Member, args) : undefined,
+            ref ? this.intrinsicCall(e.callee as A.Member, args) : undefined,
+            ref ? this.stringIndexCall(e.callee as A.Member, args) : undefined,
         );
         return dest;
     }

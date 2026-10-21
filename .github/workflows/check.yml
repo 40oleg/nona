@@ -169,7 +169,7 @@ jobs:
             - run: npm ci
             - run: npm run build
             - run: node scripts/run-suite.mjs frontend elf async events
-            - run: node scripts/run-suite.mjs path
+            - run: node scripts/run-suite.mjs path child-process
             - run: npm run compare:linux
             - uses: actions/checkout@v4
               with:

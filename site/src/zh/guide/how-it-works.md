@@ -30,7 +30,7 @@ JavaScript source (script or module graph)
 
 [`src/ir`](https://github.com/40oleg/nona/tree/main/src/ir) 把绑定后的程序降级为由基本块、操作和终结指令组成的类寄存器 IR（`lower.ts`、`model.ts`），并计算活跃性（`liveness.ts`），使垃圾回收器在每个安全点只看到活跃的值。
 
-生成代码之前，每个函数的 IR 会经过严格保持 JavaScript 语义的优化：常量折叠与传播（并删除条件已知的分支）、删除暂时性死区检查、复制传播与死代码删除、Number 类型推断，以及对已知函数的直接调用（[架构](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)）。
+生成代码之前，每个函数的 IR 会经过严格保持 JavaScript 语义的优化：常量折叠与传播（并删除条件已知的分支）、删除暂时性死区检查、复制传播与死代码删除、对不逃逸的对象与数组字面量做标量替换、Number 类型推断，以及对已知函数的直接调用（[架构](https://github.com/40oleg/nona/blob/main/docs/architecture.md#ir-optimization)）。
 
 ## 代码生成
 

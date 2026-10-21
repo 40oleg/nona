@@ -73,6 +73,19 @@ for (let round = 0; round < S(5); round++) {
 }
 const tKeys = performance.now() - t;
 
+// A global match with alternations over a log (#389): the first-unit scan
+// finds the candidates, the match attempt at each of them dominates.
+const levels = ["INFO", "WARN", "ERROR", "DEBUG"],
+    services = ["auth", "billing", "gateway"];
+const lines = [];
+for (let i = 0; i < S(200000); i++)
+    lines.push(`${levels[i % 4]} [${services[i % 3]}] request ${i}
+`);
+const regLog = lines.join("");
+t = performance.now();
+check += regLog.match(/(?:ERROR|WARN) \[(?:auth|gateway)\]/g).length;
+const tRegExp = performance.now() - t;
+
 t = performance.now();
 // Large text with many matches: a log with S(200000) lines.
 let log = "";
@@ -92,6 +105,7 @@ console.log(
         search: tSearch,
         split: tSplit,
         keys: tKeys,
+        regexp: tRegExp,
         replaceAll: tReplaceAll,
         check,
     }),

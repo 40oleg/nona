@@ -192,7 +192,8 @@ export const preludeTriggers = {
         "__lookupGetter__",
         "__lookupSetter__",
     ],
-    // Native helpers of node:net and node:http (no prelude code, only host functions).
+    // Native helpers of node:net and node:http, and the hook node:http
+    // registers its JSON response path with (#155).
     network: ["__nonaNetParse"],
     // Helpers that syntax needs (#278): no names select them; syntaxHelperParts does.
     withStatement: [],
@@ -200,6 +201,7 @@ export const preludeTriggers = {
     classElements: [],
     moduleRecords: [],
     topLevelAwait: [],
+    jsonResponse: [],
 } as const satisfies Record<string, readonly string[]>;
 export type OptionalPrelude = keyof typeof preludeTriggers;
 export const optionalPreludes = Object.keys(
@@ -248,7 +250,10 @@ export const reflectiveNames: readonly string[] = [
  * Preludes that add no built-ins, so enumerating built-ins cannot observe
  * them: they are linked only by the syntax that needs them.
  */
-export const syntaxOnlyPreludes: readonly OptionalPrelude[] = ["topLevelAwait"];
+export const syntaxOnlyPreludes: readonly OptionalPrelude[] = [
+    "topLevelAwait",
+    "jsonResponse",
+];
 export function preludeSet(value: boolean): Record<OptionalPrelude, boolean> {
     return Object.fromEntries(
         optionalPreludes.map((name) => [name, value]),
@@ -439,6 +444,7 @@ export const syntaxHelperParts: Readonly<Record<string, OptionalPrelude>> = {
     registerModule: "moduleRecords",
     registerScript: "moduleRecords",
     dynamicImport: "moduleRecords",
+    endJson: "jsonResponse",
 };
 /** The syntax helper parts that calls in `modules` need. */
 export function requiredSyntaxParts(

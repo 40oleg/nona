@@ -1,17 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-    chmodSync,
-    mkdtempSync,
-    realpathSync,
-    rmSync,
-    writeFileSync,
-} from "node:fs";
+import { chmodSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { withNativeTarget } from "../src/backend/machine/context.js";
 import { compile, hostTarget } from "../src/compiler.js";
+import { removeTemporaryDirectory } from "./helpers/cleanup.js";
 
 /** Compile for the host target and run with arguments and environment in a temp directory. */
 function run(
@@ -63,7 +58,7 @@ function run(
             executable,
         };
     } finally {
-        rmSync(directory, { recursive: true, force: true });
+        removeTemporaryDirectory(directory);
     }
 }
 
