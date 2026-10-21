@@ -6,6 +6,10 @@
 
 - **Optional runtime parts are selected from the resolved AST, not from tokens ([#438](https://github.com/40oleg/nona/issues/438)).** The lexical rule of #182 linked a part for any identifier, property name or string that matched a built-in name. `recordProgramUsage` (`src/frontend/link-usage.ts`) now walks the AST with its scopes: a free identifier, a property name and a string in a key position (`s["normalize"]`, `"x" in o`, reflection keys, module specifiers) select; local bindings and ordinary strings do not. A string with a `\p{…}` escape links the Unicode tables only together with the RegExp engine. If a program reads properties with keys that cannot be known, every string that exactly equals a trigger counts too, `with` and sloppy direct `eval` stay conservative, and the enumerating names still link every prelude. `--link`, `--full-runtime` and `--print-link` are unchanged. On win32-x64, `console.log("normalize")` goes from 1,954,816 to 1,296,384 bytes, `console.log("\\p{L}")` from 2,985,984 to 1,296,384, and `console.log("link")` from 1,357,824 to 1,296,384 (the Annex B part is no longer selected by `link`, `bold` or `small` locals). Limitations: built-in module code still counts, keys built at run time still need `--link`, and a property name selects whatever the receiver type. See [docs/runtime-linking.md](docs/runtime-linking.md).
 
+### Fixed
+
+- **`bitwise-int64` no longer times out on the arm64 suites.** The full 37 x 37 value matrix allocates thousands of results and long joined strings, and GC stress collects on every allocation, so it took more than 180 s on arm64 (the spawn timeout). It now runs without GC stress, and a reduced matrix covering every operator and edge class stays under GC stress. Test-only change. ([#441](https://github.com/40oleg/nona/issues/441))
+
 ## v0.21.0 — 2026-10-20
 
 ### Performance
