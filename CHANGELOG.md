@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`fs.rmSync(path, {recursive: true})` no longer fails on Linux and macOS when `path` ends in `..`.** Removing the children of `a/b/..` removes `b`, after which the path no longer resolves and the final `rmdir` reported `ENOENT`; like Node.js, the removal now treats the directory as already gone. This made the filesystem suite of `native-platforms` fail on main. ([#449](https://github.com/40oleg/nona/issues/449))
+
 ## v0.22.0 — 2026-10-21
 
 ### Performance

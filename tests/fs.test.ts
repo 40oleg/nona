@@ -185,6 +185,23 @@ rmSync(root, {recursive: true, force: true});
 `,
     }));
 
+// On POSIX "r/a/.." stops resolving once "a" is removed; the recursive rm still succeeds (#449).
+test("fs removes a directory named through a '..' segment like Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import {existsSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
+import {rm} from 'node:fs/promises';
+mkdirSync('r/a/b', {recursive: true});
+writeFileSync('r/a/b/f.txt', 'x');
+rmSync('r/a/..', {recursive: true});
+console.log(existsSync('r'));
+mkdirSync('q/a', {recursive: true});
+await rm('./q/a/..', {recursive: true});
+console.log(existsSync('q'));
+try { rmSync('r/a/..', {recursive: true}); } catch (e) { console.log(e.code); }
+`,
+    }));
+
 test("fs reads symbolic links where the host can create them", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "nona-links-"));
     try {
