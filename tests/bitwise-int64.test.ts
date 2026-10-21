@@ -7,6 +7,12 @@ import { runOracle } from "./helpers/oracle.js";
 // The bitwise operators take ToInt32 inline for every integral Number in the
 // int64 range, not only for int32 values (#402); fractions, NaN, ±Infinity,
 // |x| >= 2^63 and non-Numbers keep the runtime path.
+//
+// This case runs without gcStress: GC stress collects on every allocation, and
+// the case allocates about 8000 boxed results plus long joined strings. Under
+// GC stress it took 82-108 s on x64 and more than 180 s on arm64, which hit the
+// spawn timeout (#441). The fast path itself does not allocate; the
+// GC-stressed variant below covers every operator on a reduced value list.
 test("bitwise operators on integers beyond int32 match Node.js", () => {
     const source = `const values = [0, -0, 1, -1, 31, 32, 33, 2147483647, -2147483648, 2 ** 31, -(2 ** 31) - 1, 2 ** 32, 2 ** 32 + 5, -(2 ** 32) - 5,
   4294967295, 2 ** 33 - 1, 2 ** 52 + 3, 2 ** 53, -(2 ** 53) - 2, 2 ** 62, 2 ** 63 - 1024, 2 ** 63, -(2 ** 63), -(2 ** 63) - 2048, 2 ** 64, 1e20, -1e20,
@@ -33,6 +39,27 @@ for (let i = 0; i < 3000; i++) {
   h = (h * 31 + t[i & 63]) | 0;
 }
 console.log(s, c, h);`;
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
+});
+
+test("bitwise operators on integers beyond int32 match Node.js under GC stress", () => {
+    const source = `const values = [0, -0, 2 ** 31, -(2 ** 31) - 1, 2 ** 32 + 5, 2 ** 53, 2 ** 63 - 1024, 2 ** 63, -(2 ** 63), 1e20, 0.5, NaN, Infinity];
+let h = 0;
+const fold = (r) => { h = (h * 31 + r) | 0; };
+for (const x of values) {
+  let row = 0;
+  for (const y of values) {
+    const r = [x & y, x | y, x ^ y, x << y, x >> y, x >>> y];
+    for (let i = 0; i < 6; i++) { fold(r[i]); row = (row * 31 + r[i]) | 0; }
+  }
+  console.log(row);
+}
+console.log(h);
+let u = 0;
+for (const x of values) { fold(x >>> 0); fold(x | 0); fold(x >> 0); fold(~~x); fold(x ^ 0); u = (u * 31 + (x >>> 0)) | 0; }
+console.log(u, h);`;
     const run = runOnHost(source);
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, runOracle(source).stdout);

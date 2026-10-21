@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- **`bitwise-int64` no longer times out on the arm64 suites.** The full 37 x 37 value matrix allocates thousands of results and long joined strings, and GC stress collects on every allocation, so it took more than 180 s on arm64 (the spawn timeout). It now runs without GC stress, and a reduced matrix covering every operator and edge class stays under GC stress. Test-only change. ([#441](https://github.com/40oleg/nona/issues/441))
+
 ## v0.21.0 — 2026-10-20
 
 ### Performance
