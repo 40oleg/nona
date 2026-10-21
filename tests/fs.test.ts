@@ -165,8 +165,10 @@ writeFileSync(root + '/ü/deep/😀.txt', 'y');
 for (const p of [root, './' + root + '/ü', root + '/ü/../ü/deep/../файл.txt', root + '/ü/deep/😀.txt', root + '/missing', root + '/ü/./deep/..'])
   console.log(JSON.stringify(p), existsSync(p));
 const real = realpathSync(root + '/ü/deep/../файл.txt');
-console.log(real === path.resolve(root, 'ü', 'файл.txt'), path.isAbsolute(real), real.endsWith(path.join(root, 'ü', 'файл.txt')));
-console.log(realpathSync('.') === path.resolve('.'), realpathSync(root + '/./ü/..') === path.resolve(root));
+// The working directory may be reached through a short name or a link, so compare against its real path.
+const base = realpathSync('.');
+console.log(real === path.resolve(base, root, 'ü', 'файл.txt'), path.isAbsolute(real), real.endsWith(path.join(root, 'ü', 'файл.txt')));
+console.log(base === path.resolve(base), realpathSync(root + '/./ü/..') === path.resolve(base, root));
 for (const d of readdirSync('./' + root + '/ü', {withFileTypes: true}).sort((a, b) => a.name < b.name ? -1 : 1))
   console.log(d.name, d.isFile(), d.isDirectory(), d.isSymbolicLink());
 console.log(readdirSync(root + '/ü/deep').join());
