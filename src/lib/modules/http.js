@@ -557,14 +557,24 @@ export class OutgoingMessage {
         return false;
     }
     get writableCorked() {
-        return 0;
+        return this._corked;
     }
     get writableHighWaterMark() {
         return 16384;
     }
     get writableLength() {
+        let buffered = this._chunkLength;
+        if (buffered !== 0)
+            buffered +=
+                buffered.toString(16).length +
+                4 +
+                (!this._headerSent && this._header !== null
+                    ? this._header.length
+                    : 0);
         return (
-            this._outputSize + (this.socket ? this.socket.writableLength : 0)
+            this._outputSize +
+            buffered +
+            (this.socket ? this.socket.writableLength : 0)
         );
     }
     get writableNeedDrain() {
@@ -986,6 +996,22 @@ export class OutgoingMessage {
         }
         if (this.chunkedEncoding) {
             const length = byteLength(chunk, encoding);
+            // As in Node.js, a write corks the message until the next tick;
+            // the chunks written meanwhile go out as one chunk (uncork, end).
+            if (!fromEnd && this._corked === 0 && this.socket !== null) {
+                this._corked = 1;
+                queueMicrotask(() => {
+                    if (this._corked !== 0) this.uncork();
+                });
+            }
+            if (this._corked !== 0 && (length !== 0 || this._chunks !== null)) {
+                if (this._chunks === null) this._chunks = [];
+                this._chunks.push(chunk, encoding, callback);
+                this._chunkLength += length;
+                // The chunks reach the socket within the tick, which applies
+                // backpressure from there ('drain' is the socket's).
+                return true;
+            }
             if (length === 0)
                 return this._headerSent
                     ? true
@@ -1070,6 +1096,20 @@ export class OutgoingMessage {
             this._implicitHeader();
         }
         this.finished = true;
+        if (this._corked !== 0) {
+            // The last data joins the chunks written in this tick (Node.js).
+            if (this._hasBody && this.chunkedEncoding && chunk) {
+                const length = byteLength(chunk, encoding);
+                if (length !== 0) {
+                    if (this._chunks === null) this._chunks = [];
+                    this._chunks.push(chunk, encoding, undefined);
+                    this._chunkLength += length;
+                }
+                chunk = null;
+            }
+            this._corked = 0;
+            if (this._chunks !== null) this._flushChunks();
+        }
         // Head, last data and terminator go out in one write.
         const done = this;
         if (chunk && this._hasBody) {
@@ -1140,6 +1180,7 @@ export class OutgoingMessage {
     destroy(error) {
         if (this.destroyed) return this;
         this.destroyed = true;
+        if (this._chunks !== null) this._flushChunks(error);
         if (this.socket) this.socket.destroy(error);
         else this.once("socket", (socket) => socket.destroy(error));
         return this;
@@ -1150,13 +1191,54 @@ export class OutgoingMessage {
             codedError("ERR_STREAM_CANNOT_PIPE", "Cannot pipe, not readable"),
         );
     }
-    cork() {}
-    uncork() {}
+    cork() {
+        this._corked++;
+    }
+    uncork() {
+        if (this._corked === 0) return;
+        if (--this._corked === 0 && this._chunks !== null) this._flushChunks();
+    }
+    /**
+     * Sends the chunks written while the message was corked as one chunk; a
+     * destroyed message reports the error to their callbacks instead.
+     */
+    _flushChunks(error) {
+        const chunks = this._chunks,
+            length = this._chunkLength;
+        this._chunks = null;
+        this._chunkLength = 0;
+        if (this.destroyed) {
+            if (!error)
+                error = codedError(
+                    "ERR_STREAM_DESTROYED",
+                    "Cannot call write after a stream was destroyed",
+                );
+            for (let i = 2; i < chunks.length; i += 3) {
+                const callback = chunks[i];
+                if (callback) queueMicrotask(() => callback(error));
+            }
+            return;
+        }
+        let prefix = length.toString(16) + "\r\n";
+        for (let i = 0; i < chunks.length; i += 3) {
+            this._emit(
+                prefix,
+                chunks[i],
+                chunks[i + 1],
+                i + 3 === chunks.length ? "\r\n" : null,
+                chunks[i + 2],
+            );
+            prefix = null;
+        }
+    }
 }
 Object.setPrototypeOf(OutgoingMessage.prototype, EventEmitter.prototype);
 Object.setPrototypeOf(OutgoingMessage, EventEmitter);
 defaults(OutgoingMessage.prototype, {
     _special: 0,
+    _corked: 0,
+    _chunks: null,
+    _chunkLength: 0,
     _fields: null,
     _connection: null,
     _header: null,
