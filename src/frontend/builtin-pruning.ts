@@ -375,6 +375,44 @@ function references(root: unknown, visit: Visit): void {
     node(root);
 }
 
+function topLevelNames(body: A.Statement[]): Set<string> {
+    const names = new Set<string>();
+    for (const statement of body) {
+        if (statement.kind === "Import")
+            for (const s of statement.specifiers) names.add(s.local.name);
+        if (statement.kind === "Export" && statement.defaultId)
+            names.add(statement.defaultId.name);
+        const declaration =
+            statement.kind === "Export" ? statement.declaration : statement;
+        if (declaration?.kind === "Function" || declaration?.kind === "Class")
+            names.add(declaration.id.name);
+        else if (declaration?.kind === "Var")
+            for (const d of declaration.declarations)
+                for (const id of boundNames(d.id)) names.add(id.name);
+    }
+    return names;
+}
+/**
+ * Top-level names of `original` that `pruned` still mentions but no longer
+ * declares: code that pruning removed although kept code reaches it (tests).
+ */
+export function danglingReferences(
+    original: A.Program,
+    pruned: A.Program,
+): string[] {
+    const before = topLevelNames(original.body),
+        after = topLevelNames(pruned.body),
+        dangling = new Set<string>();
+    references(pruned.body, (id) => {
+        if (before.has(id.name) && !after.has(id.name)) dangling.add(id.name);
+    });
+    for (const statement of pruned.body)
+        if (statement.kind === "Export" && statement.source === undefined)
+            for (const s of statement.specifiers ?? [])
+                if (!after.has(s.local)) dangling.add(s.local);
+    return [...dangling];
+}
+
 function contains(root: unknown, test: (node: A.Node) => boolean): boolean {
     const pending: unknown[] = [root];
     while (pending.length) {
@@ -411,7 +449,9 @@ function unprunable(ast: A.Program): boolean {
                     (node as A.FunctionExpression).dynamic ||
                     (node as A.FunctionExpression).realmLocal ||
                     (node as A.FunctionExpression).evalVarNames
-                )),
+                )) ||
+            (node.kind === "Function" &&
+                !!(node as A.FunctionDeclaration).evalVarNames),
     );
 }
 
@@ -474,6 +514,20 @@ function analyze(
                     );
             });
     });
+    // Top-level names some code assigns to (a reassigned function is no factory).
+    const written = new Set<string>();
+    references(body, (id, parent) => {
+        const p = parent as Record<string, unknown> | undefined;
+        if (
+            p &&
+            ((p.kind === "Assignment" && p.left === id) ||
+                (p.kind === "Update" && p.argument === id) ||
+                ((p.kind === "ForIn" || p.kind === "ForOf") && p.left === id) ||
+                p.id === id ||
+                p.rest === id)
+        )
+            written.add(id.name);
+    });
     const exportedLocals = new Set<string>();
     for (const statement of body)
         if (statement.kind === "Export" && statement.source === undefined) {
@@ -516,7 +570,7 @@ function analyze(
     const factory = (name: string): "function" | "object" | "other" | null => {
         if (factories.has(name)) return factories.get(name)!;
         const d = declarations.get(name);
-        if (d?.kind !== "function") return null;
+        if (d?.kind !== "function" || written.has(name)) return null;
         const f = d.node;
         factories.set(name, null);
         if (
@@ -589,8 +643,9 @@ function analyze(
             (e.kind === "Identifier" && plain(e.name, seen));
         return value(d.init);
     };
+    // BigInt operands are excluded: `1n + 1` and `+1n` throw.
     const primitive = (e: A.Expression): boolean =>
-        e.kind === "Literal" ||
+        (e.kind === "Literal" && typeof e.value !== "bigint") ||
         (e.kind === "Template" && !e.expressions.length) ||
         (e.kind === "Unary" &&
             ["-", "+", "~", "!", "typeof", "void"].includes(e.operator) &&
@@ -654,12 +709,15 @@ function analyze(
                 );
             case "Member": {
                 if (e.object.kind !== "Identifier") return false;
-                if (literalString(e.property) === undefined) return false;
+                const key = literalString(e.property);
+                if (key === undefined) return false;
                 const name = e.object.name;
                 if (!declarations.has(name) && !context.locals?.has(name))
                     return (
                         pureGlobals.has(name) &&
-                        !["undefined", "NaN", "Infinity"].includes(name)
+                        !["undefined", "NaN", "Infinity"].includes(name) &&
+                        // Function.prototype's poison-pill accessors throw.
+                        !["caller", "arguments", "callee"].includes(key)
                     );
                 return (
                     !context.locals?.has(name) &&
@@ -668,8 +726,16 @@ function analyze(
                 );
             }
             case "Call":
+                // define() is a compile-time intrinsic of three string literals.
                 if (ffiDefine(e.callee))
-                    return arguments_(e.arguments, context);
+                    return (
+                        e.arguments.length === 3 &&
+                        e.arguments.every(
+                            (a) =>
+                                a.kind !== "SpreadElement" &&
+                                literalString(a) !== undefined,
+                        )
+                    );
                 return (
                     e.callee.kind === "Identifier" &&
                     !context.locals?.has(e.callee.name) &&
@@ -702,9 +768,12 @@ function analyze(
     };
 
     // Private object literals read only as `object.name`: their members are units.
+    // A read must name an own member (`o.valueOf()` returns the object), and a
+    // call of a member passes the object as `this`, so the member must be a
+    // function of the literal (which does not mention `this`).
     const tracked = new Set<string>();
     {
-        const candidates = new Map<string, A.ObjectLiteral>();
+        const candidates = new Map<string, Map<string, A.Expression>>();
         for (const [name, d] of declarations)
             if (
                 d.kind === "const" &&
@@ -726,9 +795,26 @@ function analyze(
                         (p) => !("spread" in p) && pure(p.value, { at: d.at }),
                     )
                 )
-                    candidates.set(name, d.init);
+                    candidates.set(
+                        name,
+                        new Map(
+                            d.init.properties.map((p, i) => [
+                                keys[i]!,
+                                (p as { value: A.Expression }).value,
+                            ]),
+                        ),
+                    );
             }
         const escaped = new Set<string>();
+        const member = (
+            name: string,
+            key: string | undefined,
+            called: boolean,
+        ): boolean => {
+            const members = candidates.get(name)!;
+            if (key === undefined || !members.has(key)) return false;
+            return !called || members.get(key)!.kind === "FunctionExpression";
+        };
         references(body, (id, parent, grand) => {
             if (!candidates.has(id.name)) return;
             const p = parent as A.Node | undefined,
@@ -736,7 +822,13 @@ function analyze(
             if (
                 p?.kind === "Member" &&
                 (p as A.Member).object === id &&
-                literalString((p as A.Member).property) !== undefined &&
+                member(
+                    id.name,
+                    literalString((p as A.Member).property),
+                    !!g &&
+                        ((g.kind === "Call" && g.callee === p) ||
+                            (g.kind === "TaggedTemplate" && g.tag === p)),
+                ) &&
                 !(
                     g &&
                     ((g.kind === "Assignment" && g.left === p) ||
@@ -755,13 +847,17 @@ function analyze(
                 p?.kind === "OptionalChain" &&
                 (p as A.OptionalChain).base === id &&
                 (p as A.OptionalChain).links[0]?.kind === "property" &&
-                literalString(
-                    (
-                        (p as A.OptionalChain).links[0] as {
-                            property: A.Expression;
-                        }
-                    ).property,
-                ) !== undefined
+                member(
+                    id.name,
+                    literalString(
+                        (
+                            (p as A.OptionalChain).links[0] as {
+                                property: A.Expression;
+                            }
+                        ).property,
+                    ),
+                    (p as A.OptionalChain).links[1]?.kind === "call",
+                )
             )
                 return;
             escaped.add(id.name);
@@ -835,7 +931,7 @@ function analyze(
                 return undefined;
             if (!initialized(name, context)) return undefined;
             const fresh =
-                d?.kind === "function" ||
+                (d?.kind === "function" && !written.has(name)) ||
                 (d?.kind === "const" &&
                     !!d.init &&
                     (d.init.kind === "FunctionExpression" ||
