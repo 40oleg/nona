@@ -8,6 +8,7 @@
 
 ### Performance
 
+- **`Array.prototype.unshift` moves the elements of a dense array in one block move.** It moved every element with a generic `HasProperty`/`Get`/`Set` loop (20,000 unshifts took about 3 s); it now uses the `shift`/`splice` dense path and falls back to the generic loop for holes, array-likes, proxies and arrays with indexed setters on the prototype chain. ([#462](https://github.com/40oleg/nona/issues/462))
 - **`TypedArray.prototype.sort` and `toSorted` are O(n log n).** They used the quadratic native insertion sort (100,000 elements took about 100 s); they now use a stable merge sort in the runtime prelude, with the same -0/+0 and NaN order. ([#453](https://github.com/40oleg/nona/issues/453))
 
 ### Fixes
