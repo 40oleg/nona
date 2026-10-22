@@ -6,6 +6,10 @@
 
 - **`assert.throws` and `assert.rejects` throw an `AssertionError` when the error does not match.** They rethrew the original error when the expected class, RegExp, validation object or validation function did not match. They now throw an `AssertionError` (`code: "ERR_ASSERTION"`, `actual` the thrown error, `expected`, `operator`) with Node.js's message for the class, RegExp and validation function cases (the object case uses a simplified diff); a validation function that throws still propagates its own error. ([#458](https://github.com/40oleg/nona/issues/458))
 
+### Performance
+
+- **`Array.prototype.unshift` moves the elements of a dense array in one block move.** It moved every element with a generic `HasProperty`/`Get`/`Set` loop (20,000 unshifts took about 3 s); it now uses the `shift`/`splice` dense path and falls back to the generic loop for holes, array-likes, proxies and arrays with indexed setters on the prototype chain. ([#462](https://github.com/40oleg/nona/issues/462))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes
