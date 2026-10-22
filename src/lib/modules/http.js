@@ -609,11 +609,16 @@ export class OutgoingMessage {
     get errored() {
         return null;
     }
-    /** Index of the field's entry in _fields ([key, name, value, info, ...]; info is the name's record in fieldNames), or -1. */
+    /**
+     * Index of the field's entry in _fields ([key, name, value, info, ...];
+     * info is the name's record in fieldNames), or -1. The entries end at
+     * _fieldEnd: the array has room for more (undefined elements), so that
+     * adding a field stores into existing elements instead of appending.
+     */
     _find(key) {
         const fields = this._fields;
         if (fields !== null)
-            for (let i = 0; i < fields.length; i += 4)
+            for (let i = 0, end = this._fieldEnd; i < end; i += 4)
                 if (fields[i] === key) return i;
         return -1;
     }
@@ -658,27 +663,43 @@ export class OutgoingMessage {
         if (info.special !== 0) this._special |= info.special;
         if (fields === null) {
             this._fields = [key, name, value, info];
+            this._fieldEnd = 4;
             this._keys = bit;
             return this;
         }
+        const end = this._fieldEnd;
         // _keys has the bit of every key in _fields (removeHeader leaves
         // it): a clear bit means the key is not there.
-        if (bit !== 0 && (this._keys & bit) === 0) {
-            this._keys |= bit;
-            fields.push(key, name, value, info);
-            return this;
-        }
         let index = -1;
-        for (let i = 0; i < fields.length; i += 4)
-            if (fields[i] === key) {
-                index = i;
-                break;
-            }
+        if (bit !== 0 && (this._keys & bit) === 0) this._keys |= bit;
+        else
+            for (let i = 0; i < end; i += 4)
+                if (fields[i] === key) {
+                    index = i;
+                    break;
+                }
         if (index >= 0) {
             fields[index + 1] = name;
             fields[index + 2] = value;
             fields[index + 3] = info;
-        } else fields.push(key, name, value, info);
+        } else {
+            if (end < fields.length) {
+                fields[end] = key;
+                fields[end + 1] = name;
+                fields[end + 2] = value;
+                fields[end + 3] = info;
+            } else if (end === 4) {
+                // The second field: room for four.
+                // prettier-ignore
+                this._fields = [
+                    fields[0], fields[1], fields[2], fields[3],
+                    key, name, value, info,
+                    undefined, undefined, undefined, undefined,
+                    undefined, undefined, undefined, undefined,
+                ];
+            } else fields.push(key, name, value, info);
+            this._fieldEnd = end + 4;
+        }
         return this;
     }
     appendHeader(name, value) {
@@ -714,21 +735,21 @@ export class OutgoingMessage {
     getHeaderNames() {
         const out = [];
         if (this._fields !== null)
-            for (let i = 0; i < this._fields.length; i += 4)
+            for (let i = 0; i < this._fieldEnd; i += 4)
                 out.push(this._fields[i]);
         return out;
     }
     getRawHeaderNames() {
         const out = [];
         if (this._fields !== null)
-            for (let i = 1; i < this._fields.length; i += 4)
+            for (let i = 1; i < this._fieldEnd; i += 4)
                 out.push(this._fields[i]);
         return out;
     }
     getHeaders() {
         const out = Object.create(null);
         if (this._fields !== null)
-            for (let i = 0; i < this._fields.length; i += 4)
+            for (let i = 0; i < this._fieldEnd; i += 4)
                 out[this._fields[i]] = this._fields[i + 2];
         return out;
     }
@@ -748,7 +769,10 @@ export class OutgoingMessage {
         else if (key === "transfer-encoding") this._removedTE = true;
         else if (key === "date") this.sendDate = false;
         const index = this._find(key);
-        if (index >= 0) this._fields.splice(index, 4);
+        if (index >= 0) {
+            this._fields.splice(index, 4);
+            this._fieldEnd -= 4;
+        }
     }
     /**
      * Composes the head: the first line, the given fields (this message's own,
@@ -768,7 +792,7 @@ export class OutgoingMessage {
         if (fields === this) {
             const own = this._fields;
             if (own !== null)
-                for (let i = 0; i < own.length; i += 4)
+                for (let i = 0; i < this._fieldEnd; i += 4)
                     this._field(state, own[i + 1], own[i + 2], false);
         } else if (Array.isArray(fields)) {
             if (fields.length && Array.isArray(fields[0]))
@@ -1293,6 +1317,7 @@ defaults(OutgoingMessage.prototype, {
     _chunks: null,
     _chunkLength: 0,
     _fields: null,
+    _fieldEnd: 0,
     _keys: 0,
     _connection: null,
     _header: null,
@@ -1744,7 +1769,7 @@ export class ServerResponse {
         // The head: the status line, the field lines, Date, Connection and
         // the end (the last head when they are the same strings).
         const fields = this._fields,
-            count = fields === null ? 0 : fields.length >> 2,
+            count = this._fieldEnd >> 2,
             parts = headParts;
         let same =
             parts.length === count + 4 &&
@@ -1752,15 +1777,19 @@ export class ServerResponse {
             parts[count + 1] === date &&
             parts[count + 2] === connection &&
             parts[count + 3] === ending;
+        // A field's line is the last head's when its record composed that
+        // line for the same value (array values compose new lines).
         if (same)
-            for (let i = 0, k = 1; k <= count; i += 4, k++)
+            for (let i = 0, k = 1; k <= count; i += 4, k++) {
+                const info = fields[i + 3];
                 if (
-                    parts[k] !==
-                    fieldLines(fields[i + 3], fields[i + 1], fields[i + 2])
+                    info.lineValue !== fields[i + 2] ||
+                    parts[k] !== info.line
                 ) {
                     same = false;
                     break;
                 }
+            }
         let reuse = false;
         if (same) {
             head = headText;

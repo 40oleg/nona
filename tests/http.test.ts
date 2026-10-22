@@ -505,3 +505,46 @@ server.listen(0, '127.0.0.1', async () => {
 `,
         false,
     ));
+
+test("node:http: response fields beyond the first four, removed and set again, and repeated heads", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+let n = 0;
+const server = http.createServer((req, res) => {
+  n++;
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Request-Id', req.headers['x-request-id']);
+  res.setHeader('X-Powered-By', 'bench');
+  res.setHeader('ETag', '"' + (n > 3 ? 7 : 6) + '"');
+  if (n === 5) {
+    res.removeHeader('cache-control');
+    res.setHeader('X-Six', ['a', 'b']);
+    res.appendHeader('x-six', 'c');
+    res.setHeader('cache-control', 'max-age=1');
+    res.setHeader('X-Powered-By', 'other');
+  }
+  if (n === 6) for (let i = 0; i < 9; i++) res.setHeader('X-N' + i, String(i));
+  console.log(n, JSON.stringify(res.getHeaderNames()), JSON.stringify(res.getRawHeaderNames()), JSON.stringify(res.getHeaders()), res.hasHeader('etag'), JSON.stringify(res.getHeader('x-six')));
+  res.end('body ' + n);
+});
+server.listen(0, '127.0.0.1', () => {
+  const port = server.address().port;
+  const socket = net.connect(port, '127.0.0.1');
+  let text = '', sent = 0;
+  const send = () => socket.write('GET / HTTP/1.1\r\nHost: x\r\nX-Request-Id: id' + (sent < 2 ? 1 : 2) + '\r\n' + (++sent === 8 ? 'Connection: close\r\n' : '') + '\r\n');
+  socket.setEncoding('latin1');
+  socket.on('connect', send);
+  socket.on('data', d => {
+    text += d;
+    if (sent < 8 && text.endsWith('body ' + sent)) send();
+  });
+  socket.on('close', () => {
+    console.log(JSON.stringify(text.replace(/Date: [^\r]*\r\n/g, '')));
+    server.close(() => console.log('closed'));
+  });
+});
+`,
+        false,
+    ));

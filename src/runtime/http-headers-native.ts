@@ -584,8 +584,7 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.store({ base: "r8", disp: 8 }, "rcx");
             a.load("rcx", slot(112));
             a.store({ base: "r8" }, "rcx");
-            a.load("rax", { base: "r8", disp: 8 });
-            record("rax");
+            a.store(slot(160), "rcx");
             a.mov("r10", 4);
             a.store(slot(88), "r10");
             a.load("r10", slot(120));
@@ -593,6 +592,27 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.load("rcx", slot(104));
             a.lea("rdx", slot(88));
             a.call("rt.appendArrayValue");
+            // The entry records the index only when the string landed there
+            // (an indexed setter on Array.prototype can keep it out): the
+            // memo above uses the interned string without comparing units.
+            a.load("r9", slot(104));
+            a.load("r9", { base: "r9", disp: 8 });
+            a.load("r9", { base: "r9", disp: O.elements });
+            a.test("r9", "r9");
+            a.jcc("e", noIntern);
+            a.load("rcx", slot(160));
+            a.cmpMemory("rcx", { base: "r9", disp: EL.count });
+            a.jcc("ae", noIntern);
+            a.shl("rcx", 4);
+            a.add("r9", "rcx");
+            a.load("rax", { base: "r9", disp: EL.values });
+            a.cmp("rax", 4);
+            a.jcc("ne", noIntern);
+            a.load("rax", { base: "r9", disp: EL.values + 8 });
+            a.cmpMemory("rax", slot(120));
+            a.jcc("ne", noIntern);
+            a.load("rax", slot(160));
+            record("rax");
             a.jmp(noIntern);
             a.label(found);
             a.load("rax", slot(160));
