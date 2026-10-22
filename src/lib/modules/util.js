@@ -552,8 +552,25 @@ function deepEqual(a, b, seen) {
     if (types.isBoxedPrimitive(a)) return Object.is(a.valueOf(), b.valueOf());
     if (a instanceof Map) {
         if (a.size !== b.size) return false;
-        for (const [k, v] of a)
-            if (!b.has(k) || !deepEqual(v, b.get(k), seen)) return false;
+        const used = new Set();
+        outer: for (const [k, v] of a) {
+            if (b.has(k)) {
+                if (!deepEqual(v, b.get(k), seen)) return false;
+                used.add(k);
+                continue;
+            }
+            if (typeof k === "object" && k !== null)
+                for (const [k2, v2] of b)
+                    if (
+                        !used.has(k2) &&
+                        deepEqual(k, k2, seen) &&
+                        deepEqual(v, v2, seen)
+                    ) {
+                        used.add(k2);
+                        continue outer;
+                    }
+            return false;
+        }
         return true;
     }
     if (a instanceof Set) {
