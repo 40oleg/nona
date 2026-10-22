@@ -75,6 +75,23 @@ eq('error name', new Error('a'), new TypeError('a'));
 eq('error vs object', new Error('a'), { message: 'a', name: 'Error' });
 `));
 
+test("deepStrictEqual and isDeepStrictEqual compare ArrayBuffer contents", () =>
+    expectOracle(`${prelude}
+import util from 'node:util';
+function buf(C, bytes) { const b = new C(bytes.length); new Uint8Array(b).set(bytes); return b; }
+function strict(name, a, b) {
+    check(name + ' deepStrictEqual', () => assert.deepStrictEqual(a, b));
+    console.log(name, util.isDeepStrictEqual(a, b));
+}
+strict('equal', buf(ArrayBuffer, [1, 2]), buf(ArrayBuffer, [1, 2]));
+strict('length', new ArrayBuffer(2), new ArrayBuffer(3));
+strict('bytes', buf(ArrayBuffer, [1, 2]), buf(ArrayBuffer, [1, 3]));
+strict('shared equal', buf(SharedArrayBuffer, [1, 2]), buf(SharedArrayBuffer, [1, 2]));
+strict('shared bytes', buf(SharedArrayBuffer, [1, 2]), buf(SharedArrayBuffer, [1, 3]));
+strict('shared length', new SharedArrayBuffer(1), new SharedArrayBuffer(4));
+strict('shared vs plain', buf(ArrayBuffer, [1, 2]), buf(SharedArrayBuffer, [1, 2]));
+`));
+
 test("assert.deepEqual keeps ordinary object semantics and handles cycles", () =>
     expectOracle(`${prelude}
 eq('primitives', 1, '1');
