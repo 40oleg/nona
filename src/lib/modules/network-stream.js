@@ -14,11 +14,13 @@ function runTasks() {
             tasks = [];
             for (let i = 0; i < list.length; i += 2) list[i][list[i + 1]]();
         }
-    } finally {
-        // After a throwing call the rest waits for the next microtask.
+    } catch (error) {
+        // The calls deferred meanwhile wait for the next microtask.
         if (tasks.length > 0) queueMicrotask(runTasks);
         else tasksScheduled = false;
+        throw error;
     }
+    tasksScheduled = false;
 }
 /**
  * The event loop's time (performance.now() after the last wait, like

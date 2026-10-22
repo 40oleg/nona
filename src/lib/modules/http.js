@@ -1510,6 +1510,12 @@ function parseError(code, data, start, end, message) {
 /** Server body chunks from this size on are views of node:net's read arena. */
 const shareBytes = 8192;
 /**
+ * During ServerConnection.onData with node:net's read arena: the end of the
+ * last shared chunk, 0 before one, or -1 when chunks must be copied. A module
+ * variable rather than a field: reads are never nested.
+ */
+let readShared = -1;
+/**
  * Decodes a chunked body fed in pieces. Partial size and trailer lines are
  * kept as text, so every byte offered is consumed until the message ends.
  * feed() returns the offset after the last byte of the message, -1 when the
@@ -2017,7 +2023,6 @@ class ServerConnection {
         this.body = null;
         this.bodyRemaining = 0;
         this.decoder = null;
-        this.shared = -1;
         this.keepAliveSet = false;
         this.stopped = false;
         socket._consumer = this;
@@ -2037,8 +2042,10 @@ class ServerConnection {
         let data = bytes,
             end = n,
             start = 0;
-        this.shared = arena === true ? 0 : -1;
-        if (this.pendingLength > 0) {
+        if (this.pendingLength === 0) readShared = arena ? 0 : -1;
+        else {
+            // Bytes copied into pending are never shared: pending is reused.
+            readShared = -1;
             const total = this.pendingLength + n;
             if (this.pending.length < total) {
                 const grown = new Uint8Array(
@@ -2052,8 +2059,6 @@ class ServerConnection {
             end = total;
             this.pendingLength = 0;
         }
-        // Bytes copied into pending are never shared: pending is reused.
-        if (data !== bytes) this.shared = -1;
         while (start < end && !this.stopped) {
             if (this.body !== null) {
                 const next =
@@ -2076,22 +2081,22 @@ class ServerConnection {
                     this.fail(
                         parseError("HPE_HEADER_OVERFLOW", data, start, end),
                     );
-                    return this.shared;
+                    return readShared;
                 }
                 break;
             }
             if (result < 0) {
                 this.fail(parseError(nativeErrors[-result], data, start, end));
-                return this.shared;
+                return readShared;
             }
             if (
                 result - OUT[10] >
                 (this.server.maxHeaderSize || maxHeaderSize)
             ) {
                 this.fail(parseError("HPE_HEADER_OVERFLOW", data, start, end));
-                return this.shared;
+                return readShared;
             }
-            if (!this.request(data, start, result, end)) return this.shared;
+            if (!this.request(data, start, result, end)) return readShared;
             start = result;
         }
         if (start < end && !this.stopped) {
@@ -2104,7 +2109,7 @@ class ServerConnection {
             }
             this.pendingLength = rest;
         }
-        return this.shared;
+        return readShared;
     }
     /** A complete head in data[start, headEnd): creates the request and its response. Returns false to stop reading. */
     request(data, start, headEnd, end) {
@@ -2285,9 +2290,9 @@ class ServerConnection {
     fixedBody(data, start, end) {
         const n = Math.min(this.bodyRemaining, end - start);
         let chunk;
-        if (n >= shareBytes && this.shared >= 0) {
+        if (n >= shareBytes && readShared >= 0) {
             chunk = sliceBytes(data, start, start + n, bufferPrototype, 1);
-            this.shared = start + n;
+            readShared = start + n;
         } else chunk = sliceBytes(data, start, start + n, bufferPrototype);
         this.bodyRemaining -= n;
         this.deliver(chunk);
@@ -2301,9 +2306,9 @@ class ServerConnection {
     }
     chunkedBody(data, start, end) {
         const decoder = this.decoder;
-        decoder.shared = this.shared;
+        decoder.shared = readShared;
         const result = decoder.feed(data, start, end);
-        this.shared = decoder.shared;
+        readShared = decoder.shared;
         if (result === -2) {
             this.fail(parseError("HPE_INVALID_CHUNK_SIZE", data, start, end));
             return -1;

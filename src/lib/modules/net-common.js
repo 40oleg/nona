@@ -487,12 +487,15 @@ const readArenaBytes = 65432,
     readShort = 16384;
 let readArena = new Uint8Array(readArenaBytes),
     readBuffer = readArena,
-    readOffset = 0;
+    readOffset = 0,
+    readFree = readArenaBytes; // readBuffer.length
 function keepRead(kept) {
     readOffset += kept;
-    if (readArenaBytes - readOffset < readReserve) {
+    readFree = readArenaBytes - readOffset;
+    if (readFree < readReserve) {
         readArena = sliceBytes(readArena, 0, readArenaBytes, undefined, 2);
         readOffset = 0;
+        readFree = readArenaBytes;
         readBuffer = readArena;
     } else
         readBuffer = sliceBytes(
@@ -720,7 +723,7 @@ export class Socket extends Readable {
      * run before the next read.
      */
     _readNow() {
-        if (this._eof || this._destroyed || this._fd < 0) return;
+        if (this._eof || this._destroyed) return;
         const buffer = readBuffer,
             n = sys.recv(this._fd, buffer);
         if (n === EAGAIN || n === EINTR) return;
@@ -743,20 +746,30 @@ export class Socket extends Readable {
             return;
         }
         this.bytesRead += n;
+        if (n !== readFree) {
+            if (this._consumer !== null) {
+                const kept = this._consumer.onData(buffer, n, true);
+                if (kept > 0) keepRead(kept);
+            } else this.push(sliceBytes(buffer, 0, n, bufferPrototype));
+            return;
+        }
+        // The read filled the buffer. A small rest of the arena (its bytes
+        // were copied, not kept) is given up, or every later read would be
+        // as small.
         let more;
         if (this._consumer !== null) {
             const kept = this._consumer.onData(buffer, n, true);
             if (kept > 0) keepRead(kept);
-            // A filled small rest of the arena (its bytes were copied, not
-            // kept) is given up, or every later read would be as small.
-            else if (n === buffer.length && n < readShort) keepRead(n);
+            else if (n < readShort) keepRead(n);
             more = this._consumer !== null;
         } else {
             more = this.push(sliceBytes(buffer, 0, n, bufferPrototype));
-            if (n === buffer.length && n < readShort) keepRead(n);
+            if (n < readShort) keepRead(n);
         }
-        if (more && n === buffer.length && this._flowing !== false)
-            queueMicrotask(() => this._readNow());
+        if (more && this._flowing !== false)
+            queueMicrotask(() => {
+                if (this._fd >= 0) this._readNow();
+            });
     }
     _ended_() {
         this._maybeClose();
