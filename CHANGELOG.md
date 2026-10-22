@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **`Array.prototype.unshift` moves the elements of a dense array in one block move.** It moved every element with a generic `HasProperty`/`Get`/`Set` loop (20,000 unshifts took about 3 s); it now uses the `shift`/`splice` dense path and falls back to the generic loop for holes, array-likes, proxies and arrays with indexed setters on the prototype chain. ([#462](https://github.com/40oleg/nona/issues/462))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes

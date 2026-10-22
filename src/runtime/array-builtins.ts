@@ -2437,14 +2437,38 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
             a.cmp("rax", "r11");
             failIf(a, "a", "rt.throwTypeError");
             a.store(slot(232), "rax");
-            a.load("rax", slot(72));
-            a.store(slot(64), "rax");
             const moveLoop = a.unique("moveLoop"),
                 insert = a.unique("insert"),
                 absent = a.unique("absent"),
                 moveNext = a.unique("moveNext"),
                 insertLoop = a.unique("insertLoop"),
                 finish = a.unique("finish");
+            // A dense array shifts its elements right in one block move;
+            // unshifting element by element was quadratic.
+            {
+                const generic = a.unique("moveGeneric");
+                a.load("rax", slot(48));
+                a.test("rax", "rax");
+                a.jcc("e", generic);
+                a.load("rax", slot(80));
+                a.cmp("rax", 5);
+                a.jcc("ne", generic);
+                a.load("r10", slot(88));
+                a.load("rax", { base: "r10", disp: O.length });
+                a.load("r11", slot(72));
+                a.cmp("rax", "r11");
+                a.jcc("ne", generic);
+                a.lea("rcx", slot(80));
+                a.mov("rdx", 0);
+                a.mov("r8", 0);
+                a.load("r9", slot(48));
+                a.call("rt.elementsSpliceDense");
+                a.test("rax", "rax");
+                a.jcc("ne", insert);
+                a.label(generic);
+            }
+            a.load("rax", slot(72));
+            a.store(slot(64), "rax");
             a.label(moveLoop);
             a.load("rax", slot(48));
             a.test("rax", "rax");
