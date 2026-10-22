@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`Math.cbrt` is correctly rounded and matches Node.js bit for bit.** It computed `exp(log(|x|) / 3)`, which lost several ulps, so perfect cubes were inexact (`Math.cbrt(27)` was `3.0000000000000004`, `Math.cbrt(1000)` `9.999999999999998`). It is now a port of the fdlibm/FreeBSD `s_cbrt.c` algorithm that V8 uses: a bit-level estimate, a polynomial step and one Newton step in double precision, with only SSE2 and integer instructions, so the ARM64 runtime uses the same code. ([#461](https://github.com/40oleg/nona/issues/461))
 - **`Math.sin`, `Math.cos` and `Math.tan` reduce large arguments exactly on x64.** In the tests (fixed values near multiples of pi/2, up to 1e300, and seeded random arguments) they are within one ulp of Node.js on x64. On x64 the x87 `fsin`/`fcos`/`fptan` instructions reduce with a 66-bit approximation of pi, so `Math.sin(Math.PI)` and `Math.tan(Math.PI / 2)` were wrong from the fifth digit and `Math.sin(2 ** 62)` by 0.6%. Arguments above pi/4 are now reduced exactly first: Cody-Waite in 64-bit extended precision below 2^20·pi/2, and above it the Payne-Hanek `rt.trigReduce`, which now returns a double-double remainder from the first significant fraction bit This remainder should also make the ARM64 software routines more precise near multiples of pi/2. That has not been checked on ARM64 hardware yet, and the software `Math.tan` there can still be 2 ulps off. ([#454](https://github.com/40oleg/nona/issues/454))
 
 ### Performance
