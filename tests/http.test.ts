@@ -211,6 +211,102 @@ server.listen(0, '127.0.0.1', () => {
         false,
     ));
 
+test("node:http: request bodies split across reads, pipelined after large bodies, chunked, paused, piped and kept after later requests", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+import { Buffer } from 'node:buffer';
+const pattern = (n, seed) => { const b = Buffer.alloc(n); for (let i = 0; i < n; i++) b[i] = (i * seed + (i >> 8)) & 255; return b; };
+const sum = (b) => { let s = 0; for (let i = 0; i < b.length; i++) s = (s * 31 + b[i]) >>> 0; return s; };
+// Chunks kept by the handlers: later reads must not change them.
+const kept = [];
+const server = http.createServer((req, res) => {
+  if (req.url === '/pipe') { req.pipe(res); return; }
+  if (req.url === '/check') {
+    let intact = 0;
+    for (const k of kept) if (sum(Buffer.concat(k.chunks)) === k.sum) intact++;
+    res.end('kept ' + kept.length + ' intact ' + intact);
+    return;
+  }
+  const chunks = [];
+  let pauses = 0;
+  req.on('data', (chunk) => {
+    chunks.push(chunk);
+    if (req.url === '/pause' && pauses < 3) {
+      pauses++;
+      req.pause();
+      console.log('server: paused', req.isPaused());
+      setTimeout(() => req.resume(), 5);
+    }
+  });
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
+    if (req.url === '/keep') kept.push({ chunks, sum: sum(body) });
+    res.end(req.method + ' ' + req.url + ' ' + body.length + ' ' + sum(body));
+  });
+});
+const head = (path, fields) => Buffer.from('POST ' + path + ' HTTP/1.1\r\nHost: x\r\n' + fields + '\r\n');
+const fixed = (path, body) => Buffer.concat([head(path, 'Content-Length: ' + body.length + '\r\n'), body]);
+const chunked = (path, parts) => Buffer.concat([head(path, 'Transfer-Encoding: chunked\r\n'),
+  ...parts.flatMap((p) => [Buffer.from(p.length.toString(16) + '\r\n'), p, Buffer.from('\r\n')]), Buffer.from('0\r\n\r\n')]);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  const socket = net.connect(port, '127.0.0.1');
+  let text = '';
+  socket.setEncoding('latin1');
+  socket.on('data', (data) => { text += data; });
+  socket.on('end', () => {
+    console.log(text.replace(/^Date: .*\r\n/gm, '').split('\r\n').join('|'));
+    const big = pattern(100000, 17);
+    const req = http.request({ port, host: '127.0.0.1', method: 'POST', path: '/pipe' }, (res) => {
+      const parts = [];
+      res.on('data', (c) => parts.push(c));
+      res.on('end', () => {
+        const back = Buffer.concat(parts);
+        console.log('pipe', back.length, back.equals(big), res.headers['transfer-encoding']);
+        server.close();
+      });
+    });
+    req.write(big.subarray(0, 30000));
+    setTimeout(() => { req.write(big.subarray(30000, 90000)); req.end(big.subarray(90000)); }, 10);
+  });
+  await new Promise((resolve) => socket.on('connect', resolve));
+  // Each group is sent once the responses before it arrived.
+  let sent = 0;
+  const answered = async (requests) => {
+    sent += requests;
+    while (text.split('HTTP/1.1 200').length - 1 < sent) await wait(5);
+  };
+  // Pipelined: a large fixed body, a chunked body with large chunks, a small body.
+  socket.write(Buffer.concat([fixed('/keep', pattern(20000, 3)), chunked('/keep', [pattern(10000, 5), pattern(9000, 7), pattern(3, 9)]), fixed('/keep', pattern(5, 1))]));
+  await answered(3);
+  // One body in three reads.
+  const split = fixed('/keep', pattern(30000, 11));
+  socket.write(split.subarray(0, 100));
+  await wait(20);
+  socket.write(split.subarray(100, 20000));
+  await wait(20);
+  socket.write(split.subarray(20000));
+  await answered(1);
+  // Larger than a read buffer, read while paused and resumed.
+  socket.write(fixed('/pause', pattern(200000, 13)));
+  await answered(1);
+  // Many 16 KiB bodies in one write, then a chunked body split inside a chunk.
+  const many = [];
+  for (let i = 0; i < 30; i++) many.push(fixed('/keep', pattern(16384, 19 + i)));
+  socket.write(Buffer.concat(many));
+  const tail = chunked('/keep', [pattern(40000, 23)]);
+  socket.write(tail.subarray(0, 25000));
+  await wait(20);
+  socket.write(tail.subarray(25000));
+  await answered(31);
+  socket.write('GET /check HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n');
+});
+`,
+        false,
+    ));
+
 test("node:http: refused connections, malformed requests, pipelining, HTTP/1.0, chunked trailers, header overflow, EADDRINUSE", () =>
     expectNode(
         String.raw`import http from 'node:http';

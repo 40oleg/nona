@@ -1,7 +1,7 @@
 import { EventEmitter, captureRejections } from "node:events";
 import { Buffer } from "node:buffer";
 import * as net from "node:net";
-import { Readable, defaults, clock } from "nona:internal/stream";
+import { Readable, defaults, clock, defer } from "nona:internal/stream";
 import {
     parse as parseHead,
     latin1,
@@ -492,7 +492,17 @@ export class IncomingMessage {
     }
     // Like Node.js, a message destroys itself (and emits 'close') after 'end'.
     _ended_() {
-        if (!this._destroyed) this.destroy();
+        if (this._destroyed) return;
+        // A complete message with the stock destroy path: what destroy()
+        // would do, without its callback closure.
+        if (
+            this.complete &&
+            this.destroy === readableDestroy &&
+            this._destroy === IncomingMessage.prototype._destroy
+        ) {
+            this._destroyed = true;
+            defer(this, "_closeTask");
+        } else this.destroy();
     }
     /** The request's response is done: unread data is discarded. */
     _dump() {
@@ -526,6 +536,7 @@ export class IncomingMessage {
     }
 }
 Object.setPrototypeOf(IncomingMessage.prototype, Readable.prototype);
+const readableDestroy = Readable.prototype.destroy;
 Object.setPrototypeOf(IncomingMessage, Readable);
 defaults(IncomingMessage.prototype, {
     httpVersionMajor: 1,
@@ -2862,8 +2873,16 @@ export class ClientRequest extends OutgoingMessage {
         this._errorEmitted = true;
         this.emit("error", error);
     }
+    // A deferred stream task, like the process.nextTick Node.js uses: it runs
+    // before the 'close' of a response whose 'end' freed the socket.
     onSocket(socket) {
-        queueMicrotask(() => this._useSocket(socket));
+        this._offeredSocket = socket;
+        defer(this, "_offeredSocketTask");
+    }
+    _offeredSocketTask() {
+        const socket = this._offeredSocket;
+        this._offeredSocket = null;
+        this._useSocket(socket);
     }
     _useSocket(socket) {
         if (this.destroyed) {

@@ -477,9 +477,14 @@ function invoke(callback, error) {
  * later reads go after them, into a fresh arena once less than readReserve is
  * left. The arena fills the allocator's largest cell (64 KiB with its
  * header), so it is recycled from a free list like the copies it replaces.
+ * The reserve is small so that little of an arena is left unused (the bytes
+ * allocated per request set how often the collector runs): a message that
+ * does not fit the rest of an arena is read in two parts, the second one at
+ * once (see _readNow).
  */
 const readArenaBytes = 65432,
-    readReserve = 16384;
+    readReserve = 4096,
+    readShort = 16384;
 let readArena = new Uint8Array(readArenaBytes),
     readBuffer = readArena,
     readOffset = 0;
@@ -708,9 +713,16 @@ export class Socket extends Readable {
         )
             this._flushWrites();
     }
+    /**
+     * Reads what the socket has. A read that fills the buffer is repeated
+     * without waiting for the next readiness event (as libuv repeats it), in
+     * a microtask: as in Node.js, the tasks and microtasks the data queued
+     * run before the next read.
+     */
     _readNow() {
-        if (this._eof || this._destroyed) return;
-        const n = sys.recv(this._fd, readBuffer);
+        if (this._eof || this._destroyed || this._fd < 0) return;
+        const buffer = readBuffer,
+            n = sys.recv(this._fd, buffer);
         if (n === EAGAIN || n === EINTR) return;
         if (n < 0) {
             this.destroy(errnoException(n, "read"));
@@ -731,12 +743,20 @@ export class Socket extends Readable {
             return;
         }
         this.bytesRead += n;
+        let more;
         if (this._consumer !== null) {
-            const kept = this._consumer.onData(readBuffer, n, true);
+            const kept = this._consumer.onData(buffer, n, true);
             if (kept > 0) keepRead(kept);
-            return;
+            // A filled small rest of the arena (its bytes were copied, not
+            // kept) is given up, or every later read would be as small.
+            else if (n === buffer.length && n < readShort) keepRead(n);
+            more = this._consumer !== null;
+        } else {
+            more = this.push(sliceBytes(buffer, 0, n, bufferPrototype));
+            if (n === buffer.length && n < readShort) keepRead(n);
         }
-        this.push(sliceBytes(readBuffer, 0, n, bufferPrototype));
+        if (more && n === buffer.length && this._flowing !== false)
+            queueMicrotask(() => this._readNow());
     }
     _ended_() {
         this._maybeClose();
