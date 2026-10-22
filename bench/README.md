@@ -47,6 +47,35 @@ node bench/run.mjs [--scale 0.1] [--runs 3] [--timeout 600] [--only 05,06] [--ru
 4. Compare the `check` values and output hashes of the runtimes (the report lists mismatches under each table); a mismatch is a correctness bug, not a performance result.
 5. Update `PERFORMANCE.md`: a new dated section at the top with the version, commit, machine and runtime versions, the summary table (`bench/results/summary.md`) and the per-suite tables (`bench/results/<suite>.md`); mark the section it replaces _superseded_. Update the figures in `README.md`, `README.ru.md` and the site's translated performance pages.
 
+## HTTP server (`http/run.sh`)
+
+```
+npm run build
+bench/http/run.sh                                  # load.c, 1/32/256 connections, 5 runs of 3 s
+GEN=wrk WRK=/path/to/wrk RUNS=5 SECS=3 bench/http/run.sh
+CONNS="32" SERVER_CPU=4 CLIENT_CPU=5 GEN=load bench/http/run.sh
+```
+
+One command reproduces every row of the HTTP tables of `PERFORMANCE.md`: it
+builds `http/server.mjs` for `linux-x64`, runs it and the same file under
+Node.js pinned to `SERVER_CPU`, drives each of the six cases (hello, json,
+headers, close, upload16k, big64k) from `CLIENT_CPU` after a `WARM`-second
+warm-up, `RUNS` times for `SECS` seconds, and prints the machine (kernel,
+CPU model, governor), the Node.js and Nona versions and one table per
+connection count with the median and min–max of the requests per second, the
+median p99 latency, the Nona / Node ratio and the servers' RSS. `GEN` selects
+the load generator: `load` (`http/load.c`, compiled with `gcc`; the
+dependency-free default), `wrk` or `autocannon`. `oha` and `bombardier`
+are not wired in. `http/profile.sh CASE` counts instructions per request under
+QEMU, which does not depend on the machine's noise.
+
+Windows: the script needs a POSIX shell, `taskset`, `gcc` and the Linux
+target, so on Windows run it inside WSL2 (that is how the tables were made: a
+Linux Node.js 22 binary and `wrk` built inside the same WSL2 instance). The
+native PE server can be driven by `http/client.mjs` (Node.js), which is slower
+than the servers, so it is a correctness check, not a throughput
+measurement; no Windows load generator is part of the repository.
+
 ## Profiling
 
 `node scripts/profile-runtime.mjs <script> [--scale s] [--group]` runs a script compiled for Linux x64 under QEMU's execution trace and prints how many instructions each runtime routine and compiled function executed (Linux x64 host; needs `qemu-user` and `binutils`). The trace takes about 20 bytes per instruction, so keep profiled runs to a few hundred million instructions. [docs/simd.md](../docs/simd.md) describes the method and shows results.
