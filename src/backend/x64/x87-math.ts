@@ -10,6 +10,10 @@ const disp8 = (offset: number) => {
 const fld = (offset: number) => [0xdd, 0x44, 0x24, disp8(offset)]; // fld qword [rsp+offset]
 const fstp = (offset: number) => [0xdd, 0x5c, 0x24, disp8(offset)]; // fstp qword [rsp+offset]
 const faddFrom = (offset: number) => [0xdc, 0x44, 0x24, disp8(offset)]; // fadd qword [rsp+offset]
+const fmul = (offset: number) => [0xdc, 0x4c, 0x24, disp8(offset)]; // fmul qword [rsp+offset]
+const fist32 = (offset: number) => [0xdb, 0x54, 0x24, disp8(offset)]; // fist dword [rsp+offset]
+const fnstcw = (offset: number) => [0xd9, 0x7c, 0x24, disp8(offset)];
+const fldcw = (offset: number) => [0xd9, 0x6c, 0x24, disp8(offset)];
 const fmulFrom = (offset: number) => [
     0xdd,
     0x44,
@@ -29,61 +33,112 @@ const FSIN = [0xd9, 0xfe],
     FYL2X = [0xd9, 0xf1],
     FYL2XP1 = [0xd9, 0xf9],
     F2XM1 = [0xd9, 0xf0];
-const FSTP_ST0 = [0xdd, 0xd8];
+const FSTP_ST0 = [0xdd, 0xd8],
+    FLD_ST0 = [0xd9, 0xc0],
+    FSUBP_ST2 = [0xde, 0xea], // st2 = st2 - st0; pop
+    FDIVRP_ST1 = [0xde, 0xf1], // st1 = st0 / st1; pop
+    FRNDINT = [0xd9, 0xfc],
+    FCHS = [0xd9, 0xe0];
 const slot = (offset: number) => ({ base: "rsp" as const, disp: offset });
 
 /** Transcendental steps on the x87 unit of x86-64. */
 export const x87Math: MachineMath = {
     softwareRoutines: false,
     trig(a, name, argument, result) {
-        // fsin/fcos/fptan accept |x| < 2^63; larger finite angles go through rt.trigReduce (slots 88, 96).
+        // fsin/fcos/fptan reduce with a 66-bit pi, so they only see |r| <= pi/4
+        // (#454). Larger angles are reduced in 64-bit extended precision:
+        // Cody-Waite with the fdlibm pieces of pi/2 below 2^20 * pi/2, and
+        // rt.trigReduce (a double-double remainder) above. Slots 88 to 112.
         const op = name === "sin" ? FSIN : name === "cos" ? FCOS : FPTAN;
-        const large = a.unique("largeAngle"),
+        const reduce = a.unique("reduceAngle"),
+            large = a.unique("largeAngle"),
+            kernel = a.unique("trigKernel"),
+            nonfinite = a.unique("nonfinite"),
             done = a.unique("trigDone");
         a.load("rax", slot(argument));
         a.mov("r10", 0x7fffffffffffffffn);
         a.and("rax", "r10");
-        a.mov("r10", 0x43e0000000000000n);
+        a.mov("r10", 0x3fe921fb54442d18n); // pi/4
         a.cmp("rax", "r10");
-        a.jcc("ae", large);
+        a.jcc("a", reduce);
         a.emit(fld(argument));
         a.emit(op);
         if (name === "tan") a.emit(FSTP_ST0); // discard the extra 1.0 from fptan
         a.emit(fstp(result));
         a.jmp(done);
-        a.label(large);
-        const nonfinite = a.unique("nonfinite");
+        a.label(reduce);
         a.mov("r10", 0x7ff0000000000000n);
         a.cmp("rax", "r10");
         a.jcc("ae", nonfinite);
+        const constant = (offset: number, value: bigint) => {
+            a.mov("r10", value);
+            a.store(slot(offset), "r10");
+        };
+        const extended = () => {
+            // Windows starts the x87 unit with 53-bit precision; use 64 bits.
+            a.emit(fnstcw(88));
+            a.load("r10", slot(88));
+            a.or("r10", 0x300);
+            a.store(slot(96), "r10");
+            a.emit(fldcw(96));
+        };
+        a.mov("r10", 0x413921fb54442d18n); // 2^20 * pi/2
+        a.cmp("rax", "r10");
+        a.jcc("ae", large);
+        a.store(slot(112), "rax");
+        extended();
+        constant(96, 0x3fe45f306dc9c883n); // 2/pi
+        // n = round(|x| * 2/pi) < 2^20; r = |x| - n*P1 - n*P2 - n*P3 - n*P3t,
+        // where n*P1, n*P2 and n*P3 are exact and the subtractions that
+        // cancel are exact in 64 bits.
+        a.emit([...fld(112), ...fld(112), ...fmulFrom(96), ...FRNDINT]);
+        a.emit(fist32(104));
+        for (const piece of [
+            0x3ff921fb54400000n,
+            0x3dd0b4611a600000n,
+            0x3ba3198a2e000000n,
+            0x397b839a252049c1n,
+        ]) {
+            constant(96, piece);
+            a.emit([...FLD_ST0, ...fmul(96), ...FSUBP_ST2]);
+        }
+        a.emit(FSTP_ST0); // n
+        a.jmp(kernel);
+        a.label(large);
         a.movqToXmm("xmm0", "rax");
         a.call("rt.trigReduce");
-        a.store(slot(96), "rax");
-        a.storesd(slot(88), "xmm0");
+        a.store(slot(104), "rax");
+        a.storesd(slot(96), "xmm0");
+        a.storesd(slot(112), "xmm1");
+        a.emit(fld(96));
+        extended();
+        a.emit(faddFrom(112));
+        a.label(kernel);
+        // st0 = r, [104] = quadrant (low bits), [88] = the control word.
         if (name === "tan") {
-            a.emit([...fld(88), ...FPTAN, ...FSTP_ST0, ...fstp(result)]); // tan(reduced angle)
             const even = a.unique("even");
-            a.load("rax", slot(96));
+            a.emit([...FPTAN, ...FSTP_ST0]);
+            a.load("rax", slot(104));
             a.and("rax", 1);
             a.jcc("e", even);
-            a.mov("rax", 0xbff0000000000000n);
-            a.movqToXmm("xmm0", "rax");
-            a.divsd("xmm0", slot(result));
-            a.storesd(slot(result), "xmm0");
+            a.emit([...FLD1, ...FDIVRP_ST1, ...FCHS]); // -1/tan(r)
             a.label(even);
+            a.emit(fstp(result));
         } else {
             const useSin = a.unique("useSin"),
                 after = a.unique("afterTrig");
-            a.load("rax", slot(96));
+            a.load("rax", slot(104));
             a.and("rax", 1);
             a.jcc(name === "sin" ? "e" : "ne", useSin);
-            a.emit([...fld(88), ...FCOS, ...fstp(result)]);
+            a.emit(FCOS);
             a.jmp(after);
             a.label(useSin);
-            a.emit([...fld(88), ...FSIN, ...fstp(result)]);
+            a.emit(FSIN);
             a.label(after);
+            a.emit(fstp(result));
             const noQuadrantSign = a.unique("noQuadrantSign");
-            a.load("rax", slot(96));
+            a.load("rax", slot(104));
+            a.and("rax", 3);
             if (name === "sin") {
                 a.cmp("rax", 2);
                 a.jcc("b", noQuadrantSign);
@@ -99,6 +154,7 @@ export const x87Math: MachineMath = {
             a.store(slot(result), "rax");
             a.label(noQuadrantSign);
         }
+        a.emit(fldcw(88));
         if (name !== "cos") {
             a.load("rax", slot(argument));
             a.mov("r10", 0x8000000000000000n);

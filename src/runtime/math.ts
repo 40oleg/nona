@@ -671,7 +671,7 @@ export function emitMath(b: RuntimeBuilder, float16 = true): void {
         rootedFn(
             b,
             "rt.Math." + name + ".fn.code",
-            104,
+            120,
             [
                 { kind: "output", register: "rcx" },
                 { kind: "range", register: "r8", count: "rdx" },

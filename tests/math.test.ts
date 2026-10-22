@@ -3,9 +3,10 @@ import { expectProgram } from "./helpers/program.js";
 import { runOracle } from "./helpers/oracle.js";
 import { compile, compileToIR } from "../src/compiler.js";
 import { generate } from "../src/backend/x64/codegen.js";
-import { linkHost } from "./helpers/program.js";
+import { hostTarget, linkHost } from "./helpers/program.js";
 import { runNative } from "./helpers/native.js";
 import { runOnHost } from "./helpers/host.js";
+import { getTarget } from "../src/target.js";
 import assert from "node:assert/strict";
 
 const cases: [string, string][] = [
@@ -134,6 +135,75 @@ test("Math: sin cos tan finite values and signed zero", () => {
             `${i}: ${parts[i]}`,
         );
     assert.deepEqual(parts.slice(3), ["true", "1", "true"]);
+});
+test("Math: sin cos tan stay within one ulp of Node.js for large arguments", () => {
+    let seed = 454;
+    const random = () => {
+        seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+        return seed / 2 ** 32;
+    };
+    const values = [
+        Math.PI,
+        Math.PI / 2,
+        -Math.PI,
+        (3 * Math.PI) / 2,
+        1e5,
+        -1e5,
+        1e15,
+        2 ** 62,
+        2 ** 63,
+        1e300,
+        -1e300,
+        0.7853981633974483,
+        0.7853981633974484,
+        1e-300,
+        710.5,
+        355,
+        103993,
+        1647099.3291652855,
+        1647099.3291652858,
+        6381956970095103 * 2 ** 797,
+        ...Array.from(
+            { length: 24 },
+            () => (random() < 0.5 ? -1 : 1) * 10 ** (-3 + 23 * random()),
+        ),
+    ];
+    const source = `for (const x of [${values.map(String).join(",")}]) console.log(Math.sin(x), Math.cos(x), Math.tan(x));`;
+    const run = runNative(linkHost(generate(compileToIR(source))));
+    assert.equal(run.status, 0, run.stderr.toString());
+    const lines = run.stdout.toString().trim().split(/\r?\n/);
+    assert.equal(lines.length, values.length);
+    const software = getTarget(hostTarget)!.arch === "arm64";
+    const ordered = (x: number) => {
+        const bits = new BigInt64Array(new Float64Array([x]).buffer)[0]!;
+        return bits < 0n ? -(bits & 0x7fffffffffffffffn) : bits;
+    };
+    for (const [i, x] of values.entries()) {
+        const actual = lines[i]!.split(" ").map(Number);
+        for (const [j, expected] of [
+            Math.sin(x),
+            Math.cos(x),
+            Math.tan(x),
+        ].entries()) {
+            const distance = ordered(actual[j]!) - ordered(expected);
+            // The ARM64 software tan divides two ~0.5-ulp polynomials, so
+            // it can land 2 ulps away (about 3% of arguments).
+            const ulps = j === 2 && software ? 2n : 1n;
+            assert.ok(
+                distance >= -ulps && distance <= ulps,
+                `${["sin", "cos", "tan"][j]}(${x}) = ${actual[j]}, expected ${expected}`,
+            );
+        }
+    }
+    // The exact repro strings come from the x87 kernel on x64.
+    if (software) return;
+    const repro = `console.log(Math.sin(Math.PI), Math.cos(Math.PI / 2), Math.sin(1e15), Math.sin(2 ** 62), Math.tan(Math.PI / 2));`;
+    const exact = runNative(linkHost(generate(compileToIR(repro))));
+    assert.equal(exact.status, 0, exact.stderr.toString());
+    assert.equal(
+        exact.stdout.toString().trim(),
+        "1.2246467991473532e-16 6.123233995736766e-17 0.8582727931702359 -0.7029224436192089 16331239353195370",
+    );
 });
 test("Math: trigonometric argument coercion survives stress GC", () => {
     const source = `var x={valueOf(){for(var i=0;i<40;i++)({v:i});return 0;}};console.log(Math.sin(x),Math.cos(x),Math.tan(x));`;
