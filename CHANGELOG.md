@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`fs.readFileSync(0)`, `fs.writeFileSync(1, …)` and `fs.appendFileSync` accept the descriptors 0, 1 and 2.** `readFileSync(0, 'utf8')` reads all of stdin until EOF and the write functions write all bytes to stdout or stderr, on every target (Windows uses `GetStdHandle`; a broken pipe is the end of input). Invalid path, data or descriptor types now throw errors with `code: 'ERR_INVALID_ARG_TYPE'`. ([#473](https://github.com/40oleg/nona/issues/473))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes
