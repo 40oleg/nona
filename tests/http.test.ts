@@ -644,3 +644,53 @@ server.listen(0, '127.0.0.1', () => {
 `,
         false,
     ));
+
+test("node:http: request bodies split across reads with a decoder, a late 'data' listener and a pause in 'data'", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+import { Buffer } from 'node:buffer';
+// The body path gives a flowing request its chunks directly (#403); a
+// decoder, chunks queued before the first 'data' listener and a pause must
+// still go through push().
+const server = http.createServer((req, res) => {
+  const parts = [];
+  const listen = () => req.on('data', (chunk) => {
+    parts.push(typeof chunk === 'string' ? 's' + chunk.length : 'b' + chunk.length);
+    if (req.url === '/pause' && parts.length === 1) { req.pause(); setTimeout(() => req.resume(), 10); }
+  });
+  if (req.url === '/text') req.setEncoding('utf8');
+  if (req.url === '/late') setTimeout(listen, 20);
+  else listen();
+  req.on('end', () => {
+    console.log(req.url, parts.length > 0, req.complete, req.readableEnded);
+    res.end(req.url + ' ' + parts.join(','));
+  });
+});
+const text = Buffer.from('\u00e9\u20ac'.repeat(5000));
+const body = Buffer.alloc(30000, 7);
+const post = (path, payload) => Buffer.concat([Buffer.from('POST ' + path + ' HTTP/1.1\r\nHost: x\r\nContent-Length: ' + payload.length + '\r\n\r\n'), payload]);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  const one = (bytes, parts) => new Promise((resolve) => {
+    const socket = net.connect(port, '127.0.0.1', async () => {
+      // Split inside a multi-byte character, then the rest.
+      if (parts) { socket.write(bytes.subarray(0, 9001)); await wait(20); socket.write(bytes.subarray(9001)); }
+      else socket.write(bytes);
+      socket.end();
+    });
+    let out = '';
+    socket.setEncoding('latin1');
+    socket.on('data', (d) => { out += d; });
+    socket.on('close', () => { console.log(JSON.stringify(out.replace(/Date: [^\r]*\r\n/g, '').split('\r\n\r\n')[1])); resolve(); });
+  });
+  await one(post('/text', text), true);
+  await one(post('/late', body), true);
+  await one(post('/pause', body), true);
+  await one(post('/plain', body), true);
+  server.close(() => console.log('closed'));
+});
+`,
+        false,
+    ));

@@ -536,7 +536,8 @@ export class IncomingMessage {
     }
 }
 Object.setPrototypeOf(IncomingMessage.prototype, Readable.prototype);
-const readableDestroy = Readable.prototype.destroy;
+const readableDestroy = Readable.prototype.destroy,
+    readablePush = Readable.prototype.push;
 Object.setPrototypeOf(IncomingMessage, Readable);
 defaults(IncomingMessage.prototype, {
     httpVersionMajor: 1,
@@ -2007,6 +2008,18 @@ const badRequest = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n";
 const fieldsTooLarge =
     "HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n";
 /**
+ * A request's body is complete: req.push(null), done here for the stock
+ * push (its property reads are shared by every kind of stream).
+ */
+function completeRequest(req) {
+    req.complete = true;
+    if (req.push !== readablePush) req.push(null);
+    else if (!req._destroyed && !req._ended) {
+        req._ended = true;
+        req._scheduleFlush();
+    }
+}
+/**
  * One accepted connection. The socket hands it every read directly
  * (socket._consumer); bytes that do not complete a head stay in pending.
  * Requests are answered in order: a response that is not first waits in
@@ -2235,8 +2248,7 @@ class ServerConnection {
             this.decoder = null;
             this.bodyRemaining = length;
         } else {
-            req.complete = true;
-            req.push(null);
+            completeRequest(req);
         }
         if (major === 1 && minor === 1) {
             if (server.requireHostHeader && (flags & F_HOST) === 0) {
@@ -2278,17 +2290,28 @@ class ServerConnection {
     }
     deliver(chunk) {
         const req = this.body;
+        if (req._destroyed) return;
+        // A flowing request with nothing queued and no decoder gets the
+        // chunk at once, as push() would give it.
         if (
-            !req._destroyed &&
-            req.push(chunk) === false &&
-            !this.socket.isPaused()
+            req._flowing === true &&
+            req._queued === 0 &&
+            !req._flushScheduled &&
+            req._decoder === null &&
+            !req._ended &&
+            req.push === readablePush
         ) {
+            req.emit("data", chunk);
+            return;
+        }
+        if (req.push(chunk) === false && !this.socket.isPaused()) {
             req._socketPaused = true;
             this.socket.pause();
         }
     }
     fixedBody(data, start, end) {
-        const n = Math.min(this.bodyRemaining, end - start);
+        const n =
+            this.bodyRemaining < end - start ? this.bodyRemaining : end - start;
         let chunk;
         if (n >= shareBytes && readShared >= 0) {
             chunk = sliceBytes(data, start, start + n, bufferPrototype, 1);
@@ -2299,8 +2322,7 @@ class ServerConnection {
         if (this.bodyRemaining === 0) {
             const req = this.body;
             this.body = null;
-            req.complete = true;
-            req.push(null);
+            completeRequest(req);
         }
         return start + n;
     }
@@ -2318,8 +2340,7 @@ class ServerConnection {
         req.rawTrailers = this.decoder.trailers;
         this.body = null;
         this.decoder = null;
-        req.complete = true;
-        req.push(null);
+        completeRequest(req);
         return result;
     }
     onEnd() {
