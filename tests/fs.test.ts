@@ -239,6 +239,41 @@ console.log(fs.realpathSync(dir + '/file-link') === fs.realpathSync(dir + '/targ
     }
 });
 
+test("readdir recursive lists all descendants like Node.js and skips symbolic links", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "nona-recursive-"));
+    try {
+        mkdirSync(join(directory, "rd", "sub", "deep"), { recursive: true });
+        mkdirSync(join(directory, "rd", "empty"));
+        for (const f of ["a", "sub/b", "sub/deep/c"])
+            writeFileSync(join(directory, "rd", f), "");
+        try {
+            symlinkSync(
+                join(directory, "rd", "sub"),
+                join(directory, "rd", "link"),
+                "dir",
+            );
+        } catch (error) {
+            t.diagnostic("no symbolic links: " + (error as Error).message);
+        }
+        expectModules({
+            "main.mjs": `
+import fs from 'node:fs';
+import {readdir as readdirP} from 'node:fs/promises';
+const root = ${JSON.stringify(join(directory, "rd"))};
+const sorted = (list) => JSON.stringify(list.map((n) => n.replaceAll('\\\\', '/')).sort());
+console.log(sorted(fs.readdirSync(root, {recursive: true})));
+console.log(sorted(fs.readdirSync(root, {recursive: false})));
+console.log(sorted(fs.readdirSync(root, 'utf8')));
+console.log(sorted(fs.readdirSync(root, {recursive: true, withFileTypes: true}).map((d) => d.parentPath.slice(root.length).replaceAll('\\\\', '/') + '|' + d.name + '|' + d.isDirectory())));
+console.log(sorted(await readdirP(root, {recursive: true})));
+fs.readdir(root, {recursive: true}, (error, names) => console.log(error, sorted(names)));
+`,
+        });
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
 test("fs reads Windows junctions as links", (t) => {
     if (process.platform !== "win32") {
         t.skip("junctions are a Windows feature");
