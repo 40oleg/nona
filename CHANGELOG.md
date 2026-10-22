@@ -2,11 +2,19 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`assert.strict` and `node:assert/strict` use strict equality.** They were the same object as the legacy `assert`, so `equal`, `deepEqual`, `notEqual` and `notDeepEqual` stayed loose. `assert.strict` is now a separate callable that maps them to `strictEqual`, `deepStrictEqual`, `notStrictEqual` and `notDeepStrictEqual`, with `strict.strict === strict`, as in Node.js. ([#457](https://github.com/40oleg/nona/issues/457))
+
+### Performance
+
+- **`Array.prototype.unshift` moves the elements of a dense array in one block move.** It moved every element with a generic `HasProperty`/`Get`/`Set` loop (20,000 unshifts took about 3 s); it now uses the `shift`/`splice` dense path and falls back to the generic loop for holes, array-likes, proxies and arrays with indexed setters on the prototype chain. ([#462](https://github.com/40oleg/nona/issues/462))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes
 
-- **`assert.strict` and `node:assert/strict` use strict equality.** They were the same object as the legacy `assert`, so `equal`, `deepEqual`, `notEqual` and `notDeepEqual` stayed loose. `assert.strict` is now a separate callable that maps them to `strictEqual`, `deepStrictEqual`, `notStrictEqual` and `notDeepStrictEqual`, with `strict.strict === strict`, as in Node.js. ([#457](https://github.com/40oleg/nona/issues/457))
+- **`Math.cbrt` is correctly rounded and matches Node.js bit for bit.** It computed `exp(log(|x|) / 3)`, which lost several ulps, so perfect cubes were inexact (`Math.cbrt(27)` was `3.0000000000000004`, `Math.cbrt(1000)` `9.999999999999998`). It is now a port of the fdlibm/FreeBSD `s_cbrt.c` algorithm that V8 uses: a bit-level estimate, a polynomial step and one Newton step in double precision, with only SSE2 and integer instructions, so the ARM64 runtime uses the same code. ([#461](https://github.com/40oleg/nona/issues/461))
 - **`Math.sin`, `Math.cos` and `Math.tan` reduce large arguments exactly on x64.** In the tests (fixed values near multiples of pi/2, up to 1e300, and seeded random arguments) they are within one ulp of Node.js on x64. On x64 the x87 `fsin`/`fcos`/`fptan` instructions reduce with a 66-bit approximation of pi, so `Math.sin(Math.PI)` and `Math.tan(Math.PI / 2)` were wrong from the fifth digit and `Math.sin(2 ** 62)` by 0.6%. Arguments above pi/4 are now reduced exactly first: Cody-Waite in 64-bit extended precision below 2^20·pi/2, and above it the Payne-Hanek `rt.trigReduce`, which now returns a double-double remainder from the first significant fraction bit This remainder should also make the ARM64 software routines more precise near multiples of pi/2. That has not been checked on ARM64 hardware yet, and the software `Math.tan` there can still be 2 ulps off. ([#518](https://github.com/40oleg/nona/issues/518), [#454](https://github.com/40oleg/nona/issues/454))
 - **`assert.deepEqual` and `assert.notDeepEqual` compare Maps, Sets, Dates, RegExps, boxed primitives, typed arrays, ArrayBuffers and Errors.** The loose comparison only looked at own enumerable keys, so any two Maps, Sets, Dates or RegExps were equal. It now follows Node.js's loose comparison: Set elements and Map entries are matched loosely (`new Map([[1, "1"]])` equals `new Map([[1, 1]])`), Dates compare their time, RegExps their source, flags and `lastIndex`, and circular structures terminate. ([#520](https://github.com/40oleg/nona/issues/520))
 - **A hashbang line (`#!`) is accepted at the start of a script or an ES module.** The lexer treats `#!` up to the first line terminator as a comment (ES2023 Hashbang Grammar) only at offset 0 of the source text; `#` elsewhere is still rejected with `E_LEX`, and later diagnostics keep their positions. ([#519](https://github.com/40oleg/nona/issues/519))
