@@ -1,4 +1,4 @@
-import { inspect, isDeepStrictEqual } from "node:util";
+import { inspect, isDeepStrictEqual, types } from "node:util";
 export class AssertionError extends Error {
     constructor(options) {
         const { message, actual, expected, operator } = options || {};
@@ -24,23 +24,123 @@ function fail(actual, expected, message, operator, defaultMessage) {
         operator,
     });
 }
-function looseDeepEqual(a, b) {
-    if (a == b) return true;
-    if (
-        typeof a !== "object" ||
-        typeof b !== "object" ||
-        a === null ||
-        b === null
-    )
-        return false;
+const toStringTag = (value) => Object.prototype.toString.call(value);
+const isObject = (value) => typeof value === "object" && value !== null;
+function looseKeysEqual(a, b, seen) {
     const ka = Object.keys(a),
         kb = Object.keys(b);
     if (ka.length !== kb.length) return false;
-    return ka.every(
-        (k) =>
-            Object.prototype.hasOwnProperty.call(b, k) &&
-            looseDeepEqual(a[k], b[k]),
-    );
+    for (const k of ka)
+        if (
+            !Object.prototype.hasOwnProperty.call(b, k) ||
+            !Object.prototype.propertyIsEnumerable.call(b, k)
+        )
+            return false;
+    for (const k of ka) if (!looseEqual(a[k], b[k], seen)) return false;
+    return true;
+}
+function looseBytesEqual(a, b) {
+    if (a.byteLength !== b.byteLength) return false;
+    const x = new Uint8Array(a.buffer || a, a.byteOffset || 0, a.byteLength);
+    const y = new Uint8Array(b.buffer || b, b.byteOffset || 0, b.byteLength);
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+    return true;
+}
+function looseMapEqual(a, b, seen) {
+    if (a.size !== b.size) return false;
+    const entries = [...b];
+    const used = new Array(entries.length).fill(false);
+    outer: for (const [k, v] of a) {
+        for (let i = 0; i < entries.length; i++) {
+            if (used[i]) continue;
+            if (
+                looseEqual(k, entries[i][0], seen) &&
+                looseEqual(v, entries[i][1], seen)
+            ) {
+                used[i] = true;
+                continue outer;
+            }
+        }
+        return false;
+    }
+    return true;
+}
+function looseSetEqual(a, b, seen) {
+    if (a.size !== b.size) return false;
+    const items = [...b];
+    const used = new Array(items.length).fill(false);
+    outer: for (const v of a) {
+        for (let i = 0; i < items.length; i++) {
+            if (used[i]) continue;
+            if (looseEqual(v, items[i], seen)) {
+                used[i] = true;
+                continue outer;
+            }
+        }
+        return false;
+    }
+    return true;
+}
+function looseEqual(a, b, seen) {
+    if (a === b) return true;
+    if (!isObject(a))
+        return isObject(b) ? false : a == b || (a !== a && b !== b);
+    if (!isObject(b)) return false;
+    if (toStringTag(a) !== toStringTag(b)) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    for (const [x, y] of seen) if (x === a && y === b) return true;
+    seen.push([a, b]);
+    try {
+        if (types.isDate(a)) {
+            if (!types.isDate(b)) return false;
+            const x = a.getTime(),
+                y = b.getTime();
+            if (x !== y && !(x !== x && y !== y)) return false;
+        } else if (types.isRegExp(a)) {
+            if (
+                !types.isRegExp(b) ||
+                a.source !== b.source ||
+                a.flags !== b.flags ||
+                a.lastIndex !== b.lastIndex
+            )
+                return false;
+        } else if (types.isBoxedPrimitive(a)) {
+            if (!types.isBoxedPrimitive(b)) return false;
+            const x = a.valueOf(),
+                y = b.valueOf();
+            if (x !== y && !(x !== x && y !== y)) return false;
+        } else if (types.isNativeError(a) || types.isNativeError(b)) {
+            if (
+                !types.isNativeError(a) ||
+                !types.isNativeError(b) ||
+                a.message !== b.message ||
+                a.name !== b.name
+            )
+                return false;
+        } else if (types.isAnyArrayBuffer(a)) {
+            if (!types.isAnyArrayBuffer(b) || !looseBytesEqual(a, b))
+                return false;
+            return true;
+        } else if (types.isDataView(a)) {
+            if (!types.isDataView(b) || !looseBytesEqual(a, b)) return false;
+        } else if (types.isTypedArray(a)) {
+            if (!types.isTypedArray(b) || a.length !== b.length) return false;
+            if (a instanceof Float32Array || a instanceof Float64Array) {
+                for (let i = 0; i < a.length; i++)
+                    if (a[i] != b[i]) return false;
+            } else if (!looseBytesEqual(a, b)) return false;
+        } else if (types.isMap(a)) {
+            if (!types.isMap(b) || !looseMapEqual(a, b, seen)) return false;
+        } else if (types.isSet(a)) {
+            if (!types.isSet(b) || !looseSetEqual(a, b, seen)) return false;
+        }
+        return looseKeysEqual(a, b, seen);
+    } finally {
+        seen.pop();
+    }
+}
+function looseDeepEqual(a, b) {
+    return looseEqual(a, b, []);
 }
 export function ok(value, message) {
     if (!value)
