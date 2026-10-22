@@ -15,7 +15,7 @@ import type { Assembler } from "../x64/assembler.js";
 export interface MachineMath {
     /** Whether the `rt.armMath.*` software routines must be emitted. */
     readonly softwareRoutines: boolean;
-    /** `[rsp+result] = sin|cos|tan([rsp+argument])`; may use slots 88 and 96. */
+    /** `[rsp+result] = sin|cos|tan([rsp+argument])`; may use slots 88 to 112. */
     trig(
         a: Assembler,
         name: "sin" | "cos" | "tan",
