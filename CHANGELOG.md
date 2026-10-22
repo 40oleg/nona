@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`assert.strict` and `node:assert/strict` use strict equality.** They were the same object as the legacy `assert`, so `equal`, `deepEqual`, `notEqual` and `notDeepEqual` stayed loose. `assert.strict` is now a separate callable that maps them to `strictEqual`, `deepStrictEqual`, `notStrictEqual` and `notDeepStrictEqual`, with `strict.strict === strict`, as in Node.js. ([#457](https://github.com/40oleg/nona/issues/457))
+
 ### Performance
 
 - **`Array.prototype.unshift` moves the elements of a dense array in one block move.** It moved every element with a generic `HasProperty`/`Get`/`Set` loop (20,000 unshifts took about 3 s); it now uses the `shift`/`splice` dense path and falls back to the generic loop for holes, array-likes, proxies and arrays with indexed setters on the prototype chain. ([#462](https://github.com/40oleg/nona/issues/462))
