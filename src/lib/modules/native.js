@@ -7,6 +7,8 @@ export const parse = g.__nonaNetParse,
     slice = g.__nonaNetSlice,
     headLines = g.__nonaNetHeadLines,
     lowerNames = g.__nonaNetLowerNames,
+    headers = g.__nonaNetHeaders,
+    rememberHeaders = g.__nonaNetHeadersRemember,
     jsonBytes = g.__nonaJsonStringifyBytes,
     // Registers node:http's JSON response path (#155, the network prelude).
     registerHttpJson = g.__nonaHttpJson;
@@ -18,5 +20,7 @@ delete g.__nonaNetCheck;
 delete g.__nonaNetSlice;
 delete g.__nonaNetHeadLines;
 delete g.__nonaNetLowerNames;
+delete g.__nonaNetHeaders;
+delete g.__nonaNetHeadersRemember;
 delete g.__nonaJsonStringifyBytes;
 delete g.__nonaHttpJson;
