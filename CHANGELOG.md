@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes
