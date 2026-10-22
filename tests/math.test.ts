@@ -364,42 +364,46 @@ test("Math: log1p coercion survives stress GC", () => {
     assert.equal(run.status, 0, run.stderr.toString());
     assert.equal(run.stdout.toString(), runOracle(source).stdout);
 });
-test("Math: cbrt finite values and signed zero", () => {
-    const values = [
-        -1e300,
-        -27,
-        -8,
-        -1,
-        -1e-300,
-        -Number.MIN_VALUE,
-        -0,
-        0,
-        Number.MIN_VALUE,
-        1e-300,
-        1,
-        8,
+test("Math: cbrt matches Node.js bit for bit", () => {
+    // #461: perfect cubes are exact, and every result equals V8's fdlibm cbrt.
+    const cubes = [
         27,
-        1e300,
+        1000,
+        1e6,
+        125,
+        0.001,
+        1e-300,
+        64,
+        343,
+        2 ** 30,
+        2 ** -30,
+        1e-15,
+    ];
+    const values = [
+        ...cubes,
+        ...cubes.map((v) => -v),
+        ...[2, 3, 10, 0.5, 1.5e10, -1e300, 1e300, -8, -1, 1, 8],
+        ...[Number.MAX_VALUE, -Number.MAX_VALUE],
+        ...[Number.MIN_VALUE, -Number.MIN_VALUE, 2.2250738585072009e-308],
+        ...[2.2250738585072014e-308, 1e-310, -1e-320],
+        ...[0, -0, Infinity, -Infinity, NaN],
     ];
     const literal = (v: number) => (Object.is(v, -0) ? "-0" : String(v));
-    const source = `console.log(${values.map((v) => `Math.cbrt(${literal(v)})`).join(",")},Object.is(Math.cbrt(-0),-0),Math.cbrt(-Infinity),Math.cbrt(Infinity));`;
-    const run = runNative(linkHost(generate(compileToIR(source))));
-    assert.equal(run.status, 0, run.stderr.toString());
-    const parts = run.stdout.toString().trim().split(" ");
-    assert.deepEqual(parts.slice(values.length), [
-        "true",
-        "-Infinity",
-        "Infinity",
-    ]);
-    for (const [i, value] of values.entries()) {
-        const expected = Math.cbrt(value),
-            got = Number(parts[i]);
-        assert.ok(
-            Math.abs(got - expected) <=
-                2e-13 * Math.max(Number.MIN_VALUE, Math.abs(expected)),
-            `${value}: ${got} vs ${expected}`,
-        );
-    }
+    const source = `var show=function(x){var y=Math.cbrt(x);return Object.is(y,-0)?"-0":String(y);};
+var out=[${values.map(literal).join(",")}].map(show);
+var f=new Float64Array(1),u=new Uint32Array(f.buffer),s=461;
+var next=function(){s=(Math.imul(s,1103515245)+12345)>>>0;return s;};
+for(var i=0;i<400;i++){u[0]=next();u[1]=next()&0xffefffff;if(i%4===0)u[1]&=0x800fffff;out.push(show(f[0]));}
+console.log(out.join(" "));`;
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
+    assert.ok(
+        run.stdout.startsWith(
+            "3 10 100 5 0.1 1e-100 4 7 1024 0.0009765625 0.00001 -3 ",
+        ),
+        run.stdout,
+    );
 });
 test("Math: cbrt coercion survives stress GC", () => {
     const source = `var x={valueOf(){for(var i=0;i<40;i++)({v:i});return -8;}};console.log(Math.cbrt(x)<-1.999999999999,Object.is(Math.cbrt(-0),-0));`;

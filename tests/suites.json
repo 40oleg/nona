@@ -102,6 +102,7 @@
                 "date",
                 "assert-deep-equal",
                 "assert-throws",
+                "assert-strict",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
