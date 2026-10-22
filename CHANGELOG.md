@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`node:fs` errors carry `errno`.** Like Node.js, `error.errno` is the libuv error number: the negated native errno on Linux and the BSDs (`-2` for `ENOENT`, `-17` for `EEXIST`, `-21` for `EISDIR`) and libuv's `UV_` values on Windows (`-4058`, `-4075`, `-4068`). ([#472](https://github.com/40oleg/nona/issues/472))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes

@@ -72,6 +72,23 @@ const INVALID_HANDLE = -1,
     OPEN_REPARSE_POINT = 0x00200000,
     SYMLINK_TAG = 0xa000000c,
     MOUNT_POINT_TAG = 0xa0000003;
+// libuv error numbers as Node.js reports them on Windows.
+const errnos = {
+    EPERM: -4048,
+    ENOENT: -4058,
+    EIO: -4070,
+    EBADF: -4083,
+    EACCES: -4092,
+    EBUSY: -4082,
+    EEXIST: -4075,
+    EXDEV: -4037,
+    ENOTDIR: -4052,
+    EISDIR: -4068,
+    EINVAL: -4071,
+    ENOTEMPTY: -4051,
+    ELOOP: -4114,
+    UNKNOWN: -4094,
+};
 function codeOf(error) {
     switch (error) {
         case 2:

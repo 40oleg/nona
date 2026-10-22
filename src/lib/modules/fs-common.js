@@ -28,6 +28,7 @@ function fail(code, syscall, path, dest) {
     if (path !== undefined) message += " '" + path + "'";
     if (dest !== undefined) message += " -> '" + dest + "'";
     const error = new Error(message);
+    error.errno = errnos[code] !== undefined ? errnos[code] : errnos.UNKNOWN;
     error.code = code;
     error.syscall = syscall;
     if (path !== undefined) error.path = path;

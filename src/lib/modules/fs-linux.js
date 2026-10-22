@@ -32,6 +32,24 @@ const codes = {
     22: "EINVAL",
     39: "ENOTEMPTY",
 };
+// libuv error numbers (negated native errno); the BSD sources patch the
+// values that differ.
+const errnos = {
+    EPERM: -1,
+    ENOENT: -2,
+    EIO: -5,
+    EBADF: -9,
+    EACCES: -13,
+    EBUSY: -16,
+    EEXIST: -17,
+    EXDEV: -18,
+    ENOTDIR: -20,
+    EISDIR: -21,
+    EINVAL: -22,
+    ENOTEMPTY: -39,
+    ELOOP: -40,
+    UNKNOWN: -4094,
+};
 function check(result, syscall, path, dest) {
     if (result < 0) fail(codes[-result] || "UNKNOWN", syscall, path, dest);
     return result;
