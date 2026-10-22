@@ -1,5 +1,5 @@
 import { RuntimeBuilder, slot } from "../abi.js";
-import type { Xmm } from "../../backend/x64/encoder.js";
+import type { Xmm } from "../../backend/machine/context.js";
 
 // floor((2/pi) * 2^1152), little-endian for limb multiplication.
 // Extra zero limbs allow the 53-bit significand to carry above the table.
