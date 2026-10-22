@@ -777,7 +777,7 @@ function generateImage(
         hostGlobal("__nonaNetCopy", "rt.netCopy.code", 5);
         hostGlobal("__nonaNetCheck", "rt.netCheck.code", 2);
         hostGlobal("__nonaNetSlice", "rt.netSlice.code", 4);
-        hostGlobal("__nonaNetHeadLines", "rt.netHeadLines.code", 2);
+        hostGlobal("__nonaNetHeadLines", "rt.netHeadLines.code", 3);
         hostGlobal("__nonaNetLowerNames", "rt.netLowerNames.code", 2);
         hostGlobal("__nonaNetHeaders", "rt.netHeaders.code", 2);
         hostGlobal("__nonaNetHeadersRemember", "rt.netHeadersRemember.code", 2);

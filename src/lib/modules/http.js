@@ -337,6 +337,10 @@ const firstWins = new Set([
  * else null and the caller merges repeated fields itself.
  */
 const internedNames = [];
+// The strings of recent header fields, kept alive for the native field
+// cache: 128 entries of {name, value} (src/runtime/http-field-cache.ts).
+const fieldStrings = [];
+for (let i = 0; i < 256; i++) fieldStrings.push(undefined);
 function distinctLowerNames(raw) {
     const lower = nativeLowerNames(raw, internedNames);
     return lower === undefined ? null : lower;
@@ -1988,7 +1992,7 @@ class ServerConnection {
         }
         // The header lines as strings now (one native call): the bytes
         // belong to the shared read buffer.
-        req._raw = nativeHeadLines(data, OUT);
+        req._raw = nativeHeadLines(data, OUT, fieldStrings);
         if (server.joinDuplicateHeaders) req.joinDuplicateHeaders = true;
         // Body framing.
         let chunked = false,

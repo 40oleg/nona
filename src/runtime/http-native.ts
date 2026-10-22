@@ -787,11 +787,14 @@ export function emitHttpNative(b: RuntimeBuilder): void {
     // __nonaNetHeadLines(bytes, out): the header names and values that the
     // last __nonaNetParse of these bytes left in out (see above), as an array
     // [name, value, ...] of strings. One call makes 2N strings; one call per
-    // string cost more than the parse itself.
-    b.fn("rt.netHeadLines.code", 120, (a) => {
+    // string cost more than the parse itself. With a third argument, the
+    // module's keep array, the strings of recent fields are reused
+    // (http-field-cache.ts).
+    b.fn("rt.netHeadLines.code", 136, (a) => {
         // Frame: 48 bytes pointer, 56 byte count, 64 out pointer, 72 header
         // count, 80 index, 88 the array Value (16 bytes, published to the result
-        // before return), 104 a string Value being appended.
+        // before return), 104 a string Value being appended, 120 the field's
+        // cache entry, 128 the keep array's element table (0: no cache).
         a.store(slot(40), "rcx");
         const bad = a.unique("bad"),
             done = a.unique("done"),
@@ -799,6 +802,19 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             end = a.unique("end");
         a.cmp("rdx", 2);
         a.jcc("b", bad);
+        a.mov("rax", 0);
+        a.store(slot(128), "rax");
+        {
+            const none = a.unique("noKeep");
+            a.cmp("rdx", 3);
+            a.jcc("b", none);
+            a.store(slot(48), "r8");
+            a.lea("rcx", { base: "r8", disp: 32 });
+            a.call("rt.netFieldKeep");
+            a.store(slot(128), "rax");
+            a.load("r8", slot(48));
+            a.label(none);
+        }
         a.mov("rdx", "r8");
         bytesOf(a, bad);
         a.store(slot(48), "r10");
@@ -864,7 +880,15 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             a.sub("r11", "r10");
             a.load("rax", slot(48));
             a.add("r10", "rax");
-            a.call("rt.netLatin1String");
+            a.load("r9", slot(128));
+            if (part === 0) {
+                a.load("r8", slot(80));
+                a.call("rt.netFieldName");
+                a.store(slot(120), "rdx");
+            } else {
+                a.load("r8", slot(120));
+                a.call("rt.netFieldValue");
+            }
             a.load("r10", slot(96));
             a.load("r10", { base: "r10", disp: O.elements });
             a.load("r11", slot(80));

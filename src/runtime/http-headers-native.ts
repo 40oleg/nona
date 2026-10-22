@@ -9,6 +9,7 @@ import { ElementsLayout as EL, HoleTag } from "./array-elements.js";
 import { ShapeLayout as S } from "./shapes.js";
 import { emitShapedObjectHeader } from "./object-header.js";
 import type { Assembler } from "../backend/machine/context.js";
+import { FieldCache as F } from "./http-field-cache.js";
 
 /**
  * IncomingMessage.headers in one call (#403).
@@ -339,16 +340,19 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
     b.data("rt.netNameTable", new Uint8Array(8), ".data");
     const nameTableBytes = 16 * 256,
         nameBlockBytes = nameTableBytes + 8 * 128;
-    b.fn("rt.netLowerNames.code", 152, (a) => {
+    b.fn("rt.netLowerNames.code", 168, (a) => {
         // Frame: 48 the elements table, 56 count, 64 index, 72 the array
         // Value (16 bytes), 88 a string Value (16 bytes), 104 the intern
         // array's object (0: none), 112 the folded units' hash, 120 the
-        // folded string record, 136 the name's units, 144 their count.
+        // folded string record, 136 the name's units, 144 their count, 152
+        // the field cache entry to record the result in (0: none), 160 the
+        // interned string's index.
         a.store(slot(40), "rcx");
         const bad = a.unique("bad"),
             done = a.unique("done"),
             loop = a.unique("loop"),
-            end = a.unique("end");
+            end = a.unique("end"),
+            element = a.unique("element");
         a.cmp("rdx", 1);
         a.jcc("b", bad);
         // Slot 104: the intern array's Value* (the second argument, in the
@@ -442,6 +446,56 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
         a.shr("rax", 62);
         a.test("rax", "rax");
         a.jcc("ne", bad);
+        // The name __nonaNetHeadLines gave out at this position from the
+        // field cache: its entry has the lower-case name once it is known.
+        {
+            const noMemo = a.unique("noMemo"),
+                fill = a.unique("fill");
+            a.mov("rax", 0);
+            a.store(slot(152), "rax");
+            a.load("r9", { rip: "rt.netFieldTable" });
+            a.test("r9", "r9");
+            a.jcc("e", noMemo);
+            a.load("rcx", slot(64));
+            a.shr("rcx", 1);
+            a.cmp("rcx", F.memoRecords);
+            a.jcc("ae", noMemo);
+            a.shl("rcx", 4);
+            a.add("rcx", "r9");
+            a.cmpMemory("r10", { base: "rcx", disp: F.memo });
+            a.jcc("ne", noMemo);
+            a.load("r9", { base: "rcx", disp: F.memo + 8 });
+            a.load("rcx", { base: "r9", disp: F.lowerIndex });
+            a.test("rcx", "rcx");
+            a.jcc("s", fill);
+            a.load("r8", slot(104));
+            a.test("r8", "r8");
+            a.jcc("e", noMemo);
+            a.load("r8", { base: "r8", disp: 8 });
+            a.load("r8", { base: "r8", disp: O.elements });
+            a.test("r8", "r8");
+            a.jcc("e", noMemo);
+            a.cmpMemory("rcx", { base: "r8", disp: EL.count });
+            a.jcc("ae", noMemo);
+            a.shl("rcx", 4);
+            a.add("r8", "rcx");
+            a.load("rax", { base: "r8", disp: EL.values });
+            a.cmp("rax", 4);
+            a.jcc("ne", noMemo);
+            a.load("rax", { base: "r8", disp: EL.values + 8 });
+            a.store(slot(120), "rax");
+            a.load("rdx", { base: "r9", disp: F.lowerHash });
+            a.load("rcx", slot(64));
+            a.shr("rcx", 1);
+            a.shl("rcx", 3);
+            a.load("r10", { rip: "rt.netNameTable" });
+            a.add("r10", "rcx");
+            a.store({ base: "r10", disp: nameTableBytes }, "rdx");
+            a.jmp(element);
+            a.label(fill);
+            a.store(slot(152), "r9");
+            a.label(noMemo);
+        }
         a.lea("r10", { base: "r10", disp: 8 });
         a.store(slot(136), "r10");
         a.store(slot(144), "r11");
@@ -461,7 +515,19 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             const noIntern = a.unique("noIntern"),
                 allocate = a.unique("allocate"),
                 add = a.unique("add"),
-                interned = a.unique("interned");
+                interned = a.unique("interned"),
+                found = a.unique("found");
+            // The interned index and hash into the field cache entry.
+            const record = (index: "rax") => {
+                const skip = a.unique("noRecord");
+                a.load("r9", slot(152));
+                a.test("r9", "r9");
+                a.jcc("e", skip);
+                a.store({ base: "r9", disp: F.lowerIndex }, index);
+                a.load("rax", slot(112));
+                a.store({ base: "r9", disp: F.lowerHash }, "rax");
+                a.label(skip);
+            };
             const fold = () => {
                 a.load("r10", slot(136));
                 a.load("r11", slot(144));
@@ -484,6 +550,7 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.cmpMemory("rdx", { base: "r8" });
             a.jcc("ne", add);
             a.load("rcx", { base: "r8", disp: 8 });
+            a.store(slot(160), "rcx");
             a.cmpMemory("rcx", { base: "r9", disp: EL.count });
             a.jcc("ae", add);
             a.shl("rcx", 4);
@@ -497,7 +564,7 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.load("r11", slot(144));
             a.call("rt.netSameLowerUnits");
             a.test("rax", "rax");
-            a.jcc("ne", interned);
+            a.jcc("ne", found);
             a.label(add);
             fold();
             // Appended to the intern array (which the module keeps alive) and
@@ -511,6 +578,8 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.store({ base: "r8", disp: 8 }, "rcx");
             a.load("rcx", slot(112));
             a.store({ base: "r8" }, "rcx");
+            a.load("rax", { base: "r8", disp: 8 });
+            record("rax");
             a.mov("r10", 4);
             a.store(slot(88), "r10");
             a.load("r10", slot(120));
@@ -519,6 +588,10 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.lea("rdx", slot(88));
             a.call("rt.appendArrayValue");
             a.jmp(noIntern);
+            a.label(found);
+            a.load("rax", slot(160));
+            record("rax");
+            a.jmp(interned);
             a.label(allocate);
             fold();
             a.label(noIntern);
@@ -526,6 +599,7 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
             a.load("rax", slot(120));
         }
         // Element i / 2 of the new array.
+        a.label(element);
         a.load("r10", slot(80));
         a.load("r10", { base: "r10", disp: O.elements });
         a.load("r11", slot(64));
