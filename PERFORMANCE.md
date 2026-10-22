@@ -10,7 +10,7 @@ scripts live in [`bench/`](bench/); `node bench/report.mjs` reproduces every
 table of the current section and `node bench/run.mjs` the older ones (protocol
 in [`bench/README.md`](bench/README.md)). The sections after the v0.18.0 one record
 targeted measurements of later changes (the comparison with optimized C++ of
-#401, #48, #155 and #44); the work merged after v0.18.0 is not in its tables.
+#401, #48, #155, #44 and the HTTP server of #403, whose 2026-10-22 section has every case, connection count and generator); the work merged after v0.18.0 is not in its tables.
 
 ## Current release (v0.18.0) against Node.js, Deno and Bun
 
@@ -282,6 +282,8 @@ of fasta for N = 250 000, 2.5 MB).
 | regex-redux (INPUT=fasta 250 000)        | 0.241 (0.234–0.242) | 0.205 (0.192–0.215) | 0.0737 (0.0695–0.0775) | 24.7 (24.5–25.0) | 102          | 88.4         | 47.0        | 337          | ×102        |
 
 ### HTTP server
+
+Superseded for the HTTP cases by [the 2026-10-22 measurement](#2026-10-22-403-commit-93e6d9e3) (#403).
 
 [`bench/http/run.sh`](bench/http/run.sh) (`SECS=4`), the same `node:http`
 server compiled by Nona and run by Node.js, 50 keep-alive or one-shot
@@ -1082,13 +1084,149 @@ come from [`bench/http/profile.sh`](bench/http/profile.sh), which counts the
 compiled server under QEMU answering 500 requests more (exact, independent
 of the machine's noise).
 
+### 2026-10-22 (#403, commit 93e6d9e3)
+
+**Result: no cell reaches ×2.0 of Node.js 22 on this machine.** The best
+ratios are ×1.67 (`big64k`, `load.c`, 256 connections) and ×1.64 (`json`);
+a keep-alive `hello` is ×1.33–1.58 and the 16 KiB upload ×0.9–1.2. The
+issue stays open; the table below says where each case stands and why.
+
+Machine: Windows 11 host, 13th Gen Intel Core i7-13620H (16 logical CPUs),
+the servers and the load generators running in WSL2 (Ubuntu, kernel
+6.18.54.1-microsoft-standard-WSL2; no CPU governor is exposed), shared with a
+person working on it (the spread of a cell's five runs is 5–25%). Node.js
+v22.23.2 (the Linux x64 release binary, in the same WSL2 instance; there is no
+newer Node.js on this machine), Nona 0.23.0 at commit 93e6d9e3, the server
+built with `--target linux-x64 --module`. `bench/http/run.sh` with the server
+on CPU 4 and the client on CPU 5, five runs of 3 s per cell after a 2 s
+warm-up, `wrk` built from `wg/wrk` master (one thread), `load.c` compiled with
+`gcc -O2`. `oha`, `bombardier` and `autocannon` are not installed here
+(`GEN=autocannon` is supported; it runs in Node.js and saturates a CPU at a
+few tens of thousands of requests per second, so it would measure itself).
+Windows x64 (the native PE server) was not measured: the machine has no C
+compiler or `wrk` for Windows, and the Node.js client of `client.mjs` is
+slower than the servers (see "Windows" in [`bench/README.md`](bench/README.md)).
+
+#### Instructions per request (QEMU, `bench/http/profile.sh`)
+
+Exact and independent of machine noise. The "2026-10-19" column is the
+counter of the superseded section below; since then `scripts/profile-runtime.mjs`
+counts every instruction of a QEMU that prints one line per block (earlier
+counts made with such a QEMU were too low), so the two columns are not on the
+same scale: the `main`-to-now change of this branch is in the changelog.
+
+| Case      | Before #403 | 2026-10-19 | Now (93e6d9e3) |
+| --------- | ----------- | ---------- | -------------- |
+| hello     | 88.5k       | 32.3k      | 30.3k          |
+| json      | 93.7k       | 37.1k      | 42.0k          |
+| headers   | 185.1k      | 74.9k      | 51.9k          |
+| close     | 208.8k      | 70.1k      | 73.2k          |
+| upload16k | 174.1k      | 83.8k      | 67.6k          |
+| big64k    | 154.2k      | 99.2k      | 97.2k          |
+
+(`json` and `close` rose against the 2026-10-19 column because of the
+corrected counting, not a regression: on the same counter `main` before this
+branch had 48.0k and 79.8k.) The remaining cost is flat: property reads that hit
+(`rt.icGet`, 144–257 per request at about 30 instructions), calls
+(`rt.invoke` and frame setup, 20–60 per request), the JavaScript of
+`ServerResponse.end` and `ServerConnection.request`, and for `upload16k` the
+collections that 16 KiB of body per request bring (about 12k instructions per
+request); no single routine is above 15%.
+
+#### Throughput and latency, `wrk` (1, 32 and 256 connections)
+
+| Case      | Connections | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ----------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 1           | 5.5k (5.2k–5.6k)                | 6.4k (6.0k–6.6k)             | ×1.16       | 0.557 / 0.47        | 70 / 18             |
+| json      | 1           | 5.8k (5.2k–6.5k)                | 6.2k (5.7k–6.4k)             | ×1.07       | 0.505 / 0.493       | 70 / 18             |
+| headers   | 1           | 4.8k (3.2k–5.9k)                | 6.3k (6.0k–8.0k)             | ×1.32       | 0.94 / 0.607        | 69 / 24             |
+| close     | 1           | 2.2k (2.1k–2.2k)                | 2.6k (2.4k–2.6k)             | ×1.16       | 0.479 / 0.501       | 68 / 18             |
+| upload16k | 1           | 5.1k (4.6k–5.5k)                | 6.3k (5.9k–6.5k)             | ×1.24       | 0.446 / 0.498       | 70 / 18             |
+| big64k    | 1           | 3.4k (3.0k–3.9k)                | 4.0k (3.9k–4.1k)             | ×1.17       | 0.632 / 0.484       | 73 / 18             |
+| hello     | 32          | 46.5k (45.1k–51.0k)             | 63.6k (61.8k–65.7k)          | ×1.37       | 1.48 / 1.19         | 94 / 18             |
+| json      | 32          | 45.6k (44.6k–47.0k)             | 57.9k (55.7k–59.9k)          | ×1.27       | 1.53 / 1.40         | 94 / 18             |
+| headers   | 32          | 38.5k (37.2k–39.7k)             | 54.4k (51.6k–55.9k)          | ×1.41       | 1.89 / 1.40         | 79 / 24             |
+| close     | 32          | 10.8k (10.6k–11.4k)             | 13.7k (13.2k–14.6k)          | ×1.27       | 3.81 / 3.06         | 74 / 18             |
+| upload16k | 32          | 28.1k (26.0k–28.9k)             | 25.0k (24.4k–28.8k)          | ×0.89       | 2.51 / 3.21         | 97 / 18             |
+| big64k    | 32          | 14.6k (14.2k–15.3k)             | 22.5k (21.8k–22.9k)          | ×1.54       | 4.47 / 2.56         | 102 / 18            |
+| hello     | 256         | 42.7k (42.0k–43.6k)             | 67.6k (62.3k–68.5k)          | ×1.58       | 11.99 / 7.81        | 120 / 19            |
+| json      | 256         | 39.8k (37.3k–41.6k)             | 60.3k (58.1k–61.5k)          | ×1.52       | 12.79 / 8.42        | 117 / 19            |
+| headers   | 256         | 36.8k (36.7k–38.3k)             | 51.7k (48.9k–54.6k)          | ×1.41       | 13.56 / 9.99        | 103 / 25            |
+| close     | 256         | 9.7k (9.4k–10.0k)               | 14.6k (14.3k–15.0k)          | ×1.51       | 31.59 / 21.22       | 81 / 19             |
+| upload16k | 256         | 27.2k (26.3k–27.6k)             | 30.0k (28.5k–31.2k)          | ×1.10       | 18.54 / 16.60       | 140 / 20            |
+| big64k    | 256         | 13.3k (12.9k–13.4k)             | 21.7k (20.9k–22.4k)          | ×1.63       | 36.89 / 22.50       | 122 / 19            |
+
+#### Throughput and latency, `load.c` (1, 32 and 256 connections)
+
+| Case      | Connections | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ----------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 1           | 7.3k (6.4k–7.8k)                | 8.2k (7.9k–9.7k)             | ×1.13       | 0.368 / 0.362       | 71 / 18             |
+| json      | 1           | 6.8k (6.0k–7.5k)                | 7.5k (7.0k–8.4k)             | ×1.11       | 0.373 / 0.399       | 71 / 18             |
+| headers   | 1           | 6.3k (6.1k–6.8k)                | 7.4k (6.8k–8.6k)             | ×1.18       | 0.428 / 0.488       | 68 / 24             |
+| close     | 1           | 2.4k (2.4k–2.5k)                | 2.7k (2.6k–2.7k)             | ×1.10       | 0.534 / 0.469       | 68 / 18             |
+| upload16k | 1           | 5.1k (4.9k–6.4k)                | 6.2k (5.5k–6.7k)             | ×1.22       | 0.506 / 0.577       | 72 / 18             |
+| big64k    | 1           | 3.4k (3.3k–3.7k)                | 4.2k (3.1k–4.5k)             | ×1.22       | 0.561 / 0.593       | 73 / 18             |
+| hello     | 32          | 50.8k (47.4k–51.6k)             | 67.5k (65.4k–70.4k)          | ×1.33       | 1.355 / 1.069       | 100 / 18            |
+| json      | 32          | 49.0k (48.4k–49.9k)             | 64.2k (61.0k–65.6k)          | ×1.31       | 1.385 / 1.246       | 99 / 18             |
+| headers   | 32          | 40.1k (39.6k–42.4k)             | 59.0k (56.6k–60.9k)          | ×1.47       | 1.729 / 1.290       | 80 / 24             |
+| close     | 32          | 11.5k (10.9k–11.9k)             | 15.1k (14.8k–15.2k)          | ×1.31       | 3.605 / 2.790       | 80 / 18             |
+| upload16k | 32          | 26.4k (25.7k–28.2k)             | 28.8k (28.2k–29.4k)          | ×1.09       | 2.545 / 2.565       | 95 / 18             |
+| big64k    | 32          | 15.3k (15.1k–15.4k)             | 24.4k (24.0k–25.5k)          | ×1.60       | 4.267 / 2.410       | 100 / 18            |
+| hello     | 256         | 45.2k (43.4k–46.4k)             | 70.6k (66.9k–76.3k)          | ×1.56       | 11.467 / 7.700      | 119 / 19            |
+| json      | 256         | 37.5k (31.4k–41.6k)             | 61.5k (59.9k–62.4k)          | ×1.64       | 13.533 / 8.883      | 119 / 19            |
+| headers   | 256         | 37.8k (34.9k–39.0k)             | 56.1k (53.1k–57.4k)          | ×1.48       | 13.456 / 9.539      | 103 / 26            |
+| close     | 256         | 10.2k (9.8k–10.8k)              | 14.9k (14.4k–15.2k)          | ×1.46       | 31.705 / 21.180     | 74 / 19             |
+| upload16k | 256         | 22.6k (21.4k–22.8k)             | 25.9k (25.8k–26.8k)          | ×1.15       | 22.437 / 19.825     | 139 / 20            |
+| big64k    | 256         | 13.4k (13.1k–13.8k)             | 22.4k (22.0k–22.8k)          | ×1.67       | 36.279 / 22.960     | 116 / 19            |
+
+#### Reading the tables
+
+- **Cells at ×2.0 or more: none** (36 cells, 18 per generator). Highest per
+  case at 32 or 256 connections: `hello` ×1.58 (wrk) / ×1.56 (load.c),
+  `json` ×1.64 / ×1.52, `headers` ×1.41–1.48, `close` ×1.51 / ×1.46,
+  `big64k` ×1.67 / ×1.63, `upload16k` ×1.10–1.15 (×0.89 at 32 connections with
+  `wrk`, within its spread).
+- **One connection** is ×1.07–1.32: every request is a round trip between two
+  CPUs through the (virtualized) loopback, which costs both runtimes the same
+  and dominates a request that takes 15–25 µs of user time.
+- **Why the 2026-10-19 ratios (×2.1–3.3 with `wrk`) are not reproduced.** They
+  were measured on a 2-vCPU cloud VM where Node.js served 12–14k req/s; on this
+  machine Node.js serves 3–4 times as much (hello 43–51k) while Nona's gain in
+  instructions is the same, so the fixed cost the two runtimes share — the
+  kernel's `read`, `sendto` and `epoll_wait` (about 9 µs of system time per
+  `hello` request on the cloud VM, more under WSL2's virtualized network
+  stack) and the load generator on the other CPU — is a larger fraction of
+  Nona's request, and a runtime that has cut its user-space time to a third
+  cannot go beyond the kernel's share. Not measured separately on this
+  machine (no `perf` here); the argument rests on the earlier system-time
+  figure and on the ratios rising with the connection count, where one
+  `epoll_wait` serves more requests.
+- **Closest to the target:** `big64k` (the kernel copies 64 KiB per
+  response for both) and `hello`/`json` at 256 connections. `close` is
+  limited by connection setup in the kernel (about 14–15k connections per
+  second for Nona, 10–11k for Node.js on this machine).
+- **p99 latency** at these loads is 0.6–0.9 of Node's in most cells at 32 and
+  256 connections (hello 256: 7.7 vs 12.0 ms with `wrk`), not the ½ of the
+  target; with one connection and for `upload16k` it is within noise of
+  Node's. The loads are saturating, not a fixed rate, so this is the queueing
+  time at the saturation point; a fixed-rate measurement (wrk2) was not run.
+- **RSS** after the runs: Nona 18–26 MB, Node.js 68–140 MB, so memory stays
+  well below Node's (about a quarter or less).
+- What would be needed for ×2.0 on `hello`/`json`/`headers`/`close`: roughly
+  another halving of the user-space instructions (the profile has no single
+  routine above 15%, so it means cheaper property reads and calls in general,
+  or batching several requests per `epoll_wait`), and a fix for the upload
+  path's per-request garbage.
+
+### Superseded: 2026-10-19 (#403, first part)
+
 Measured on 2026-10-19 at #403 (commit e382471a and the two commits after
 it) on the Linux x86-64 cloud VM of the other tables (Intel Xeon 2.80 GHz,
 2 vCPUs, 7 GB, kernel 6.18, no CPU governor exposed, shared with other
 jobs: the spread of five runs is often 20% and single cells are sometimes
 disturbed), Node.js 22.22.0.
 
-### Instructions per request (QEMU, `bench/http/profile.sh`)
+#### Instructions per request (QEMU, `bench/http/profile.sh`)
 
 | Case      | Before #403 | After #403 | Ratio |
 | --------- | ----------- | ---------- | ----- |
@@ -1107,7 +1245,7 @@ request costs the server process about 9 µs of system time (one `read`,
 one `sendto`, a share of `epoll_wait`) and, after #403, about 10 µs of user
 time (Node.js 22: 25 µs).
 
-### Throughput and latency, `wrk` (`GEN=wrk`, 32 and 256 connections)
+#### Throughput and latency, `wrk` (`GEN=wrk`, 32 and 256 connections)
 
 | Case      | Connections | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
 | --------- | ----------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
@@ -1124,7 +1262,7 @@ time (Node.js 22: 25 µs).
 | upload16k | 256         | 12.0k (10.7k–12.6k)             | 15.9k (15.0k–16.9k)          | ×1.33       | 43.12 / 25.11       | 137 / 18            |
 | big64k    | 256         | 6.3k (5.7k–6.8k)                | 21.0k (18.2k–24.6k)          | **×3.32**   | 57.39 / 24.16       | 104 / 18            |
 
-### Throughput and latency, `load.c` (`GEN=load`, 1, 32 and 256 connections)
+#### Throughput and latency, `load.c` (`GEN=load`, 1, 32 and 256 connections)
 
 `load.c` keeps one request in flight per connection and costs the client
 CPU less than `wrk`, so both servers reach higher rates with it; with one
