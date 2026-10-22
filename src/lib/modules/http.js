@@ -1,7 +1,7 @@
 import { EventEmitter, captureRejections } from "node:events";
 import { Buffer } from "node:buffer";
 import * as net from "node:net";
-import { Readable, defaults, clock } from "nona:internal/stream";
+import { Readable, defaults, clock, defer } from "nona:internal/stream";
 import {
     parse as parseHead,
     latin1,
@@ -11,6 +11,8 @@ import {
     slice as sliceBytes,
     headLines as nativeHeadLines,
     lowerNames as nativeLowerNames,
+    headers as nativeHeaders,
+    rememberHeaders,
     jsonBytes,
     registerHttpJson,
 } from "nona:internal/native";
@@ -335,22 +337,41 @@ const firstWins = new Set([
  * else null and the caller merges repeated fields itself.
  */
 const internedNames = [];
+// The strings of recent header fields, kept alive for the native field
+// cache: 128 entries of {name, value} (src/runtime/http-field-cache.ts).
+const fieldStrings = [];
+for (let i = 0; i < 256; i++) fieldStrings.push(undefined);
 function distinctLowerNames(raw) {
     const lower = nativeLowerNames(raw, internedNames);
     return lower === undefined ? null : lower;
 }
 function mergeHeaders(raw, joinDuplicates) {
-    const out = {},
-        lower = distinctLowerNames(raw);
+    const lower = distinctLowerNames(raw);
     if (lower !== null) {
-        // No repeated names: every field is set once.
+        // No repeated names: every field is set once. The same names as a
+        // recent request give the same object natively (its shape is
+        // remembered when the fields are all strings).
+        let out = nativeHeaders(lower, raw);
+        if (out !== undefined) return out;
+        out = {};
+        let strings = true;
         for (let i = 0; i < raw.length; i += 2) {
             const field = lower[i >> 1],
                 value = raw[i + 1];
-            out[field] = field === "set-cookie" ? [value] : value;
+            if (field === "set-cookie") {
+                strings = false;
+                out[field] = [value];
+            } else {
+                // An inherited name (a method, or a setter that defines the
+                // property itself) must keep being assigned.
+                if (field in Object.prototype) strings = false;
+                out[field] = value;
+            }
         }
+        if (strings) rememberHeaders(out, lower);
         return out;
     }
+    const out = {};
     for (let i = 0; i < raw.length; i += 2) {
         const field = lowerName(raw[i]),
             value = raw[i + 1],
@@ -471,7 +492,17 @@ export class IncomingMessage {
     }
     // Like Node.js, a message destroys itself (and emits 'close') after 'end'.
     _ended_() {
-        if (!this._destroyed) this.destroy();
+        if (this._destroyed) return;
+        // A complete message with the stock destroy path: what destroy()
+        // would do, without its callback closure.
+        if (
+            this.complete &&
+            this.destroy === readableDestroy &&
+            this._destroy === IncomingMessage.prototype._destroy
+        ) {
+            this._destroyed = true;
+            defer(this, "_closeTask");
+        } else this.destroy();
     }
     /** The request's response is done: unread data is discarded. */
     _dump() {
@@ -505,6 +536,8 @@ export class IncomingMessage {
     }
 }
 Object.setPrototypeOf(IncomingMessage.prototype, Readable.prototype);
+const readableDestroy = Readable.prototype.destroy,
+    readablePush = Readable.prototype.push;
 Object.setPrototypeOf(IncomingMessage, Readable);
 defaults(IncomingMessage.prototype, {
     httpVersionMajor: 1,
@@ -588,11 +621,16 @@ export class OutgoingMessage {
     get errored() {
         return null;
     }
-    /** Index of the field's entry in _fields ([key, name, value, ...]), or -1. */
+    /**
+     * Index of the field's entry in _fields ([key, name, value, info, ...];
+     * info is the name's record in fieldNames), or -1. The entries end at
+     * _fieldEnd: the array has room for more (undefined elements), so that
+     * adding a field stores into existing elements instead of appending.
+     */
     _find(key) {
         const fields = this._fields;
         if (fields !== null)
-            for (let i = 0; i < fields.length; i += 3)
+            for (let i = 0, end = this._fieldEnd; i < end; i += 4)
                 if (fields[i] === key) return i;
         return -1;
     }
@@ -604,28 +642,76 @@ export class OutgoingMessage {
             validateHeaderName(name);
             const key = lowerName(name),
                 special = specialFields.get(key);
-            info = { key, special: special === undefined ? 0 : special };
+            info = {
+                key,
+                special: special === undefined ? 0 : special,
+                checked: undefined,
+                bit: fieldKeyBit(key),
+                // The last line fieldLines composed for the name and value.
+                line: "",
+                lineValue: undefined,
+            };
             if (fieldNameCount < 512) {
                 fieldNames[name] = info;
                 fieldNameCount++;
             }
         }
+        // The last string value validated for the name (the same literal
+        // is set on every response) is not checked again.
         if (typeof value === "string") {
-            if (checkChars(value, 1) >= 0)
-                throw codedError(
-                    "ERR_INVALID_CHAR",
-                    'Invalid character in header content ["' + name + '"]',
-                    TypeError,
-                );
+            if (value !== info.checked) {
+                if (checkChars(value, 1) >= 0)
+                    throw codedError(
+                        "ERR_INVALID_CHAR",
+                        'Invalid character in header content ["' + name + '"]',
+                        TypeError,
+                    );
+                info.checked = value;
+            }
         } else validateHeaderValue(name, value);
         const key = info.key,
-            index = this._find(key);
+            fields = this._fields,
+            bit = info.bit;
         if (info.special !== 0) this._special |= info.special;
+        if (fields === null) {
+            this._fields = [key, name, value, info];
+            this._fieldEnd = 4;
+            this._keys = bit;
+            return this;
+        }
+        const end = this._fieldEnd;
+        // _keys has the bit of every key in _fields (removeHeader leaves
+        // it): a clear bit means the key is not there.
+        let index = -1;
+        if (bit !== 0 && (this._keys & bit) === 0) this._keys |= bit;
+        else
+            for (let i = 0; i < end; i += 4)
+                if (fields[i] === key) {
+                    index = i;
+                    break;
+                }
         if (index >= 0) {
-            this._fields[index + 1] = name;
-            this._fields[index + 2] = value;
-        } else if (this._fields === null) this._fields = [key, name, value];
-        else this._fields.push(key, name, value);
+            fields[index + 1] = name;
+            fields[index + 2] = value;
+            fields[index + 3] = info;
+        } else {
+            if (end < fields.length) {
+                fields[end] = key;
+                fields[end + 1] = name;
+                fields[end + 2] = value;
+                fields[end + 3] = info;
+            } else if (end === 4) {
+                // The second field: room for four.
+                // prettier-ignore
+                this._fields = [
+                    fields[0], fields[1], fields[2], fields[3],
+                    key, name, value, info,
+                    undefined, undefined, undefined, undefined,
+                    undefined, undefined, undefined, undefined,
+                ];
+            } else fields.push(key, name, value, info);
+            this._fieldEnd = end + 4;
+        }
         return this;
     }
     appendHeader(name, value) {
@@ -661,21 +747,21 @@ export class OutgoingMessage {
     getHeaderNames() {
         const out = [];
         if (this._fields !== null)
-            for (let i = 0; i < this._fields.length; i += 3)
+            for (let i = 0; i < this._fieldEnd; i += 4)
                 out.push(this._fields[i]);
         return out;
     }
     getRawHeaderNames() {
         const out = [];
         if (this._fields !== null)
-            for (let i = 1; i < this._fields.length; i += 3)
+            for (let i = 1; i < this._fieldEnd; i += 4)
                 out.push(this._fields[i]);
         return out;
     }
     getHeaders() {
         const out = Object.create(null);
         if (this._fields !== null)
-            for (let i = 0; i < this._fields.length; i += 3)
+            for (let i = 0; i < this._fieldEnd; i += 4)
                 out[this._fields[i]] = this._fields[i + 2];
         return out;
     }
@@ -695,7 +781,10 @@ export class OutgoingMessage {
         else if (key === "transfer-encoding") this._removedTE = true;
         else if (key === "date") this.sendDate = false;
         const index = this._find(key);
-        if (index >= 0) this._fields.splice(index, 3);
+        if (index >= 0) {
+            this._fields.splice(index, 4);
+            this._fieldEnd -= 4;
+        }
     }
     /**
      * Composes the head: the first line, the given fields (this message's own,
@@ -715,7 +804,7 @@ export class OutgoingMessage {
         if (fields === this) {
             const own = this._fields;
             if (own !== null)
-                for (let i = 0; i < own.length; i += 3)
+                for (let i = 0; i < this._fieldEnd; i += 4)
                     this._field(state, own[i + 1], own[i + 2], false);
         } else if (Array.isArray(fields)) {
             if (fields.length && Array.isArray(fields[0]))
@@ -1240,6 +1329,8 @@ defaults(OutgoingMessage.prototype, {
     _chunks: null,
     _chunkLength: 0,
     _fields: null,
+    _fieldEnd: 0,
+    _keys: 0,
     _connection: null,
     _header: null,
     _headerSent: false,
@@ -1291,6 +1382,16 @@ const SPECIAL_ARRAY = 256,
 // object as before, as literals are, hits the key hash cache.)
 const fieldNames = { __proto__: null };
 let fieldNameCount = 0;
+// One bit per lower-case key for the first 30 keys (OutgoingMessage._keys),
+// 0 for the others.
+const fieldKeyBits = { __proto__: null };
+let fieldKeyCount = 0;
+function fieldKeyBit(key) {
+    const bit = fieldKeyBits[key];
+    if (bit !== undefined) return bit;
+    if (fieldKeyCount >= 30) return 0;
+    return (fieldKeyBits[key] = 1 << fieldKeyCount++);
+}
 const specialFields = new Map([
     ["connection", 1],
     ["transfer-encoding", 2],
@@ -1315,32 +1416,34 @@ function contentLengthLine(length) {
     return "Content-Length: " + length + "\r\n\r\n";
 }
 /**
- * The lines of one header field set with setHeader (validated then). A
- * program sets the same few fields with the same values on every response:
- * the last line composed for a name is kept and reused while its value is
- * the same string.
+ * The lines of one header field set with setHeader (validated then), info
+ * being the name's record. A program sets the same few fields with the same
+ * values on every response: the last line composed for a name is kept on
+ * its record and reused while its value is the same string.
  */
-const fieldLineCache = { __proto__: null };
-let fieldLineCount = 0;
-function fieldLines(name, value) {
+function fieldLines(info, name, value) {
     if (Array.isArray(value)) {
         let lines = "";
         for (let i = 0; i < value.length; i++)
             lines += name + ": " + value[i] + "\r\n";
         return lines;
     }
-    let entry = fieldLineCache[name];
-    if (entry === undefined) {
-        if (fieldLineCount >= 512) return name + ": " + value + "\r\n";
-        entry = { value, line: name + ": " + value + "\r\n" };
-        fieldLineCache[name] = entry;
-        fieldLineCount++;
-    } else if (entry.value !== value) {
-        entry.value = value;
-        entry.line = name + ": " + value + "\r\n";
+    if (info.lineValue !== value) {
+        info.lineValue = value;
+        info.line = name + ": " + value + "\r\n";
     }
-    return entry.line;
+    return info.line;
 }
+/**
+ * The last head end() composed, its parts and its bytes. A server sends the
+ * same head on most responses (the same status line, field lines, Date,
+ * Connection and Content-Length lines): when every part is the same string
+ * as last time, the head is reused flat and its bytes are copied instead of
+ * concatenated and encoded again.
+ */
+let headParts = [],
+    headText = "",
+    headBytes = null;
 /** The Connection and Keep-Alive lines of a server, kept on it for its current settings. */
 function keepAliveLines(server) {
     const timeout = server.keepAliveTimeout,
@@ -1405,11 +1508,21 @@ function parseError(code, data, start, end, message) {
 }
 
 // ---- Chunked bodies --------------------------------------------------------------
+/** Server body chunks from this size on are views of node:net's read arena. */
+const shareBytes = 8192;
+/**
+ * During ServerConnection.onData with node:net's read arena: the end of the
+ * last shared chunk, 0 before one, or -1 when chunks must be copied. A module
+ * variable rather than a field: reads are never nested.
+ */
+let readShared = -1;
 /**
  * Decodes a chunked body fed in pieces. Partial size and trailer lines are
  * kept as text, so every byte offered is consumed until the message ends.
  * feed() returns the offset after the last byte of the message, -1 when the
- * piece was consumed and more is needed, or -2 on a malformed body.
+ * piece was consumed and more is needed, or -2 on a malformed body. With
+ * shared >= 0 (see ServerConnection.onData) large chunks are views of data
+ * and shared becomes the end of the last one.
  */
 class ChunkedDecoder {
     constructor(onChunk) {
@@ -1418,13 +1531,18 @@ class ChunkedDecoder {
         this.remaining = 0;
         this.line = "";
         this.trailers = [];
+        this.shared = -1;
     }
     feed(data, start, end) {
         let i = start;
         while (i < end) {
             if (this.state === 1) {
                 const n = Math.min(this.remaining, end - i);
-                const chunk = sliceBytes(data, i, i + n, bufferPrototype);
+                let chunk;
+                if (n >= shareBytes && this.shared >= 0) {
+                    chunk = sliceBytes(data, i, i + n, bufferPrototype, 1);
+                    this.shared = i + n;
+                } else chunk = sliceBytes(data, i, i + n, bufferPrototype);
                 i += n;
                 this.remaining -= n;
                 this.onChunk(chunk);
@@ -1619,17 +1737,17 @@ export class ServerResponse {
         else if (checkChars(message, 1) >= 0)
             return super.end(chunk, encoding, callback);
         else head = "HTTP/1.1 " + code + " " + message + "\r\n";
-        const fields = this._fields;
-        if (fields !== null)
-            for (let i = 1; i < fields.length; i += 3)
-                head += fieldLines(fields[i], fields[i + 1]);
-        if (this.sendDate)
-            head += clock.now < dateExpiry ? dateField : dateLine();
+        const date = !this.sendDate
+            ? ""
+            : clock.now < dateExpiry
+              ? dateField
+              : dateLine();
+        let connection;
         if (!this.shouldKeepAlive) {
             this._last = true;
-            head += "Connection: close\r\n";
+            connection = "Connection: close\r\n";
         } else if (this.maxRequestsOnConnectionReached)
-            head += "Connection: close\r\n";
+            connection = "Connection: close\r\n";
         else {
             const server =
                 this._connection === null ? null : this._connection.server;
@@ -1638,12 +1756,12 @@ export class ServerResponse {
                 server.keepAliveTimeout &&
                 this._defaultKeepAlive
             )
-                head +=
+                connection =
                     server._keepAliveFor === server.keepAliveTimeout &&
                     server._keepAliveMax === server.maxRequestsPerSocket
                         ? server._keepAliveLines
                         : keepAliveLines(server);
-            else head += "Connection: keep-alive\r\n";
+            else connection = "Connection: keep-alive\r\n";
         }
         const hasBody =
             this._hasBody &&
@@ -1669,15 +1787,76 @@ export class ServerResponse {
                 ? length || writeString(chunk, undefined, 0, false)
                 : chunk.length
             : 0;
+        let ending = "\r\n";
         if (hasBody) {
             const length = this._contentLength,
                 line = length < 4096 ? contentLengthLines[length] : undefined;
-            head += line !== undefined ? line : contentLengthLine(length);
-        } else head += "\r\n";
+            ending = line !== undefined ? line : contentLengthLine(length);
+        }
+        // The head: the status line, the field lines, Date, Connection and
+        // the end (the last head when they are the same strings).
+        const fields = this._fields,
+            count = this._fieldEnd >> 2,
+            parts = headParts;
+        let same =
+            parts.length === count + 4 &&
+            parts[0] === head &&
+            parts[count + 1] === date &&
+            parts[count + 2] === connection &&
+            parts[count + 3] === ending;
+        // A field's line is the last head's when its record composed that
+        // line for the same value (array values compose new lines).
+        if (same)
+            for (let i = 0, k = 1; k <= count; i += 4, k++) {
+                const info = fields[i + 3];
+                if (
+                    info.lineValue !== fields[i + 2] ||
+                    parts[k] !== info.line
+                ) {
+                    same = false;
+                    break;
+                }
+            }
+        let reuse = false;
+        if (same) {
+            head = headText;
+            reuse = headBytes !== null;
+        } else {
+            if (parts.length !== count + 4) parts.length = count + 4;
+            parts[0] = head;
+            for (let i = 0, k = 1; k <= count; i += 4, k++) {
+                const line = fieldLines(
+                    fields[i + 3],
+                    fields[i + 1],
+                    fields[i + 2],
+                );
+                parts[k] = line;
+                head += line;
+            }
+            parts[count + 1] = date;
+            parts[count + 2] = connection;
+            parts[count + 3] = ending;
+            head += date;
+            head += connection;
+            head += ending;
+            headText = head;
+            headBytes = null;
+        }
         this._header = head;
         this.finished = true;
         const out = reserve(head.length + length);
-        let size = writeString(head, out, 0, true);
+        let size;
+        if (reuse) {
+            size = headBytes.length;
+            copyBytes(headBytes, 0, size, out, 0);
+        } else {
+            size = writeString(head, out, 0, true);
+            // A head sent a second time keeps its bytes.
+            if (same) {
+                headBytes = new Uint8Array(size);
+                copyBytes(out, 0, size, headBytes, 0);
+            }
+        }
         this._headerSent = true;
         if (bytes) {
             copyBytes(body, 0, length, out, size);
@@ -1829,6 +2008,18 @@ const badRequest = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n";
 const fieldsTooLarge =
     "HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n";
 /**
+ * A request's body is complete: req.push(null), done here for the stock
+ * push (its property reads are shared by every kind of stream).
+ */
+function completeRequest(req) {
+    req.complete = true;
+    if (req.push !== readablePush) req.push(null);
+    else if (!req._destroyed && !req._ended) {
+        req._ended = true;
+        req._scheduleFlush();
+    }
+}
+/**
  * One accepted connection. The socket hands it every read directly
  * (socket._consumer); bytes that do not complete a head stay in pending.
  * Requests are answered in order: a response that is not first waits in
@@ -1855,11 +2046,19 @@ class ServerConnection {
         socket.on("timeout", onServerSocketTimeout);
         if (server.timeout) socket.setTimeout(server.timeout);
     }
-    onData(bytes, n) {
+    /**
+     * bytes[0, n) were read. With arena (node:net's read arena) large body
+     * chunks are views of bytes instead of copies; the result is then how
+     * many bytes from the start the views cover (see keepRead in node:net).
+     */
+    onData(bytes, n, arena) {
         let data = bytes,
             end = n,
             start = 0;
-        if (this.pendingLength > 0) {
+        if (this.pendingLength === 0) readShared = arena ? 0 : -1;
+        else {
+            // Bytes copied into pending are never shared: pending is reused.
+            readShared = -1;
             const total = this.pendingLength + n;
             if (this.pending.length < total) {
                 const grown = new Uint8Array(
@@ -1895,22 +2094,22 @@ class ServerConnection {
                     this.fail(
                         parseError("HPE_HEADER_OVERFLOW", data, start, end),
                     );
-                    return;
+                    return readShared;
                 }
                 break;
             }
             if (result < 0) {
                 this.fail(parseError(nativeErrors[-result], data, start, end));
-                return;
+                return readShared;
             }
             if (
                 result - OUT[10] >
                 (this.server.maxHeaderSize || maxHeaderSize)
             ) {
                 this.fail(parseError("HPE_HEADER_OVERFLOW", data, start, end));
-                return;
+                return readShared;
             }
-            if (!this.request(data, start, result, end)) return;
+            if (!this.request(data, start, result, end)) return readShared;
             start = result;
         }
         if (start < end && !this.stopped) {
@@ -1923,6 +2122,7 @@ class ServerConnection {
             }
             this.pendingLength = rest;
         }
+        return readShared;
     }
     /** A complete head in data[start, headEnd): creates the request and its response. Returns false to stop reading. */
     request(data, start, headEnd, end) {
@@ -1958,7 +2158,7 @@ class ServerConnection {
         }
         // The header lines as strings now (one native call): the bytes
         // belong to the shared read buffer.
-        req._raw = nativeHeadLines(data, OUT);
+        req._raw = nativeHeadLines(data, OUT, fieldStrings);
         if (server.joinDuplicateHeaders) req.joinDuplicateHeaders = true;
         // Body framing.
         let chunked = false,
@@ -2048,8 +2248,7 @@ class ServerConnection {
             this.decoder = null;
             this.bodyRemaining = length;
         } else {
-            req.complete = true;
-            req.push(null);
+            completeRequest(req);
         }
         if (major === 1 && minor === 1) {
             if (server.requireHostHeader && (flags & F_HOST) === 0) {
@@ -2091,30 +2290,47 @@ class ServerConnection {
     }
     deliver(chunk) {
         const req = this.body;
+        if (req._destroyed) return;
+        // A flowing request with nothing queued and no decoder gets the
+        // chunk at once, as push() would give it.
         if (
-            !req._destroyed &&
-            req.push(chunk) === false &&
-            !this.socket.isPaused()
+            req._flowing === true &&
+            req._queued === 0 &&
+            !req._flushScheduled &&
+            req._decoder === null &&
+            !req._ended &&
+            req.push === readablePush
         ) {
+            req.emit("data", chunk);
+            return;
+        }
+        if (req.push(chunk) === false && !this.socket.isPaused()) {
             req._socketPaused = true;
             this.socket.pause();
         }
     }
     fixedBody(data, start, end) {
-        const n = Math.min(this.bodyRemaining, end - start);
-        const chunk = sliceBytes(data, start, start + n, bufferPrototype);
+        const n =
+            this.bodyRemaining < end - start ? this.bodyRemaining : end - start;
+        let chunk;
+        if (n >= shareBytes && readShared >= 0) {
+            chunk = sliceBytes(data, start, start + n, bufferPrototype, 1);
+            readShared = start + n;
+        } else chunk = sliceBytes(data, start, start + n, bufferPrototype);
         this.bodyRemaining -= n;
         this.deliver(chunk);
         if (this.bodyRemaining === 0) {
             const req = this.body;
             this.body = null;
-            req.complete = true;
-            req.push(null);
+            completeRequest(req);
         }
         return start + n;
     }
     chunkedBody(data, start, end) {
-        const result = this.decoder.feed(data, start, end);
+        const decoder = this.decoder;
+        decoder.shared = readShared;
+        const result = decoder.feed(data, start, end);
+        readShared = decoder.shared;
         if (result === -2) {
             this.fail(parseError("HPE_INVALID_CHUNK_SIZE", data, start, end));
             return -1;
@@ -2124,8 +2340,7 @@ class ServerConnection {
         req.rawTrailers = this.decoder.trailers;
         this.body = null;
         this.decoder = null;
-        req.complete = true;
-        req.push(null);
+        completeRequest(req);
         return result;
     }
     onEnd() {
@@ -2684,8 +2899,16 @@ export class ClientRequest extends OutgoingMessage {
         this._errorEmitted = true;
         this.emit("error", error);
     }
+    // A deferred stream task, like the process.nextTick Node.js uses: it runs
+    // before the 'close' of a response whose 'end' freed the socket.
     onSocket(socket) {
-        queueMicrotask(() => this._useSocket(socket));
+        this._offeredSocket = socket;
+        defer(this, "_offeredSocketTask");
+    }
+    _offeredSocketTask() {
+        const socket = this._offeredSocket;
+        this._offeredSocket = null;
+        this._useSocket(socket);
     }
     _useSocket(socket) {
         if (this.destroyed) {
