@@ -520,33 +520,26 @@ export function emitPrimitives(b: RuntimeBuilder): void {
     // Strings (flat records: the code generator flattens ropes before a
     // comparison) are equal when they are the same record, unequal when
     // their lengths differ, and otherwise compared unit by unit, 16 bytes per
-    // step (#257). BigInts take rt.strictEq. Clobbers XMM4 and XMM5.
-    b.fn("rt.strictEquals", 40, (a) => {
+    // step (#257). BigInts take rt.strictEq. Clobbers XMM4 and XMM5. A stub
+    // without a frame (only rt.strictEq needs one, and it is a tail jump):
+    // objects and strings, the common operands, are tested first (#403).
+    b.raw("rt.strictEquals", (a) => {
         const yes = a.unique("yes"),
             no = a.unique("no"),
             store = a.unique("store"),
             number = a.unique("number"),
             bool = a.unique("bool"),
             identity = a.unique("identity"),
-            generic = a.unique("generic"),
-            leftFalse = a.unique("leftFalse"),
-            done = a.unique("done");
+            other = a.unique("other"),
+            leftFalse = a.unique("leftFalse");
         a.load("rax", { base: "rdx" });
         a.load("r10", { base: "r8" });
         a.cmp("rax", "r10");
         a.jcc("ne", no);
-        a.cmp("rax", 3);
-        a.jcc("e", number);
-        a.cmp("rax", 1);
-        a.jcc("be", yes);
-        a.cmp("rax", 2);
-        a.jcc("e", bool);
         a.cmp("rax", 5);
         a.jcc("e", identity);
-        a.cmp("rax", 6);
-        a.jcc("e", identity);
         a.cmp("rax", 4);
-        a.jcc("ne", generic);
+        a.jcc("ne", other);
         a.load("rax", { base: "rdx", disp: 8 });
         a.load("r10", { base: "r8", disp: 8 });
         a.cmp("rax", "r10");
@@ -599,6 +592,16 @@ export function emitPrimitives(b: RuntimeBuilder): void {
             a.sub("r9", 1);
             a.jmp(unit);
         }
+        a.label(other);
+        a.cmp("rax", 3);
+        a.jcc("e", number);
+        a.cmp("rax", 1);
+        a.jcc("be", yes);
+        a.cmp("rax", 2);
+        a.jcc("e", bool);
+        a.cmp("rax", 6);
+        a.jcc("e", identity);
+        a.jmp("rt.strictEq");
         a.label(number);
         a.movsd("xmm0", { base: "rdx", disp: 8 });
         a.ucomisd("xmm0", { base: "r8", disp: 8 });
@@ -631,10 +634,7 @@ export function emitPrimitives(b: RuntimeBuilder): void {
         a.store({ base: "rcx", disp: 8 }, "rax");
         a.mov("rax", 2);
         a.store({ base: "rcx" }, "rax");
-        a.jmp(done);
-        a.label(generic);
-        a.call("rt.strictEq");
-        a.label(done);
+        a.ret();
     });
     for (const op of ["strictEq", "eq", "lt", "le", "gt", "ge"])
         rootedFn(b, "rt." + op, 120, binaryRoots, (a) => {
