@@ -616,28 +616,46 @@ export class OutgoingMessage {
             validateHeaderName(name);
             const key = lowerName(name),
                 special = specialFields.get(key);
-            info = { key, special: special === undefined ? 0 : special };
+            info = {
+                key,
+                special: special === undefined ? 0 : special,
+                checked: undefined,
+            };
             if (fieldNameCount < 512) {
                 fieldNames[name] = info;
                 fieldNameCount++;
             }
         }
+        // The last string value validated for the name (the same literal
+        // is set on every response) is not checked again.
         if (typeof value === "string") {
-            if (checkChars(value, 1) >= 0)
-                throw codedError(
-                    "ERR_INVALID_CHAR",
-                    'Invalid character in header content ["' + name + '"]',
-                    TypeError,
-                );
+            if (value !== info.checked) {
+                if (checkChars(value, 1) >= 0)
+                    throw codedError(
+                        "ERR_INVALID_CHAR",
+                        'Invalid character in header content ["' + name + '"]',
+                        TypeError,
+                    );
+                info.checked = value;
+            }
         } else validateHeaderValue(name, value);
         const key = info.key,
-            index = this._find(key);
+            fields = this._fields;
         if (info.special !== 0) this._special |= info.special;
+        if (fields === null) {
+            this._fields = [key, name, value];
+            return this;
+        }
+        let index = -1;
+        for (let i = 0; i < fields.length; i += 3)
+            if (fields[i] === key) {
+                index = i;
+                break;
+            }
         if (index >= 0) {
-            this._fields[index + 1] = name;
-            this._fields[index + 2] = value;
-        } else if (this._fields === null) this._fields = [key, name, value];
-        else this._fields.push(key, name, value);
+            fields[index + 1] = name;
+            fields[index + 2] = value;
+        } else fields.push(key, name, value);
         return this;
     }
     appendHeader(name, value) {

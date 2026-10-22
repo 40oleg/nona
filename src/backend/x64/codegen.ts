@@ -780,11 +780,7 @@ function generateImage(
         hostGlobal("__nonaNetHeadLines", "rt.netHeadLines.code", 2);
         hostGlobal("__nonaNetLowerNames", "rt.netLowerNames.code", 2);
         hostGlobal("__nonaNetHeaders", "rt.netHeaders.code", 2);
-        hostGlobal(
-            "__nonaNetHeadersRemember",
-            "rt.netHeadersRemember.code",
-            2,
-        );
+        hostGlobal("__nonaNetHeadersRemember", "rt.netHeadersRemember.code", 2);
         // JSON.stringify into UTF-8 bytes (#155), for node:http and nona:json.
         hostGlobal("__nonaJsonStringifyBytes", "rt.jsonStringifyBytes.code", 3);
     }

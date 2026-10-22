@@ -148,9 +148,10 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.store({ base: "rcx", disp: 8 }, "rax");
     };
 
-    b.fn("rt.netParse.code", 120, (a) => {
+    b.fn("rt.netParse.code", 136, (a) => {
         // Frame: 48 bytes, 56 out (int32*), 64 header capacity, 72 name start,
-        // 80 value start, 88 value end, 96 header count, 104 flags, 112 length.
+        // 80 value start, 88 value end, 96 header count, 104 flags, 112 length,
+        // 120 name end (while a value is scanned).
         a.store(slot(40), "rcx");
         const bad = a.unique("bad"),
             done = a.unique("done"),
@@ -377,9 +378,36 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         }
         {
             const loop = a.unique("valueLoop"),
+                step = a.unique("valueByte"),
                 end = a.unique("valueEnd"),
                 ok = a.unique("valueOk");
+            // Eight bytes at a time while none of them can end the value or
+            // be invalid: with b & 0x7f in every byte, none is below 0x20
+            // (the lowest flagged byte is exact, borrows only flag bytes above
+            // it) and none is 0x7f. Bytes 0x80-0x9f and 0xff are flagged too
+            // and take the byte step.
+            a.store(slot(120), "r8");
             a.label(loop);
+            a.lea("rax", { base: "rcx", disp: 8 });
+            a.cmp("rax", "r11");
+            a.jcc("g", step);
+            a.mov("rax", "r10");
+            a.add("rax", "rcx");
+            a.load("rax", { base: "rax" });
+            a.mov("r8", 0x7f7f7f7f7f7f7f7fn);
+            a.and("rax", "r8");
+            a.mov("r8", 0x0101010101010101n);
+            a.mov("rdx", "rax");
+            a.add("rdx", "r8");
+            a.mov("r8", 0x2020202020202020n);
+            a.sub("rax", "r8");
+            a.or("rax", "rdx");
+            a.mov("r8", 0x8080808080808080n);
+            a.and("rax", "r8");
+            a.jcc("ne", step);
+            a.add("rcx", 8);
+            a.jmp(loop);
+            a.label(step);
             peek();
             a.cmp("rax", 13);
             a.jcc("e", end);
@@ -393,6 +421,7 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             a.add("rcx", 1);
             a.jmp(loop);
             a.label(end);
+            a.load("r8", slot(120));
         }
         // Trim trailing whitespace: RDX = value end.
         {
@@ -1310,343 +1339,6 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.label(done);
     });
 
-    // __nonaNetLowerNames(raw): for an array [name, value, ...] of strings
-    // with dense elements whose names are all distinct (case-insensitively),
-    // the array of the names with ASCII letters folded to lower case (the
-    // keys of IncomingMessage.headers); undefined for anything else (a hole,
-    // a node, a non-string, a repeated name), which the module handles
-    // itself. Distinctness lets the module build the headers object without
-    // reading it back per field.
-    // The lower-case names are interned: the second argument is an array the
-    // module keeps forever, and rt.netNameTable maps a name's hash to the
-    // index of its string there (direct-mapped, 256 entries of {hash, index}),
-    // so the same name gives the same string object on every request, and
-    // the headers object's shape transitions compare keys by identity.
-    // One block outside the collected heap, allocated on first use (not in
-    // the image): the table (256 entries of 16 bytes), then the hashes of
-    // the names of the request being folded (128 of 8 bytes).
-    b.data("rt.netNameTable", new Uint8Array(8), ".data");
-    const nameTableBytes = 16 * 256,
-        nameBlockBytes = nameTableBytes + 8 * 128;
-    b.fn("rt.netLowerNames.code", 136, (a) => {
-        // Frame: 48 the elements table, 56 count, 64 index, 72 the array
-        // Value (16 bytes), 88 a string Value (16 bytes), 104 the intern
-        // array's object (0: none), 112 the folded units' hash, 120 the
-        // folded string record.
-        a.store(slot(40), "rcx");
-        const bad = a.unique("bad"),
-            done = a.unique("done"),
-            loop = a.unique("loop"),
-            end = a.unique("end");
-        a.cmp("rdx", 1);
-        a.jcc("b", bad);
-        // Slot 104: the intern array's Value* (the second argument, in the
-        // caller's argument area), or 0.
-        {
-            const chosen = a.unique("chosen");
-            a.mov("r10", 0);
-            a.cmp("rdx", 2);
-            a.jcc("b", chosen);
-            a.load("rax", { base: "r8", disp: 16 });
-            a.cmp("rax", 5);
-            a.jcc("ne", chosen);
-            a.load("rax", { base: "r8", disp: 24 });
-            a.load("rax", { base: "rax", disp: O.kind });
-            a.cmp("rax", 1);
-            a.jcc("ne", chosen);
-            a.lea("r10", { base: "r8", disp: 16 });
-            a.label(chosen);
-            a.store(slot(104), "r10");
-        }
-        a.load("rax", { base: "r8" });
-        a.cmp("rax", 5);
-        a.jcc("ne", bad);
-        a.load("r10", { base: "r8", disp: 8 });
-        a.load("rax", { base: "r10", disp: O.kind });
-        a.cmp("rax", 1);
-        a.jcc("ne", bad);
-        a.load("r10", { base: "r10", disp: O.elements });
-        a.test("r10", "r10");
-        a.jcc("e", bad);
-        a.load("rax", { base: "r10", disp: EL.nodes });
-        a.test("rax", "rax");
-        a.jcc("ne", bad);
-        a.store(slot(48), "r10");
-        a.load("rax", { base: "r10", disp: EL.count });
-        a.cmp("rax", 256);
-        a.jcc("a", bad);
-        a.store(slot(56), "rax");
-        {
-            const have = a.unique("haveTable"),
-                ok = a.unique("allocated");
-            a.load("rax", { rip: "rt.netNameTable" });
-            a.test("rax", "rax");
-            a.jcc("ne", have);
-            a.load("rcx", { rip: "rt.heap" });
-            a.mov("rdx", 8);
-            a.mov("r8", nameBlockBytes);
-            a.callImport("HeapAlloc");
-            a.test("rax", "rax");
-            a.jcc("ne", ok);
-            a.call("rt.fail");
-            a.label(ok);
-            a.store({ rip: "rt.netNameTable" }, "rax");
-            a.label(have);
-            a.load("rax", slot(56));
-        }
-        {
-            const empty = a.unique("empty"),
-                made = a.unique("made");
-            a.shr("rax", 1);
-            a.jcc("e", empty);
-            a.lea("rcx", slot(72));
-            a.mov("rdx", "rax");
-            a.call("rt.newArrayLiteral");
-            a.jmp(made);
-            a.label(empty);
-            a.lea("rcx", slot(72));
-            a.mov("rdx", 1);
-            a.mov("r8", 0);
-            a.call("rt.newObject");
-            a.label(made);
-        }
-        a.mov("rax", 0);
-        a.store(slot(64), "rax");
-        a.label(loop);
-        a.load("rax", slot(64));
-        a.load("r9", slot(56));
-        a.cmp("rax", "r9");
-        a.jcc("ae", end);
-        a.shl("rax", 4);
-        a.load("r10", slot(48));
-        a.add("r10", "rax");
-        a.load("rax", { base: "r10", disp: EL.values });
-        a.cmp("rax", 4);
-        a.jcc("ne", bad);
-        a.load("r10", { base: "r10", disp: EL.values + 8 });
-        // A rope (strings.ts, ropeTag in the length word) is not a flat
-        // record: leave those to the module.
-        a.load("r11", { base: "r10" });
-        a.mov("rax", "r11");
-        a.shr("rax", 62);
-        a.test("rax", "rax");
-        a.jcc("ne", bad);
-        a.lea("r10", { base: "r10", disp: 8 });
-        a.call("rt.netLatin1LowerUnits");
-        a.store(slot(120), "rax");
-        a.store(slot(112), "rdx");
-        // RDX = the hash of the folded name: kept per name for the check below.
-        a.load("rcx", slot(64));
-        a.shr("rcx", 1);
-        a.shl("rcx", 3);
-        a.load("r10", { rip: "rt.netNameTable" });
-        a.add("r10", "rcx");
-        a.store({ base: "r10", disp: nameTableBytes }, "rdx");
-        // Interning: the table entry for the hash names a string of the intern
-        // array with the same units (reused), or the new string is added there.
-        {
-            const noIntern = a.unique("noIntern"),
-                add = a.unique("add"),
-                interned = a.unique("interned");
-            a.load("r9", slot(104));
-            a.test("r9", "r9");
-            a.jcc("e", noIntern);
-            a.mov("rcx", "rdx");
-            a.and("rcx", 255);
-            a.shl("rcx", 4);
-            a.load("r8", { rip: "rt.netNameTable" });
-            a.add("r8", "rcx");
-            a.store(slot(128), "r8");
-            a.load("r9", { base: "r9", disp: 8 });
-            a.load("r9", { base: "r9", disp: O.elements });
-            a.test("r9", "r9");
-            a.jcc("e", add);
-            a.cmpMemory("rdx", { base: "r8" });
-            a.jcc("ne", add);
-            a.load("rcx", { base: "r8", disp: 8 });
-            a.cmpMemory("rcx", { base: "r9", disp: EL.count });
-            a.jcc("ae", add);
-            a.shl("rcx", 4);
-            a.add("r9", "rcx");
-            a.load("rax", { base: "r9", disp: EL.values });
-            a.cmp("rax", 4);
-            a.jcc("ne", add);
-            a.load("rcx", { base: "r9", disp: EL.values + 8 });
-            a.load("rdx", slot(120));
-            a.store(slot(32), "r9");
-            a.call("rt.netSameUnits");
-            a.load("r9", slot(32));
-            a.test("rax", "rax");
-            a.jcc("e", add);
-            a.load("rax", { base: "r9", disp: EL.values + 8 });
-            a.store(slot(120), "rax");
-            a.jmp(interned);
-            a.label(add);
-            // Appended to the intern array (which the module keeps alive) and
-            // remembered under the hash: R8 = the table entry.
-            a.load("r8", slot(128));
-            a.load("r9", slot(104));
-            a.load("r9", { base: "r9", disp: 8 });
-            a.load("rcx", { base: "r9", disp: O.length });
-            a.cmp("rcx", 4096);
-            a.jcc("ae", noIntern);
-            a.store({ base: "r8", disp: 8 }, "rcx");
-            a.load("rcx", slot(112));
-            a.store({ base: "r8" }, "rcx");
-            a.mov("r10", 4);
-            a.store(slot(88), "r10");
-            a.load("r10", slot(120));
-            a.store(slot(96), "r10");
-            a.load("rcx", slot(104));
-            a.lea("rdx", slot(88));
-            a.call("rt.appendArrayValue");
-            a.label(noIntern);
-            a.label(interned);
-            a.load("rax", slot(120));
-        }
-        // Element i / 2 of the new array.
-        a.load("r10", slot(80));
-        a.load("r10", { base: "r10", disp: O.elements });
-        a.load("r11", slot(64));
-        a.shl("r11", 3);
-        a.add("r10", "r11");
-        a.mov("r11", 4);
-        a.store({ base: "r10", disp: EL.values }, "r11");
-        a.load("rax", slot(120));
-        a.store({ base: "r10", disp: EL.values + 8 }, "rax");
-        a.load("rax", slot(64));
-        a.add("rax", 2);
-        a.store(slot(64), "rax");
-        a.jmp(loop);
-        a.label(end);
-        // Any two equal hashes: not distinct (a hash collision counts too).
-        {
-            const outer = a.unique("outer"),
-                inner = a.unique("inner"),
-                nextOuter = a.unique("nextOuter"),
-                distinct = a.unique("distinct");
-            a.load("r11", slot(56));
-            a.shr("r11", 1);
-            a.load("r9", { rip: "rt.netNameTable" });
-            a.add("r9", nameTableBytes);
-            a.mov("rcx", 0);
-            a.label(outer);
-            a.cmp("rcx", "r11");
-            a.jcc("ae", distinct);
-            a.mov("rax", "rcx");
-            a.shl("rax", 3);
-            a.add("rax", "r9");
-            a.load("r10", { base: "rax" });
-            a.lea("rdx", { base: "rcx", disp: 1 });
-            a.label(inner);
-            a.cmp("rdx", "r11");
-            a.jcc("ae", nextOuter);
-            a.mov("rax", "rdx");
-            a.shl("rax", 3);
-            a.add("rax", "r9");
-            a.cmpMemory("r10", { base: "rax" });
-            a.jcc("e", bad);
-            a.add("rdx", 1);
-            a.jmp(inner);
-            a.label(nextOuter);
-            a.add("rcx", 1);
-            a.jmp(outer);
-            a.label(distinct);
-        }
-        a.load("rcx", slot(40));
-        for (const part of [0, 8]) {
-            a.load("rax", slot(72 + part));
-            a.store({ base: "rcx", disp: part }, "rax");
-        }
-        a.jmp(done);
-        a.label(bad);
-        undefinedResult(a);
-        a.label(done);
-    });
-    // RCX, RDX two flat string records -> RAX 1 when they have the same units.
-    b.fn("rt.netSameUnits", 40, (a) => {
-        const differ = a.unique("differ"),
-            same = a.unique("same"),
-            loop = a.unique("loop"),
-            done = a.unique("done");
-        a.load("r10", { base: "rcx" });
-        a.load("r11", { base: "rdx" });
-        a.cmp("r10", "r11");
-        a.jcc("ne", differ);
-        a.mov("rax", "r10");
-        a.shr("rax", 62);
-        a.test("rax", "rax");
-        a.jcc("ne", differ);
-        a.mov("r8", 8);
-        a.add("r10", "r10");
-        a.add("r10", 8);
-        a.label(loop);
-        a.cmp("r8", "r10");
-        a.jcc("ae", same);
-        a.mov("rax", "rcx");
-        a.add("rax", "r8");
-        a.load("rax", { base: "rax" }, 16);
-        a.mov("r11", "rdx");
-        a.add("r11", "r8");
-        a.load("r11", { base: "r11" }, 16);
-        a.cmp("rax", "r11");
-        a.jcc("ne", differ);
-        a.add("r8", 2);
-        a.jmp(loop);
-        a.label(same);
-        a.mov("rax", 1);
-        a.jmp(done);
-        a.label(differ);
-        a.mov("rax", 0);
-        a.label(done);
-    });
-    // R10 code units (16-bit), R11 count -> RAX a new string with ASCII
-    // letters folded to lower case.
-    b.fn("rt.netLatin1LowerUnits", 72, (a) => {
-        a.store(slot(40), "r10");
-        a.store(slot(48), "r11");
-        a.mov("rcx", "r11");
-        a.add("rcx", "rcx");
-        a.add("rcx", 8);
-        a.call("rt.allocRaw");
-        a.store(slot(56), "rax");
-        a.load("r11", slot(48));
-        a.store({ base: "rax" }, "r11");
-        a.load("r10", slot(40));
-        a.lea("r9", { base: "rax", disp: 8 });
-        const loop = a.unique("fold"),
-            end = a.unique("folded"),
-            keep = a.unique("keep");
-        a.mov("rcx", 0);
-        a.mov("r8", 0);
-        a.label(loop);
-        a.cmp("rcx", "r11");
-        a.jcc("ae", end);
-        a.mov("rdx", "rcx");
-        a.add("rdx", "rdx");
-        a.add("rdx", "r10");
-        a.load("rdx", { base: "rdx" }, 16);
-        a.cmp("rdx", 0x41);
-        a.jcc("b", keep);
-        a.cmp("rdx", 0x5a);
-        a.jcc("a", keep);
-        a.or("rdx", 0x20);
-        a.label(keep);
-        a.store({ base: "r9" }, "rdx", 16);
-        // R8 = hash of the folded units (31 * h + unit, 64-bit).
-        a.mov("rax", "r8");
-        a.shl("rax", 5);
-        a.sub("rax", "r8");
-        a.add("rax", "rdx");
-        a.mov("r8", "rax");
-        a.add("r9", 2);
-        a.add("rcx", 1);
-        a.jmp(loop);
-        a.label(end);
-        a.mov("rdx", "r8");
-        a.load("rax", slot(56));
-    });
-
     b.fn("rt.netCheck.code", 40, (a) => {
         a.store(slot(32), "rcx");
         const bad = a.unique("bad"),
@@ -1668,6 +1360,39 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         // RCX index, R10 units, R11 count, R9 kind.
         a.mov("rcx", 0);
         a.label(loop);
+        // A field value four units at a time while each of them is 0x20-0x7e
+        // (as netParse does with bytes: a unit 0x80-0x9f or 0xff is flagged
+        // too and takes the unit step).
+        {
+            const unit = a.unique("unit");
+            a.cmp("r9", 1);
+            a.jcc("ne", unit);
+            a.lea("rax", { base: "rcx", disp: 4 });
+            a.cmp("rax", "r11");
+            a.jcc("a", unit);
+            a.mov("rax", "rcx");
+            a.add("rax", "rax");
+            a.add("rax", "r10");
+            a.load("rax", { base: "rax" });
+            a.mov("r8", 0xff00ff00ff00ff00n);
+            a.mov("rdx", "rax");
+            a.and("rdx", "r8");
+            a.jcc("ne", unit);
+            a.mov("r8", 0x007f007f007f007fn);
+            a.and("rax", "r8");
+            a.mov("r8", 0x0001000100010001n);
+            a.mov("rdx", "rax");
+            a.add("rdx", "r8");
+            a.mov("r8", 0x0020002000200020n);
+            a.sub("rax", "r8");
+            a.or("rax", "rdx");
+            a.mov("r8", 0x0080008000800080n);
+            a.and("rax", "r8");
+            a.jcc("ne", unit);
+            a.add("rcx", 4);
+            a.jmp(loop);
+            a.label(unit);
+        }
         a.cmp("rcx", "r11");
         {
             const end = a.unique("end");

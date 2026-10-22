@@ -9,6 +9,7 @@
 ### Performance
 
 - **`TypedArray.prototype.sort` and `toSorted` are O(n log n).** They used the quadratic native insertion sort (100,000 elements took about 100 s); they now use a stable merge sort in the runtime prelude, with the same -0/+0 and NaN order. ([#453](https://github.com/40oleg/nona/issues/453))
+- **HTTP server: cheaper request headers and `setHeader`.** `IncomingMessage.headers` for a request with the same field names as a recent one is built natively in one call with the remembered shape (an ordinary `Object.prototype` object; a setter or read-only property added to `Object.prototype` invalidates the record; `set-cookie` arrays and repeated names keep the JavaScript path); lower-case header names are hashed and compared with their interned strings four units at a time and only allocated when new; the request parser scans header values and `setHeader` validates values eight bytes at a time, and a value already validated for the same name is not checked again. Instructions per request under QEMU (`bench/http/profile.sh`, Linux x64): `headers` 83.7k → 68.6k, `hello` 35.8k → 35.3k. Part of [#403](https://github.com/40oleg/nona/issues/403).
 
 ### Fixes
 
