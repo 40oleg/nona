@@ -129,6 +129,36 @@ const maps = []; for (let i = 0; i < 60; i++) { const m = {}; m['key' + (i % 30)
 console.log(maps.reduce((s, m) => s + m.common + m['key' + (m.common % 30)], 0));
 const dict = {}; for (let i = 0; i < 200; i++) dict['w' + i] = i; delete dict.w5; console.log(Object.keys(dict).length, dict.w199);`,
     ],
+    [
+        // rt.icSet's transition hit (#403): one assignment site that adds a
+        // key, run again after each change that must make it miss.
+        "a site that adds a key after the transition is cached",
+        `
+function make(o, v) { o.a = 1; o.b = v; return o; }
+for (let i = 0; i < 3; i++) make({}, i);
+const frozen = Object.preventExtensions({ a: 0 });
+try { make(frozen, 2); } catch (e) { console.log(e.constructor.name); }
+console.log(Object.keys(frozen).join(), frozen.b);
+const sealed = { a: 0 }; Object.seal(sealed);
+try { make(sealed, 3); } catch (e) { console.log(e.constructor.name); }
+console.log(Object.keys(sealed).join(), sealed.b);
+function P() {} P.prototype.x = 0;
+function add(o, v) { o.y = v; return o; }
+for (let i = 0; i < 3; i++) add(new P(), i);
+Object.defineProperty(P.prototype, 'y', { set(v) { console.log('setter', v); }, configurable: true });
+const p = add(new P(), 4); console.log(Object.keys(p).join(), p.hasOwnProperty('y'));
+delete P.prototype.y; console.log(Object.keys(add(new P(), 5)).join());
+function Q() {} Q.prototype.x = 0;
+Object.defineProperty(Q.prototype, 'y', { get() { return 'q'; }, configurable: true });
+const q = new Q(); add(q, 6); console.log(q.y, q.hasOwnProperty('y'));
+const proto = {}; add(proto, 7); const child = Object.create(proto);
+console.log(child.y); const proto2 = {}; Object.create(proto2).y; add(proto2, 8);
+const c2 = Object.create(proto2); console.log(c2.y, proto2.y);
+const wide = {}; for (let i = 0; i < 40; i++) { const o = {}; for (let j = 0; j <= i; j++) o['k' + j] = j; if (i === 39) Object.assign(wide, o); }
+console.log(Object.keys(wide).length, wide.k39);
+const list = []; for (let i = 0; i < 50; i++) list.push(make({}, i));
+console.log(list.reduce((s, o) => s + o.a + o.b, 0), JSON.stringify(list[7]));`,
+    ],
 ];
 for (const [name, source] of cases)
     test(`shapes: ${name}`, () => expectProgram(source));

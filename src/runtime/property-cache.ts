@@ -751,6 +751,51 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
             a.jmp(hit);
             a.label(next);
         }
+        // A transition entry from the receiver's shape (an assignment that
+        // adds the key, as constructors do): rt.setPropertyCached's checks
+        // for a new inline slot, without its frame. The receiver must not be
+        // a cached prototype (whose change would bump the epoch); anything
+        // else (an out-of-line slot) is a miss. R9 is only written once the
+        // write is certain, as a miss passes it on.
+        for (let i = 0; i < S.transitionEntries; i++) {
+            const found = a.unique("transition");
+            a.cmpMemory("r11", {
+                base: "r10",
+                disp: S.from + S.transitionEntry * i,
+            });
+            a.jcc("ne", found + ".next");
+            a.load("r11", { rip: "rt.shapeEpoch" });
+            a.cmpMemory("r11", { base: "r10", disp: S.epoch });
+            a.jcc("ne", miss);
+            a.load("r11", { base: "rax", disp: O.prototype });
+            a.cmpMemory("r11", {
+                base: "r10",
+                disp: S.prototype + S.transitionEntry * i,
+            });
+            a.jcc("ne", miss);
+            a.load("r11", { base: "rax", disp: O.flags });
+            a.and(
+                "r11",
+                ObjectFlags.nonExtensible | ObjectFlags.cachedPrototype,
+            );
+            a.test("r11", "r11");
+            a.jcc("ne", miss);
+            a.load("rax", { base: "r10", disp: S.to + S.transitionEntry * i });
+            a.load("r11", { base: "rax", disp: ShapeLayout.count });
+            a.sub("r11", 1);
+            a.cmpMemory("r11", { base: "rax", disp: ShapeLayout.capacity });
+            a.jcc("ae", miss);
+            a.load("r9", { base: "rcx", disp: 8 });
+            a.store({ base: "r9", disp: O.shape }, "rax");
+            a.shl("r11", 4);
+            a.add("r11", "r9");
+            a.load("rax", { base: "r8" });
+            a.store({ base: "r11", disp: O.size }, "rax");
+            a.load("rax", { base: "r8", disp: 8 });
+            a.store({ base: "r11", disp: O.size + 8 }, "rax");
+            a.ret();
+            a.label(found + ".next");
+        }
         a.jmp(miss);
         a.label(hit);
         a.test("r11", "r11");
