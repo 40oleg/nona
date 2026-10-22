@@ -13,6 +13,7 @@ import { emitAgents } from "./agents.js";
 import { emitHost } from "./host.js";
 import { emitUtf8 } from "./utf8.js";
 import { emitHttpNative } from "./http-native.js";
+import { emitHttpHeadersNative } from "./http-headers-native.js";
 import { emitRegExpScan } from "./regexp-scan.js";
 import { emitSuperProperties } from "./super-properties.js";
 import { emitLiteralAccessor } from "./literal-accessor.js";
@@ -257,6 +258,7 @@ export function emitRuntime(
     emitHost(b);
     emitUtf8(b);
     emitHttpNative(b);
+    emitHttpHeadersNative(b);
     emitRegExpScan(b);
     emitArrayBuiltins(b);
     emitArraySplice(b);

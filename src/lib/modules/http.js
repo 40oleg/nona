@@ -11,6 +11,8 @@ import {
     slice as sliceBytes,
     headLines as nativeHeadLines,
     lowerNames as nativeLowerNames,
+    headers as nativeHeaders,
+    rememberHeaders,
     jsonBytes,
     registerHttpJson,
 } from "nona:internal/native";
@@ -340,17 +342,27 @@ function distinctLowerNames(raw) {
     return lower === undefined ? null : lower;
 }
 function mergeHeaders(raw, joinDuplicates) {
-    const out = {},
-        lower = distinctLowerNames(raw);
+    const lower = distinctLowerNames(raw);
     if (lower !== null) {
-        // No repeated names: every field is set once.
+        // No repeated names: every field is set once. The same names as a
+        // recent request give the same object natively (its shape is
+        // remembered when the fields are all strings).
+        let out = nativeHeaders(lower, raw);
+        if (out !== undefined) return out;
+        out = {};
+        let strings = true;
         for (let i = 0; i < raw.length; i += 2) {
             const field = lower[i >> 1],
                 value = raw[i + 1];
-            out[field] = field === "set-cookie" ? [value] : value;
+            if (field === "set-cookie") {
+                strings = false;
+                out[field] = [value];
+            } else out[field] = value;
         }
+        if (strings) rememberHeaders(out, lower);
         return out;
     }
+    const out = {};
     for (let i = 0; i < raw.length; i += 2) {
         const field = lowerName(raw[i]),
             value = raw[i + 1],

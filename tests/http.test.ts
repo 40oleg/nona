@@ -379,3 +379,75 @@ server.listen(0, '127.0.0.1', () => {
 `,
         false,
     ));
+
+test("node:http: request header objects: repeated field sets, case, order, duplicates, set-cookie, __proto__, many fields, prototype setters, value bytes", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+// The same field names on several requests give the same headers object
+// natively (#403): each case is sent more than once, then the objects are
+// changed by the handler, and a setter appears on Object.prototype.
+const server = http.createServer((req, res) => {
+  const h = req.headers;
+  const keys = Object.keys(h);
+  const line = [req.url, keys.join(','), JSON.stringify(h), JSON.stringify(req.rawHeaders),
+    Object.getPrototypeOf(h) === Object.prototype, Object.prototype.hasOwnProperty.call(h, '__proto__'),
+    typeof h.constructor, Array.isArray(h['set-cookie'])];
+  h.added = 1;
+  delete h.host;
+  h.accept = 'changed';
+  line.push(Object.keys(h).join(','), h.accept);
+  console.log(line.join(' | '));
+  res.end('ok');
+});
+server.on('clientError', (err, socket) => { console.log('clientError', err.code); socket.end('HTTP/1.1 400 Bad Request\r\n\r\n'); });
+const many = Array.from({ length: 40 }, (_, i) => 'X-Field-' + i + ': value ' + i + '\r\n').join('');
+const bench = 'User-Agent: Mozilla/5.0 (X11; Linux x86_64)\r\nAccept: text/html,*/*;q=0.8\r\n' +
+  'Accept-Language: en-US,en;q=0.5\r\nAccept-Encoding: gzip, deflate, br\r\nX-Request-Id: 7f3c2a1e\r\n';
+const cases = [
+  ['/same', 'Host: x\r\n' + bench],
+  ['/same', 'Host: x\r\n' + bench],
+  ['/same', 'Host: x\r\n' + bench],
+  ['/case', 'HOST: x\r\n' + bench.toLowerCase()],
+  ['/order', bench + 'Host: x\r\n'],
+  ['/fewer', 'Host: x\r\nAccept: a\r\n'],
+  ['/cookie', 'Host: x\r\nSet-Cookie: a=1\r\nAccept: b\r\n'],
+  ['/cookie', 'Host: x\r\nSet-Cookie: a=1\r\nAccept: b\r\n'],
+  ['/dup', 'Host: x\r\nAccept: a\r\naccept: b\r\nCookie: c=1\r\nCookie: d=2\r\nX-A: 1\r\nx-a: 2\r\nSet-Cookie: s=1\r\nset-cookie: s=2\r\n'],
+  ['/dup', 'Host: x\r\nAccept: a\r\naccept: b\r\nCookie: c=1\r\nCookie: d=2\r\nX-A: 1\r\nx-a: 2\r\nSet-Cookie: s=1\r\nset-cookie: s=2\r\n'],
+  ['/proto', 'Host: x\r\n__proto__: p\r\nConstructor: c\r\nhasOwnProperty: h\r\ntoString: t\r\n'],
+  ['/proto', 'Host: x\r\n__proto__: p\r\nConstructor: c\r\nhasOwnProperty: h\r\ntoString: t\r\n'],
+  ['/index', 'Host: x\r\n0: zero\r\n123: n\r\nX-B: b\r\n'],
+  ['/index', 'Host: x\r\n0: zero\r\n123: n\r\nX-B: b\r\n'],
+  ['/many', 'Host: x\r\n' + many],
+  ['/many', 'Host: x\r\n' + many],
+  ['/hook', 'Host: x\r\nX-Hook: 1\r\nAccept: a\r\n'],
+  ['/hook', 'Host: x\r\nX-Hook: 1\r\nAccept: a\r\n'],
+  ['setter'],
+  ['/hook', 'Host: x\r\nX-Hook: 2\r\nAccept: a\r\n'],
+  ['/hook', 'Host: x\r\nX-Hook: 3\r\nAccept: a\r\n'],
+  ['/bytes', 'Host: x\r\nX-Tab: a\tb\t c \r\nX-Latin: caf\xe9 \xff\xa0end\r\nX-Long: ' + 'abcdefgh'.repeat(9) + ' \t \r\nX-Empty:\r\nX-Spaces:    \r\n'],
+  ['/del', 'Host: x\r\nX-Bad: abc\x7fdef\r\n'],
+  ['/ctl', 'Host: x\r\nX-Bad: abcdefghijkl\x01\r\n'],
+];
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  for (const [path, fields] of cases) {
+    if (path === 'setter') {
+      Object.defineProperty(Object.prototype, 'x-hook', { set(v) { console.log('setter', v); }, configurable: true });
+      continue;
+    }
+    await new Promise(resolve => {
+      const socket = net.connect(port, '127.0.0.1', () => socket.write('GET ' + path + ' HTTP/1.1\r\n' + fields + 'Connection: close\r\n\r\n', 'latin1'));
+      let text = '';
+      socket.setEncoding('latin1');
+      socket.on('data', d => text += d);
+      socket.on('close', () => { console.log(JSON.stringify(text.replace(/Date: [^\r]*\r\n/g, ''))); resolve(); });
+    });
+  }
+  delete Object.prototype['x-hook'];
+  server.close(() => console.log('closed'));
+});
+`,
+        false,
+    ));
