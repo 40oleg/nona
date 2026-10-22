@@ -12,6 +12,7 @@
 
 ### Fixes
 
+- **`assert.throws` and `assert.rejects` throw an `AssertionError` when the error does not match.** They rethrew the original error when the expected class, RegExp, validation object or validation function did not match. They now throw an `AssertionError` (`code: "ERR_ASSERTION"`, `actual` the thrown error, `expected`, `operator`) with Node.js's message for the class, RegExp and validation function cases (the object case uses a simplified diff); a validation function that throws still propagates its own error. ([#458](https://github.com/40oleg/nona/issues/458))
 - **`assert.deepEqual` and `assert.notDeepEqual` compare Maps, Sets, Dates, RegExps, boxed primitives, typed arrays, ArrayBuffers and Errors.** The loose comparison only looked at own enumerable keys, so any two Maps, Sets, Dates or RegExps were equal. It now follows Node.js's loose comparison: Set elements and Map entries are matched loosely (`new Map([[1, "1"]])` equals `new Map([[1, 1]])`), Dates compare their time, RegExps their source, flags and `lastIndex`, and circular structures terminate. ([#456](https://github.com/40oleg/nona/issues/456))
 - **A hashbang line (`#!`) is accepted at the start of a script or an ES module.** The lexer treats `#!` up to the first line terminator as a comment (ES2023 Hashbang Grammar) only at offset 0 of the source text; `#` elsewhere is still rejected with `E_LEX`, and later diagnostics keep their positions. ([#455](https://github.com/40oleg/nona/issues/455))
 
