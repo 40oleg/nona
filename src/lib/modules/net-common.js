@@ -469,7 +469,35 @@ function invoke(callback, error) {
 }
 
 // ---- Socket ----------------------------------------------------------------
-const readBuffer = new Uint8Array(65536);
+/**
+ * Sockets read into one arena shared by all of them; readBuffer is the view
+ * of its free part. A consumer (node:http) may keep views of the bytes it was
+ * given instead of copying them (large request body chunks): onData then
+ * returns how many bytes from the start of the view must stay untouched, and
+ * later reads go after them, into a fresh arena once less than readReserve is
+ * left. The arena fills the allocator's largest cell (64 KiB with its
+ * header), so it is recycled from a free list like the copies it replaces.
+ */
+const readArenaBytes = 65432,
+    readReserve = 16384;
+let readArena = new Uint8Array(readArenaBytes),
+    readBuffer = readArena,
+    readOffset = 0;
+function keepRead(kept) {
+    readOffset += kept;
+    if (readArenaBytes - readOffset < readReserve) {
+        readArena = sliceBytes(readArena, 0, readArenaBytes, undefined, 2);
+        readOffset = 0;
+        readBuffer = readArena;
+    } else
+        readBuffer = sliceBytes(
+            readArena,
+            readOffset,
+            readArenaBytes,
+            undefined,
+            1,
+        );
+}
 export class Socket extends Readable {
     // Field defaults live on the prototype (see defaults() below).
     constructor(options) {
@@ -704,7 +732,8 @@ export class Socket extends Readable {
         }
         this.bytesRead += n;
         if (this._consumer !== null) {
-            this._consumer.onData(readBuffer, n);
+            const kept = this._consumer.onData(readBuffer, n, true);
+            if (kept > 0) keepRead(kept);
             return;
         }
         this.push(sliceBytes(readBuffer, 0, n, bufferPrototype));

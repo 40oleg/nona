@@ -49,11 +49,15 @@ import { emitViewCheck } from "./view-bounds.js";
  * to both arrays) and returns the number of bytes copied. TypedArray slice,
  * subarray and set go through the species protocol and cost microseconds;
  * the server copies request heads and body chunks on every request. *
- * __nonaNetSlice(source, start, end, prototype): a new Uint8Array holding a
+ * __nonaNetSlice(source, start, end, prototype, mode): a new Uint8Array holding a
  * copy of source[start, end), with the given prototype object (Buffer's) or
  * Uint8Array's. The request head, body chunks and raw socket reads are
  * copied into fresh buffers on every read; the constructor path costs
- * thousands of instructions for each. *
+ * thousands of instructions for each. Mode 1 makes a view of source's own
+ * buffer instead of a copy (node:net's read arena hands large request body
+ * chunks out without copying them); mode 2 allocates a buffer of that length
+ * whose bytes are not initialized (a new read arena, which only ever exposes
+ * bytes a read has written). *
  * __nonaNetCheck(string, kind): the index of the first character that is not
  * allowed, or -1. Kind 0: an HTTP token (RFC 9110 tchar); kind 1: a header
  * field value (HTAB, visible ASCII, space and 0x80-0xff); kind 2: a request
@@ -1283,14 +1287,29 @@ export function emitHttpNative(b: RuntimeBuilder): void {
     // coercion; this is three allocations and a block copy. No safepoint is
     // reached between them (the collector runs only at compiled code's
     // safepoints), so the blocks need no roots before the result is stored.
-    b.fn("rt.netSlice.code", 88, (a) => {
-        // Frame: 48 source pointer + start, 56 count, 64 prototype, 72 bytes block, 80 buffer object.
+    b.fn("rt.netSlice.code", 104, (a) => {
+        // Frame: 48 source pointer + start, 56 count, 64 prototype, 72 bytes
+        // block, 80 buffer object, 88 mode, 96 byte offset of the view.
         a.store(slot(40), "rcx");
         const bad = a.unique("bad"),
             done = a.unique("done");
         a.cmp("rdx", 3);
         a.jcc("b", bad);
         a.store(slot(32), "rdx");
+        {
+            const plain = a.unique("plain");
+            a.mov("rax", 0);
+            a.store(slot(88), "rax");
+            a.cmp("rdx", 5);
+            a.jcc("b", plain);
+            a.load("rax", { base: "r8", disp: 64 });
+            a.cmp("rax", 3);
+            a.jcc("ne", plain);
+            a.movsd("xmm0", { base: "r8", disp: 72 });
+            a.cvttsd2si("rax", "xmm0");
+            a.store(slot(88), "rax");
+            a.label(plain);
+        }
         a.mov("rdx", "r8");
         bytesOf(a, bad);
         a.mov("r9", "r11");
@@ -1332,10 +1351,35 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             a.store(slot(64), "rax");
             a.label(given);
         }
-        // The bytes: a raw block, not zeroed (it is overwritten here).
+        a.mov("rax", 0);
+        a.store(slot(96), "rax");
+        const own = a.unique("own"),
+            copied = a.unique("copied");
+        a.load("rax", slot(88));
+        a.cmp("rax", 1);
+        a.jcc("ne", own);
+        {
+            // A view of the source's buffer: its offset is the start's
+            // address relative to the buffer's bytes.
+            a.load("r9", { base: "r8", disp: 8 });
+            a.load("r9", { base: "r9", disp: T.buffer });
+            a.store(slot(80), "r9");
+            a.load("rax", slot(48));
+            a.load("r10", { base: "r9", disp: AB.bytes });
+            a.sub("rax", "r10");
+            a.store(slot(96), "rax");
+            a.jmp(copied);
+        }
+        a.label(own);
+        // The bytes: a raw block, not zeroed (it is overwritten here, or in
+        // mode 2 by the caller).
         a.load("rcx", slot(56));
         a.call("rt.allocRaw");
         a.store(slot(72), "rax");
+        a.load("r10", slot(88));
+        a.cmp("r10", 2);
+        const buffer = a.unique("buffer");
+        a.jcc("e", buffer);
         a.push("rsi");
         a.push("rdi");
         a.load("rsi", slot(48 + 16));
@@ -1344,6 +1388,7 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.repMovsb();
         a.pop("rdi");
         a.pop("rsi");
+        a.label(buffer);
         // The ArrayBuffer object (as rt.ArrayBuffer.construct lays it out).
         a.mov("rcx", AB.size);
         a.call("rt.alloc");
@@ -1365,6 +1410,7 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.mov("r10", -1);
         a.store({ base: "rax", disp: AB.maxByteLength }, "r10");
         a.store(slot(80), "rax");
+        a.label(copied);
         // The view (as the typed array constructors lay it out).
         a.mov("rcx", T.size);
         a.call("rt.alloc");
@@ -1379,7 +1425,7 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.store({ base: "rax", disp: O.prototype }, "r10");
         a.load("r10", slot(80));
         a.store({ base: "rax", disp: T.buffer }, "r10");
-        a.mov("r10", 0);
+        a.load("r10", slot(96));
         a.store({ base: "rax", disp: T.byteOffset }, "r10");
         a.load("r10", slot(56));
         a.store({ base: "rax", disp: T.byteLength }, "r10");

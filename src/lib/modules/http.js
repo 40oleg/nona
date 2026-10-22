@@ -1496,11 +1496,15 @@ function parseError(code, data, start, end, message) {
 }
 
 // ---- Chunked bodies --------------------------------------------------------------
+/** Server body chunks from this size on are views of node:net's read arena. */
+const shareBytes = 8192;
 /**
  * Decodes a chunked body fed in pieces. Partial size and trailer lines are
  * kept as text, so every byte offered is consumed until the message ends.
  * feed() returns the offset after the last byte of the message, -1 when the
- * piece was consumed and more is needed, or -2 on a malformed body.
+ * piece was consumed and more is needed, or -2 on a malformed body. With
+ * shared >= 0 (see ServerConnection.onData) large chunks are views of data
+ * and shared becomes the end of the last one.
  */
 class ChunkedDecoder {
     constructor(onChunk) {
@@ -1509,13 +1513,18 @@ class ChunkedDecoder {
         this.remaining = 0;
         this.line = "";
         this.trailers = [];
+        this.shared = -1;
     }
     feed(data, start, end) {
         let i = start;
         while (i < end) {
             if (this.state === 1) {
                 const n = Math.min(this.remaining, end - i);
-                const chunk = sliceBytes(data, i, i + n, bufferPrototype);
+                let chunk;
+                if (n >= shareBytes && this.shared >= 0) {
+                    chunk = sliceBytes(data, i, i + n, bufferPrototype, 1);
+                    this.shared = i + n;
+                } else chunk = sliceBytes(data, i, i + n, bufferPrototype);
                 i += n;
                 this.remaining -= n;
                 this.onChunk(chunk);
@@ -1997,6 +2006,7 @@ class ServerConnection {
         this.body = null;
         this.bodyRemaining = 0;
         this.decoder = null;
+        this.shared = -1;
         this.keepAliveSet = false;
         this.stopped = false;
         socket._consumer = this;
@@ -2007,10 +2017,16 @@ class ServerConnection {
         socket.on("timeout", onServerSocketTimeout);
         if (server.timeout) socket.setTimeout(server.timeout);
     }
-    onData(bytes, n) {
+    /**
+     * bytes[0, n) were read. With arena (node:net's read arena) large body
+     * chunks are views of bytes instead of copies; the result is then how
+     * many bytes from the start the views cover (see keepRead in node:net).
+     */
+    onData(bytes, n, arena) {
         let data = bytes,
             end = n,
             start = 0;
+        this.shared = arena === true ? 0 : -1;
         if (this.pendingLength > 0) {
             const total = this.pendingLength + n;
             if (this.pending.length < total) {
@@ -2025,6 +2041,8 @@ class ServerConnection {
             end = total;
             this.pendingLength = 0;
         }
+        // Bytes copied into pending are never shared: pending is reused.
+        if (data !== bytes) this.shared = -1;
         while (start < end && !this.stopped) {
             if (this.body !== null) {
                 const next =
@@ -2047,22 +2065,22 @@ class ServerConnection {
                     this.fail(
                         parseError("HPE_HEADER_OVERFLOW", data, start, end),
                     );
-                    return;
+                    return this.shared;
                 }
                 break;
             }
             if (result < 0) {
                 this.fail(parseError(nativeErrors[-result], data, start, end));
-                return;
+                return this.shared;
             }
             if (
                 result - OUT[10] >
                 (this.server.maxHeaderSize || maxHeaderSize)
             ) {
                 this.fail(parseError("HPE_HEADER_OVERFLOW", data, start, end));
-                return;
+                return this.shared;
             }
-            if (!this.request(data, start, result, end)) return;
+            if (!this.request(data, start, result, end)) return this.shared;
             start = result;
         }
         if (start < end && !this.stopped) {
@@ -2075,6 +2093,7 @@ class ServerConnection {
             }
             this.pendingLength = rest;
         }
+        return this.shared;
     }
     /** A complete head in data[start, headEnd): creates the request and its response. Returns false to stop reading. */
     request(data, start, headEnd, end) {
@@ -2254,7 +2273,11 @@ class ServerConnection {
     }
     fixedBody(data, start, end) {
         const n = Math.min(this.bodyRemaining, end - start);
-        const chunk = sliceBytes(data, start, start + n, bufferPrototype);
+        let chunk;
+        if (n >= shareBytes && this.shared >= 0) {
+            chunk = sliceBytes(data, start, start + n, bufferPrototype, 1);
+            this.shared = start + n;
+        } else chunk = sliceBytes(data, start, start + n, bufferPrototype);
         this.bodyRemaining -= n;
         this.deliver(chunk);
         if (this.bodyRemaining === 0) {
@@ -2266,7 +2289,10 @@ class ServerConnection {
         return start + n;
     }
     chunkedBody(data, start, end) {
-        const result = this.decoder.feed(data, start, end);
+        const decoder = this.decoder;
+        decoder.shared = this.shared;
+        const result = decoder.feed(data, start, end);
+        this.shared = decoder.shared;
         if (result === -2) {
             this.fail(parseError("HPE_INVALID_CHUNK_SIZE", data, start, end));
             return -1;

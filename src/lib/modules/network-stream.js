@@ -2,14 +2,23 @@ import { EventEmitter } from "node:events";
 import { StringDecoder } from "node:string_decoder";
 import { Buffer } from "node:buffer";
 // Deferred calls of stream methods run in one microtask per batch, like the
-// process.nextTick queue Node.js uses for them: no closure per call.
+// process.nextTick queue Node.js uses for them: no closure per call. Calls
+// deferred by a running one join the batch (as nextTick callbacks queued by
+// a tick run before the promise jobs): a request's 'end' and the 'close'
+// that follows it cost one microtask.
 let tasks = [],
     tasksScheduled = false;
 function runTasks() {
-    tasksScheduled = false;
-    const list = tasks;
-    tasks = [];
-    for (let i = 0; i < list.length; i += 2) list[i][list[i + 1]]();
+    try {
+        for (let list = tasks; list.length > 0; list = tasks) {
+            tasks = [];
+            for (let i = 0; i < list.length; i += 2) list[i][list[i + 1]]();
+        }
+    } finally {
+        // After a throwing call the rest waits for the next microtask.
+        if (tasks.length > 0) queueMicrotask(runTasks);
+        else tasksScheduled = false;
+    }
 }
 /**
  * The event loop's time (performance.now() after the last wait, like
