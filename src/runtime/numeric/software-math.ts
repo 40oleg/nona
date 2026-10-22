@@ -343,11 +343,14 @@ export function emitSoftwareMath(b: RuntimeBuilder): void {
             a.cmp("rax", "r11");
             a.jcc("b", small);
             a.movqToXmm("xmm0", "rax");
+            a.mov("r10", 0);
+            a.movqToXmm("xmm5", "r10"); // low part of the reduced angle
             a.mov("r11", bits(Math.PI / 4));
             a.cmp("rax", "r11");
             a.mov("rax", 0);
             a.jcc("be", reduced);
             a.call("rt.trigReduce");
+            a.movsd("xmm5", "xmm1");
             a.label(reduced);
             a.store({ base: "rsp", disp: 48 }, "rax");
             a.movsd("xmm2", "xmm0");
@@ -376,6 +379,13 @@ export function emitSoftwareMath(b: RuntimeBuilder): void {
             a.mulsd("xmm4", "xmm2");
             constant(a, "xmm1", 1);
             a.addsd("xmm4", "xmm1");
+            // sin(r + lo) = sin r + lo cos r, cos(r + lo) = cos r - lo sin r
+            a.movsd("xmm2", "xmm5");
+            a.mulsd("xmm2", "xmm3");
+            a.movsd("xmm1", "xmm5");
+            a.mulsd("xmm1", "xmm4");
+            a.addsd("xmm3", "xmm1");
+            a.subsd("xmm4", "xmm2");
             if (name === "tan") {
                 a.movsd("xmm0", "xmm3");
                 a.divsd("xmm0", "xmm4");
