@@ -129,6 +129,56 @@ const maps = []; for (let i = 0; i < 60; i++) { const m = {}; m['key' + (i % 30)
 console.log(maps.reduce((s, m) => s + m.common + m['key' + (m.common % 30)], 0));
 const dict = {}; for (let i = 0; i < 200; i++) dict['w' + i] = i; delete dict.w5; console.log(Object.keys(dict).length, dict.w199);`,
     ],
+    [
+        // rt.icSet's transition hit (#403): one assignment site that adds a
+        // key, run again after each change that must make it miss.
+        "a site that adds a key after the transition is cached",
+        `
+function make(o, v) { o.a = 1; o.b = v; return o; }
+for (let i = 0; i < 3; i++) make({}, i);
+const frozen = Object.preventExtensions({ a: 0 });
+try { make(frozen, 2); } catch (e) { console.log(e.constructor.name); }
+console.log(Object.keys(frozen).join(), frozen.b);
+const sealed = { a: 0 }; Object.seal(sealed);
+try { make(sealed, 3); } catch (e) { console.log(e.constructor.name); }
+console.log(Object.keys(sealed).join(), sealed.b);
+function P() {} P.prototype.x = 0;
+function add(o, v) { o.y = v; return o; }
+for (let i = 0; i < 3; i++) add(new P(), i);
+Object.defineProperty(P.prototype, 'y', { set(v) { console.log('setter', v); }, configurable: true });
+const p = add(new P(), 4); console.log(Object.keys(p).join(), p.hasOwnProperty('y'));
+delete P.prototype.y; console.log(Object.keys(add(new P(), 5)).join());
+function Q() {} Q.prototype.x = 0;
+Object.defineProperty(Q.prototype, 'y', { get() { return 'q'; }, configurable: true });
+const q = new Q(); add(q, 6); console.log(q.y, q.hasOwnProperty('y'));
+const proto = {}; add(proto, 7); const child = Object.create(proto);
+console.log(child.y); const proto2 = {}; Object.create(proto2).y; add(proto2, 8);
+const c2 = Object.create(proto2); console.log(c2.y, proto2.y);
+const wide = {}; for (let i = 0; i < 40; i++) { const o = {}; for (let j = 0; j <= i; j++) o['k' + j] = j; if (i === 39) Object.assign(wide, o); }
+console.log(Object.keys(wide).length, wide.k39);
+const list = []; for (let i = 0; i < 50; i++) list.push(make({}, i));
+console.log(list.reduce((s, o) => s + o.a + o.b, 0), JSON.stringify(list[7]));`,
+    ],
+    [
+        // rt.icGet's out-of-line hit (#403): sites that read fields past the
+        // inline slots of objects with many fields, as values change, the
+        // list grows and a delete leaves the shapes.
+        "reads of fields stored out of line",
+        `
+function Wide(n) { for (let i = 0; i < n; i++) this['f' + i] = i; this.last = 'end'; }
+function read(o) { return o.f0 + o.f9 + o.f20 + o.f39 + ':' + o.last + ':' + o.missing; }
+const objects = [new Wide(40), new Wide(40), new Wide(48)];
+let out = [];
+for (let round = 0; round < 3; round++)
+  for (const o of objects) { out.push(read(o)); o.f39 += 100; o.f20 = 'x' + round; }
+const grown = objects[0]; for (let i = 40; i < 120; i++) grown['g' + i] = i;
+out.push(read(grown), grown.g119, read(objects[1]));
+delete objects[1].f9; out.push(read(objects[1]), read(objects[2]));
+const literal = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10, k: 11, l: 12, m: 13, n: 14, o: 15, p: 16, q: 17, r: 18 };
+function sum(o) { return o.a + o.h + o.q + o.r; }
+for (let i = 0; i < 3; i++) { out.push(sum(literal)); literal.r *= 2; }
+console.log(out.join(' '));`,
+    ],
 ];
 for (const [name, source] of cases)
     test(`shapes: ${name}`, () => expectProgram(source));
