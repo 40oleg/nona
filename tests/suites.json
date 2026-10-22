@@ -101,6 +101,7 @@
             "files": [
                 "date",
                 "assert-deep-equal",
+                "assert-throws",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
