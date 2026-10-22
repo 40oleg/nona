@@ -583,6 +583,17 @@ function deepEqual(a, b, seen) {
         }
         return true;
     }
+    if (types.isAnyArrayBuffer(a)) {
+        if (
+            !types.isAnyArrayBuffer(b) ||
+            types.isSharedArrayBuffer(a) !== types.isSharedArrayBuffer(b) ||
+            a.byteLength !== b.byteLength
+        )
+            return false;
+        const ua = new Uint8Array(a),
+            ub = new Uint8Array(b);
+        for (let i = 0; i < ua.length; i++) if (ua[i] !== ub[i]) return false;
+    }
     if (ArrayBuffer.isView(a)) {
         if (a.length !== b.length || a.byteLength !== b.byteLength)
             return false;
