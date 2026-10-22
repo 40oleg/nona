@@ -50,6 +50,7 @@ export const typedArrayRoots = [
     "rt.typedArrayDefaultConstructor.fn",
     "rt.typedArrayIsTypedArray.fn",
     "rt.typedArrayIsConstructor.fn",
+    "rt.typedArrayIsProxy.fn",
     "rt.typedArrayRawLength.fn",
     "rt.typedArrayRawByteOffset.fn",
     "rt.typedArrayBuffer.fn",
@@ -82,6 +83,7 @@ export const typedArrayPropertyRoots = [
     "rt.TypedArray.__nonaDefaultConstructorInternal",
     "rt.TypedArray.__nonaIsTypedArrayInternal",
     "rt.TypedArray.__nonaIsConstructorInternal",
+    "rt.TypedArray.__nonaIsProxyInternal",
     "rt.TypedArray.__nonaRawLengthInternal",
     "rt.TypedArray.__nonaRawByteOffsetInternal",
     "rt.typedArrayPrototype.constructor",
@@ -340,6 +342,31 @@ export function emitTypedArray(b: RuntimeBuilder): void {
         1,
         "rt.TypedArray",
     );
+    prependFunctionBuiltin(
+        b,
+        "rt.typedArrayIsProxy.fn",
+        "__nonaIsProxyInternal",
+        1,
+        "rt.TypedArray",
+    );
+    b.fn("rt.typedArrayIsProxy.fn.code", 40, (a) => {
+        const done = a.unique("done");
+        a.mov("rax", 0);
+        a.test("rdx", "rdx");
+        a.jcc("e", done);
+        a.load("r10", { base: "r8" });
+        a.cmp("r10", 5);
+        a.jcc("ne", done);
+        a.load("r10", { base: "r8", disp: 8 });
+        a.load("r11", { base: "r10", disp: O.kind });
+        a.cmp("r11", ProxyKind);
+        a.jcc("ne", done);
+        a.mov("rax", 1);
+        a.label(done);
+        a.mov("r10", 2);
+        a.store({ base: "rcx" }, "r10");
+        a.store({ base: "rcx", disp: 8 }, "rax");
+    });
     b.fn("rt.typedArrayIsConstructor.fn.code", 40, (a) => {
         const done = a.unique("done");
         a.mov("rax", 0);
