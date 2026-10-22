@@ -92,7 +92,10 @@ function looseEqual(a, b, seen) {
     seen.push([a, b]);
     try {
         if (types.isDate(a)) {
-            if (!types.isDate(b) || a.getTime() !== b.getTime()) return false;
+            if (!types.isDate(b)) return false;
+            const x = a.getTime(),
+                y = b.getTime();
+            if (x !== y && !(x !== x && y !== y)) return false;
         } else if (types.isRegExp(a)) {
             if (
                 !types.isRegExp(b) ||
