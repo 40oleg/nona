@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`assert.deepEqual` and `assert.notDeepEqual` compare Maps, Sets, Dates, RegExps, boxed primitives, typed arrays, ArrayBuffers and Errors.** The loose comparison only looked at own enumerable keys, so any two Maps, Sets, Dates or RegExps were equal. It now follows Node.js's loose comparison: Set elements and Map entries are matched loosely (`new Map([[1, "1"]])` equals `new Map([[1, 1]])`), Dates compare their time, RegExps their source, flags and `lastIndex`, and circular structures terminate. ([#456](https://github.com/40oleg/nona/issues/456))
+
 ## v0.23.0 — 2026-10-22
 
 ### Performance report

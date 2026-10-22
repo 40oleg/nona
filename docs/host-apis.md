@@ -394,7 +394,7 @@ startup. Each is available as `node:<name>` and `<name>`.
   `strictEqual`, `notStrictEqual`, `deepEqual`, `deepStrictEqual` and their
   negations, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`,
   `doesNotMatch`, `ifError`, `fail` and `AssertionError` (`code`
-  `ERR_ASSERTION`). Failure messages are shorter than Node.js's diffs.
+  `ERR_ASSERTION`). `deepEqual` follows Node.js's loose comparison, including Maps, Sets, Dates, RegExps, boxed primitives, typed arrays and Errors. Failure messages are shorter than Node.js's diffs.
 - `node:crypto`: `randomBytes`, `randomFill`/`randomFillSync`, `randomUUID`
   (version 4), `randomInt`, `getRandomValues` and `webcrypto.getRandomValues`
   read the operating system's random source (`BCryptGenRandom` on Windows,
