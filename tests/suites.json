@@ -106,6 +106,7 @@
                 "typed-array-inline",
                 "typed-array-bce",
                 "typedarray-change-by-copy",
+                "typedarray-sort-large",
                 "float16",
                 "string-builtins",
                 "string-index-inline",

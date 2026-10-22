@@ -488,7 +488,51 @@ Object.defineProperty(DataView.prototype, "setBigUint64", {
     configurable: true,
 });
 __nonaRegexpVm.typedArrayValues = Uint8Array.prototype.values;
-__nonaRegexpVm.typedArraySort = Array.prototype.sort;
+// Stable bottom-up merge sort; Array.prototype.sort is a quadratic insertion
+// sort here until array-sort.js replaces it. Called as
+// safeCall(typedArraySort, values, compare): this is the list.
+__nonaRegexpVm.typedArraySort = function typedArraySort(compare) {
+    var values = this,
+        count = values.length,
+        source = values;
+    if (count <= 22) {
+        // Short lists: insertion sort, as V8 does, so an inconsistent
+        // comparator gives the same order as in Node.js.
+        for (var a = 1; a < count; a++) {
+            var item = values[a],
+                b = a - 1;
+            while (b >= 0 && compare(values[b], item) > 0) {
+                values[b + 1] = values[b];
+                b--;
+            }
+            values[b + 1] = item;
+        }
+        return values;
+    }
+    var target = Object.create(null);
+    for (var width = 1; width < count; width *= 2) {
+        for (var low = 0; low < count; low += 2 * width) {
+            var middle = low + width < count ? low + width : count,
+                high = low + 2 * width < count ? low + 2 * width : count,
+                i = low,
+                j = middle,
+                out = low;
+            while (i < middle && j < high) {
+                if (compare(source[j], source[i]) < 0)
+                    target[out++] = source[j++];
+                else target[out++] = source[i++];
+            }
+            while (i < middle) target[out++] = source[i++];
+            while (j < high) target[out++] = source[j++];
+        }
+        var swap = source;
+        source = target;
+        target = swap;
+    }
+    if (source !== values)
+        for (var k = 0; k < count; k++) values[k] = source[k];
+    return values;
+};
 __nonaRegexpVm.bigintToString = BigInt.prototype.toString;
 __nonaRegexpVm.typedArrayLocaleString = String;
 Object.defineProperty(BigInt.prototype, "toLocaleString", {

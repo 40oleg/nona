@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **`TypedArray.prototype.sort` and `toSorted` are O(n log n).** They used the quadratic native insertion sort (100,000 elements took about 100 s); they now use a stable merge sort in the runtime prelude, with the same -0/+0 and NaN order. ([#453](https://github.com/40oleg/nona/issues/453))
+
 ## v0.23.0 — 2026-10-22
 
 ### Performance report
