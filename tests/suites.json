@@ -253,6 +253,7 @@
                 "has-cache",
                 "http",
                 "http-json-bytes",
+                "http-responses",
                 "immediate-source",
                 "inlining",
                 "ir-constants",

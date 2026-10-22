@@ -10,6 +10,14 @@ export function statSync(path, options) {
 export function realpathSync(path) {
     return path;
 }
-// Used only for NONA_ELF_MAP, which is never set in the browser.
+// Used only for NONA_ELF_MAP and NONA_FN_NAMES, which are never set in the
+// browser.
 export function writeFileSync() {}
-export default { readFileSync, writeFileSync, statSync, realpathSync };
+export function appendFileSync() {}
+export default {
+    readFileSync,
+    writeFileSync,
+    appendFileSync,
+    statSync,
+    realpathSync,
+};

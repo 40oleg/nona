@@ -51,6 +51,7 @@ import { mergeAgentPrograms, agentSymbol } from "../agents.js";
 import { stringLiteral } from "../../runtime/value.js";
 import { emitFfi } from "../../runtime/ffi.js";
 import { emitFunction as emitFunctionCode } from "./operations.js";
+import { recordName } from "./function-names.js";
 import { linkedPreludes, lowerRuntimePrelude } from "./preludes.js";
 import {
     baseImages,
@@ -478,6 +479,7 @@ function generateImage(
         });
     }
     function emitFunction(fn: FunctionIR): void {
+        recordName(fn);
         emitFunctionCode(
             {
                 fragments,
@@ -774,6 +776,9 @@ function generateImage(
         hostGlobal("__nonaNetWrite", "rt.netWrite.code", 4);
         hostGlobal("__nonaNetCopy", "rt.netCopy.code", 5);
         hostGlobal("__nonaNetCheck", "rt.netCheck.code", 2);
+        hostGlobal("__nonaNetSlice", "rt.netSlice.code", 4);
+        hostGlobal("__nonaNetHeadLines", "rt.netHeadLines.code", 2);
+        hostGlobal("__nonaNetLowerNames", "rt.netLowerNames.code", 2);
         // JSON.stringify into UTF-8 bytes (#155), for node:http and nona:json.
         hostGlobal("__nonaJsonStringifyBytes", "rt.jsonStringifyBytes.code", 3);
     }

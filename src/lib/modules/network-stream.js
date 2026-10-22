@@ -11,6 +11,12 @@ function runTasks() {
     tasks = [];
     for (let i = 0; i < list.length; i += 2) list[i][list[i + 1]]();
 }
+/**
+ * The event loop's time (performance.now() after the last wait, like
+ * libuv's uv_now), written by nona:net; nona:http reads it instead of
+ * calling the clock per request.
+ */
+export const clock = { now: 0 };
 export function defer(target, method) {
     tasks.push(target, method);
     if (!tasksScheduled) {

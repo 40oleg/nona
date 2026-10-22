@@ -408,6 +408,10 @@ export interface BlockIR {
 export interface FunctionIR {
     id: string;
     name: string;
+    /** Where the function starts: its module's path ("" for the program) and source offset, for profiling tools (NONA_FN_NAMES). */ origin?: {
+        script: string;
+        start: number;
+    };
     /** Where the function is in its script (coverage): script index into ModuleIR.scripts, V8 function name, UTF-16 offsets. */ source?: {
         script: number;
         name: string;

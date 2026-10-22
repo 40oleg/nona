@@ -43,6 +43,23 @@ server has a `clientError` listener; parse errors carry the llhttp codes
 
 `https:` requests are made with [`node:https`](#nodehttps), which runs this client over TLS.
 
+Performance: the server parses request heads, copies bodies, folds header
+names and writes responses with native helpers (`src/runtime/http-native.ts`);
+a request creates its `IncomingMessage` and `ServerResponse` as base-class
+objects (no `super()` chain), the `Date` header and keep-alive deadlines use
+the event loop's time, and the response head of the common case is composed
+from cached lines and sent with the body in one `write`. Measured against
+Node.js 22 with `bench/http/run.sh` (the method and the tables are in
+[`PERFORMANCE.md`](../PERFORMANCE.md#http-server)): a keep-alive hello or
+JSON response costs about a third of the instructions it did before #403
+(32k per request) and runs at about twice Node's throughput under `wrk` with
+32 or more connections, a new connection per request at about twice, a
+64 KiB response at three times; a request with ten headers read and five set
+and a 16 KiB upload are 1.2–1.4 times faster. With a single connection every
+request is a round trip between client and server CPUs and both runtimes
+cost about the same. `bench/http/profile.sh CASE` counts a case's
+instructions per request under QEMU.
+
 Not supported: HTTP/2, `headersTimeout` and
 `requestTimeout` (the values exist but are not enforced), `insecureHTTPParser`,
 `maxHeadersCount`, Unix domain sockets (`socketPath`).

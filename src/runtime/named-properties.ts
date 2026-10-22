@@ -44,8 +44,13 @@ import type { Assembler } from "../backend/machine/context.js";
  * plain assignment when no object on the chain has the key as an accessor or
  * as a readonly property, which is exactly when OrdinarySet creates one.
  */
-/** Named reads that pass this many other own properties index the object. */
-export const ownIndexThreshold = 16;
+/**
+ * Named reads that pass this many other own properties index the object.
+ * Eight: the chain check of every property creation scans Object.prototype
+ * (twelve properties) for the key, and a request's headers object is built
+ * from a dozen computed keys.
+ */
+export const ownIndexThreshold = 8;
 
 export function emitNamedProperties(b: RuntimeBuilder): void {
     // RCX object header -> RAX a cleared property node for it, not yet linked.
