@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect` marks circular targets with `<ref *N>`.** Each object that a `[Circular *N]` points to now gets the matching `<ref *N>` prefix, and the indexes are numbered in Node.js's order instead of always being `*1`. ([#474](https://github.com/40oleg/nona/issues/474))
+
 ## v0.24.0 — 2026-10-22
 
 ### Fixes
