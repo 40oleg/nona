@@ -10,6 +10,10 @@
 
 - **`TypedArray.prototype.sort` and `toSorted` are O(n log n).** They used the quadratic native insertion sort (100,000 elements took about 100 s); they now use a stable merge sort in the runtime prelude, with the same -0/+0 and NaN order. ([#453](https://github.com/40oleg/nona/issues/453))
 
+### Fixes
+
+- **A hashbang line (`#!`) is accepted at the start of a script or an ES module.** The lexer treats `#!` up to the first line terminator as a comment (ES2023 Hashbang Grammar) only at offset 0 of the source text; `#` elsewhere is still rejected with `E_LEX`, and later diagnostics keep their positions. ([#455](https://github.com/40oleg/nona/issues/455))
+
 ## v0.23.0 — 2026-10-22
 
 ### Performance report

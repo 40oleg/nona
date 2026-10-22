@@ -281,6 +281,11 @@ export function lex(
     };
     while (i < source.length) {
         const c = source[i]!;
+        // ES2023 hashbang comment: only at the very start of the source text.
+        if (i === 0 && source.startsWith("#!")) {
+            while (i < source.length && !newline(source[i]!)) i++;
+            continue;
+        }
         if (/\s/.test(c)) {
             if (newline(c)) lineBreak = true;
             i++;
