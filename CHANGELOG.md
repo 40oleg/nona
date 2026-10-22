@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Performance
+
+- **`TypedArray.prototype.sort` and `toSorted` are O(n log n).** They used the quadratic native insertion sort (100,000 elements took about 100 s); they now use a stable merge sort in the runtime prelude, with the same -0/+0 and NaN order. ([#453](https://github.com/40oleg/nona/issues/453))
+
 ### Fixes
 
 - **`assert.deepEqual` and `assert.notDeepEqual` compare Maps, Sets, Dates, RegExps, boxed primitives, typed arrays, ArrayBuffers and Errors.** The loose comparison only looked at own enumerable keys, so any two Maps, Sets, Dates or RegExps were equal. It now follows Node.js's loose comparison: Set elements and Map entries are matched loosely (`new Map([[1, "1"]])` equals `new Map([[1, 1]])`), Dates compare their time, RegExps their source, flags and `lastIndex`, and circular structures terminate. ([#456](https://github.com/40oleg/nona/issues/456))
