@@ -624,6 +624,7 @@ export class OutgoingMessage {
                 key,
                 special: special === undefined ? 0 : special,
                 checked: undefined,
+                bit: fieldKeyBit(key),
             };
             if (fieldNameCount < 512) {
                 fieldNames[name] = info;
@@ -644,10 +645,19 @@ export class OutgoingMessage {
             }
         } else validateHeaderValue(name, value);
         const key = info.key,
-            fields = this._fields;
+            fields = this._fields,
+            bit = info.bit;
         if (info.special !== 0) this._special |= info.special;
         if (fields === null) {
             this._fields = [key, name, value];
+            this._keys = bit;
+            return this;
+        }
+        // _keys has the bit of every key in _fields (removeHeader leaves
+        // it): a clear bit means the key is not there.
+        if (bit !== 0 && (this._keys & bit) === 0) {
+            this._keys |= bit;
+            fields.push(key, name, value);
             return this;
         }
         let index = -1;
@@ -1274,6 +1284,7 @@ defaults(OutgoingMessage.prototype, {
     _chunks: null,
     _chunkLength: 0,
     _fields: null,
+    _keys: 0,
     _connection: null,
     _header: null,
     _headerSent: false,
@@ -1325,6 +1336,16 @@ const SPECIAL_ARRAY = 256,
 // object as before, as literals are, hits the key hash cache.)
 const fieldNames = { __proto__: null };
 let fieldNameCount = 0;
+// One bit per lower-case key for the first 30 keys (OutgoingMessage._keys),
+// 0 for the others.
+const fieldKeyBits = { __proto__: null };
+let fieldKeyCount = 0;
+function fieldKeyBit(key) {
+    const bit = fieldKeyBits[key];
+    if (bit !== undefined) return bit;
+    if (fieldKeyCount >= 30) return 0;
+    return (fieldKeyBits[key] = 1 << fieldKeyCount++);
+}
 const specialFields = new Map([
     ["connection", 1],
     ["transfer-encoding", 2],

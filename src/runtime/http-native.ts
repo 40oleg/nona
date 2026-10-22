@@ -340,14 +340,43 @@ export function emitHttpNative(b: RuntimeBuilder): void {
         a.store(slot(72), "rcx");
         {
             const loop = a.unique("name"),
+                bytewise = a.unique("nameByte"),
                 end = a.unique("nameEnd");
+            // Eight bytes per step while they are in the input (no bounds
+            // check per byte), then byte by byte.
             a.label(loop);
+            a.lea("rax", { base: "rcx", disp: 8 });
+            a.cmp("rax", "r11");
+            a.jcc("g", bytewise);
+            a.mov("r8", "r10");
+            a.add("r8", "rcx");
+            a.lea("rdx", { rip: "rt.net.tchar" });
+            const colons: string[] = [];
+            for (let k = 0; k < 8; k++) {
+                const colon = a.unique("colon");
+                colons.push(colon);
+                a.load("rax", { base: "r8", disp: k }, 8);
+                a.cmp("rax", 58);
+                a.jcc("e", colon);
+                a.add("rax", "rdx");
+                a.load("rax", { base: "rax" }, 8);
+                a.test("rax", "rax");
+                a.jcc("e", badHeader);
+            }
+            a.add("rcx", 8);
+            a.jmp(loop);
+            colons.forEach((colon, k) => {
+                a.label(colon);
+                if (k) a.add("rcx", k);
+                a.jmp(end);
+            });
+            a.label(bytewise);
             peek();
             a.cmp("rax", 58);
             a.jcc("e", end);
             isToken("rax", badHeader);
             a.add("rcx", 1);
-            a.jmp(loop);
+            a.jmp(bytewise);
             a.label(end);
             a.load("rax", slot(72));
             a.cmp("rax", "rcx");
@@ -385,7 +414,8 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             // be invalid: with b & 0x7f in every byte, none is below 0x20
             // (the lowest flagged byte is exact, borrows only flag bytes above
             // it) and none is 0x7f. Bytes 0x80-0x9f and 0xff are flagged too
-            // and take the byte step.
+            // and take the byte step, which starts at the lowest flagged byte.
+            const flagged = a.unique("flagged");
             a.store(slot(120), "r8");
             a.label(loop);
             a.lea("rax", { base: "rcx", disp: 8 });
@@ -404,9 +434,13 @@ export function emitHttpNative(b: RuntimeBuilder): void {
             a.or("rax", "rdx");
             a.mov("r8", 0x8080808080808080n);
             a.and("rax", "r8");
-            a.jcc("ne", step);
+            a.jcc("ne", flagged);
             a.add("rcx", 8);
             a.jmp(loop);
+            a.label(flagged);
+            a.bitScanForward("rax", "rax");
+            a.shr("rax", 3);
+            a.add("rcx", "rax");
             a.label(step);
             peek();
             a.cmp("rax", 13);

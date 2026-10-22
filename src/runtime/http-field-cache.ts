@@ -8,14 +8,14 @@ import type { Assembler, Reg } from "../backend/machine/context.js";
  *
  * A client sends the same field names, and mostly the same values, on every
  * request: making two new strings per field cost more than parsing it. The
- * field cache is a direct-mapped table of the last field seen per name
- * (exact case), entry = {hash, name length, value length, the interned
+ * field cache is a two-way set-associative table of the last field seen per
+ * name (exact case), entry = {hash, name length, value length, the interned
  * lower-case name's index and hash (__nonaNetLowerNames fills them), the
  * name's bytes, the value's bytes}; the strings themselves are elements 2e
  * and 2e + 1 of an array the module keeps forever (`keep`), so they stay
  * alive while the entry names them. A field whose bytes equal the entry's
  * reuses its strings (strings are immutable); otherwise the new string
- * replaces the entry's. Names above 64 bytes and values above 160 bytes are
+ * replaces the entry's. Names above 64 bytes and values above 152 bytes are
  * not cached.
  *
  * The memo: per field position i of the last head (up to 128), the name
@@ -35,13 +35,16 @@ export const FieldCache = {
     name: 32,
     nameBytes: 64,
     value: 96,
-    valueBytes: 160,
+    valueBytes: 152,
+    /** When the entry was last used (a counter after the memo): a set replaces its older entry. */
+    stamp: 248,
     /** The memo after the entries: 128 records {name string, entry}. */
     memo: 128 * 256,
     memoRecords: 128,
 } as const;
 const F = FieldCache;
-const tableBytes = F.memo + 16 * F.memoRecords;
+const counter = F.memo + 16 * F.memoRecords,
+    tableBytes = counter + 8;
 const hashFactor = 0x100000001b3n;
 
 /** Jumps to `differ` unless the LEN bytes at SRC equal those at [BASE + disp]. Clobbers RAX, RCX, RDX. */
@@ -195,8 +198,6 @@ export function emitHttpFieldCache(b: RuntimeBuilder): void {
         const plain = a.unique("plain"),
             miss = a.unique("miss"),
             done = a.unique("done"),
-            words = a.unique("words"),
-            tail = a.unique("tail"),
             hashed = a.unique("hashed"),
             fresh = a.unique("fresh"),
             memo = a.unique("memo");
@@ -212,52 +213,118 @@ export function emitHttpFieldCache(b: RuntimeBuilder): void {
         a.jcc("e", plain);
         a.cmp("r11", F.nameBytes);
         a.jcc("a", plain);
-        // The hash of the bytes, eight at a time.
-        a.mov("rcx", 0);
-        a.mov("r8", 0);
-        a.label(words);
-        a.lea("rax", { base: "rcx", disp: 8 });
-        a.cmp("rax", "r11");
-        a.jcc("a", tail);
-        a.mov("rax", "r10");
-        a.add("rax", "rcx");
-        a.load("rax", { base: "rax" });
-        a.add("r8", "rax");
-        a.mov("r9", hashFactor);
-        a.imul("r8", "r9");
-        a.add("rcx", 8);
-        a.jmp(words);
-        a.label(tail);
-        a.cmp("rcx", "r11");
-        a.jcc("ae", hashed);
-        a.mov("rax", "r10");
-        a.add("rax", "rcx");
-        a.load("rax", { base: "rax" }, 8);
-        a.add("r8", "rax");
-        a.mov("r9", hashFactor);
-        a.imul("r8", "r9");
-        a.add("rcx", 1);
-        a.jmp(tail);
+        // The hash of the bytes: eight at a time and the last eight
+        // (overlapping), or a name of three to seven bytes in one load (a
+        // complete head has ":", a CRLF and the final CRLF after any name).
+        {
+            const words = a.unique("words"),
+                last = a.unique("last"),
+                short = a.unique("short"),
+                tiny = a.unique("tiny"),
+                mix = a.unique("mix");
+            a.mov("r8", 0);
+            a.cmp("r11", 8);
+            a.jcc("b", short);
+            a.mov("rcx", 0);
+            a.label(words);
+            a.lea("rax", { base: "rcx", disp: 8 });
+            a.cmp("rax", "r11");
+            a.jcc("a", last);
+            a.mov("rax", "r10");
+            a.add("rax", "rcx");
+            a.load("rax", { base: "rax" });
+            a.add("r8", "rax");
+            a.mov("r9", hashFactor);
+            a.imul("r8", "r9");
+            a.add("rcx", 8);
+            a.jmp(words);
+            a.label(last);
+            a.cmp("rcx", "r11");
+            a.jcc("e", hashed);
+            a.mov("rax", "r10");
+            a.add("rax", "r11");
+            a.load("rax", { base: "rax", disp: -8 });
+            a.jmp(mix);
+            a.label(short);
+            a.cmp("r11", 3);
+            a.jcc("b", tiny);
+            a.load("rax", { base: "r10" });
+            a.mov("rcx", 8);
+            a.sub("rcx", "r11");
+            a.shl("rcx", 3);
+            a.shl("rax", "cl");
+            a.jmp(mix);
+            a.label(tiny);
+            a.load("rax", { base: "r10" }, 8);
+            a.cmp("r11", 1);
+            a.jcc("e", mix);
+            a.mov("rcx", "rax");
+            a.load("rax", { base: "r10", disp: 1 }, 8);
+            a.shl("rax", 8);
+            a.or("rax", "rcx");
+            a.label(mix);
+            a.add("r8", "rax");
+            a.mov("r9", hashFactor);
+            a.imul("r8", "r9");
+        }
         a.label(hashed);
         a.mov("rdx", "r8");
         a.shr("rdx", 29);
         a.xor("rdx", "r8");
         a.or("rdx", 1);
         a.store(slot(80), "rdx");
-        // R9 = the entry.
+        // R9 = the set's first entry; then each of its two entries.
         a.mov("r9", "rdx");
         a.shr("r9", 7);
-        a.and("r9", F.entries - 1);
-        a.shl("r9", 8);
+        a.and("r9", F.entries / 2 - 1);
+        a.shl("r9", 9);
         a.load("rax", { rip: "rt.netFieldTable" });
         a.add("r9", "rax");
         a.store(slot(72), "r9");
-        a.cmpMemory("rdx", { base: "r9", disp: F.hash });
-        a.jcc("ne", miss);
-        a.load("rax", { base: "r9", disp: F.nameLength }, 32);
-        a.cmp("rax", "r11");
-        a.jcc("ne", miss);
-        sameBytes(a, "r10", "r11", "r9", F.name, miss);
+        {
+            const second = a.unique("second"),
+                hit = a.unique("hit"),
+                older = a.unique("older"),
+                chosen = a.unique("chosen");
+            // RAX = the next stamp, stored into the entry at R9.
+            const touch = () => {
+                a.load("rcx", { rip: "rt.netFieldTable" });
+                a.load("rax", { base: "rcx", disp: counter });
+                a.add("rax", 1);
+                a.store({ base: "rcx", disp: counter }, "rax");
+                a.store({ base: "r9", disp: F.stamp }, "rax");
+            };
+            for (const way of [0, 1]) {
+                const differ = way === 0 ? second : older;
+                if (way === 1) {
+                    a.label(second);
+                    a.load("r9", slot(72));
+                    a.add("r9", F.entryBytes);
+                    a.load("rdx", slot(80));
+                }
+                a.cmpMemory("rdx", { base: "r9", disp: F.hash });
+                a.jcc("ne", differ);
+                a.load("rax", { base: "r9", disp: F.nameLength }, 32);
+                a.cmp("rax", "r11");
+                a.jcc("ne", differ);
+                sameBytes(a, "r10", "r11", "r9", F.name, differ);
+                a.store(slot(72), "r9");
+                a.jmp(hit);
+            }
+            // Not in the set: the entry used longer ago is replaced.
+            a.label(older);
+            a.load("r9", slot(72));
+            a.load("rax", { base: "r9", disp: F.stamp });
+            a.cmpMemory("rax", { base: "r9", disp: F.entryBytes + F.stamp });
+            a.jcc("be", chosen);
+            a.add("r9", F.entryBytes);
+            a.store(slot(72), "r9");
+            a.label(chosen);
+            touch();
+            a.jmp(miss);
+            a.label(hit);
+            touch();
+        }
         // Element 2e of keep: the string (anything else is a miss).
         a.load("rax", slot(72));
         a.load("rcx", { rip: "rt.netFieldTable" });
