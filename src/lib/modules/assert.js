@@ -404,6 +404,16 @@ Object.assign(assert, {
     fail: fail_,
     AssertionError,
 });
-assert.strict = assert;
-export const strict = assert;
+function strict(value, message) {
+    ok.apply(undefined, arguments);
+}
+Object.assign(strict, assert, {
+    equal: strictEqual,
+    notEqual: notStrictEqual,
+    deepEqual: deepStrictEqual,
+    notDeepEqual: notDeepStrictEqual,
+});
+strict.strict = strict;
+assert.strict = strict;
+export { strict };
 export default assert;
