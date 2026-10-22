@@ -75,6 +75,23 @@ eq('error name', new Error('a'), new TypeError('a'));
 eq('error vs object', new Error('a'), { message: 'a', name: 'Error' });
 `));
 
+test("deepStrictEqual and isDeepStrictEqual compare ArrayBuffer contents", () =>
+    expectOracle(`${prelude}
+import util from 'node:util';
+function buf(C, bytes) { const b = new C(bytes.length); new Uint8Array(b).set(bytes); return b; }
+function strict(name, a, b) {
+    check(name + ' deepStrictEqual', () => assert.deepStrictEqual(a, b));
+    console.log(name, util.isDeepStrictEqual(a, b));
+}
+strict('equal', buf(ArrayBuffer, [1, 2]), buf(ArrayBuffer, [1, 2]));
+strict('length', new ArrayBuffer(2), new ArrayBuffer(3));
+strict('bytes', buf(ArrayBuffer, [1, 2]), buf(ArrayBuffer, [1, 3]));
+strict('shared equal', buf(SharedArrayBuffer, [1, 2]), buf(SharedArrayBuffer, [1, 2]));
+strict('shared bytes', buf(SharedArrayBuffer, [1, 2]), buf(SharedArrayBuffer, [1, 3]));
+strict('shared length', new SharedArrayBuffer(1), new SharedArrayBuffer(4));
+strict('shared vs plain', buf(ArrayBuffer, [1, 2]), buf(SharedArrayBuffer, [1, 2]));
+`));
+
 test("assert.deepEqual keeps ordinary object semantics and handles cycles", () =>
     expectOracle(`${prelude}
 eq('primitives', 1, '1');
@@ -97,4 +114,27 @@ eq('cycle differ', a, c);
 const m1 = new Map(); m1.set('m', m1);
 const m2 = new Map(); m2.set('m', m2);
 eq('map cycle', m1, m2);
+`));
+
+test("assert.deepStrictEqual matches Map keys deeply", () =>
+    expectOracle(`${prelude}
+import { isDeepStrictEqual } from 'node:util';
+function seq(name, a, b) {
+    check(name + ' deepStrictEqual', () => assert.deepStrictEqual(a, b));
+    check(name + ' notDeepStrictEqual', () => assert.notDeepStrictEqual(a, b));
+    console.log(name, isDeepStrictEqual(a, b), isDeepStrictEqual(b, a));
+}
+seq('object keys', new Map([[{ k: 1 }, 'v']]), new Map([[{ k: 1 }, 'v']]));
+seq('array keys', new Map([[[1], 2]]), new Map([[[1], 2]]));
+seq('mixed', new Map([[1, 'a'], [{ x: 1 }, 'b'], ['s', [1]]]), new Map([['s', [1]], [{ x: 1 }, 'b'], [1, 'a']]));
+seq('key content differs', new Map([[{ k: 1 }, 'v']]), new Map([[{ k: 2 }, 'v']]));
+seq('value differs', new Map([[{ k: 1 }, 'v']]), new Map([[{ k: 1 }, 'w']]));
+seq('key types differ', new Map([[{ k: 1 }, 'v']]), new Map([[{ k: '1' }, 'v']]));
+seq('match once', new Map([[{ a: 1 }, 1], [{ a: 1 }, 1]]), new Map([[{ a: 1 }, 1], [{ a: 2 }, 1]]));
+seq('match once reversed', new Map([[{ a: 1 }, 1], [{ a: 2 }, 1]]), new Map([[{ a: 1 }, 1], [{ a: 1 }, 1]]));
+seq('same value different keys', new Map([[{ a: 1 }, 1], [{ a: 1 }, 2]]), new Map([[{ a: 1 }, 2], [{ a: 1 }, 1]]));
+seq('primitive vs object key', new Map([[1, 'v']]), new Map([[{}, 'v']]));
+const shared = { s: 1 };
+seq('identity key', new Map([[shared, 1], [{ s: 1 }, 2]]), new Map([[{ s: 1 }, 2], [shared, 1]]));
+seq('nested', new Map([[new Map([[{ a: 1 }, 1]]), 'm']]), new Map([[new Map([[{ a: 1 }, 1]]), 'm']]));
 `));

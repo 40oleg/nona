@@ -29,7 +29,7 @@ WRK=${WRK:-wrk}
 gcc -O2 -o /tmp/nona-http-load load.c
 node ../../dist/cli.js build server.mjs -o /tmp/nona-http-server --target linux-x64 --module
 echo "machine: $(uname -srm), $(nproc) CPUs, $(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //'), governor $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo n/a)"
-echo "node: $(node --version); nona: $(git -C ../.. rev-parse --short HEAD 2>/dev/null || echo ?); generator: $GEN; server on CPU $SERVER_CPU, client on CPU $CLIENT_CPU; $RUNS runs of $S s per cell"
+echo "node: $(node --version); nona: $(git -c safe.directory='*' -C ../.. rev-parse --short HEAD 2>/dev/null || echo ?); generator: $GEN; server on CPU $SERVER_CPU, client on CPU $CLIENT_CPU; $RUNS runs of $S s per cell"
 # case name -> path mode body headers
 declare -A CASE_PATH=([hello]=/ [json]=/json [headers]=/headers [close]=/ [upload16k]=/upload [big64k]=/big)
 declare -A CASE_MODE=([hello]=keep [json]=keep [headers]=keep [close]=close [upload16k]=keep [big64k]=keep)

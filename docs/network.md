@@ -49,15 +49,23 @@ a request creates its `IncomingMessage` and `ServerResponse` as base-class
 objects (no `super()` chain), the `Date` header and keep-alive deadlines use
 the event loop's time, and the response head of the common case is composed
 from cached lines and sent with the body in one `write`. Measured against
-Node.js 22 with `bench/http/run.sh` (the method and the tables are in
-[`PERFORMANCE.md`](../PERFORMANCE.md#http-server)): a keep-alive hello or
-JSON response costs about a third of the instructions it did before #403
-(32k per request) and runs at about twice Node's throughput under `wrk` with
-32 or more connections, a new connection per request at about twice, a
-64 KiB response at three times; a request with ten headers read and five set
-and a 16 KiB upload are 1.2–1.4 times faster. With a single connection every
-request is a round trip between client and server CPUs and both runtimes
-cost about the same. `bench/http/profile.sh CASE` counts a case's
+Node.js 22.23 with `bench/http/run.sh` (Linux x64 in WSL2 on a 16-CPU
+laptop-class machine, server and client pinned to different CPUs, five runs of
+3 s per cell; the method and every table are in
+[`PERFORMANCE.md`](../PERFORMANCE.md#http-server)): a keep-alive hello costs
+about 30k instructions per request (88k before #403) and runs at ×1.3–1.6 of
+Node's throughput with 32 or more connections (`wrk`: 63.6k against 46.5k
+requests/s at 32, 67.6k against 42.7k at 256), JSON ×1.3–1.6, ten request
+headers read and five set ×1.4–1.5, a new connection per request ×1.3–1.5, a
+64 KiB response ×1.5–1.7, and a 16 KiB upload ×0.9–1.2. No case reaches the
+×2 that #403 asks for on this machine; the kernel's `read`, `sendto` and
+`epoll_wait` and the loopback are a share of every request that both runtimes
+pay, and what remains in user space is spread over property reads and calls
+with no routine above 15%. With a single connection every request is a round
+trip between client and server CPUs and the two runtimes are within ×1.1–1.3.
+The server's RSS is 18–26 MB against Node's 68–140 MB. The p99 latency at
+saturation is 0.6–0.9 of Node's. Windows x64 has not been measured (no load
+generator is available there). `bench/http/profile.sh CASE` counts a case's
 instructions per request under QEMU.
 
 Not supported: HTTP/2, `headersTimeout` and
