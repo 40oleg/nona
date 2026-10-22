@@ -494,8 +494,8 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
     });
     // The hit paths of the two caches, called by every `object.name` site
     // (property access is everywhere, so the sites stay a call each): RCX..R9
-    // as for rt.getPropertyCached. A shaped receiver whose shape is the first
-    // entry's reads its inline slot; one without the key reads the data
+    // as for rt.getPropertyCached. A shaped receiver whose shape is an
+    // entry's reads its slot (inline or out of line); one without the key reads the data
     // property that the first prototype entry names at the current shape epoch
     // (a method of a class instance). Anything else is rt.getPropertyCached.
     // A stub without a frame: a hit touches no stack, and a miss jumps to
@@ -548,7 +548,7 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.ret();
         a.label(inherited);
         a.test("r11", "r11");
-        a.jcc("ns", miss);
+        a.jcc("ns", copy + ".outOfLine");
         a.load("rax", { base: "r9", disp: L.epoch });
         a.load("r11", { rip: "rt.shapeEpoch" });
         a.cmp("rax", "r11");
@@ -574,6 +574,17 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.cmp("rax", CellTag);
         a.jcc("e", miss);
         a.add("r11", P.value);
+        a.jmp(copy);
+        // An own slot past the shape's inline capacity (RAX the shape, R11
+        // the slot): the receiver's out-of-line value list holds it (#403:
+        // objects with many fields, such as a server, were a miss each read).
+        a.label(copy + ".outOfLine");
+        a.load("rax", { base: "rax", disp: ShapeLayout.capacity });
+        a.sub("r11", "rax");
+        a.shl("r11", 4);
+        a.load("rax", { base: "r10", disp: O.keys });
+        a.add("r11", "rax");
+        a.add("r11", ValueListLayout.values);
         a.jmp(copy);
         // Not shaped: a function object's own property remembered by the own entry.
         a.label(unshaped);
@@ -724,7 +735,8 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
         a.label(done);
     });
     // `object.name = value`: RCX..R10 as for rt.setPropertyCached. A shaped
-    // receiver whose shape is the record's takes the value in its inline slot.
+    // receiver whose shape is the record's takes the value in its slot (inline
+    // or out of line).
     b.raw("rt.icSet", (a) => {
         const S = SetCacheLayout,
             miss = a.unique("miss"),
@@ -748,14 +760,73 @@ export function emitPropertyCache(b: RuntimeBuilder): void {
                 { base: "r10", disp: S.offset + S.shapeEntry * i },
                 32,
             );
-            a.jmp(hit);
+            a.test("r11", "r11");
+            a.jcc("ne", hit);
+            a.load("r11", { base: "r10", disp: S.slot + S.shapeEntry * i }, 32);
+            a.jmp(hit + ".outOfLine");
             a.label(next);
         }
+        // A transition entry from the receiver's shape (an assignment that
+        // adds the key, as constructors do): rt.setPropertyCached's checks
+        // for a new inline slot, without its frame. The receiver must not be
+        // a cached prototype (whose change would bump the epoch); anything
+        // else (an out-of-line slot) is a miss. R9 is only written once the
+        // write is certain, as a miss passes it on.
+        for (let i = 0; i < S.transitionEntries; i++) {
+            const found = a.unique("transition");
+            a.cmpMemory("r11", {
+                base: "r10",
+                disp: S.from + S.transitionEntry * i,
+            });
+            a.jcc("ne", found + ".next");
+            a.load("r11", { rip: "rt.shapeEpoch" });
+            a.cmpMemory("r11", { base: "r10", disp: S.epoch });
+            a.jcc("ne", miss);
+            a.load("r11", { base: "rax", disp: O.prototype });
+            a.cmpMemory("r11", {
+                base: "r10",
+                disp: S.prototype + S.transitionEntry * i,
+            });
+            a.jcc("ne", miss);
+            a.load("r11", { base: "rax", disp: O.flags });
+            a.and(
+                "r11",
+                ObjectFlags.nonExtensible | ObjectFlags.cachedPrototype,
+            );
+            a.test("r11", "r11");
+            a.jcc("ne", miss);
+            a.load("rax", { base: "r10", disp: S.to + S.transitionEntry * i });
+            a.load("r11", { base: "rax", disp: ShapeLayout.count });
+            a.sub("r11", 1);
+            a.cmpMemory("r11", { base: "rax", disp: ShapeLayout.capacity });
+            a.jcc("ae", miss);
+            a.load("r9", { base: "rcx", disp: 8 });
+            a.store({ base: "r9", disp: O.shape }, "rax");
+            a.shl("r11", 4);
+            a.add("r11", "r9");
+            a.load("rax", { base: "r8" });
+            a.store({ base: "r11", disp: O.size }, "rax");
+            a.load("rax", { base: "r8", disp: 8 });
+            a.store({ base: "r11", disp: O.size + 8 }, "rax");
+            a.ret();
+            a.label(found + ".next");
+        }
         a.jmp(miss);
+        // An own slot past the shape's inline capacity (R11 the slot, RAX the
+        // receiver header): an element of its out-of-line value list. The
+        // write is certain, so R9 is free.
+        a.label(hit + ".outOfLine");
+        a.load("r9", { base: "rax", disp: O.shape });
+        a.load("r9", { base: "r9", disp: ShapeLayout.capacity });
+        a.sub("r11", "r9");
+        a.shl("r11", 4);
+        a.load("r9", { base: "rax", disp: O.keys });
+        a.add("r11", "r9");
+        a.add("r11", ValueListLayout.values);
+        a.jmp(hit + ".write");
         a.label(hit);
-        a.test("r11", "r11");
-        a.jcc("e", miss);
         a.add("r11", "rax");
+        a.label(hit + ".write");
         a.load("rax", { base: "r8" });
         a.store({ base: "r11" }, "rax");
         a.load("rax", { base: "r8", disp: 8 });

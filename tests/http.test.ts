@@ -211,6 +211,102 @@ server.listen(0, '127.0.0.1', () => {
         false,
     ));
 
+test("node:http: request bodies split across reads, pipelined after large bodies, chunked, paused, piped and kept after later requests", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+import { Buffer } from 'node:buffer';
+const pattern = (n, seed) => { const b = Buffer.alloc(n); for (let i = 0; i < n; i++) b[i] = (i * seed + (i >> 8)) & 255; return b; };
+const sum = (b) => { let s = 0; for (let i = 0; i < b.length; i++) s = (s * 31 + b[i]) >>> 0; return s; };
+// Chunks kept by the handlers: later reads must not change them.
+const kept = [];
+const server = http.createServer((req, res) => {
+  if (req.url === '/pipe') { req.pipe(res); return; }
+  if (req.url === '/check') {
+    let intact = 0;
+    for (const k of kept) if (sum(Buffer.concat(k.chunks)) === k.sum) intact++;
+    res.end('kept ' + kept.length + ' intact ' + intact);
+    return;
+  }
+  const chunks = [];
+  let pauses = 0;
+  req.on('data', (chunk) => {
+    chunks.push(chunk);
+    if (req.url === '/pause' && pauses < 3) {
+      pauses++;
+      req.pause();
+      console.log('server: paused', req.isPaused());
+      setTimeout(() => req.resume(), 5);
+    }
+  });
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
+    if (req.url === '/keep') kept.push({ chunks, sum: sum(body) });
+    res.end(req.method + ' ' + req.url + ' ' + body.length + ' ' + sum(body));
+  });
+});
+const head = (path, fields) => Buffer.from('POST ' + path + ' HTTP/1.1\r\nHost: x\r\n' + fields + '\r\n');
+const fixed = (path, body) => Buffer.concat([head(path, 'Content-Length: ' + body.length + '\r\n'), body]);
+const chunked = (path, parts) => Buffer.concat([head(path, 'Transfer-Encoding: chunked\r\n'),
+  ...parts.flatMap((p) => [Buffer.from(p.length.toString(16) + '\r\n'), p, Buffer.from('\r\n')]), Buffer.from('0\r\n\r\n')]);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  const socket = net.connect(port, '127.0.0.1');
+  let text = '';
+  socket.setEncoding('latin1');
+  socket.on('data', (data) => { text += data; });
+  socket.on('end', () => {
+    console.log(text.replace(/^Date: .*\r\n/gm, '').split('\r\n').join('|'));
+    const big = pattern(100000, 17);
+    const req = http.request({ port, host: '127.0.0.1', method: 'POST', path: '/pipe' }, (res) => {
+      const parts = [];
+      res.on('data', (c) => parts.push(c));
+      res.on('end', () => {
+        const back = Buffer.concat(parts);
+        console.log('pipe', back.length, back.equals(big), res.headers['transfer-encoding']);
+        server.close();
+      });
+    });
+    req.write(big.subarray(0, 30000));
+    setTimeout(() => { req.write(big.subarray(30000, 90000)); req.end(big.subarray(90000)); }, 10);
+  });
+  await new Promise((resolve) => socket.on('connect', resolve));
+  // Each group is sent once the responses before it arrived.
+  let sent = 0;
+  const answered = async (requests) => {
+    sent += requests;
+    while (text.split('HTTP/1.1 200').length - 1 < sent) await wait(5);
+  };
+  // Pipelined: a large fixed body, a chunked body with large chunks, a small body.
+  socket.write(Buffer.concat([fixed('/keep', pattern(20000, 3)), chunked('/keep', [pattern(10000, 5), pattern(9000, 7), pattern(3, 9)]), fixed('/keep', pattern(5, 1))]));
+  await answered(3);
+  // One body in three reads.
+  const split = fixed('/keep', pattern(30000, 11));
+  socket.write(split.subarray(0, 100));
+  await wait(20);
+  socket.write(split.subarray(100, 20000));
+  await wait(20);
+  socket.write(split.subarray(20000));
+  await answered(1);
+  // Larger than a read buffer, read while paused and resumed.
+  socket.write(fixed('/pause', pattern(200000, 13)));
+  await answered(1);
+  // Many 16 KiB bodies in one write, then a chunked body split inside a chunk.
+  const many = [];
+  for (let i = 0; i < 30; i++) many.push(fixed('/keep', pattern(16384, 19 + i)));
+  socket.write(Buffer.concat(many));
+  const tail = chunked('/keep', [pattern(40000, 23)]);
+  socket.write(tail.subarray(0, 25000));
+  await wait(20);
+  socket.write(tail.subarray(25000));
+  await answered(31);
+  socket.write('GET /check HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n');
+});
+`,
+        false,
+    ));
+
 test("node:http: refused connections, malformed requests, pipelining, HTTP/1.0, chunked trailers, header overflow, EADDRINUSE", () =>
     expectNode(
         String.raw`import http from 'node:http';
@@ -375,6 +471,225 @@ server.listen(0, '127.0.0.1', () => {
     socket.on('end', () => server.close(() => console.log('closed')));
   });
   req.end();
+});
+`,
+        false,
+    ));
+
+test("node:http: request header objects: repeated field sets, case, order, duplicates, set-cookie, __proto__, many fields, prototype setters, value bytes", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+// The same field names on several requests give the same headers object
+// natively (#403): each case is sent more than once, then the objects are
+// changed by the handler, and a setter appears on Object.prototype.
+const server = http.createServer((req, res) => {
+  const h = req.headers;
+  const keys = Object.keys(h);
+  const line = [req.url, keys.join(','), JSON.stringify(h), JSON.stringify(req.rawHeaders),
+    Object.getPrototypeOf(h) === Object.prototype, Object.prototype.hasOwnProperty.call(h, '__proto__'),
+    typeof h.constructor, Array.isArray(h['set-cookie'])];
+  h.added = 1;
+  delete h.host;
+  h.accept = 'changed';
+  line.push(Object.keys(h).join(','), h.accept);
+  console.log(line.join(' | '));
+  res.end('ok');
+});
+server.on('clientError', (err, socket) => { console.log('clientError', err.code); socket.end('HTTP/1.1 400 Bad Request\r\n\r\n'); });
+const many = Array.from({ length: 40 }, (_, i) => 'X-Field-' + i + ': value ' + i + '\r\n').join('');
+const bench = 'User-Agent: Mozilla/5.0 (X11; Linux x86_64)\r\nAccept: text/html,*/*;q=0.8\r\n' +
+  'Accept-Language: en-US,en;q=0.5\r\nAccept-Encoding: gzip, deflate, br\r\nX-Request-Id: 7f3c2a1e\r\n';
+const cases = [
+  ['/same', 'Host: x\r\n' + bench],
+  ['/same', 'Host: x\r\n' + bench],
+  ['/same', 'Host: x\r\n' + bench],
+  ['/case', 'HOST: x\r\n' + bench.toLowerCase()],
+  ['/order', bench + 'Host: x\r\n'],
+  ['/fewer', 'Host: x\r\nAccept: a\r\n'],
+  ['/cookie', 'Host: x\r\nSet-Cookie: a=1\r\nAccept: b\r\n'],
+  ['/cookie', 'Host: x\r\nSet-Cookie: a=1\r\nAccept: b\r\n'],
+  ['/dup', 'Host: x\r\nAccept: a\r\naccept: b\r\nCookie: c=1\r\nCookie: d=2\r\nX-A: 1\r\nx-a: 2\r\nSet-Cookie: s=1\r\nset-cookie: s=2\r\n'],
+  ['/dup', 'Host: x\r\nAccept: a\r\naccept: b\r\nCookie: c=1\r\nCookie: d=2\r\nX-A: 1\r\nx-a: 2\r\nSet-Cookie: s=1\r\nset-cookie: s=2\r\n'],
+  ['/proto', 'Host: x\r\n__proto__: p\r\nConstructor: c\r\nhasOwnProperty: h\r\ntoString: t\r\n'],
+  ['/proto', 'Host: x\r\n__proto__: p\r\nConstructor: c\r\nhasOwnProperty: h\r\ntoString: t\r\n'],
+  ['/index', 'Host: x\r\n0: zero\r\n123: n\r\nX-B: b\r\n'],
+  ['/index', 'Host: x\r\n0: zero\r\n123: n\r\nX-B: b\r\n'],
+  ['/many', 'Host: x\r\n' + many],
+  ['/many', 'Host: x\r\n' + many],
+  ['/hook', 'Host: x\r\nX-Hook: 1\r\nAccept: a\r\n'],
+  ['/hook', 'Host: x\r\nX-Hook: 1\r\nAccept: a\r\n'],
+  ['setter'],
+  ['/hook', 'Host: x\r\nX-Hook: 2\r\nAccept: a\r\n'],
+  ['/hook', 'Host: x\r\nX-Hook: 3\r\nAccept: a\r\n'],
+  ['/bytes', 'Host: x\r\nX-Tab: a\tb\t c \r\nX-Latin: caf\xe9 \xff\xa0end\r\nX-Long: ' + 'abcdefgh'.repeat(9) + ' \t \r\nX-Empty:\r\nX-Spaces:    \r\n'],
+  ['/del', 'Host: x\r\nX-Bad: abc\x7fdef\r\n'],
+  ['/ctl', 'Host: x\r\nX-Bad: abcdefghijkl\x01\r\n'],
+];
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  for (const [path, fields] of cases) {
+    if (path === 'setter') {
+      Object.defineProperty(Object.prototype, 'x-hook', { set(v) { console.log('setter', v); }, configurable: true });
+      continue;
+    }
+    await new Promise(resolve => {
+      const socket = net.connect(port, '127.0.0.1', () => socket.write('GET ' + path + ' HTTP/1.1\r\n' + fields + 'Connection: close\r\n\r\n', 'latin1'));
+      let text = '';
+      socket.setEncoding('latin1');
+      socket.on('data', d => text += d);
+      socket.on('close', () => { console.log(JSON.stringify(text.replace(/Date: [^\r]*\r\n/g, ''))); resolve(); });
+    });
+  }
+  delete Object.prototype['x-hook'];
+  server.close(() => console.log('closed'));
+});
+`,
+        false,
+    ));
+
+test("node:http: request header objects: a setter installed before the first request, 128 fields, names differing in case", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+// A setter that defines the property itself gives the shape of plain
+// assignment: the headers object must still be built by assignment (#403).
+Object.defineProperty(Object.prototype, 'x-own', {
+  set(v) { console.log('own setter', v); Object.defineProperty(this, 'x-own', { value: v + '!', writable: true, enumerable: true, configurable: true }); },
+  configurable: true,
+});
+const server = http.createServer((req, res) => {
+  console.log([req.url, Object.keys(req.headers).length, JSON.stringify(req.headers), JSON.stringify(req.rawHeaders)].join(' | '));
+  res.setHeader('X-One', 'a');
+  res.setHeader('x-one', 'b');
+  res.setHeader('X-Two', 'c');
+  res.removeHeader('x-two');
+  res.setHeader('X-Two', 'd');
+  res.end('ok');
+});
+const many = n => Array.from({ length: n }, (_, i) => 'X-F' + i + ': v' + i + '\r\n').join('');
+const cases = [
+  ['/own', 'Host: x\r\nX-Own: 1\r\nAccept: a\r\n'],
+  ['/own', 'Host: x\r\nX-Own: 2\r\nAccept: a\r\n'],
+  ['/own', 'Host: x\r\nX-Own: 3\r\nAccept: a\r\n'],
+  // 127 and 128 fields with Host and Connection (the module answers 431
+  // above 128).
+  ['/127', 'Host: x\r\n' + many(125)],
+  ['/127', 'Host: x\r\n' + many(125)],
+  ['/128', 'Host: x\r\n' + many(126)],
+  ['/128', 'Host: x\r\n' + many(126)],
+  ['/case', 'Host: x\r\nX-Case: 1\r\nAccept: a\r\n'],
+  ['/case', 'Host: x\r\nx-case: 2\r\nAccept: a\r\n'],
+  ['/case', 'Host: x\r\nX-CASE: 3\r\nX-Case: 4\r\nx-case: 5\r\nAccept: a\r\n'],
+  ['/case', 'Host: x\r\nX-Case: 1\r\nAccept: a\r\n'],
+  ['/case', 'host: x\r\nUSER-AGENT: u\r\nuser-agent: v\r\nAccept: a\r\n'],
+];
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  for (const [path, fields] of cases) {
+    await new Promise(resolve => {
+      const socket = net.connect(port, '127.0.0.1', () => socket.write('GET ' + path + ' HTTP/1.1\r\n' + fields + 'Connection: close\r\n\r\n'));
+      let text = '';
+      socket.setEncoding('latin1');
+      socket.on('data', d => text += d);
+      socket.on('close', () => { console.log(JSON.stringify(text.replace(/Date: [^\r]*\r\n/g, ''))); resolve(); });
+    });
+  }
+  delete Object.prototype['x-own'];
+  server.close(() => console.log('closed'));
+});
+`,
+        false,
+    ));
+
+test("node:http: response fields beyond the first four, removed and set again, and repeated heads", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+let n = 0;
+const server = http.createServer((req, res) => {
+  n++;
+  res.setHeader('Content-Type', 'text/plain');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Request-Id', req.headers['x-request-id']);
+  res.setHeader('X-Powered-By', 'bench');
+  res.setHeader('ETag', '"' + (n > 3 ? 7 : 6) + '"');
+  if (n === 5) {
+    res.removeHeader('cache-control');
+    res.setHeader('X-Six', ['a', 'b']);
+    res.appendHeader('x-six', 'c');
+    res.setHeader('cache-control', 'max-age=1');
+    res.setHeader('X-Powered-By', 'other');
+  }
+  if (n === 6) for (let i = 0; i < 9; i++) res.setHeader('X-N' + i, String(i));
+  console.log(n, JSON.stringify(res.getHeaderNames()), JSON.stringify(res.getRawHeaderNames()), JSON.stringify(res.getHeaders()), res.hasHeader('etag'), JSON.stringify(res.getHeader('x-six')));
+  res.end('body ' + n);
+});
+server.listen(0, '127.0.0.1', () => {
+  const port = server.address().port;
+  const socket = net.connect(port, '127.0.0.1');
+  let text = '', sent = 0;
+  const send = () => socket.write('GET / HTTP/1.1\r\nHost: x\r\nX-Request-Id: id' + (sent < 2 ? 1 : 2) + '\r\n' + (++sent === 8 ? 'Connection: close\r\n' : '') + '\r\n');
+  socket.setEncoding('latin1');
+  socket.on('connect', send);
+  socket.on('data', d => {
+    text += d;
+    if (sent < 8 && text.endsWith('body ' + sent)) send();
+  });
+  socket.on('close', () => {
+    console.log(JSON.stringify(text.replace(/Date: [^\r]*\r\n/g, '')));
+    server.close(() => console.log('closed'));
+  });
+});
+`,
+        false,
+    ));
+
+test("node:http: request bodies split across reads with a decoder, a late 'data' listener and a pause in 'data'", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+import { Buffer } from 'node:buffer';
+// The body path gives a flowing request its chunks directly (#403); a
+// decoder, chunks queued before the first 'data' listener and a pause must
+// still go through push().
+const server = http.createServer((req, res) => {
+  const parts = [];
+  const listen = () => req.on('data', (chunk) => {
+    parts.push(typeof chunk === 'string' ? 's' + chunk.length : 'b' + chunk.length);
+    if (req.url === '/pause' && parts.length === 1) { req.pause(); setTimeout(() => req.resume(), 10); }
+  });
+  if (req.url === '/text') req.setEncoding('utf8');
+  if (req.url === '/late') setTimeout(listen, 20);
+  else listen();
+  req.on('end', () => {
+    console.log(req.url, parts.length > 0, req.complete, req.readableEnded);
+    res.end(req.url + ' ' + parts.join(','));
+  });
+});
+const text = Buffer.from('\u00e9\u20ac'.repeat(5000));
+const body = Buffer.alloc(30000, 7);
+const post = (path, payload) => Buffer.concat([Buffer.from('POST ' + path + ' HTTP/1.1\r\nHost: x\r\nContent-Length: ' + payload.length + '\r\n\r\n'), payload]);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  const one = (bytes, parts) => new Promise((resolve) => {
+    const socket = net.connect(port, '127.0.0.1', async () => {
+      // Split inside a multi-byte character, then the rest.
+      if (parts) { socket.write(bytes.subarray(0, 9001)); await wait(20); socket.write(bytes.subarray(9001)); }
+      else socket.write(bytes);
+      socket.end();
+    });
+    let out = '';
+    socket.setEncoding('latin1');
+    socket.on('data', (d) => { out += d; });
+    socket.on('close', () => { console.log(JSON.stringify(out.replace(/Date: [^\r]*\r\n/g, '').split('\r\n\r\n')[1])); resolve(); });
+  });
+  await one(post('/text', text), true);
+  await one(post('/late', body), true);
+  await one(post('/pause', body), true);
+  await one(post('/plain', body), true);
+  server.close(() => console.log('closed'));
 });
 `,
         false,
