@@ -390,6 +390,12 @@ export function emitHttpHeadersNative(b: RuntimeBuilder): void {
         a.load("rax", { base: "r10", disp: EL.count });
         a.cmp("rax", 256);
         a.jcc("a", bad);
+        // Pairs only: an odd count would name one more field than the
+        // result array has elements.
+        a.mov("rcx", "rax");
+        a.and("rcx", 1);
+        a.test("rcx", "rcx");
+        a.jcc("ne", bad);
         a.store(slot(56), "rax");
         {
             const have = a.unique("haveTable"),

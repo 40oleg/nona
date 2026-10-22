@@ -361,7 +361,12 @@ function mergeHeaders(raw, joinDuplicates) {
             if (field === "set-cookie") {
                 strings = false;
                 out[field] = [value];
-            } else out[field] = value;
+            } else {
+                // An inherited name (a method, or a setter that defines the
+                // property itself) must keep being assigned.
+                if (field in Object.prototype) strings = false;
+                out[field] = value;
+            }
         }
         if (strings) rememberHeaders(out, lower);
         return out;
@@ -604,11 +609,11 @@ export class OutgoingMessage {
     get errored() {
         return null;
     }
-    /** Index of the field's entry in _fields ([key, name, value, ...]), or -1. */
+    /** Index of the field's entry in _fields ([key, name, value, info, ...]; info is the name's record in fieldNames), or -1. */
     _find(key) {
         const fields = this._fields;
         if (fields !== null)
-            for (let i = 0; i < fields.length; i += 3)
+            for (let i = 0; i < fields.length; i += 4)
                 if (fields[i] === key) return i;
         return -1;
     }
@@ -625,6 +630,9 @@ export class OutgoingMessage {
                 special: special === undefined ? 0 : special,
                 checked: undefined,
                 bit: fieldKeyBit(key),
+                // The last line fieldLines composed for the name and value.
+                line: "",
+                lineValue: undefined,
             };
             if (fieldNameCount < 512) {
                 fieldNames[name] = info;
@@ -649,7 +657,7 @@ export class OutgoingMessage {
             bit = info.bit;
         if (info.special !== 0) this._special |= info.special;
         if (fields === null) {
-            this._fields = [key, name, value];
+            this._fields = [key, name, value, info];
             this._keys = bit;
             return this;
         }
@@ -657,11 +665,11 @@ export class OutgoingMessage {
         // it): a clear bit means the key is not there.
         if (bit !== 0 && (this._keys & bit) === 0) {
             this._keys |= bit;
-            fields.push(key, name, value);
+            fields.push(key, name, value, info);
             return this;
         }
         let index = -1;
-        for (let i = 0; i < fields.length; i += 3)
+        for (let i = 0; i < fields.length; i += 4)
             if (fields[i] === key) {
                 index = i;
                 break;
@@ -669,7 +677,8 @@ export class OutgoingMessage {
         if (index >= 0) {
             fields[index + 1] = name;
             fields[index + 2] = value;
-        } else fields.push(key, name, value);
+            fields[index + 3] = info;
+        } else fields.push(key, name, value, info);
         return this;
     }
     appendHeader(name, value) {
@@ -705,21 +714,21 @@ export class OutgoingMessage {
     getHeaderNames() {
         const out = [];
         if (this._fields !== null)
-            for (let i = 0; i < this._fields.length; i += 3)
+            for (let i = 0; i < this._fields.length; i += 4)
                 out.push(this._fields[i]);
         return out;
     }
     getRawHeaderNames() {
         const out = [];
         if (this._fields !== null)
-            for (let i = 1; i < this._fields.length; i += 3)
+            for (let i = 1; i < this._fields.length; i += 4)
                 out.push(this._fields[i]);
         return out;
     }
     getHeaders() {
         const out = Object.create(null);
         if (this._fields !== null)
-            for (let i = 0; i < this._fields.length; i += 3)
+            for (let i = 0; i < this._fields.length; i += 4)
                 out[this._fields[i]] = this._fields[i + 2];
         return out;
     }
@@ -739,7 +748,7 @@ export class OutgoingMessage {
         else if (key === "transfer-encoding") this._removedTE = true;
         else if (key === "date") this.sendDate = false;
         const index = this._find(key);
-        if (index >= 0) this._fields.splice(index, 3);
+        if (index >= 0) this._fields.splice(index, 4);
     }
     /**
      * Composes the head: the first line, the given fields (this message's own,
@@ -759,7 +768,7 @@ export class OutgoingMessage {
         if (fields === this) {
             const own = this._fields;
             if (own !== null)
-                for (let i = 0; i < own.length; i += 3)
+                for (let i = 0; i < own.length; i += 4)
                     this._field(state, own[i + 1], own[i + 2], false);
         } else if (Array.isArray(fields)) {
             if (fields.length && Array.isArray(fields[0]))
@@ -1370,32 +1379,34 @@ function contentLengthLine(length) {
     return "Content-Length: " + length + "\r\n\r\n";
 }
 /**
- * The lines of one header field set with setHeader (validated then). A
- * program sets the same few fields with the same values on every response:
- * the last line composed for a name is kept and reused while its value is
- * the same string.
+ * The lines of one header field set with setHeader (validated then), info
+ * being the name's record. A program sets the same few fields with the same
+ * values on every response: the last line composed for a name is kept on
+ * its record and reused while its value is the same string.
  */
-const fieldLineCache = { __proto__: null };
-let fieldLineCount = 0;
-function fieldLines(name, value) {
+function fieldLines(info, name, value) {
     if (Array.isArray(value)) {
         let lines = "";
         for (let i = 0; i < value.length; i++)
             lines += name + ": " + value[i] + "\r\n";
         return lines;
     }
-    let entry = fieldLineCache[name];
-    if (entry === undefined) {
-        if (fieldLineCount >= 512) return name + ": " + value + "\r\n";
-        entry = { value, line: name + ": " + value + "\r\n" };
-        fieldLineCache[name] = entry;
-        fieldLineCount++;
-    } else if (entry.value !== value) {
-        entry.value = value;
-        entry.line = name + ": " + value + "\r\n";
+    if (info.lineValue !== value) {
+        info.lineValue = value;
+        info.line = name + ": " + value + "\r\n";
     }
-    return entry.line;
+    return info.line;
 }
+/**
+ * The last head end() composed, its parts and its bytes. A server sends the
+ * same head on most responses (the same status line, field lines, Date,
+ * Connection and Content-Length lines): when every part is the same string
+ * as last time, the head is reused flat and its bytes are copied instead of
+ * concatenated and encoded again.
+ */
+let headParts = [],
+    headText = "",
+    headBytes = null;
 /** The Connection and Keep-Alive lines of a server, kept on it for its current settings. */
 function keepAliveLines(server) {
     const timeout = server.keepAliveTimeout,
@@ -1674,17 +1685,17 @@ export class ServerResponse {
         else if (checkChars(message, 1) >= 0)
             return super.end(chunk, encoding, callback);
         else head = "HTTP/1.1 " + code + " " + message + "\r\n";
-        const fields = this._fields;
-        if (fields !== null)
-            for (let i = 1; i < fields.length; i += 3)
-                head += fieldLines(fields[i], fields[i + 1]);
-        if (this.sendDate)
-            head += clock.now < dateExpiry ? dateField : dateLine();
+        const date = !this.sendDate
+            ? ""
+            : clock.now < dateExpiry
+              ? dateField
+              : dateLine();
+        let connection;
         if (!this.shouldKeepAlive) {
             this._last = true;
-            head += "Connection: close\r\n";
+            connection = "Connection: close\r\n";
         } else if (this.maxRequestsOnConnectionReached)
-            head += "Connection: close\r\n";
+            connection = "Connection: close\r\n";
         else {
             const server =
                 this._connection === null ? null : this._connection.server;
@@ -1693,12 +1704,12 @@ export class ServerResponse {
                 server.keepAliveTimeout &&
                 this._defaultKeepAlive
             )
-                head +=
+                connection =
                     server._keepAliveFor === server.keepAliveTimeout &&
                     server._keepAliveMax === server.maxRequestsPerSocket
                         ? server._keepAliveLines
                         : keepAliveLines(server);
-            else head += "Connection: keep-alive\r\n";
+            else connection = "Connection: keep-alive\r\n";
         }
         const hasBody =
             this._hasBody &&
@@ -1724,15 +1735,72 @@ export class ServerResponse {
                 ? length || writeString(chunk, undefined, 0, false)
                 : chunk.length
             : 0;
+        let ending = "\r\n";
         if (hasBody) {
             const length = this._contentLength,
                 line = length < 4096 ? contentLengthLines[length] : undefined;
-            head += line !== undefined ? line : contentLengthLine(length);
-        } else head += "\r\n";
+            ending = line !== undefined ? line : contentLengthLine(length);
+        }
+        // The head: the status line, the field lines, Date, Connection and
+        // the end (the last head when they are the same strings).
+        const fields = this._fields,
+            count = fields === null ? 0 : fields.length >> 2,
+            parts = headParts;
+        let same =
+            parts.length === count + 4 &&
+            parts[0] === head &&
+            parts[count + 1] === date &&
+            parts[count + 2] === connection &&
+            parts[count + 3] === ending;
+        if (same)
+            for (let i = 0, k = 1; k <= count; i += 4, k++)
+                if (
+                    parts[k] !==
+                    fieldLines(fields[i + 3], fields[i + 1], fields[i + 2])
+                ) {
+                    same = false;
+                    break;
+                }
+        let reuse = false;
+        if (same) {
+            head = headText;
+            reuse = headBytes !== null;
+        } else {
+            if (parts.length !== count + 4) parts.length = count + 4;
+            parts[0] = head;
+            for (let i = 0, k = 1; k <= count; i += 4, k++) {
+                const line = fieldLines(
+                    fields[i + 3],
+                    fields[i + 1],
+                    fields[i + 2],
+                );
+                parts[k] = line;
+                head += line;
+            }
+            parts[count + 1] = date;
+            parts[count + 2] = connection;
+            parts[count + 3] = ending;
+            head += date;
+            head += connection;
+            head += ending;
+            headText = head;
+            headBytes = null;
+        }
         this._header = head;
         this.finished = true;
         const out = reserve(head.length + length);
-        let size = writeString(head, out, 0, true);
+        let size;
+        if (reuse) {
+            size = headBytes.length;
+            copyBytes(headBytes, 0, size, out, 0);
+        } else {
+            size = writeString(head, out, 0, true);
+            // A head sent a second time keeps its bytes.
+            if (same) {
+                headBytes = new Uint8Array(size);
+                copyBytes(out, 0, size, headBytes, 0);
+            }
+        }
         this._headerSent = true;
         if (bytes) {
             copyBytes(body, 0, length, out, size);

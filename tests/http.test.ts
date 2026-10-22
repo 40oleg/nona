@@ -451,3 +451,57 @@ server.listen(0, '127.0.0.1', async () => {
 `,
         false,
     ));
+
+test("node:http: request header objects: a setter installed before the first request, 128 fields, names differing in case", () =>
+    expectNode(
+        String.raw`import http from 'node:http';
+import net from 'node:net';
+// A setter that defines the property itself gives the shape of plain
+// assignment: the headers object must still be built by assignment (#403).
+Object.defineProperty(Object.prototype, 'x-own', {
+  set(v) { console.log('own setter', v); Object.defineProperty(this, 'x-own', { value: v + '!', writable: true, enumerable: true, configurable: true }); },
+  configurable: true,
+});
+const server = http.createServer((req, res) => {
+  console.log([req.url, Object.keys(req.headers).length, JSON.stringify(req.headers), JSON.stringify(req.rawHeaders)].join(' | '));
+  res.setHeader('X-One', 'a');
+  res.setHeader('x-one', 'b');
+  res.setHeader('X-Two', 'c');
+  res.removeHeader('x-two');
+  res.setHeader('X-Two', 'd');
+  res.end('ok');
+});
+const many = n => Array.from({ length: n }, (_, i) => 'X-F' + i + ': v' + i + '\r\n').join('');
+const cases = [
+  ['/own', 'Host: x\r\nX-Own: 1\r\nAccept: a\r\n'],
+  ['/own', 'Host: x\r\nX-Own: 2\r\nAccept: a\r\n'],
+  ['/own', 'Host: x\r\nX-Own: 3\r\nAccept: a\r\n'],
+  // 127 and 128 fields with Host and Connection (the module answers 431
+  // above 128).
+  ['/127', 'Host: x\r\n' + many(125)],
+  ['/127', 'Host: x\r\n' + many(125)],
+  ['/128', 'Host: x\r\n' + many(126)],
+  ['/128', 'Host: x\r\n' + many(126)],
+  ['/case', 'Host: x\r\nX-Case: 1\r\nAccept: a\r\n'],
+  ['/case', 'Host: x\r\nx-case: 2\r\nAccept: a\r\n'],
+  ['/case', 'Host: x\r\nX-CASE: 3\r\nX-Case: 4\r\nx-case: 5\r\nAccept: a\r\n'],
+  ['/case', 'Host: x\r\nX-Case: 1\r\nAccept: a\r\n'],
+  ['/case', 'host: x\r\nUSER-AGENT: u\r\nuser-agent: v\r\nAccept: a\r\n'],
+];
+server.listen(0, '127.0.0.1', async () => {
+  const port = server.address().port;
+  for (const [path, fields] of cases) {
+    await new Promise(resolve => {
+      const socket = net.connect(port, '127.0.0.1', () => socket.write('GET ' + path + ' HTTP/1.1\r\n' + fields + 'Connection: close\r\n\r\n'));
+      let text = '';
+      socket.setEncoding('latin1');
+      socket.on('data', d => text += d);
+      socket.on('close', () => { console.log(JSON.stringify(text.replace(/Date: [^\r]*\r\n/g, ''))); resolve(); });
+    });
+  }
+  delete Object.prototype['x-own'];
+  server.close(() => console.log('closed'));
+});
+`,
+        false,
+    ));
