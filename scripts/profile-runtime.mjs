@@ -248,14 +248,22 @@ try {
             executions.set(address, (executions.get(address) ?? 0) + 1);
         } else if (first === 73 /* I */ && buffer[from + 1] === 78 /* N */) {
             pending = "address";
-        } else if (first === 48 /* 0 */ && pending === "address") {
+        } else if (first === 48 /* 0 */ && pending !== null) {
+            // QEMU with a disassembler prints one "0x<pc>:" line per
+            // instruction instead of the OBJD-T bytes: the block runs to the
+            // last of them.
             const colon = buffer.indexOf(58 /* : */, from);
-            pending = hex(
+            const address = hex(
                 buffer,
                 from + 2,
                 colon < 0 || colon > to ? to : colon,
             );
-        } else if (first === 79 /* O */ && typeof pending === "number") {
+            if (pending === "address") pending = { start: address };
+            blocks.set(
+                pending.start,
+                firstAtLeast(address + 1) - firstAtLeast(pending.start),
+            );
+        } else if (first === 79 /* O */ && pending !== null) {
             let end = to;
             while (
                 end > from &&
@@ -264,8 +272,9 @@ try {
                 end--;
             const bytes = (end - from - 8) / 2;
             blocks.set(
-                pending,
-                firstAtLeast(pending + bytes) - firstAtLeast(pending),
+                pending.start,
+                firstAtLeast(pending.start + bytes) -
+                    firstAtLeast(pending.start),
             );
             pending = null;
         }

@@ -12,7 +12,7 @@ Hello, from Nona!
 
 The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-> **Status of this checkout:** package version `0.23.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status of this checkout:** package version `0.26.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## Why Nona
 
@@ -144,15 +144,16 @@ Geometric mean of the Nona / Node.js time ratio per category, v0.18.0 on Linux x
 | Are-We-Fast-Yet, steady state                                     | 14    | ×13         |
 | Benchmarks Game programs, whole process                           | 9     | ×11         |
 
-Nona's own HTTP server against Node.js on the same program ([bench/http](bench/http/server.mjs), Linux x64, two runs on the shared v0.18.0 reference VM):
+Nona's own HTTP server against Node.js 22 on the same program ([bench/http](bench/http/server.mjs), Linux x64 in WSL2 on a shared 16-CPU machine, `wrk` with 32 connections, median of five runs; server and client pinned to different CPUs). Nona is faster on every case but the upload, and does not reach twice Node.js's throughput on any of them (#403 is still open); other connection counts, `load.c`, p99 latency and the method are in [PERFORMANCE.md](PERFORMANCE.md#http-server):
 
-| Case                       | Node.js req/s | Nona req/s | Memory, Node.js / Nona |
-| -------------------------- | ------------- | ---------- | ---------------------- |
-| hello (keep-alive)         | 41k           | 39k        | 73 / 17 MB             |
-| JSON response              | 40–41k        | 36–40k     | 75 / 16 MB             |
-| new connection per request | 12–13k        | 13k        | 70 / 23 MB             |
-| 64 KiB response            | 13–15k        | **23–27k** | 78 / 17 MB             |
-| 16 KiB request body        | 38k           | 20–22k     | 79 / 19 MB             |
+| Case                       | Node.js req/s | Nona req/s | Nona / Node | Memory, Node.js / Nona |
+| -------------------------- | ------------- | ---------- | ----------- | ---------------------- |
+| hello (keep-alive)         | 46.5k         | 63.6k      | ×1.37       | 94 / 18 MB             |
+| JSON response              | 45.6k         | 57.9k      | ×1.27       | 94 / 18 MB             |
+| ten headers read, five set | 38.5k         | 54.4k      | ×1.41       | 79 / 24 MB             |
+| new connection per request | 10.8k         | 13.7k      | ×1.27       | 74 / 18 MB             |
+| 64 KiB response            | 14.6k         | **22.5k**  | ×1.54       | 102 / 18 MB            |
+| 16 KiB request body        | 28.1k         | 25.0k      | ×0.89       | 97 / 18 MB             |
 
 [PERFORMANCE.md](PERFORMANCE.md) has the full comparison with Node.js, Deno and Bun, the method and the known slow spots. [docs/perf-cpp.md](docs/perf-cpp.md) compares Nona with optimized C++ on arithmetic, call and string kernels and explains the measured gaps (10 million double additions: 119 ms vs 5.45 ms in WSL2).
 
