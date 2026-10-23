@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`fs.readdirSync`, `readdir` and `fs.promises.readdir` honour `recursive: true`.** They listed only the top-level entries. They now list all descendants like Node.js (relative names such as `sub/deep/c`; with `withFileTypes`, `Dirent.parentPath` is the containing directory) and do not follow symbolic links to directories. ([#464](https://github.com/40oleg/nona/issues/464))
+- **`JSON.parse` errors say what was found and where.** Invalid JSON threw `SyntaxError: Invalid operation`; the message is now `Unexpected token 'c' in JSON at position N` (the code unit at the position V8 reports), `Unexpected end of JSON input`, or `Unexpected non-whitespace character after JSON at position N`. The wording differs from V8's for some errors (V8 also says, for example, `Bad escaped character` or `Unterminated string`). ([#465](https://github.com/40oleg/nona/issues/465))
 
 ## v0.25.0 — 2026-10-23
 
