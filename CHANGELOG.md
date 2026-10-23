@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.26.0 — 2026-10-23
+
 ### Fixes
 
 - **`assert.deepEqual` has cycle detection and treats `NaN` as equal to `NaN`.** The loose comparison had no cycle tracking and used `==` for primitives, so circular structures caused a `RangeError` stack overflow and `NaN` never compared equal to `NaN`; now it tracks visited pairs like strict deepEqual and treats `NaN` as equal, matching Node.js behavior ([#468](https://github.com/40oleg/nona/issues/468)).
