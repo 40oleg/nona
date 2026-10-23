@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect` honors `maxStringLength`.** Strings longer than the limit (default 10000) were printed in full. They are now cut and followed by `... N more character(s)`, as in Node.js, at the top level and inside arrays, objects, Maps, Sets and boxed strings; `null` and `Infinity` disable the limit and property keys are not truncated. ([#478](https://github.com/40oleg/nona/issues/478))
+
 ## v0.25.0 — 2026-10-23
 
 ### Fixes
