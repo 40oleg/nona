@@ -263,7 +263,9 @@ export function readdirSync(path, options) {
         return names;
     }
     // Depth-first walk; a directory is listed before its children and symbolic
-    // links to directories are listed but not entered (lstat does not follow them).
+    // links to directories are listed but not entered, except on Windows where
+    // Node.js enters them.
+    const followLinks = process.platform === "win32";
     const result = [];
     const walk = (relative) => {
         const directory = relative === "" ? path : join(path, relative);
@@ -277,7 +279,12 @@ export function readdirSync(path, options) {
                         : new Dirent(name, directory, info.kind, info.mode)
                     : entry,
             );
-            if (info !== null && info.kind === "dir") walk(entry);
+            if (info === null) continue;
+            if (info.kind === "dir") walk(entry);
+            else if (info.kind === "symlink" && followLinks) {
+                const target = sys.stat(join(directory, name));
+                if (target !== null && target.kind === "dir") walk(entry);
+            }
         }
     };
     walk("");
