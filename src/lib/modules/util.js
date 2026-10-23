@@ -233,7 +233,22 @@ function inspectValue(value, options, depth, seen) {
             options,
         );
     }
-    if (value instanceof Promise) return "Promise { <unknown> }";
+    if (value instanceof Promise) {
+        const promiseState = globalThis.__nonaPromiseState;
+        const state =
+            typeof promiseState === "function"
+                ? promiseState(value)
+                : undefined;
+        if (state === undefined) return "Promise { <unknown> }";
+        if (depth > options.depth) return "[Promise]";
+        const text =
+            state[0] === 0
+                ? "<pending>"
+                : state[0] === 1
+                  ? nested(state[1])
+                  : "<rejected> " + nested(state[1]);
+        return formatEntries("Promise ", [text], "{", "}", options);
+    }
     const proto = Object.getPrototypeOf(value);
     const constructorName =
         proto === null
