@@ -95,7 +95,7 @@ function looseEqual(a, b, seen) {
             if (!types.isDate(b)) return false;
             const x = a.getTime(),
                 y = b.getTime();
-            if (x !== y) return false;
+            if (x !== y && !(x !== x && y !== y)) return false;
         } else if (types.isRegExp(a)) {
             if (
                 !types.isRegExp(b) ||
@@ -108,7 +108,7 @@ function looseEqual(a, b, seen) {
             if (!types.isBoxedPrimitive(b)) return false;
             const x = a.valueOf(),
                 y = b.valueOf();
-            if (x !== y) return false;
+            if (x !== y && !(x !== x && y !== y)) return false;
         } else if (types.isNativeError(a) || types.isNativeError(b)) {
             if (
                 !types.isNativeError(a) ||
