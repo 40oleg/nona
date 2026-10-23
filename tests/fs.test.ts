@@ -343,3 +343,26 @@ console.log(typeof fs.readFile, fs.writeFile === writeFile);
 })();
 `,
     }));
+
+test("fs.mkdtempSync, mkdtemp and promises.mkdtemp create unique directories (#483)", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+const prefix = path.join(os.tmpdir(), 'app-');
+const a = fs.mkdtempSync(prefix), b = fs.mkdtempSync(prefix);
+const c = await new Promise((resolve, reject) => fs.mkdtemp(prefix, (e, d) => e ? reject(e) : resolve(d)));
+const d = await fs.promises.mkdtemp(prefix);
+const all = [a, b, c, d];
+console.log(new Set(all).size);
+for (const dir of all) {
+  const name = path.basename(dir);
+  console.log(name.length, name.startsWith('app-'), /^[A-Za-z0-9]{6}$/.test(name.slice(4)), fs.statSync(dir).isDirectory());
+}
+if (process.platform !== 'win32') console.log((fs.statSync(a).mode & 0o777).toString(8));
+try { fs.mkdtempSync(path.join(os.tmpdir(), 'no-such-dir', 'x-')); } catch (e) { console.log(e.code, e.syscall); }
+for (const dir of all) fs.rmSync(dir, {recursive: true});
+console.log(fs.existsSync(a));
+`,
+    }));

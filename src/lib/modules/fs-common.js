@@ -1,4 +1,5 @@
 import { resolve, join, dirname } from "nona:internal/path-core";
+import { randomBytes } from "node:crypto";
 const encoder = new TextEncoder(),
     decoder = new TextDecoder();
 const descriptions = {
@@ -329,6 +330,34 @@ export function mkdirSync(path, options) {
     }
     return parts.length ? parts[parts.length - 1] : undefined;
 }
+const tempAlphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+/** Six characters of [A-Za-z0-9] from OS entropy; bytes >= 248 are rejected to avoid modulo bias. */
+function tempSuffix() {
+    let out = "";
+    while (out.length < 6) {
+        const bytes = randomBytes(12);
+        for (let i = 0; i < bytes.length && out.length < 6; i++)
+            if (bytes[i] < 248) out += tempAlphabet[bytes[i] % 62];
+    }
+    return out;
+}
+export function mkdtempSync(prefix, options) {
+    prefix = pathString(prefix, "prefix");
+    const encoding = encodingOf(options);
+    if (encoding !== null && encoding !== "buffer") checkEncoding(encoding);
+    for (let attempt = 0; ; attempt++) {
+        const path = prefix + tempSuffix();
+        try {
+            sys.mkdir(path, 0o700);
+        } catch (e) {
+            if (e.code === "EEXIST" && attempt < 100) continue;
+            if (e.code === "EEXIST" || e.syscall !== "mkdir") throw e;
+            fail(e.code, "mkdtemp", prefix + "XXXXXX");
+        }
+        return encoding === "buffer" ? encoder.encode(path) : path;
+    }
+}
 export function rmSync(path, options) {
     path = pathString(path, "path");
     const recursive = !!(options && options.recursive),
@@ -417,6 +446,7 @@ export const readFile = callbackForm(readFileSync),
     realpath = callbackForm(realpathSync),
     readdir = callbackForm(readdirSync),
     mkdir = callbackForm(mkdirSync),
+    mkdtemp = callbackForm(mkdtempSync),
     rm = callbackForm(rmSync),
     rmdir = callbackForm(rmdirSync),
     unlink = callbackForm(unlinkSync),
@@ -439,6 +469,7 @@ export const promises = {
     realpath: promiseForm(realpathSync),
     readdir: promiseForm(readdirSync),
     mkdir: promiseForm(mkdirSync),
+    mkdtemp: promiseForm(mkdtempSync),
     rm: promiseForm(rmSync),
     rmdir: promiseForm(rmdirSync),
     unlink: promiseForm(unlinkSync),
@@ -464,6 +495,7 @@ export default {
     realpathSync,
     readdirSync,
     mkdirSync,
+    mkdtempSync,
     rmSync,
     rmdirSync,
     unlinkSync,
@@ -480,6 +512,7 @@ export default {
     realpath,
     readdir,
     mkdir,
+    mkdtemp,
     rm,
     rmdir,
     unlink,
