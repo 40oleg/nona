@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect` shows the state of a promise.** It printed `Promise { <unknown> }` for every promise. It now prints `Promise { <pending> }`, `Promise { 2 }` and `Promise { <rejected> 3 }` like Node.js, reading the state without marking the promise as handled. ([#479](https://github.com/40oleg/nona/issues/479))
+
 ## v0.25.0 — 2026-10-23
 
 ### Fixes
