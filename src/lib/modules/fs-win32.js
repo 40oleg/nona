@@ -53,6 +53,12 @@ const MoveFileExW = define(
     "MoveFileExW",
     "bool(wstr,wstr,u32)",
 );
+const SetFilePointerEx = define(
+    "kernel32.dll",
+    "SetFilePointerEx",
+    "bool(ptr,i64,ptr,u32)",
+);
+const SetEndOfFile = define("kernel32.dll", "SetEndOfFile", "bool(ptr)");
 const FindFirstFileW = define(
     "kernel32.dll",
     "FindFirstFileW",
@@ -380,6 +386,17 @@ const sys = {
         if (!DeleteFileW(path)) {
             if (isDirectory(path)) fail("EPERM", "unlink", path);
             error("unlink", path);
+        }
+    },
+    truncate(path, len) {
+        // GENERIC_WRITE, share read/write/delete, OPEN_EXISTING.
+        const handle = CreateFileW(path, 0x40000000, 7, null, 3, 0x80, null);
+        if (handle === INVALID_HANDLE) error("open", path);
+        try {
+            if (!SetFilePointerEx(handle, len, null, 0)) error("open", path);
+            if (!SetEndOfFile(handle)) error("open", path);
+        } finally {
+            CloseHandle(handle);
         }
     },
     rename(from, to) {

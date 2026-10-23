@@ -11,6 +11,7 @@ const sysRename = define("syscall", "82", "i64(buf,buf)");
 const sysMkdir = define("syscall", "83", "i64(buf,i64)");
 const sysRmdir = define("syscall", "84", "i64(buf)");
 const sysUnlink = define("syscall", "87", "i64(buf)");
+const sysTruncate = define("syscall", "76", "i64(buf,i64)");
 const sysGetdents = define("syscall", "217", "i64(i64,buf,i64)");
 const O_WRONLY = 1,
     O_CREAT = 0x40,
@@ -30,6 +31,8 @@ const codes = {
     20: "ENOTDIR",
     21: "EISDIR",
     22: "EINVAL",
+    26: "ETXTBSY",
+    27: "EFBIG",
     39: "ENOTEMPTY",
 };
 function check(result, syscall, path, dest) {
@@ -206,6 +209,9 @@ const sys = {
     },
     unlink(path) {
         check(sysUnlink(cpath(path)), "unlink", path);
+    },
+    truncate(path, len) {
+        check(sysTruncate(cpath(path), len), "open", path);
     },
     rename(from, to) {
         check(sysRename(cpath(from), cpath(to)), "rename", from, to);
