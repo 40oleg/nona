@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`fs.readdirSync({recursive: true})` enters symbolic links to directories on Linux and macOS.** The walk now lists the entries below a symlinked directory (`link/b`, `link/deep`) and the `Dirent` `parentPath` goes through the link, like Node.js. ([#558](https://github.com/40oleg/nona/issues/558))
+- **The self-hosted compiler is back to its v0.25.0 speed.** Since v0.26.0 every compiler process computed the 128-bit power-of-ten tables of number parsing and formatting with BigInt while building the runtime; in the native compiler that took about four minutes per compile on x64 and timed out on arm64. The tables are now generated data (`src/runtime/data/pow10-data.ts`, written by `scripts/generate-pow10-tables.mjs`), and a cold compile takes a few seconds again. ([#558](https://github.com/40oleg/nona/issues/558))
 - **`util.inspect` marks circular targets with `<ref *N>`.** Each object that a `[Circular *N]` points to now gets the matching `<ref *N>` prefix, and the indexes are numbered in Node.js's order instead of always being `*1`. ([#474](https://github.com/40oleg/nona/issues/474))
 - **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
 

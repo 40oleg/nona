@@ -292,6 +292,7 @@
                 "number-builtins",
                 "number-parse-fast",
                 "number-to-string",
+                "pow10-tables",
                 "object-collections",
                 "object-literal-methods",
                 "object-methods",
