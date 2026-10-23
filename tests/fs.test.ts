@@ -78,6 +78,33 @@ unlinkSync('g.txt');
         true,
     ));
 
+test("fs.Stats has the times, owner, link count and block fields like Node.js", () => {
+    const exact = process.platform === "linux";
+    const source = `
+import fs from 'node:fs';
+fs.mkdirSync('stat-w', {recursive: true});
+fs.writeFileSync('stat-w/f.txt', 'hello');
+const s = fs.statSync('stat-w/f.txt');
+const numbers = ['atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs', 'uid', 'gid', 'nlink', 'rdev', 'blksize', 'blocks', 'size', 'mode', 'dev', 'ino'];
+const dates = ['atime', 'mtime', 'ctime', 'birthtime'];
+console.log(numbers.map((k) => k + ':' + typeof s[k]).join(' '));
+console.log(dates.map((k) => k + ':' + (s[k] instanceof Date) + ':' + (s[k].getTime() === s[k + 'Ms'] || Math.abs(s[k].getTime() - s[k + 'Ms']) < 1)).join(' '));
+console.log(s.birthtimeMs <= s.ctimeMs, s.nlink >= 1, s.blksize > 0);
+const d = fs.statSync('stat-w');
+console.log(typeof d.ctime.getTime(), d.isDirectory(), typeof fs.statSync('stat-w', {bigint: true}).ino);
+${
+    exact
+        ? `console.log(['uid', 'gid', 'nlink', 'rdev', 'blksize', 'blocks', 'mode', 'size'].map((k) => s[k]).join());
+console.log(['atimeMs', 'mtimeMs', 'ctimeMs'].map((k) => Math.abs(s[k] - Date.now()) < 60000).join());
+const l = fs.lstatSync('/proc/self');
+console.log(l.isSymbolicLink(), typeof l.ctime.getTime(), l.uid);`
+        : `const l = fs.lstatSync('stat-w/f.txt'); console.log(l.isFile());`
+}
+fs.rmSync('stat-w', {recursive: true});
+`;
+    expectModules({ "main.mjs": source }, true);
+});
+
 test("fs uses Win32 imports on Windows and system calls on Linux", () => {
     const imports = (source: string) => {
         const win = compile(source, {

@@ -107,11 +107,30 @@ function readChunks(sizeHint, readInto) {
     return concat(chunks, total);
 }
 export class Stats {
-    constructor(kind, size, mtimeMs, mode) {
-        this.size = size;
+    // r is a platform stat result; fields a platform lacks fall back to
+    // mtime (times) or 0 (the rest), and dev/ino are filled in by statsOf.
+    constructor(kind, r, bigint) {
+        const mtimeMs = r.mtimeMs,
+            number = (value) => (value === undefined ? 0 : value),
+            time = (value) => (value === undefined ? mtimeMs : value);
+        this.dev = bigint ? r.dev : Number(r.dev);
+        this.mode = r.mode;
+        this.nlink = number(r.nlink);
+        this.uid = number(r.uid);
+        this.gid = number(r.gid);
+        this.rdev = number(r.rdev);
+        this.blksize = number(r.blksize);
+        this.ino = bigint ? r.ino : Number(r.ino);
+        this.size = r.size;
+        this.blocks = number(r.blocks);
+        this.atimeMs = time(r.atimeMs);
         this.mtimeMs = mtimeMs;
-        this.mode = mode;
+        this.ctimeMs = time(r.ctimeMs);
+        this.birthtimeMs = time(r.birthtimeMs);
+        this.atime = new Date(this.atimeMs);
         this.mtime = new Date(mtimeMs);
+        this.ctime = new Date(this.ctimeMs);
+        this.birthtime = new Date(this.birthtimeMs);
         Object.defineProperty(this, "_kind", { value: kind });
     }
     isFile() {
@@ -171,15 +190,7 @@ export class Dirent {
     }
 }
 function statsOf(result, options) {
-    const value = new Stats(
-        result.kind,
-        result.size,
-        result.mtimeMs,
-        result.mode,
-    );
-    value.dev = options && options.bigint ? result.dev : Number(result.dev);
-    value.ino = options && options.bigint ? result.ino : Number(result.ino);
-    return value;
+    return new Stats(result.kind, result, !!(options && options.bigint));
 }
 export function readFileSync(path, options) {
     path = pathString(path, "path");

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- `fs.Stats` now has `atime`, `ctime`, `birthtime` (with the `*Ms` numbers), `uid`, `gid`, `nlink`, `rdev`, `blksize` and `blocks` on every target (#482).
+
 ## v0.26.0 — 2026-10-23
 
 ### Fixes

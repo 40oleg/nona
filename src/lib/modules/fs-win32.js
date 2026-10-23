@@ -278,9 +278,25 @@ const sys = {
         const targetTicks =
             identityView.getUint32(20, true) +
             identityView.getUint32(24, true) * 4294967296;
+        const fileTimeMs = (offset) =>
+            (identityView.getUint32(offset, true) +
+                identityView.getUint32(offset + 4, true) * 4294967296 -
+                116444736000000000) /
+            10000;
+        const resultSize = targetDirectory ? 0 : targetSize;
+        // Node.js reports ChangeTime for ctime; the last write time stands in.
         return {
             kind: targetDirectory ? "dir" : "file",
-            size: targetDirectory ? 0 : targetSize,
+            size: resultSize,
+            nlink: identityView.getUint32(40, true),
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            blksize: 4096,
+            blocks: Math.ceil(resultSize / 512),
+            atimeMs: fileTimeMs(12),
+            ctimeMs: (targetTicks - 116444736000000000) / 10000,
+            birthtimeMs: fileTimeMs(4),
             dev: extended
                 ? idView.getBigUint64(0, true)
                 : BigInt(identityView.getUint32(28, true)),
