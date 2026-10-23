@@ -1,6 +1,6 @@
-# Language support
+﻿# Language support
 
-Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.24.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
+Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.25.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
 
 **Supported** means implemented and covered by unit tests and Test262 within the limits in the Notes column. The detailed per-feature matrix with test names is kept in [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (Russian).
 
@@ -32,7 +32,7 @@ Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This
 | Object, Function, Boolean, Symbol, Error | Supported | Including property descriptors, integrity operations and the global and well-known symbols.                                                                                                                                                                                                                                                          |
 | Number, Math, URI functions              | Supported | Shortest round-trip number formatting, `toFixed`/`toExponential`/`toPrecision`, all ES2020 `Math` functions.                                                                                                                                                                                                                                         |
 | String                                   | Supported | ES2020 methods, Unicode normalization, `localeCompare` without ECMA-402 locale data.                                                                                                                                                                                                                                                                 |
-| RegExp                                   | Supported | Named groups (the same name may repeat in different alternatives, ES2025), lookbehind, `s`, `u`, `v`, `y` and `g` flags, Unicode property escapes, `matchAll`, pattern modifiers `(?i:…)` (ES2025). The engine is a backtracking VM written as a prelude, with a linear-time fallback for patterns that backtrack excessively; it is slower than V8. |
+| RegExp                                   | Supported | Named groups (the same name may repeat in different alternatives, ES2025), lookbehind, `s`, `u`, `v`, `y` and `g` flags, Unicode property escapes, `matchAll`, pattern modifiers `(?i:вЂ¦)` (ES2025). The engine is a backtracking VM written as a prelude, with a linear-time fallback for patterns that backtrack excessively; it is slower than V8. |
 | Array                                    | Supported | All ES2020 methods, species, holes and very large lengths.                                                                                                                                                                                                                                                                                           |
 | Date, JSON                               | Supported | Date parsing and formatting in UTC and local time, `JSON.parse` with revivers, `JSON.stringify` with replacers and indentation.                                                                                                                                                                                                                      |
 | Map, Set, WeakMap, WeakSet               | Supported | Ephemeron semantics for weak collections.                                                                                                                                                                                                                                                                                                            |
@@ -57,12 +57,12 @@ Most features from later editions are not supported. Supported additions:
 - ES2025: `RegExp.escape`.
 - ES2025: duplicate named capture groups in different alternatives of a pattern.
 - ES2025: `Set.prototype.union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf` and `isDisjointFrom`.
-- ES2025: RegExp pattern modifiers `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)`, with the spec's early errors (a SyntaxError for a repeated or conflicting flag, `(?-:` or a missing colon).
+- ES2025: RegExp pattern modifiers `(?i:вЂ¦)`, `(?-i:вЂ¦)` and `(?ims-ims:вЂ¦)`, with the spec's early errors (a SyntaxError for a repeated or conflicting flag, `(?-:` or a missing colon).
 - ES2025: `Float16Array`, `Math.f16round`, `DataView.prototype.getFloat16` and `setFloat16` (software round-to-nearest-even conversion).
 
 Where the pinned Test262 revision already checks newer semantics for ES2020 features, Nona follows Test262; the [Test262](/reference/test262#semantics-newer-than-es2020-in-the-pinned-test262) page lists these cases.
 
-Host APIs that are not part of ECMAScript — timers, `process`, `node:fs`, `TextEncoder`/`TextDecoder` and FFI — are described in the [Reference](/reference/modules).
+Host APIs that are not part of ECMAScript вЂ” timers, `process`, `node:fs`, `TextEncoder`/`TextDecoder` and FFI вЂ” are described in the [Reference](/reference/modules).
 
 ## Test262 results
 
@@ -72,7 +72,7 @@ Last full pinned Test262 run, on Windows x64 for v0.8.0 (features from ES2020 an
 | ---------------------------- | ------------------- | --------------------------------------- |
 | `language/`                  | 22436 / 22492       | 44 `eval`, 1 newer semantics, 11 other  |
 | `built-ins/`                 | 15868 / 15933       | 16 `eval`, 12 newer semantics, 37 other |
-| `built-ins/Atomics` (agents) | 268 / 268           | —                                       |
+| `built-ins/Atomics` (agents) | 268 / 268           | вЂ”                                       |
 | `annexB/`                    | 996 / 1016          | 20 `eval`                               |
 
 "`eval`" failures use source text computed at run time, `$262.evalScript` or other realms; "newer semantics" tests check behaviour from later editions under an old or missing feature tag. The [status page](/guide/status) lists the remaining failures.

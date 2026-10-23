@@ -1,19 +1,19 @@
----
+﻿---
 layout: home
 
 hero:
     name: Nona
-    text: De JavaScript para executáveis nativos
-    tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em pequenos executáveis independentes para Windows, Linux, macOS, FreeBSD e OpenBSD. Sem interpretador embutido e sem toolchain de C.
+    text: De JavaScript para executГЎveis nativos
+    tagline: Um compilador ahead-of-time que transforma JavaScript ES2020 em pequenos executГЎveis independentes para Windows, Linux, macOS, FreeBSD e OpenBSD. Sem interpretador embutido e sem toolchain de C.
     actions:
         - theme: brand
-          text: Começar
+          text: ComeГ§ar
           link: /pt/guide/getting-started
         - theme: alt
           text: Experimente no navegador
           link: /playground
         - theme: alt
-          text: O que é o Nona
+          text: O que Г© o Nona
           link: /pt/guide/what-is-nona
         - theme: alt
           text: GitHub
@@ -21,29 +21,29 @@ hero:
 
 features:
     - title: Inicia em 2 ms
-      details: Um hello world compilado inicia em cerca de 2 ms e atinge no máximo 11 MB de memória, em um arquivo de cerca de 2 MB. O Node.js leva 28 ms e usa 45 MB; um executável Node SEA tem 124 MB.
+      details: Um hello world compilado inicia em cerca de 2 ms e atinge no mГЎximo 11 MB de memГіria, em um arquivo de cerca de 2 MB. O Node.js leva 28 ms e usa 45 MB; um executГЎvel Node SEA tem 124 MB.
       link: /pt/guide/performance
     - title: Oito alvos a partir de qualquer host
-      details: Windows, Linux e macOS em x64 e ARM64, FreeBSD e OpenBSD em x64. Compile de forma cruzada com --target; todo executável é independente.
+      details: Windows, Linux e macOS em x64 e ARM64, FreeBSD e OpenBSD em x64. Compile de forma cruzada com --target; todo executГЎvel Г© independente.
       link: /reference/native-platforms
     - title: A linguagem ES2020
-      details: Classes, geradores, funções async, desestruturação, encadeamento opcional, BigInt, chamadas de cauda próprias e módulos ES com ciclos e live bindings, com exceções documentadas.
+      details: Classes, geradores, funГ§Гµes async, desestruturaГ§ГЈo, encadeamento opcional, BigInt, chamadas de cauda prГіprias e mГіdulos ES com ciclos e live bindings, com exceГ§Гµes documentadas.
       link: /pt/guide/language-support
     - title: Pacotes npm
-      details: Os pacotes de node_modules são resolvidos em tempo de compilação e compilados no executável, junto com os módulos do Node.js de que costumam precisar.
+      details: Os pacotes de node_modules sГЈo resolvidos em tempo de compilaГ§ГЈo e compilados no executГЎvel, junto com os mГіdulos do Node.js de que costumam precisar.
       link: /reference/npm
     - title: APIs do host no estilo Node.js
       details: Timers e um loop de eventos, process, fs, path, Buffer, streams, events, URL e servidores e clientes HTTP e TCP.
       link: /pt/reference/modules
     - title: Um runtime nativo
-      details: Um coletor de lixo mark-and-sweep preciso, strings UTF-16, exceções de verdade, um RangeError capturável em caso de estouro de pilha e um compilador auto-hospedado.
+      details: Um coletor de lixo mark-and-sweep preciso, strings UTF-16, exceГ§Гµes de verdade, um RangeError capturГЎvel em caso de estouro de pilha e um compilador auto-hospedado.
       link: /pt/guide/how-it-works
-    - title: FFI e programas gráficos do Windows
-      details: Chame qualquer função exportada de uma DLL com declarações em tempo de compilação e crie programas sem janela de console, com ícone, manifesto e informações de versão.
+    - title: FFI e programas grГЎficos do Windows
+      details: Chame qualquer funГ§ГЈo exportada de uma DLL com declaraГ§Гµes em tempo de compilaГ§ГЈo e crie programas sem janela de console, com Г­cone, manifesto e informaГ§Гµes de versГЈo.
       link: /pt/reference/ffi
 ---
 
-## Exemplo rápido
+## Exemplo rГЎpido
 
 <<< ../../samples/hello.js
 
@@ -59,7 +59,7 @@ nona build hello.js -o build/hello
 ./build/hello
 ```
 
-```sh [Compilação cruzada]
+```sh [CompilaГ§ГЈo cruzada]
 nona build hello.js -o build/hello --target linux-arm64
 ```
 
@@ -74,12 +74,12 @@ tick 3
 done; at least 30 ms passed: true
 ```
 
-O executável contém o código de máquina do programa e o runtime do Nona. Ele não precisa do Node.js: um executável do Windows importa apenas `KERNEL32.dll`, e um executável do Linux faz chamadas de sistema diretamente, sem libc.
+O executГЎvel contГ©m o cГіdigo de mГЎquina do programa e o runtime do Nona. Ele nГЈo precisa do Node.js: um executГЎvel do Windows importa apenas `KERNEL32.dll`, e um executГЎvel do Linux faz chamadas de sistema diretamente, sem libc.
 
 ## Status
 
-A versão atual é a **v0.24.0**; o Nona é experimental. Ele não é um substituto direto do Node.js e não passou por auditoria de segurança.
+A versГЈo atual Г© a **v0.25.0**; o Nona Г© experimental. Ele nГЈo Г© um substituto direto do Node.js e nГЈo passou por auditoria de seguranГ§a.
 
-- **Conformidade.** Na última auditoria completa (v0.8.0), a suíte Test262 fixada passou em 22436/22492 testes de language, 15868/15933 de built-ins, 268/268 de Atomics e 996/1016 de Annex B no Windows x64. Cada falha restante está classificada na [página de status](/pt/guide/status).
-- **Velocidade.** Inicialização, tamanho do executável e memória são os pontos fortes do Nona. A computação dentro de um programa não tem JIT: vai de equivalente ao V8 em laços simples a várias ou dezenas de vezes mais lenta em chamadas, alocação e programas reais de longa duração. [Desempenho](/pt/guide/performance) traz as medições e os pontos lentos conhecidos.
-- **Limites.** `eval` e `Function` exigem código-fonte conhecido em tempo de compilação, e só existem as APIs do Node.js que o Nona implementa. Veja [Compatibilidade e limitações](/pt/guide/compatibility).
+- **Conformidade.** Na Гєltima auditoria completa (v0.8.0), a suГ­te Test262 fixada passou em 22436/22492 testes de language, 15868/15933 de built-ins, 268/268 de Atomics e 996/1016 de Annex B no Windows x64. Cada falha restante estГЎ classificada na [pГЎgina de status](/pt/guide/status).
+- **Velocidade.** InicializaГ§ГЈo, tamanho do executГЎvel e memГіria sГЈo os pontos fortes do Nona. A computaГ§ГЈo dentro de um programa nГЈo tem JIT: vai de equivalente ao V8 em laГ§os simples a vГЎrias ou dezenas de vezes mais lenta em chamadas, alocaГ§ГЈo e programas reais de longa duraГ§ГЈo. [Desempenho](/pt/guide/performance) traz as mediГ§Гµes e os pontos lentos conhecidos.
+- **Limites.** `eval` e `Function` exigem cГіdigo-fonte conhecido em tempo de compilaГ§ГЈo, e sГі existem as APIs do Node.js que o Nona implementa. Veja [Compatibilidade e limitaГ§Гµes](/pt/guide/compatibility).
