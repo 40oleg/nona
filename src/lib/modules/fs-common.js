@@ -14,6 +14,7 @@ const descriptions = {
     EBADF: "bad file descriptor",
     EXDEV: "cross-device link not permitted",
     EIO: "i/o error",
+    EROFS: "read-only file system",
     UNKNOWN: "unknown error",
 };
 function fail(code, syscall, path, dest) {
@@ -369,6 +370,44 @@ export function unlinkSync(path) {
 export function renameSync(from, to) {
     sys.rename(pathString(from, "oldPath"), pathString(to, "newPath"));
 }
+function invalidArg(message) {
+    const error = new TypeError(message);
+    error.code = "ERR_INVALID_ARG_TYPE";
+    return error;
+}
+export function chmodSync(path, mode) {
+    path = pathString(path, "path");
+    if (typeof mode === "string" && /^[0-7]+$/.test(mode))
+        mode = parseInt(mode, 8);
+    if (typeof mode !== "number" || !Number.isInteger(mode) || mode < 0)
+        throw invalidArg(
+            'The "mode" argument must be of type number or an octal string',
+        );
+    sys.chmod(path, mode & 0o7777);
+}
+/** Seconds since the epoch of a number, a numeric string or a Date. */
+function timeSeconds(value, name) {
+    let seconds = NaN;
+    if (typeof value === "number") seconds = value;
+    else if (value instanceof Date) seconds = value.getTime() / 1000;
+    else if (typeof value === "string" && value.trim() !== "")
+        seconds = Number(value);
+    if (
+        typeof seconds !== "number" ||
+        seconds !== seconds ||
+        !isFinite(seconds)
+    )
+        throw invalidArg(
+            'The "' +
+                name +
+                '" argument must be of type number, string or an instance of Date',
+        );
+    return seconds;
+}
+export function utimesSync(path, atime, mtime) {
+    path = pathString(path, "path");
+    sys.utimes(path, timeSeconds(atime, "atime"), timeSeconds(mtime, "mtime"));
+}
 export function copyFileSync(from, to, mode) {
     from = pathString(from, "src");
     to = pathString(to, "dest");
@@ -421,6 +460,8 @@ export const readFile = callbackForm(readFileSync),
     rmdir = callbackForm(rmdirSync),
     unlink = callbackForm(unlinkSync),
     rename = callbackForm(renameSync),
+    chmod = callbackForm(chmodSync),
+    utimes = callbackForm(utimesSync),
     copyFile = callbackForm(copyFileSync);
 realpath.native = realpath;
 export function exists(path, callback) {
@@ -443,6 +484,8 @@ export const promises = {
     rmdir: promiseForm(rmdirSync),
     unlink: promiseForm(unlinkSync),
     rename: promiseForm(renameSync),
+    chmod: promiseForm(chmodSync),
+    utimes: promiseForm(utimesSync),
     copyFile: promiseForm(copyFileSync),
 };
 export const constants = {
@@ -468,6 +511,8 @@ export default {
     rmdirSync,
     unlinkSync,
     renameSync,
+    chmodSync,
+    utimesSync,
     copyFileSync,
     readFile,
     writeFile,
@@ -484,6 +529,8 @@ export default {
     rmdir,
     unlink,
     rename,
+    chmod,
+    utimes,
     copyFile,
     promises,
     Dirent,
