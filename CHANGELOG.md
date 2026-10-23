@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`fs.mkdtempSync`, `fs.mkdtemp` and `fs.promises.mkdtemp`.** They create a unique temporary directory from a prefix plus six random characters, with mode `0o700` on POSIX ([#483](https://github.com/40oleg/nona/issues/483)).
+
 ## v0.26.0 — 2026-10-23
 
 ### Fixes
