@@ -497,7 +497,8 @@ test("syntax helpers are linked by the calls of the lowered program", () => {
             target,
         ).length;
         // The inline method, call/apply and direct-call sites of the preludes
-        // (#47) take about 42 KB; the shortest-digits number formatting
+        // (#47) take about 42 KB; the Eisel-Lemire string-to-number path
+        // (#466) adds about 6 KB, and the shortest-digits number formatting
         // (#467) is part of every image.
         assert.ok(hello < 1_300_000, `${target}: ${hello} bytes`);
         assert.ok(fields - hello > 8_000, `${target}: ${fields} vs ${hello}`);
