@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`util.types.isProxy` detects proxies.** It was a stub that always returned `false`; it now returns `true` for every Proxy object (plain, callable and revoked ones) through an internal runtime check that runs no trap, and `false` for everything else. ([#469](https://github.com/40oleg/nona/issues/469))
+- **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
 
 ## v0.26.0 — 2026-10-23
 

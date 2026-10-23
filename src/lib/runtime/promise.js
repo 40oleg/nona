@@ -655,7 +655,10 @@ var __nonaPromiseDrainJobs = (function () {
     }.race;
     var AggregateErrorConstructor = __nonaRegexpVm.AggregateError;
     function aggregate(errors) {
-        var error = new AggregateErrorConstructor([]);
+        var error = new AggregateErrorConstructor(
+            [],
+            "All promises were rejected",
+        );
         Object.defineProperty(error, "errors", {
             value: errors,
             writable: true,
