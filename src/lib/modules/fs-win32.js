@@ -31,6 +31,7 @@ const GetFinalPathNameByHandleW = define(
     "u32(ptr,buf,u32,u32)",
 );
 const CloseHandle = define("kernel32.dll", "CloseHandle", "bool(ptr)");
+const GetStdHandle = define("kernel32.dll", "GetStdHandle", "ptr(i32)");
 const GetFileAttributesExW = define(
     "kernel32.dll",
     "GetFileAttributesExW",
@@ -177,6 +178,41 @@ function linkTarget(path, throws = false) {
 }
 const sys = {
     separator: "\\",
+    readAllFd(fd) {
+        const handle = GetStdHandle(-10 - fd);
+        if (handle === null || handle === INVALID_HANDLE) fail("EBADF", "read");
+        return readChunks(0, (part) => {
+            if (
+                !ReadFile(
+                    handle,
+                    part,
+                    Math.min(part.length, 0x40000000),
+                    counter,
+                    null,
+                )
+            ) {
+                // A closed pipe is the end of the input.
+                if (lastError() === 109) return 0;
+                error("read");
+            }
+            return counter[0];
+        });
+    },
+    writeAllFd(fd, bytes) {
+        const handle = GetStdHandle(-10 - fd);
+        if (handle === null || handle === INVALID_HANDLE)
+            fail("EBADF", "write");
+        let offset = 0;
+        while (offset < bytes.length) {
+            const part = bytes.subarray(
+                offset,
+                offset + Math.min(bytes.length - offset, 0x40000000),
+            );
+            if (!WriteFile(handle, part, part.length, counter, null))
+                error("write");
+            offset += counter[0];
+        }
+    },
     readAll(path) {
         const handle = CreateFileW(path, 0x80000000, 7, null, 3, 0x80, null);
         if (handle === INVALID_HANDLE) error("open", path);

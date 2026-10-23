@@ -162,7 +162,7 @@
         },
         "fs": {
             "description": "node:fs (native loader jobs).",
-            "files": ["fs"]
+            "files": ["fs", "fs-fd"]
         },
         "process": {
             "description": "Portable process suites (native loader jobs).",

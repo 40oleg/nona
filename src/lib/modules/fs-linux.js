@@ -71,21 +71,29 @@ function statResult() {
 }
 function readAllFd(fd, path) {
     check(sysFstat(fd, statBuffer), "read", path);
-    return readChunks(statResult().size, (part) =>
-        check(sysRead(fd, part, part.length), "read", path),
-    );
+    return readChunks(statResult().size, (part) => {
+        for (;;) {
+            const n = sysRead(fd, part, part.length);
+            if (n !== -4) return check(n, "read", path);
+        }
+    });
 }
 function writeAllFd(fd, bytes, path) {
     let offset = 0;
-    while (offset < bytes.length)
-        offset += check(
-            sysWrite(fd, bytes.subarray(offset), bytes.length - offset),
-            "write",
-            path,
-        );
+    while (offset < bytes.length) {
+        const n = sysWrite(fd, bytes.subarray(offset), bytes.length - offset);
+        if (n === -4) continue;
+        offset += check(n, "write", path);
+    }
 }
 const sys = {
     separator: "/",
+    readAllFd(fd) {
+        return readAllFd(fd, undefined);
+    },
+    writeAllFd(fd, bytes) {
+        writeAllFd(fd, bytes, undefined);
+    },
     readAll(path) {
         const fd = check(sysOpen(cpath(path), O_CLOEXEC, 0), "open", path);
         try {
