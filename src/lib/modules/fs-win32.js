@@ -65,6 +65,17 @@ const DeviceIoControl = define(
     "DeviceIoControl",
     "bool(ptr,u32,ptr,u32,buf,u32,buf,ptr)",
 );
+const DeviceIoControlIn = define(
+    "kernel32.dll",
+    "DeviceIoControl",
+    "bool(ptr,u32,buf,u32,ptr,u32,buf,ptr)",
+);
+const CreateSymbolicLinkW = define(
+    "kernel32.dll",
+    "CreateSymbolicLinkW",
+    // Returns a BOOLEAN (one byte); the rest of the register is undefined.
+    "u8(wstr,wstr,u32)",
+);
 const INVALID_HANDLE = -1,
     DIRECTORY = 0x10,
     REPARSE_POINT = 0x400,
@@ -85,6 +96,7 @@ function codeOf(error) {
             return "ENOENT";
         case 5:
         case 19:
+        case 1314:
             return "EPERM";
         case 32:
         case 33:
@@ -174,6 +186,58 @@ function linkTarget(path, throws = false) {
         : value.startsWith("\\??\\")
           ? value.slice(4)
           : value;
+}
+/** A directory with a mount-point reparse buffer; the target must be absolute. */
+function junction(target, path) {
+    const absolute = resolve(target).replace(/\//g, "\\");
+    const substitute = "\\??\\" + absolute,
+        print = absolute;
+    const subBytes = substitute.length * 2,
+        printBytes = print.length * 2;
+    const data = new Uint8Array(16 + subBytes + printBytes + 4),
+        view = new DataView(data.buffer);
+    view.setUint32(0, MOUNT_POINT_TAG, true);
+    view.setUint16(4, 8 + subBytes + printBytes + 4, true);
+    view.setUint16(10, subBytes, true);
+    view.setUint16(12, subBytes + 2, true);
+    view.setUint16(14, printBytes, true);
+    for (let i = 0; i < substitute.length; i++)
+        view.setUint16(16 + i * 2, substitute.charCodeAt(i), true);
+    for (let i = 0; i < print.length; i++)
+        view.setUint16(18 + subBytes + i * 2, print.charCodeAt(i), true);
+    if (!CreateDirectoryW(path, null)) error("symlink", target, path);
+    const handle = CreateFileW(
+        path,
+        0x40000000,
+        7,
+        null,
+        3,
+        BACKUP_SEMANTICS | OPEN_REPARSE_POINT,
+        null,
+    );
+    if (handle !== INVALID_HANDLE) {
+        try {
+            // FSCTL_SET_REPARSE_POINT
+            if (
+                DeviceIoControlIn(
+                    handle,
+                    0x000900a4,
+                    data,
+                    data.length,
+                    null,
+                    0,
+                    counter,
+                    null,
+                )
+            )
+                return;
+        } finally {
+            CloseHandle(handle);
+        }
+    }
+    const code = codeOf(lastError());
+    RemoveDirectoryW(path);
+    fail(code, "symlink", target, path);
 }
 const sys = {
     separator: "\\",
@@ -305,6 +369,20 @@ const sys = {
         const target = linkTarget(path, true);
         if (target === null) fail("EINVAL", "readlink", path);
         return target;
+    },
+    symlink(target, path, type) {
+        if (type === "junction") return junction(target, path);
+        target = target.replace(/\//g, "\\");
+        let flags = 2;
+        if (type === "dir") flags |= 1;
+        else if (type !== "file") {
+            const absolute = /^([a-zA-Z]:|\\)/.test(target)
+                ? target
+                : join(dirname(resolve(path)), target);
+            if (isDirectory(absolute)) flags |= 1;
+        }
+        if (CreateSymbolicLinkW(path, target, flags) === 0)
+            error("symlink", target, path);
     },
     realpath(path) {
         const handle = CreateFileW(path, 0, 7, null, 3, 0x02000000, null);

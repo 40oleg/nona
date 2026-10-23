@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`fs.symlinkSync`, `fs.symlink` and `fs.promises.symlink` create symbolic links.** They were missing although `readlinkSync` and `lstatSync` existed. `type` (`file`, `dir`, `junction`) is honoured on Windows, including real junctions; errors carry Node.js codes (`EEXIST`, `ENOENT`, `EPERM`). ([#484](https://github.com/40oleg/nona/issues/484))
+
 ## v0.26.0 — 2026-10-23
 
 ### Fixes
