@@ -65,6 +65,8 @@ function linuxArm64Source(): string {
             "function sysLstat(path,buffer){return statat(-100,path,buffer,256)}",
         sysReadlink:
             'const readlinkat = define("syscall", "78", "i64(i64,buf,buf,i64)");function sysReadlink(path,buffer,size){return readlinkat(-100,path,buffer,size)}',
+        sysSymlink:
+            'const symlinkat = define("syscall", "36", "i64(buf,i64,buf)");function sysSymlink(target,path){return symlinkat(target,-100,path)}',
         sysRename:
             'const renameat = define("syscall", "276", "i64(i64,buf,i64,buf,i64)");function sysRename(from,to){return renameat(-100,from,-100,to,0)}',
         sysMkdir:
@@ -94,6 +96,7 @@ function bsdSource(target: Target): string {
         sysRmdir: "137",
         sysUnlink: "10",
         sysReadlink: "58",
+        sysSymlink: "57",
     };
     let source = linux;
     for (const [name, number] of Object.entries(calls))

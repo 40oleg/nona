@@ -6,6 +6,7 @@ const sysClose = define("syscall", "3", "i64(i64)");
 const sysStat = define("syscall", "4", "i64(buf,buf)");
 const sysLstat = define("syscall", "6", "i64(buf,buf)");
 const sysReadlink = define("syscall", "89", "i64(buf,buf,i64)");
+const sysSymlink = define("syscall", "88", "i64(buf,buf)");
 const sysFstat = define("syscall", "5", "i64(i64,buf)");
 const sysRename = define("syscall", "82", "i64(buf,buf)");
 const sysMkdir = define("syscall", "83", "i64(buf,i64)");
@@ -134,6 +135,9 @@ const sys = {
                 path,
             );
         return decoder.decode(data.subarray(0, length));
+    },
+    symlink(target, path) {
+        check(sysSymlink(cpath(target), cpath(path)), "symlink", target, path);
     },
     realpath(path) {
         let parts = path.split("/").filter(Boolean),
