@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`JSON.parse` errors say what was found and where.** Invalid JSON threw `SyntaxError: Invalid operation`; the message is now `Unexpected token 'c' in JSON at position N` (the code unit at the position V8 reports), `Unexpected end of JSON input`, or `Unexpected non-whitespace character after JSON at position N`. The wording differs from V8's for some errors (V8 also says, for example, `Bad escaped character` or `Unterminated string`). ([#465](https://github.com/40oleg/nona/issues/465))
+
 ### Performance
 
 - **Number-to-string conversion of doubles uses Schubfach.** `rt.formatNumber` (`String(x)`, template literals, `+` concatenation, `JSON.stringify`) now gets the shortest round-trip digits of every finite double that is not an integer below 2^53 from Schubfach, with a 128-bit power-of-ten table and fixed-size integer arithmetic. Before, only values with at most 6 fraction digits had a fast path; the others built the exact decimal as a big integer and checked candidate digit strings by parsing them, 1–3 µs per number. Output is unchanged (checked against Node.js for 300,000 random bit patterns, every power of two and every power of ten with its neighbours). The repro of the issue on Windows x64, 100,000 conversions each: `i * 1.1` 127 → 6 ms, `Math.random()` 261 → 8 ms, `JSON.stringify` of 100,000 such doubles 132 → 7 ms. ([#467](https://github.com/40oleg/nona/issues/467))

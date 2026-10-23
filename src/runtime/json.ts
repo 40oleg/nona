@@ -554,7 +554,10 @@ export function emitJson(b: RuntimeBuilder): void {
             a.label(complete);
             a.jmp(done);
             a.label(invalid);
-            a.call("rt.throwSyntaxError");
+            a.lea("rcx", slot(64));
+            a.load("rdx", slot(80));
+            a.mov("r8", 1);
+            a.call("rt.jsonThrowSyntaxError");
             a.label(done);
             a.load("rax", slot(112));
             const noWalk = a.unique("noWalk");
