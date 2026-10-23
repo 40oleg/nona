@@ -343,3 +343,92 @@ console.log(typeof fs.readFile, fs.writeFile === writeFile);
 })();
 `,
     }));
+
+test("fs.chmod, fs.chmodSync, fs.utimes, fs.utimesSync work with modes and times", () =>
+    expectModules({
+        "main.mjs": `
+import fs, {chmodSync, chmod, utimesSync, utimes, writeFileSync, unlinkSync, statSync} from 'node:fs';
+import fsp from 'node:fs/promises';
+
+(async () => {
+writeFileSync('mode-test.txt', 'test');
+chmodSync('mode-test.txt', 0o755);
+let st = statSync('mode-test.txt');
+const savedMode = st.mode & 0o777;
+console.log(savedMode === 0o755 || savedMode === 0o666);
+
+utimesSync('mode-test.txt', 1000, 2000);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2000000);
+
+const d = new Date(3000000);
+utimesSync('mode-test.txt', new Date(1000000), d);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 3000000);
+
+utimesSync('mode-test.txt', 1500, 2500);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2500000);
+
+let cbError = null;
+let cbOk = false;
+await new Promise((resolve) => {
+  chmod('mode-test.txt', 0o644, (error) => {
+    cbError = error;
+    cbOk = !error;
+    resolve();
+  });
+});
+console.log(cbOk);
+
+cbError = null;
+cbOk = false;
+await new Promise((resolve) => {
+  utimes('mode-test.txt', 1100, 2200, (error) => {
+    cbError = error;
+    cbOk = !error;
+    resolve();
+  });
+});
+console.log(cbOk);
+
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2200000);
+
+await fsp.chmod('mode-test.txt', 0o600);
+await fsp.utimes('mode-test.txt', 1200, 2300);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2300000);
+
+try {
+  chmodSync('missing.txt', 0o755);
+  console.log(false);
+} catch (e) {
+  console.log(e.code === 'ENOENT');
+}
+
+try {
+  utimesSync('missing.txt', 1000, 2000);
+  console.log(false);
+} catch (e) {
+  console.log(e.code === 'ENOENT');
+}
+
+try {
+  chmodSync('mode-test.txt', 'invalid');
+  console.log(false);
+} catch (e) {
+  console.log(e instanceof TypeError);
+}
+
+try {
+  utimesSync('mode-test.txt', NaN, 2000);
+  console.log(false);
+} catch (e) {
+  console.log(e instanceof TypeError);
+}
+
+unlinkSync('mode-test.txt');
+})();
+`,
+    }));

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`fs.chmodSync`, `fs.chmod`, `fs.promises.chmod` and `fs.utimesSync`, `fs.utimes`, `fs.promises.utimes` change file permissions and times.** `chmod` and `utimes` have callback and promise forms; times are numbers (seconds), Dates or numeric strings; on Windows `chmod` maps the write bit to the read-only attribute, and other bits are ignored ([#485](https://github.com/40oleg/nona/issues/485)).
+
 ## v0.26.0 — 2026-10-23
 
 ### Fixes
