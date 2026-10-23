@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { compileToIR } from "../src/compiler.js";
 import { generate } from "../src/backend/x64/codegen.js";
 import { linkHost } from "./helpers/program.js";
+import { runOnHost } from "./helpers/host.js";
 import { runNative } from "./helpers/native.js";
 
 test("IsArray unwraps nested proxies for concat and species under GC stress", () => {
@@ -558,6 +559,21 @@ const cases: [string, string][] = [
         "unshift no arguments clamps huge length",
         `var o={length:Infinity};console.log(Array.prototype.unshift.call(o),o.length);o.length=9007199254740992;console.log(Array.prototype.unshift.call(o),o.length);`,
     ],
+    [
+        "unshift dense fast path matches Node.js",
+        `var a=[1,2,3];console.log(a.unshift(0),a.join());console.log(a.unshift(-2,-1),a.join());console.log(a.unshift(),a.length);
+var e=[];console.log(e.unshift(7,8),e.join());
+var h=[1,,3];console.log(h.unshift(0),h.length,1 in h,2 in h,3 in h,h[3]);
+var l={length:2,0:'a',1:'b'};console.log(Array.prototype.unshift.call(l,'x'),JSON.stringify(l));
+var f=Object.freeze([1]);try{f.unshift(0)}catch(x){console.log(x.name)}
+var ne=Object.preventExtensions([1,2]);try{ne.unshift(0)}catch(x){console.log(x.name)}console.log(ne.join());
+var seen=[];Object.defineProperty(Array.prototype,'0',{set:function(v){seen.push(v)},configurable:true});
+var s=[1,2];s.unshift(9);delete Array.prototype[0];console.log(seen.join(),s.length);
+class M extends Array{}var m=M.from([1,2]);console.log(m.unshift(0),m.join(),m instanceof M);
+try{Array.prototype.unshift.call({length:9007199254740991},1)}catch(x){console.log(x.name)}
+console.log(Array.prototype.unshift.call({length:9007199254740991}));
+var g=[];for(var i=0;i<100;i++)g.unshift(i);console.log(g.length,g.join().length,g[0],g[99]);`,
+    ],
 ];
 for (const [name, source] of cases)
     test(`array builtins: ${name}`, () =>
@@ -769,4 +785,11 @@ test("array builtins: flatMap callback and mapped values survive stress GC", () 
     );
     assert.equal(run.status, 0, run.stderr.toString());
     assert.equal(run.stdout.toString(), runOracle(source).stdout);
+});
+
+test("array builtins: 20000 unshifts take a fraction of a second", () => {
+    const source = `const a=[];const t=Date.now();for(let i=0;i<20000;i++)a.unshift(i);console.log(a.length,a[0],a[19999],Date.now()-t<1000)`;
+    const run = runOnHost(source, { gcStress: false });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
 });

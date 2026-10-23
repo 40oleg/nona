@@ -248,15 +248,47 @@ export function realpathSync(path, options) {
 realpathSync.native = realpathSync;
 export function readdirSync(path, options) {
     path = pathString(path, "path");
-    const names = sys.readdir(path);
-    if (options && typeof options === "object" && options.withFileTypes)
-        return names.map((name) => {
-            const info = sys.lstat(join(path, name));
-            return info === null
-                ? new Dirent(name, path, "other", 0)
-                : new Dirent(name, path, info.kind, info.mode);
-        });
-    return names;
+    const object = options && typeof options === "object";
+    const withFileTypes = object && options.withFileTypes;
+    const recursive = object && options.recursive;
+    if (!recursive) {
+        const names = sys.readdir(path);
+        if (withFileTypes)
+            return names.map((name) => {
+                const info = sys.lstat(join(path, name));
+                return info === null
+                    ? new Dirent(name, path, "other", 0)
+                    : new Dirent(name, path, info.kind, info.mode);
+            });
+        return names;
+    }
+    // Depth-first walk; a directory is listed before its children and symbolic
+    // links to directories are listed but not entered, except on Windows where
+    // Node.js enters them.
+    const followLinks = sys.separator === "\\";
+    const result = [];
+    const walk = (relative) => {
+        const directory = relative === "" ? path : join(path, relative);
+        for (const name of sys.readdir(directory)) {
+            const info = sys.lstat(join(directory, name));
+            const entry = relative === "" ? name : join(relative, name);
+            result.push(
+                withFileTypes
+                    ? info === null
+                        ? new Dirent(name, directory, "other", 0)
+                        : new Dirent(name, directory, info.kind, info.mode)
+                    : entry,
+            );
+            if (info === null) continue;
+            if (info.kind === "dir") walk(entry);
+            else if (info.kind === "symlink" && followLinks) {
+                const target = sys.stat(join(directory, name));
+                if (target !== null && target.kind === "dir") walk(entry);
+            }
+        }
+    };
+    walk("");
+    return result;
 }
 export function mkdirSync(path, options) {
     path = pathString(path, "path");
