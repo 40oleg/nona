@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`util.parseArgs` is available.** It supports `args`, `options` (`type`, `short`, `multiple`, `default`), `strict`, `allowPositionals`, `allowNegative` and `tokens`, with Node.js's error codes (`ERR_PARSE_ARGS_UNKNOWN_OPTION`, ...). `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no script path. ([#481](https://github.com/40oleg/nona/issues/481))
+
 ## v0.26.0 — 2026-10-23
 
 ### Fixes
