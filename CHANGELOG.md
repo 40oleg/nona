@@ -6,6 +6,10 @@
 
 - **`JSON.parse` errors say what was found and where.** Invalid JSON threw `SyntaxError: Invalid operation`; the message is now `Unexpected token 'c' in JSON at position N` (the code unit at the position V8 reports), `Unexpected end of JSON input`, or `Unexpected non-whitespace character after JSON at position N`. The wording differs from V8's for some errors (V8 also says, for example, `Bad escaped character` or `Unterminated string`). ([#465](https://github.com/40oleg/nona/issues/465))
 
+### Performance
+
+- **Decimal strings with large exponents convert about 300x faster.** `Number()`, `parseFloat`, `JSON.parse` and the other string-to-number conversions avoided big integers only for decimal exponents in [-22, 22]; values like `1.2345e300` or `6.02e-23` took about 30 us each. A decimal with up to 19 significant digits and any exponent now takes an Eisel-Lemire fast path with a 128-bit table of powers of ten, still correctly rounded; exact ties, subnormal results, overflow and longer inputs keep the exact path. ([#466](https://github.com/40oleg/nona/issues/466))
+
 ## v0.25.0 — 2026-10-23
 
 ### Fixes

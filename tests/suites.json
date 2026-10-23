@@ -289,6 +289,7 @@
                 "new-target",
                 "nullish",
                 "number-builtins",
+                "number-parse-fast",
                 "number-to-string",
                 "object-collections",
                 "object-literal-methods",
