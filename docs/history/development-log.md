@@ -1,5 +1,11 @@
 # Журнал разработки Nona
 
+## 2026-10-23 — выпуск v0.25.0
+
+- Версия package.json и package-lock.json обновлена до 0.25.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли исправления для `assert.throws` и `assert.rejects` (#522), `assert.strict` (#521), а также оптимизация `Array.prototype.unshift` (#527).
+- Полный аудит Test262 для v0.25.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-22 — выпуск v0.24.0
 
 - Версия package.json и package-lock.json обновлена до 0.24.0; `src/version.ts`, CLI help и `--version` — тоже.
