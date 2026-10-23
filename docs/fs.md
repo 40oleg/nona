@@ -29,6 +29,16 @@ turn of the event loop with `(error, result)`; a wrong argument type (including
 a missing callback) throws synchronously, as in Node.js. `fs.promises` is not
 provided.
 
+`readFileSync`, `writeFileSync` and `appendFileSync` also accept the file
+descriptors `0` (stdin), `1` (stdout) and `2` (stderr) instead of a path, so
+`fs.readFileSync(0, 'utf8')` reads all of standard input until end of file and
+`fs.writeFileSync(1, text)` writes all bytes to standard output, on every
+target. For a descriptor, `writeFileSync` and `appendFileSync` behave the same
+and the `flag` and `mode` options are ignored. A non-integer descriptor throws
+`ERR_INVALID_ARG_TYPE`, a negative or too large one `ERR_OUT_OF_RANGE`, and
+any other descriptor `EBADF`. Invalid path or data types throw a `TypeError`
+with `code: 'ERR_INVALID_ARG_TYPE'`.
+
 Paths are strings (or UTF-8 `Uint8Array`s). Only the `utf8` encoding is
 supported. Errors are `Error` objects with Node.js codes (`ENOENT`, `EEXIST`,
 `EISDIR`, `ENOTDIR`, `ENOTEMPTY`, `EACCES`, `EPERM`, …), `syscall` and `path`,
