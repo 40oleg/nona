@@ -265,7 +265,7 @@ export function readdirSync(path, options) {
     // Depth-first walk; a directory is listed before its children and symbolic
     // links to directories are listed but not entered, except on Windows where
     // Node.js enters them.
-    const followLinks = process.platform === "win32";
+    const followLinks = sys.separator === "\\";
     const result = [];
     const walk = (relative) => {
         const directory = relative === "" ? path : join(path, relative);
