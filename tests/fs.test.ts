@@ -239,7 +239,7 @@ console.log(fs.realpathSync(dir + '/file-link') === fs.realpathSync(dir + '/targ
     }
 });
 
-test("readdir recursive lists all descendants like Node.js and skips symbolic links", (t) => {
+test("readdir recursive lists all descendants like Node.js and enters symbolic links to directories", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "nona-recursive-"));
     try {
         mkdirSync(join(directory, "rd", "sub", "deep"), { recursive: true });

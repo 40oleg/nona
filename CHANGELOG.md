@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`fs.readdirSync({recursive: true})` enters symbolic links to directories on Linux and macOS.** The walk now lists the entries below a symlinked directory (`link/b`, `link/deep`) and the `Dirent` `parentPath` goes through the link, like Node.js. ([#558](https://github.com/40oleg/nona/issues/558))
 - **`util.inspect` marks circular targets with `<ref *N>`.** Each object that a `[Circular *N]` points to now gets the matching `<ref *N>` prefix, and the indexes are numbered in Node.js's order instead of always being `*1`. ([#474](https://github.com/40oleg/nona/issues/474))
 - **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
 
