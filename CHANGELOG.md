@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.format` keeps the sign of `-0`.** `%s`, `%d` and `%i` printed `-0` as `0`; they now print `-0` like Node.js. ([#477](https://github.com/40oleg/nona/issues/477))
+
 ## v0.25.0 — 2026-10-23
 
 ### Fixes
