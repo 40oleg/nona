@@ -380,6 +380,9 @@ startup. Each is available as `node:<name>` and `<name>`.
   `maxArrayLength`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
   `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
+  `parseArgs` (all options, `tokens` and Node.js's `ERR_PARSE_ARGS_*` errors;
+  `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no
+  script path),
   `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` and the legacy
   `is*` predicates. `inspect` approximates Node.js's layout: objects, arrays,
   Maps, Sets, typed arrays, functions, classes, errors, dates, boxed values,
