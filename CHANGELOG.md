@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`console.log`, `info`, `debug`, `warn` and `error` print symbol arguments.** They converted arguments with ToString, which throws a `TypeError` for symbols; symbols are now printed as `Symbol(description)`, like `String(symbol)`. ([#463](https://github.com/40oleg/nona/issues/463))
 - **`JSON.parse` errors say what was found and where.** Invalid JSON threw `SyntaxError: Invalid operation`; the message is now `Unexpected token 'c' in JSON at position N` (the code unit at the position V8 reports), `Unexpected end of JSON input`, or `Unexpected non-whitespace character after JSON at position N`. The wording differs from V8's for some errors (V8 also says, for example, `Bad escaped character` or `Unterminated string`). ([#465](https://github.com/40oleg/nona/issues/465))
 
 ### Performance
@@ -14,6 +15,8 @@
 
 ### Fixes
 
+- **`assert.deepStrictEqual` and `util.isDeepStrictEqual` match Map keys deeply.** Maps keyed by structurally equal objects or arrays were reported as different because keys were looked up by identity; a key missing by identity is now matched against the other Map's unused keys, with a deeply equal value, like Set members (#459).
+- **`Math.sin`, `Math.cos` and `Math.tan` reduce large arguments exactly on x64.** In the tests (fixed values near multiples of pi/2, up to 1e300, and seeded random arguments) they are within one ulp of Node.js on x64. On x64 the x87 `fsin`/`fcos`/`fptan` instructions reduce with a 66-bit approximation of pi, so `Math.sin(Math.PI)` and `Math.tan(Math.PI / 2)` were wrong from the fifth digit and `Math.sin(2 ** 62)` by 0.6%. Arguments above pi/4 are now reduced exactly first: Cody-Waite in 64-bit extended precision below 2^20·pi/2, and above it the Payne-Hanek `rt.trigReduce`, which now returns a double-double remainder from the first significant fraction bit This remainder should also make the ARM64 software routines more precise near multiples of pi/2. That has not been checked on ARM64 hardware yet, and the software `Math.tan` there can still be 2 ulps off. ([#454](https://github.com/40oleg/nona/issues/454))
 - **`assert.throws` and `assert.rejects` throw an `AssertionError` when the error does not match.** They rethrew the original error when the expected class, RegExp, validation object or validation function did not match. They now throw an `AssertionError` (`code: "ERR_ASSERTION"`, `actual` the thrown error, `expected`, `operator`) with Node.js's message for the class, RegExp and validation function cases (the object case uses a simplified diff); a validation function that throws still propagates its own error. ([#458](https://github.com/40oleg/nona/issues/458))
 - **`assert.strict` and `node:assert/strict` use strict equality.** They were the same object as the legacy `assert`, so `equal`, `deepEqual`, `notEqual` and `notDeepEqual` stayed loose. `assert.strict` is now a separate callable that maps them to `strictEqual`, `deepStrictEqual`, `notStrictEqual` and `notDeepStrictEqual`, with `strict.strict === strict`, as in Node.js. ([#457](https://github.com/40oleg/nona/issues/457))
 
