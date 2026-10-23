@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
 - **`fs.readFileSync(0)`, `fs.writeFileSync(1, …)` and `fs.appendFileSync` accept the descriptors 0, 1 and 2.** `readFileSync(0, 'utf8')` reads all of stdin until EOF and the write functions write all bytes to stdout or stderr, on every target (Windows uses `GetStdHandle`; a broken pipe is the end of input). Invalid path, data or descriptor types now throw errors with `code: 'ERR_INVALID_ARG_TYPE'`. ([#473](https://github.com/40oleg/nona/issues/473))
 
 ## v0.26.0 — 2026-10-23
