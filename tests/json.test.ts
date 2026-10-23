@@ -254,3 +254,42 @@ test("JSON.stringify deep nesting is a RangeError", () => {
     assert.deepEqual(lines.slice(0, -1), ["RangeError", "RangeError"]);
     assert.equal(lines.at(-1), expected.at(-1));
 });
+
+// Issue #465: the SyntaxError names the unexpected code unit and its position,
+// the end of the input, or data after the value. Positions match V8; the
+// wording is Nona's own, so the output is not compared with Node.js.
+test("JSON.parse SyntaxError messages name the token and position", () => {
+    const inputs = [
+        "{'a':1}",
+        "[1,]",
+        "",
+        '{"a":1} x',
+        '"abc',
+        '"\\q"',
+        "01",
+        '{"a\\x":1}',
+        '"\\u12g4"',
+        "-",
+        " [1, 2 x",
+    ];
+    const source = `for(const s of ${JSON.stringify(inputs)}){try{JSON.parse(s);console.log('accepted',s)}catch(e){console.log(e.name+": "+e.message)}}`;
+    const run = runOnHost(source);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(
+        run.stdout,
+        [
+            "SyntaxError: Unexpected token ''' in JSON at position 1",
+            "SyntaxError: Unexpected token ']' in JSON at position 3",
+            "SyntaxError: Unexpected end of JSON input",
+            "SyntaxError: Unexpected non-whitespace character after JSON at position 8",
+            "SyntaxError: Unexpected end of JSON input",
+            "SyntaxError: Unexpected token 'q' in JSON at position 2",
+            "SyntaxError: Unexpected token '1' in JSON at position 1",
+            "SyntaxError: Unexpected token 'x' in JSON at position 4",
+            "SyntaxError: Unexpected token 'g' in JSON at position 5",
+            "SyntaxError: Unexpected end of JSON input",
+            "SyntaxError: Unexpected token 'x' in JSON at position 7",
+            "",
+        ].join("\n"),
+    );
+});

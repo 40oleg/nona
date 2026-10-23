@@ -101,6 +101,8 @@
             "files": [
                 "date",
                 "assert-deep-equal",
+                "assert-throws",
+                "assert-strict",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
@@ -287,6 +289,7 @@
                 "new-target",
                 "nullish",
                 "number-builtins",
+                "number-parse-fast",
                 "number-to-string",
                 "object-collections",
                 "object-literal-methods",

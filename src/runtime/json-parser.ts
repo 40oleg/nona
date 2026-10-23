@@ -1,6 +1,7 @@
 import { RuntimeBuilder, slot } from "./abi.js";
 import { emptyLiteralCapacity } from "./shapes.js";
 import { rootedFn } from "./root-scope.js";
+import { stringLiteral } from "./value.js";
 import type { Assembler } from "../backend/machine/context.js";
 
 /**
@@ -26,6 +27,95 @@ export function emitJsonParser(b: RuntimeBuilder): void {
             a.jcc("e", next);
         }
     };
+
+    // RCX source string Value* (rooted by the caller), RDX position, R8 kind
+    // (0: the code unit at the position is wrong, 1: data after the value).
+    // Throws a SyntaxError that names what was found and where.
+    // Frame: 40 source Value*, 48 position, 56 kind, 64 message Value, 80 part
+    // Value, 96 number Value, 112 error Value.
+    b.bundle.fragments.push(
+        stringLiteral("rt.json.error.end", "Unexpected end of JSON input"),
+        stringLiteral("rt.json.error.token", "Unexpected token '"),
+        stringLiteral("rt.json.error.tokenAt", "' in JSON at position "),
+        stringLiteral(
+            "rt.json.error.trailing",
+            "Unexpected non-whitespace character after JSON at position ",
+        ),
+    );
+    rootedFn(
+        b,
+        "rt.jsonThrowSyntaxError",
+        136,
+        [{ kind: "locals", offset: 64, count: 3 }],
+        (a) => {
+            a.store(slot(40), "rcx");
+            a.store(slot(48), "rdx");
+            a.store(slot(56), "r8");
+            const literal = (offset: number, name: string) => {
+                a.mov("rax", 4);
+                a.store(slot(offset), "rax");
+                a.lea("rax", { rip: name });
+                a.store(slot(offset + 8), "rax");
+            };
+            const append = () => {
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(80));
+                a.call("rt.concat");
+            };
+            const end = a.unique("end"),
+                trailing = a.unique("trailing"),
+                position = a.unique("position"),
+                raise = a.unique("raise");
+            a.load("r10", { base: "rcx", disp: 8 });
+            a.load("r10", { base: "r10" });
+            a.cmp("rdx", "r10");
+            a.jcc("ae", end);
+            a.test("r8", "r8");
+            a.jcc("ne", trailing);
+            literal(64, "rt.json.error.token");
+            a.mov("rcx", 10);
+            a.call("rt.allocRaw");
+            a.mov("r10", 1);
+            a.store({ base: "rax" }, "r10");
+            a.load("r10", slot(40));
+            a.load("r10", { base: "r10", disp: 8 });
+            a.load("r11", slot(48));
+            a.shl("r11", 1);
+            a.add("r10", "r11");
+            a.load("r11", { base: "r10", disp: 8 }, 16);
+            a.store({ base: "rax", disp: 8 }, "r11", 16);
+            a.mov("r10", 4);
+            a.store(slot(80), "r10");
+            a.store(slot(88), "rax");
+            append();
+            literal(80, "rt.json.error.tokenAt");
+            append();
+            a.jmp(position);
+            a.label(trailing);
+            literal(64, "rt.json.error.trailing");
+            a.label(position);
+            a.mov("rax", 3);
+            a.store(slot(96), "rax");
+            a.load("rax", slot(48));
+            a.cvtsi2sd("xmm0", "rax");
+            a.storesd(slot(104), "xmm0");
+            a.lea("rcx", slot(80));
+            a.lea("rdx", slot(96));
+            a.call("rt.toString");
+            append();
+            a.jmp(raise);
+            a.label(end);
+            literal(64, "rt.json.error.end");
+            a.label(raise);
+            a.lea("rcx", slot(112));
+            a.mov("rdx", 1);
+            a.lea("r8", slot(64));
+            a.call("rt.SyntaxError.code");
+            a.lea("rcx", slot(112));
+            a.call("rt.throw");
+        },
+    );
 
     // RCX out Value*, RDX source string Value* (rooted by the caller), R8
     // position -> RAX position after the value. Throws a SyntaxError.
@@ -489,14 +579,17 @@ export function emitJsonParser(b: RuntimeBuilder): void {
                 a.jmp(done);
             }
             a.label(invalid);
-            a.call("rt.throwSyntaxError");
+            a.load("rcx", slot(48));
+            a.load("rdx", slot(56));
+            a.mov("r8", 0);
+            a.call("rt.jsonThrowSyntaxError");
             a.label(done);
             a.load("rax", slot(56));
         },
     );
 
-    // RCX out Value*, RDX source string Value*, R8 position of the opening quote
-    // -> RAX position after the closing quote. Two passes: one for the length
+    // RCX out Value*, RDX source string Value* (rooted by the caller), R8
+    // position of the opening quote -> RAX position after the closing quote. Two passes: one for the length
     // (validating the escapes), one to decode into the exactly sized record.
     rootedFn(
         b,
@@ -510,7 +603,10 @@ export function emitJsonParser(b: RuntimeBuilder): void {
             a.load("rax", { base: "rax" });
             a.store(slot(56), "rax");
             a.store(slot(64), "r8");
+            a.store(slot(104), "rdx");
             const invalid = a.unique("invalid"),
+                unterminated = a.unique("unterminated"),
+                report = a.unique("report"),
                 done = a.unique("done");
             // Pass over the text: RCX position, R8 units counted / write cursor, R10
             // chars base, R11 length. Slot 72 = record (0 while counting).
@@ -551,7 +647,7 @@ export function emitJsonParser(b: RuntimeBuilder): void {
             };
             a.label(loop);
             a.cmp("rcx", "r11");
-            a.jcc("ae", invalid);
+            a.jcc("ae", unterminated);
             a.mov("rax", "rcx");
             a.add("rax", "rax");
             a.add("rax", "r10");
@@ -566,7 +662,7 @@ export function emitJsonParser(b: RuntimeBuilder): void {
             a.jmp(emit);
             a.label(escape);
             a.cmp("rcx", "r11");
-            a.jcc("ae", invalid);
+            a.jcc("ae", unterminated);
             a.mov("rax", "rcx");
             a.add("rax", "rax");
             a.add("rax", "r10");
@@ -597,7 +693,7 @@ export function emitJsonParser(b: RuntimeBuilder): void {
                     lower = a.unique("lower"),
                     nibble = a.unique("nibble");
                 a.cmp("rcx", "r11");
-                a.jcc("ae", invalid);
+                a.jcc("ae", unterminated);
                 a.mov("rax", "rcx");
                 a.add("rax", "rax");
                 a.add("rax", "r10");
@@ -657,8 +753,17 @@ export function emitJsonParser(b: RuntimeBuilder): void {
             a.store({ base: "rcx", disp: 8 }, "rax");
             a.load("rax", slot(96));
             a.jmp(done);
+            // The text ends inside the string, or the unit before RCX is wrong.
+            a.label(unterminated);
+            a.mov("rdx", "r11");
+            a.jmp(report);
             a.label(invalid);
-            a.call("rt.throwSyntaxError");
+            a.mov("rdx", "rcx");
+            a.sub("rdx", 1);
+            a.label(report);
+            a.load("rcx", slot(104));
+            a.mov("r8", 0);
+            a.call("rt.jsonThrowSyntaxError");
             a.label(done);
         },
     );

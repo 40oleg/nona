@@ -389,7 +389,8 @@ log.push('sync');
 const wait = setInterval(async () => {
   if (log.length < 5) return;
   clearInterval(wait);
-  console.log(log.join(', '));
+  // Node.js runs the callbacks on its thread pool, so they complete in any order.
+  console.log([...log.slice(0, 2), ...log.slice(2).sort()].join(', '));
   const round = async (enc, dec, input, options) => (await util.promisify(dec)(await util.promisify(enc)(input, options))).toString('latin1');
   console.log(await round(zlib.deflate, zlib.inflate, 'deflate/inflate'), await round(zlib.gzip, zlib.gunzip, 'gzip/gunzip', { level: 1 }), await round(zlib.deflateRaw, zlib.inflateRaw, 'raw'), await round(zlib.gzip, zlib.unzip, 'gzip/unzip'), await round(zlib.deflate, zlib.unzip, 'deflate/unzip'));
   const failing = [
