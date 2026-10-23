@@ -343,3 +343,31 @@ console.log(typeof fs.readFile, fs.writeFile === writeFile);
 })();
 `,
     }));
+
+test("fs errors carry the errno of Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+fs.mkdirSync('errno-dir', {recursive: true});
+fs.writeFileSync('errno-dir/f.txt', 'x');
+const cases = [
+  () => fs.statSync('errno-dir/missing'),
+  () => fs.mkdirSync('errno-dir'),
+  () => fs.copyFileSync('errno-dir/f.txt', 'errno-dir/f.txt', fs.constants.COPYFILE_EXCL),
+  () => fs.readFileSync('errno-dir'),
+  () => fs.readdirSync('errno-dir/f.txt'),
+  () => fs.rmdirSync('errno-dir'),
+];
+for (const f of cases) {
+  try { f(); console.log('no error'); } catch (e) { console.log(e.code, e.errno, e.syscall, typeof e.errno); }
+}
+fs.readFile('errno-dir/missing', (e) => {
+  console.log(e.code, e.errno, e.syscall);
+  fs.promises.readFile('errno-dir/missing').catch((p) => {
+    console.log(p.code, p.errno, p.syscall);
+    fs.unlinkSync('errno-dir/f.txt');
+    fs.rmdirSync('errno-dir');
+  });
+});
+`,
+    }));
