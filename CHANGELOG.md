@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`assert.deepEqual` has cycle detection and treats `NaN` as equal to `NaN`.** The loose comparison had no cycle tracking and used `==` for primitives, so circular structures caused a `RangeError` stack overflow and `NaN` never compared equal to `NaN`; now it tracks visited pairs like strict deepEqual and treats `NaN` as equal, matching Node.js behavior ([#468](https://github.com/40oleg/nona/issues/468)).
+- **`JSON.parse` errors say what was found and where.** Invalid JSON threw `SyntaxError: Invalid operation`; the message is now `Unexpected token 'c' in JSON at position N` (the code unit at the position V8 reports), `Unexpected end of JSON input`, or `Unexpected non-whitespace character after JSON at position N`. The wording differs from V8's for some errors (V8 also says, for example, `Bad escaped character` or `Unterminated string`). ([#465](https://github.com/40oleg/nona/issues/465))
 
 ## v0.25.0 — 2026-10-23
 
