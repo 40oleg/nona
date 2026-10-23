@@ -1,49 +1,49 @@
-﻿---
+---
 layout: home
 
 hero:
     name: Nona
-    text: жЉЉ JavaScript зј–иЇ‘ж€ђеЋџз”џеЏЇж‰§иЎЊж–‡д»¶
-    tagline: дёЂдёЄжЏђе‰Ќпј€ahead-of-timeпј‰зј–иЇ‘е™ЁпјЊжЉЉ ES2020 JavaScript зј–иЇ‘ж€ђе°Џе·§зљ„з‹¬з«‹еЏЇж‰§иЎЊж–‡д»¶пјЊж”ЇжЊЃ WindowsгЂЃLinuxгЂЃmacOSгЂЃFreeBSD е’Њ OpenBSDгЂ‚жІЎжњ‰е†…еµЊи§Јй‡Ље™ЁпјЊд№џдёЌйњЂи¦Ѓ C е·Ґе…·й“ѕгЂ‚
+    text: 把 JavaScript 编译成原生可执行文件
+    tagline: 一个提前（ahead-of-time）编译器，把 ES2020 JavaScript 编译成小巧的独立可执行文件，支持 Windows、Linux、macOS、FreeBSD 和 OpenBSD。没有内嵌解释器，也不需要 C 工具链。
     actions:
         - theme: brand
-          text: еї«йЂџејЂе§‹
+          text: 快速开始
           link: /zh/guide/getting-started
         - theme: alt
-          text: ењЁжµЏи§€е™Ёдё­иЇ•з”Ё
+          text: 在浏览器中试用
           link: /playground
         - theme: alt
-          text: д»Ђд№€жЇ Nona
+          text: 什么是 Nona
           link: /zh/guide/what-is-nona
         - theme: alt
           text: GitHub
           link: https://github.com/40oleg/nona
 
 features:
-    - title: 2 жЇ«з§’еђЇеЉЁ
-      details: зј–иЇ‘еђЋзљ„ hello world еђЇеЉЁзє¦йњЂ 2 msпјЊе†…е­еі°еЂј 11 MBпјЊеЏЇж‰§иЎЊж–‡д»¶зє¦ 2 MBгЂ‚Node.js йњЂи¦Ѓ 28 ms е’Њ 45 MBпј›Node SEA еЏЇж‰§иЎЊж–‡д»¶жњ‰ 124 MBгЂ‚
+    - title: 2 毫秒启动
+      details: 编译后的 hello world 启动约需 2 ms，内存峰值 11 MB，可执行文件约 2 MB。Node.js 需要 28 ms 和 45 MB；Node SEA 可执行文件有 124 MB。
       link: /zh/guide/performance
-    - title: д»»ж„Џдё»жњєзј–иЇ‘е…«дёЄз›®ж ‡е№іеЏ°
-      details: WindowsгЂЃLinux е’Њ macOS зљ„ x64 дёЋ ARM64пјЊд»ҐеЏЉ FreeBSD е’Њ OpenBSD зљ„ x64гЂ‚з”Ё --target дє¤еЏ‰зј–иЇ‘пј›жЇЏдёЄеЏЇж‰§иЎЊж–‡д»¶йѓЅжЇи‡ЄеЊ…еђ«зљ„гЂ‚
+    - title: 任意主机编译八个目标平台
+      details: Windows、Linux 和 macOS 的 x64 与 ARM64，以及 FreeBSD 和 OpenBSD 的 x64。用 --target 交叉编译；每个可执行文件都是自包含的。
       link: /reference/native-platforms
-    - title: ES2020 иЇ­иЁЂ
-      details: з±»гЂЃз”џж€ђе™ЁгЂЃеј‚ж­Ґе‡Ѕж•°гЂЃи§Јжћ„гЂЃеЏЇйЂ‰й“ѕгЂЃBigIntгЂЃе°ѕи°ѓз”ЁдјеЊ–пјЊд»ҐеЏЉж”ЇжЊЃеѕЄзЋЇдѕќиµ–е’Ње®ћж—¶з»‘е®љзљ„ ES жЁЎеќ—пјЊдѕ‹е¤–жѓ…е†µеќ‡жњ‰ж–‡жЎЈиЇґжЋгЂ‚
+    - title: ES2020 语言
+      details: 类、生成器、异步函数、解构、可选链、BigInt、尾调用优化，以及支持循环依赖和实时绑定的 ES 模块，例外情况均有文档说明。
       link: /zh/guide/language-support
-    - title: npm еЊ…
-      details: node_modules дё­зљ„еЊ…ењЁжћ„е»єж—¶и§ЈжћђпјЊе№¶дёЋе®ѓд»¬еёёз”Ёзљ„ Node.js жЁЎеќ—дёЂиµ·зј–иЇ‘иї›еЏЇж‰§иЎЊж–‡д»¶гЂ‚
+    - title: npm 包
+      details: node_modules 中的包在构建时解析，并与它们常用的 Node.js 模块一起编译进可执行文件。
       link: /reference/npm
-    - title: з±» Node.js зљ„е®їдё» API
-      details: е®љж—¶е™ЁдёЋдє‹д»¶еѕЄзЋЇгЂЃprocessгЂЃfsгЂЃpathгЂЃBufferгЂЃжµЃгЂЃдє‹д»¶гЂЃURLпјЊд»ҐеЏЉ HTTP е’Њ TCP жњЌеЉЎе™ЁдёЋе®ўж€·з«ЇгЂ‚
+    - title: 类 Node.js 的宿主 API
+      details: 定时器与事件循环、process、fs、path、Buffer、流、事件、URL，以及 HTTP 和 TCP 服务器与客户端。
       link: /zh/reference/modules
-    - title: еЋџз”џиїђиЎЊж—¶
-      details: зІѕзЎ®зљ„ж ‡и®°-жё…й™¤ећѓењѕе›ћж”¶е™ЁгЂЃUTF-16 е­—з¬¦дёІгЂЃзњџж­Јзљ„еј‚еёёгЂЃж €жєўе‡єж—¶еЏЇжЌ•иЋ·зљ„ RangeErrorпјЊд»ҐеЏЉи‡Єдёѕзљ„зј–иЇ‘е™ЁгЂ‚
+    - title: 原生运行时
+      details: 精确的标记-清除垃圾回收器、UTF-16 字符串、真正的异常、栈溢出时可捕获的 RangeError，以及自举的编译器。
       link: /zh/guide/how-it-works
-    - title: FFI дёЋ Windows е›ѕеЅўз•ЊйќўзЁ‹еєЏ
-      details: йЂљиї‡зј–иЇ‘жњџеЈ°жЋи°ѓз”Ёд»»ж„Џ DLL зљ„еЇје‡єе‡Ѕж•°пјЊе№¶еЏЇжћ„е»єжІЎжњ‰жЋ§е€¶еЏ°зЄ—еЏЈгЂЃеё¦е›ѕж ‡гЂЃжё…еЌ•е’Њз‰€жњ¬дїЎжЃЇзљ„зЁ‹еєЏгЂ‚
+    - title: FFI 与 Windows 图形界面程序
+      details: 通过编译期声明调用任意 DLL 的导出函数，并可构建没有控制台窗口、带图标、清单和版本信息的程序。
       link: /zh/reference/ffi
 ---
 
-## еї«йЂџз¤єдѕ‹
+## 快速示例
 
 <<< ../../samples/hello.js
 
@@ -74,12 +74,12 @@ tick 3
 done; at least 30 ms passed: true
 ```
 
-еЏЇж‰§иЎЊж–‡д»¶еЊ…еђ«зЁ‹еєЏзљ„жњєе™Ёз Ѓе’Њ Nona зљ„иїђиЎЊж—¶гЂ‚е®ѓдёЌйњЂи¦Ѓ Node.jsпјљWindows еЏЇж‰§иЎЊж–‡д»¶еЏЄеЇје…Ґ `KERNEL32.dll`пјЊLinux еЏЇж‰§иЎЊж–‡д»¶дёЌз»Џиї‡ libcпјЊз›ґжЋҐиї›иЎЊзі»з»џи°ѓз”ЁгЂ‚
+可执行文件包含程序的机器码和 Nona 的运行时。它不需要 Node.js：Windows 可执行文件只导入 `KERNEL32.dll`，Linux 可执行文件不经过 libc，直接进行系统调用。
 
-## зЉ¶жЂЃ
+## 状态
 
-еЅ“е‰Ќз‰€жњ¬жЇ **v0.25.0**пј›Nona д»Ќе¤„дєЋе®ћйЄЊй¶ж®µгЂ‚е®ѓдёЌиѓЅз›ґжЋҐж›їд»Ј Node.jsпјЊд№џжІЎжњ‰з»Џиї‡е®‰е…Ёе®Ўи®ЎгЂ‚
+当前版本是 **v0.25.0**；Nona 仍处于实验阶段。它不能直接替代 Node.js，也没有经过安全审计。
 
-- **дёЂи‡ґжЂ§гЂ‚** ењЁжњЂиї‘дёЂж¬Ўе®Њж•ґе®Ўи®Ўпј€v0.8.0пј‰дё­пјЊе›єе®љз‰€жњ¬зљ„ Test262 жµ‹иЇ•й›†ењЁ Windows x64 дёЉйЂљиї‡дє† 22436/22492 дёЄ language жµ‹иЇ•гЂЃ15868/15933 дёЄ built-ins жµ‹иЇ•гЂЃ268/268 дёЄ Atomics жµ‹иЇ•е’Њ 996/1016 дёЄ Annex B жµ‹иЇ•гЂ‚е‰©дЅ™зљ„жЇЏдёЄе¤±иґҐйѓЅе·ІењЁ[зЉ¶жЂЃйЎµйќў](/zh/guide/status)дё­е€†з±»гЂ‚
-- **йЂџеє¦гЂ‚** еђЇеЉЁйЂџеє¦гЂЃеЏЇж‰§иЎЊж–‡д»¶е¤§е°Џе’Ње†…е­еЌ з”ЁжЇ Nona зљ„ејєйЎ№гЂ‚зЁ‹еєЏе†…йѓЁзљ„и®Ўз®—жІЎжњ‰ JITпјљењЁз®ЂеЌ•еѕЄзЋЇдёЉдёЋ V8 з›ёеЅ“пјЊењЁи°ѓз”ЁгЂЃе†…е­е€†й…Ќе’Њй•їж—¶й—ґиїђиЎЊзљ„зњџе®ћзЁ‹еєЏдёЉе€™ж…ўж•°еЂЌе€°ж•°еЌЃеЂЌгЂ‚[жЂ§иѓЅ](/zh/guide/performance)з»™е‡єдє†жµ‹й‡Џз»“жћње’Ње·ІзџҐзљ„ж…ўз‚№гЂ‚
-- **й™ђе€¶гЂ‚** `eval` е’Њ `Function` йњЂи¦ЃењЁзј–иЇ‘ж—¶е·ІзџҐзљ„жєђз ЃпјЊе№¶дё”еЏЄжњ‰ Nona е®ћзЋ°зљ„ Node.js API еЏЇз”ЁгЂ‚еЏ‚и§Ѓ[е…је®№жЂ§дёЋй™ђе€¶](/zh/guide/compatibility)гЂ‚
+- **一致性。** 在最近一次完整审计（v0.8.0）中，固定版本的 Test262 测试集在 Windows x64 上通过了 22436/22492 个 language 测试、15868/15933 个 built-ins 测试、268/268 个 Atomics 测试和 996/1016 个 Annex B 测试。剩余的每个失败都已在[状态页面](/zh/guide/status)中分类。
+- **速度。** 启动速度、可执行文件大小和内存占用是 Nona 的强项。程序内部的计算没有 JIT：在简单循环上与 V8 相当，在调用、内存分配和长时间运行的真实程序上则慢数倍到数十倍。[性能](/zh/guide/performance)给出了测量结果和已知的慢点。
+- **限制。** `eval` 和 `Function` 需要在编译时已知的源码，并且只有 Nona 实现的 Node.js API 可用。参见[兼容性与限制](/zh/guide/compatibility)。
