@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect` honors the `compact` option.** It was listed in `inspect.defaultOptions` but never read. `compact: false` now prints every property and array element on its own line, a number N combines an object on one line only when it nests at most N levels (default 3) and groups arrays of more than six short items into columns like Node.js, and `compact: true` uses the old layout. Empty objects and arrays past `depth` print as `{}` and `[]`. ([#480](https://github.com/40oleg/nona/issues/480))
+
 ## v0.25.0 — 2026-10-23
 
 ### Fixes

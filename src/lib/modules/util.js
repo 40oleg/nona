@@ -93,6 +93,25 @@ function formatPrimitive(value) {
     if (typeof value === "symbol") return value.toString();
     return String(value);
 }
+// A property of an object; with compact: true Node.js indents nested values by 3
+// and moves a value wider than breakLength to its own line.
+function property(name, str, options) {
+    if (options.compact !== true) return name + ": " + str;
+    const width = str.length - (str.split("\n").length - 1);
+    return (
+        name +
+        ":" +
+        (options.breakLength < width ? "\n " : " ") +
+        str.split("\n").join("\n ")
+    );
+}
+// Depth of the object most recently entered, like ctx.currentDepth in Node.js.
+let currentDepth = 0;
+function enter(depth) {
+    const previous = currentDepth;
+    currentDepth = depth;
+    return previous;
+}
 function inspectValue(value, options, depth, seen) {
     if (
         value === null ||
@@ -121,22 +140,26 @@ function inspectValue(value, options, depth, seen) {
         const label = functionLabel(value);
         if (!own.length) return label;
         if (depth > options.depth) return label;
+        const previous = enter(depth);
         return formatEntries(
             label + " ",
-            own.map(
-                (k) =>
-                    key(k) +
-                    ": " +
+            own.map((k) =>
+                property(
+                    key(k),
                     inspectValue(
                         value[k],
                         options,
                         depth + 1,
                         seen.concat([value]),
                     ),
+                    options,
+                ),
             ),
             "{",
             "}",
             options,
+            depth,
+            previous,
         );
     }
     if (value instanceof Date)
@@ -155,7 +178,9 @@ function inspectValue(value, options, depth, seen) {
     const inner = seen.concat([value]);
     const nested = (item) => inspectValue(item, options, depth + 1, inner);
     if (Array.isArray(value)) {
-        if (depth > options.depth) return "[Array]";
+        if (depth > options.depth && Object.keys(value).length)
+            return "[Array]";
+        const previous = enter(depth);
         const items = [];
         let holes = 0;
         const limit = Math.min(value.length, options.maxArrayLength);
@@ -186,10 +211,20 @@ function inspectValue(value, options, depth, seen) {
         for (const k of Object.keys(value))
             if (!/^(0|[1-9]\d*)$/.test(k))
                 items.push(key(k) + ": " + nested(value[k]));
-        return formatEntries("", items, "[", "]", options);
+        return formatEntries(
+            "",
+            items,
+            "[",
+            "]",
+            options,
+            depth,
+            previous,
+            value,
+        );
     }
     if (value instanceof Map) {
-        if (depth > options.depth) return "[Map]";
+        if (depth > options.depth && value.size) return "[Map]";
+        const previous = enter(depth);
         const items = [];
         for (const [k, v] of value) items.push(nested(k) + " => " + nested(v));
         return formatEntries(
@@ -198,10 +233,13 @@ function inspectValue(value, options, depth, seen) {
             "{",
             "}",
             options,
+            depth,
+            previous,
         );
     }
     if (value instanceof Set) {
-        if (depth > options.depth) return "[Set]";
+        if (depth > options.depth && value.size) return "[Set]";
+        const previous = enter(depth);
         const items = [];
         for (const v of value) items.push(nested(v));
         return formatEntries(
@@ -210,12 +248,15 @@ function inspectValue(value, options, depth, seen) {
             "{",
             "}",
             options,
+            depth,
+            previous,
         );
     }
     if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
         const name =
             (value.constructor && value.constructor.name) || tag(value);
-        if (depth > options.depth) return "[" + name + "]";
+        if (depth > options.depth && value.length) return "[" + name + "]";
+        const previous = enter(depth);
         const items = [];
         for (let i = 0; i < Math.min(value.length, options.maxArrayLength); i++)
             items.push(formatPrimitive(value[i]));
@@ -231,6 +272,9 @@ function inspectValue(value, options, depth, seen) {
             "[",
             "]",
             options,
+            depth,
+            previous,
+            value,
         );
     }
     if (value instanceof Promise) return "Promise { <unknown> }";
@@ -253,7 +297,13 @@ function inspectValue(value, options, depth, seen) {
               : "";
     if (toStringTag && toStringTag !== constructorName)
         prefix = (prefix || "Object ") + "[" + toStringTag + "] ";
-    if (depth > options.depth) return "[" + (constructorName || "Object") + "]";
+    if (
+        depth > options.depth &&
+        (Object.keys(value).length ||
+            Object.getOwnPropertySymbols(value).length)
+    )
+        return "[" + (constructorName || "Object") + "]";
+    const previous = enter(depth);
     const items = [];
     for (const k of Object.keys(value)) {
         const descriptor = Object.getOwnPropertyDescriptor(value, k);
@@ -267,37 +317,128 @@ function inspectValue(value, options, depth, seen) {
                           ? "[Getter]"
                           : "[Setter]"),
             );
-        else items.push(key(k) + ": " + nested(value[k]));
+        else items.push(property(key(k), nested(value[k]), options));
     }
     for (const s of Object.getOwnPropertySymbols(value))
         if (Object.getOwnPropertyDescriptor(value, s).enumerable)
-            items.push(key(s) + ": " + nested(value[s]));
-    return formatEntries(prefix, items, "{", "}", options);
+            items.push(property(key(s), nested(value[s]), options));
+    return formatEntries(prefix, items, "{", "}", options, depth, previous);
 }
-function formatEntries(prefix, items, open, close, options) {
-    if (!items.length) return prefix + open + close;
-    const single = prefix + open + " " + items.join(", ") + " " + close;
+function groupArrayElements(options, output, value, indentation) {
+    let totalLength = 0;
+    let maxLength = 0;
+    let outputLength = output.length;
+    if (options.maxArrayLength < output.length) outputLength--;
+    const dataLen = new Array(outputLength);
+    for (let i = 0; i < outputLength; i++) {
+        const len = output[i].length;
+        dataLen[i] = len;
+        totalLength += len + 2;
+        if (maxLength < len) maxLength = len;
+    }
+    const actualMax = maxLength + 2;
     if (
-        single.length <= options.breakLength &&
-        !items.some((item) => item.includes("\n"))
-    )
-        return single;
-    if (
-        open === "[" &&
-        items.length > 6 &&
-        items.every((item) => item.length <= 6)
+        actualMax * 3 + indentation < options.breakLength &&
+        (totalLength / actualMax > 5 || maxLength <= 6)
     ) {
-        // Node groups short array items into columns; a fixed width of 16 per line is close.
-        const lines = [];
-        for (let i = 0; i < items.length; i += 16)
-            lines.push(items.slice(i, i + 16).join(", "));
-        return prefix + open + "\n  " + lines.join(",\n  ") + "\n" + close;
+        const averageBias = Math.sqrt(actualMax - totalLength / output.length);
+        const biasedMax = Math.max(actualMax - 3 - averageBias, 1);
+        const columns = Math.min(
+            Math.round(Math.sqrt(2.5 * biasedMax * outputLength) / biasedMax),
+            Math.floor((options.breakLength - indentation) / actualMax),
+            options.compact * 4,
+            15,
+        );
+        if (columns <= 1) return output;
+        const tmp = [];
+        const maxLineLength = [];
+        for (let i = 0; i < columns; i++) {
+            let lineLength = 0;
+            for (let j = i; j < output.length; j += columns)
+                if (dataLen[j] > lineLength) lineLength = dataLen[j];
+            maxLineLength.push(lineLength + 2);
+        }
+        let padStart = true;
+        for (let i = 0; i < output.length; i++) {
+            if (typeof value[i] !== "number" && typeof value[i] !== "bigint") {
+                padStart = false;
+                break;
+            }
+        }
+        for (let i = 0; i < outputLength; i += columns) {
+            const max = Math.min(i + columns, outputLength);
+            let str = "";
+            let j = i;
+            for (; j < max - 1; j++) {
+                const cell = output[j] + ", ";
+                str += padStart
+                    ? cell.padStart(maxLineLength[j - i], " ")
+                    : cell.padEnd(maxLineLength[j - i], " ");
+            }
+            str += padStart
+                ? output[j].padStart(maxLineLength[j - i] - 2, " ")
+                : output[j];
+            tmp.push(str);
+        }
+        if (options.maxArrayLength < output.length)
+            tmp.push(output[outputLength]);
+        return tmp;
+    }
+    return output;
+}
+function isBelowBreakLength(options, output, start) {
+    let totalLength = output.length + start;
+    if (totalLength + output.length > options.breakLength) return false;
+    for (let i = 0; i < output.length; i++) {
+        totalLength += output[i].length;
+        if (totalLength > options.breakLength) return false;
+    }
+    return true;
+}
+const indent = (item) => item.split("\n").join("\n  ");
+function formatEntries(
+    prefix,
+    items,
+    open,
+    close,
+    options,
+    depth,
+    previous,
+    array,
+) {
+    if (!items.length) {
+        currentDepth = previous;
+        return prefix + open + close;
+    }
+    const compact = options.compact;
+    let output = items;
+    if (compact === true) {
+        if (isBelowBreakLength(options, output, 0))
+            return prefix + open + " " + output.join(", ") + " " + close;
+        const ln = prefix === "" && open.length === 1 ? " " : "\n  ";
+        return (
+            prefix + open + ln + output.map(indent).join(",\n  ") + " " + close
+        );
+    }
+    if (typeof compact === "number" && compact >= 1) {
+        const entries = output.length;
+        if (array && entries > 6)
+            output = groupArrayElements(options, output, array, depth * 2);
+        if (currentDepth - depth < compact && entries === output.length) {
+            const start =
+                output.length + depth * 2 + prefix.length + open.length + 10;
+            if (isBelowBreakLength(options, output, start)) {
+                const joined = output.join(", ");
+                if (!joined.includes("\n"))
+                    return prefix + open + " " + joined + " " + close;
+            }
+        }
     }
     return (
         prefix +
         open +
         "\n" +
-        items.map((item) => "  " + item.split("\n").join("\n  ")).join(",\n") +
+        output.map((item) => "  " + indent(item)).join(",\n") +
         "\n" +
         close
     );
