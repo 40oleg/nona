@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect.custom` inspectors receive `options.stylize`.** They were called with the raw settings object, so `options.stylize(text, "special")` threw a `TypeError`. The options are now a copy with `stylize(text, styleType)` (identity unless `colors` is set, then ANSI codes from `inspect.styles`/`inspect.colors`). ([#475](https://github.com/40oleg/nona/issues/475))
+
 ## v0.25.0 — 2026-10-23
 
 ### Fixes
