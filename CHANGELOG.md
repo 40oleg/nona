@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`assert.throws` and `assert.rejects` throw an `AssertionError` when the error does not match.** They rethrew the original error when the expected class, RegExp, validation object or validation function did not match. They now throw an `AssertionError` (`code: "ERR_ASSERTION"`, `actual` the thrown error, `expected`, `operator`) with Node.js's message for the class, RegExp and validation function cases (the object case uses a simplified diff); a validation function that throws still propagates its own error. ([#458](https://github.com/40oleg/nona/issues/458))
 - **`assert.strict` and `node:assert/strict` use strict equality.** They were the same object as the legacy `assert`, so `equal`, `deepEqual`, `notEqual` and `notDeepEqual` stayed loose. `assert.strict` is now a separate callable that maps them to `strictEqual`, `deepStrictEqual`, `notStrictEqual` and `notDeepStrictEqual`, with `strict.strict === strict`, as in Node.js. ([#457](https://github.com/40oleg/nona/issues/457))
 
 ### Performance
