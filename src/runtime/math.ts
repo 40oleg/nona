@@ -12,6 +12,7 @@ import {
 import { stringLiteral } from "./value.js";
 import { emitTrigReduce } from "./numeric/trig-reduce.js";
 import { emitSoftwareMath } from "./numeric/software-math.js";
+import { emitCbrtCore } from "./numeric/cbrt.js";
 import { machineMath } from "../backend/machine/context.js";
 import { float16MathMethods } from "./float16.js";
 
@@ -805,12 +806,8 @@ export function emitMath(b: RuntimeBuilder, float16 = true): void {
             a.mov("r10", 0x7ff0000000000000n);
             a.cmp("rax", "r10");
             a.jcc("ae", special);
-            machine.log(a, "log", 80, 88); // ln(abs(x))
-            a.movsd("xmm0", slot(88));
-            a.mov("rax", 0x4008000000000000n);
-            a.movqToXmm("xmm1", "rax");
-            a.divsd("xmm0", "xmm1");
-            a.call("rt.mathExpCore");
+            a.movqToXmm("xmm0", "rax");
+            a.call("rt.mathCbrtCore");
             a.movqFromXmm("rax", "xmm0");
             a.load("r10", slot(72));
             a.mov("r11", 0x8000000000000000n);
@@ -829,6 +826,7 @@ export function emitMath(b: RuntimeBuilder, float16 = true): void {
             a.store({ base: "rcx", disp: 8 }, "rax");
         },
     );
+    b.fn("rt.mathCbrtCore", 72, emitCbrtCore);
     b.fn("rt.mathExpCore", 72, (a) => machine.expCore(a));
     b.fn("rt.mathExpm1Core", 72, (a) => machine.expm1Core(a));
     rootedFn(
