@@ -22,6 +22,41 @@ export function emitParse(b: RuntimeBundle): void {
         fixups: [],
         symbols: {},
     });
+    // Truncated 128-bit powers of ten for the Eisel-Lemire stage of
+    // rt.parseNumber, as in fast_float: entry q in [-342, 308] (16 bytes, high
+    // word first) is the 128-bit normalized mantissa c of 10^q, 2^127 <= c <
+    // 2^128. For q >= 0, c is 5^q shifted until it has 128 bits (truncated).
+    // For q < 0 with z = bitlength(5^-q - 1): c = floor(2^(z+127) / 5^-q) + 1
+    // when q >= -27, otherwise floor(2^(2z+128) / 5^-q) + 1 halved until it has
+    // 128 bits.
+    const pow10x128 = new DataView(new ArrayBuffer(651 * 16));
+    for (let q = -342; q <= 308; q++) {
+        let c: bigint;
+        if (q < 0) {
+            const p = 5n ** BigInt(-q);
+            let z = 0n;
+            while (1n << z < p) z++;
+            if (q >= -27) c = (1n << (z + 127n)) / p + 1n;
+            else {
+                c = (1n << (2n * z + 128n)) / p + 1n;
+                while (c >= 1n << 128n) c >>= 1n;
+            }
+        } else {
+            c = 5n ** BigInt(q);
+            while (c < 1n << 127n) c <<= 1n;
+            while (c >= 1n << 128n) c >>= 1n;
+        }
+        pow10x128.setBigUint64((q + 342) * 16, c >> 64n, true);
+        pow10x128.setBigUint64((q + 342) * 16 + 8, BigInt.asUintN(64, c), true);
+    }
+    b.fragments.push({
+        name: "num.pow10x128",
+        section: ".rdata",
+        alignment: 16,
+        bytes: new Uint8Array(pow10x128.buffer),
+        fixups: [],
+        symbols: {},
+    });
     {
         const f = new Native("num.space"),
             a = f.a;
@@ -211,14 +246,20 @@ export function emitParse(b: RuntimeBundle): void {
     a.load("rax", { base: "rsi" }, 16);
     a.cmp("rax", 73);
     a.jcc("e", "parse.infinity");
-    // Exact fast path (Clinger): a decimal literal whose significand m has at
-    // most 19 significant digits, m <= 2^53, and whose effective decimal
-    // exponent e is in [-22, 22] is m * 10^e or m / 10^-e, one correctly
-    // rounded operation on exact doubles. The scan uses no big integers and
-    // makes no calls; anything else (radix prefixes, syntax errors, long or
-    // large-exponent inputs) restarts from the same position on the exact
-    // path below. RBX = m, R12 = significant digits, R13 = fraction digits,
-    // R14 = digit seen, R15 = dot seen, R8 = exponent.
+    // Fast paths for a decimal literal whose significand m has at most 19
+    // significant digits; they use no big integers and make no calls.
+    // 1. Clinger: when m <= 2^53 and the effective decimal exponent e is in
+    //    [-22, 22], m * 10^e or m / 10^-e is one correctly rounded operation
+    //    on exact doubles.
+    // 2. Eisel-Lemire (Go's strconv.eiselLemire64) for any other e: e < -342
+    //    is ±0 and e > 308 is ±Infinity; otherwise the normalized m times the
+    //    truncated 128-bit mantissa of 10^e (num.pow10x128) gives the rounded
+    //    result unless the truncation or an exact tie leaves it undecided, or
+    //    the result is subnormal or overflows.
+    // Anything else (radix prefixes, syntax errors, more digits, exponents of
+    // 100000 or more, undecided cases) restarts from the same position on the
+    // exact path below. RBX = m, R12 = significant digits, R13 = fraction
+    // digits, R14 = digit seen, R15 = dot seen, R8 = exponent.
     f.set(17, "rsi");
     a.xor("rbx", "rbx");
     a.xor("r12", "r12");
@@ -283,13 +324,12 @@ export function emitParse(b: RuntimeBundle): void {
     a.sub("rax", 48);
     a.cmp("rax", 9);
     a.jcc("a", "parse.slow");
-    // Saturate far outside [-22, 22] (and far below 2^63 / 10).
+    // Huge exponents take the exact path, so R8 stays exact.
     a.cmp("r8", 100000);
-    a.jcc("ae", "parse.fastExpNext");
+    a.jcc("ae", "parse.slow");
     a.mov("rdx", 10);
     a.imul("r8", "rdx");
     a.add("r8", "rax");
-    a.label("parse.fastExpNext");
     a.add("rsi", 2);
     a.cmp("rsi", "rdi");
     a.jcc("b", "parse.fastExpLoop");
@@ -301,14 +341,14 @@ export function emitParse(b: RuntimeBundle): void {
     a.jcc("e", "parse.slow");
     a.test("r12", "r12");
     a.jcc("e", "parse.signedzero");
+    a.sub("r8", "r13");
     a.mov("rax", 1n << 53n);
     a.cmp("rbx", "rax");
-    a.jcc("a", "parse.slow");
-    a.sub("r8", "r13");
+    a.jcc("a", "parse.eisel");
     a.cmp("r8", 22);
-    a.jcc("g", "parse.slow");
+    a.jcc("g", "parse.eisel");
     a.cmp("r8", -22);
-    a.jcc("l", "parse.slow");
+    a.jcc("l", "parse.eisel");
     a.cvtsi2sd("xmm0", "rbx");
     a.lea("r10", { rip: "num.pow10" });
     a.test("r8", "r8");
@@ -324,6 +364,95 @@ export function emitParse(b: RuntimeBundle): void {
     a.divsd("xmm0", { base: "r10" });
     a.label("parse.fastDone");
     a.movqFromXmm("rax", "xmm0");
+    a.jmp("parse.sign");
+    // Eisel-Lemire. RBX = normalized m, RCX = its leading zero count, R9 =
+    // biased binary exponent, R14:R11 = the high 128 bits of the product, R12
+    // = mantissa.
+    a.label("parse.eisel");
+    a.cmp("r8", -342);
+    a.jcc("l", "parse.signedzero");
+    a.cmp("r8", 308);
+    a.jcc("g", "parse.inf");
+    a.bitScanReverse("rcx", "rbx");
+    a.xor("rcx", 63);
+    a.shl("rbx", "cl");
+    // floor(log2(10) * e) + 64 + 1023 - clz, exact for |e| <= 1650.
+    a.mov("r9", 217706);
+    a.imul("r9", "r8");
+    a.sar("r9", 16);
+    a.add("r9", 64 + 1023);
+    a.sub("r9", "rcx");
+    a.lea("r10", { rip: "num.pow10x128" });
+    a.mov("rax", "r8");
+    a.add("rax", 342);
+    a.shl("rax", 4);
+    a.add("r10", "rax");
+    a.load("rax", { base: "r10" });
+    a.mul("rbx");
+    a.mov("r14", "rdx");
+    a.mov("r11", "rax");
+    // The low bits might change with the rest of 10^e: widen the product.
+    a.mov("rax", "r14");
+    a.and("rax", 0x1ff);
+    a.cmp("rax", 0x1ff);
+    a.jcc("ne", "parse.eiselShift");
+    a.mov("rax", "r11");
+    a.add("rax", "rbx");
+    a.jcc("ae", "parse.eiselShift");
+    a.load("rax", { base: "r10", disp: 8 });
+    a.mul("rbx");
+    a.mov("r12", "rax");
+    a.add("r11", "rdx");
+    a.jcc("ae", "parse.eiselMerged");
+    a.add("r14", 1);
+    a.label("parse.eiselMerged");
+    a.mov("rax", "r14");
+    a.and("rax", 0x1ff);
+    a.cmp("rax", 0x1ff);
+    a.jcc("ne", "parse.eiselShift");
+    a.cmp("r11", -1);
+    a.jcc("ne", "parse.eiselShift");
+    a.add("r12", "rbx");
+    a.jcc("b", "parse.slow");
+    a.label("parse.eiselShift");
+    // Keep 54 bits: the mantissa and a rounding bit.
+    a.mov("rax", "r14");
+    a.shr("rax", 63);
+    a.lea("rcx", { base: "rax", disp: 9 });
+    a.mov("r12", "r14");
+    a.shr("r12", "cl");
+    a.xor("rax", 1);
+    a.sub("r9", "rax");
+    // A possibly exact tie: the exact path decides.
+    a.test("r11", "r11");
+    a.jcc("ne", "parse.eiselRound");
+    a.mov("rax", "r14");
+    a.and("rax", 0x1ff);
+    a.jcc("ne", "parse.eiselRound");
+    a.mov("rax", "r12");
+    a.and("rax", 3);
+    a.cmp("rax", 1);
+    a.jcc("e", "parse.slow");
+    a.label("parse.eiselRound");
+    a.mov("rax", "r12");
+    a.and("rax", 1);
+    a.add("r12", "rax");
+    a.shr("r12", 1);
+    a.mov("rax", 1n << 53n);
+    a.cmp("r12", "rax");
+    a.jcc("b", "parse.eiselPack");
+    a.shr("r12", 1);
+    a.add("r9", 1);
+    a.label("parse.eiselPack");
+    // Subnormal or overflowing results take the exact path.
+    a.cmp("r9", 0);
+    a.jcc("le", "parse.slow");
+    a.cmp("r9", 0x7ff);
+    a.jcc("ge", "parse.slow");
+    a.shl("r9", 52);
+    a.mov("rax", (1n << 52n) - 1n);
+    a.and("rax", "r12");
+    a.or("rax", "r9");
     a.jmp("parse.sign");
     a.label("parse.slow");
     f.get("rsi", 17);
