@@ -95,7 +95,7 @@ function looseEqual(a, b, seen) {
             if (!types.isDate(b)) return false;
             const x = a.getTime(),
                 y = b.getTime();
-            if (x !== y && !(x !== x && y !== y)) return false;
+            if (x !== y) return false;
         } else if (types.isRegExp(a)) {
             if (
                 !types.isRegExp(b) ||
@@ -108,7 +108,7 @@ function looseEqual(a, b, seen) {
             if (!types.isBoxedPrimitive(b)) return false;
             const x = a.valueOf(),
                 y = b.valueOf();
-            if (x !== y && !(x !== x && y !== y)) return false;
+            if (x !== y) return false;
         } else if (types.isNativeError(a) || types.isNativeError(b)) {
             if (
                 !types.isNativeError(a) ||
@@ -247,22 +247,71 @@ export function notDeepEqual(actual, expected, message) {
             '"actual" deepEqual "expected"',
         );
 }
-function matches(error, expected) {
-    if (expected === undefined) return true;
+function mismatchMessage(error, expected) {
     if (typeof expected === "function") {
         if (expected.prototype !== undefined && error instanceof expected)
-            return true;
-        if (Error.isPrototypeOf(expected) || expected === Error) return false;
-        return expected.call({}, error) === true;
-    }
-    if (expected instanceof RegExp) return expected.test(String(error));
-    if (typeof expected === "object" && expected !== null)
-        return Object.keys(expected).every((k) =>
-            expected[k] instanceof RegExp && typeof error[k] === "string"
-                ? expected[k].test(error[k])
-                : isDeepStrictEqual(error[k], expected[k]),
+            return undefined;
+        if (Error.isPrototypeOf(expected) || expected === Error) {
+            const received =
+                error && error.constructor && error.constructor.name
+                    ? error.constructor.name
+                    : inspect(error);
+            return (
+                'The error is expected to be an instance of "' +
+                expected.name +
+                '". Received "' +
+                received +
+                '"' +
+                (error && error.message !== undefined
+                    ? "\n\nError message:\n\n" + error.message
+                    : "")
+            );
+        }
+        const result = expected.call({}, error);
+        if (result === true) return undefined;
+        return (
+            'The validation function is expected to return "true". Received ' +
+            inspect(result) +
+            "\n\nCaught error:\n\n" +
+            String(error)
         );
-    return true;
+    }
+    if (expected instanceof RegExp) {
+        const text = String(error);
+        if (expected.test(text)) return undefined;
+        return (
+            "The input did not match the regular expression " +
+            inspect(expected) +
+            ". Input:\n\n" +
+            inspect(text) +
+            "\n"
+        );
+    }
+    if (typeof expected === "object" && expected !== null) {
+        const keys = Object.keys(expected);
+        if (
+            keys.every((k) =>
+                expected[k] instanceof RegExp && typeof error[k] === "string"
+                    ? expected[k].test(error[k])
+                    : isDeepStrictEqual(error[k], expected[k]),
+            )
+        )
+            return undefined;
+        const picked = {};
+        for (const k of keys) picked[k] = error[k];
+        return (
+            "Expected values to be strictly deep-equal:\n" +
+            inspect(picked) +
+            "\n\nshould equal\n\n" +
+            inspect(expected)
+        );
+    }
+    return undefined;
+}
+function checkError(error, expected, message, operator) {
+    if (expected === undefined) return;
+    const text = mismatchMessage(error, expected);
+    if (text !== undefined) fail(error, expected, message, operator, text);
 }
 export function throws(fn, expected, message) {
     if (typeof expected === "string") {
@@ -272,7 +321,7 @@ export function throws(fn, expected, message) {
     try {
         fn();
     } catch (error) {
-        if (!matches(error, expected)) throw error;
+        checkError(error, expected, message, "throws");
         return;
     }
     fail(
@@ -306,7 +355,7 @@ export async function rejects(promise, expected, message) {
     try {
         await (typeof promise === "function" ? promise() : promise);
     } catch (error) {
-        if (!matches(error, expected)) throw error;
+        checkError(error, expected, message, "rejects");
         return;
     }
     fail(
@@ -404,6 +453,16 @@ Object.assign(assert, {
     fail: fail_,
     AssertionError,
 });
-assert.strict = assert;
-export const strict = assert;
+function strict(value, message) {
+    ok.apply(undefined, arguments);
+}
+Object.assign(strict, assert, {
+    equal: strictEqual,
+    notEqual: notStrictEqual,
+    deepEqual: deepStrictEqual,
+    notDeepEqual: notDeepStrictEqual,
+});
+strict.strict = strict;
+assert.strict = strict;
+export { strict };
 export default assert;

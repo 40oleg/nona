@@ -47,7 +47,13 @@ export const nodeCompatModules: readonly (readonly [string, string])[] = [
     ["node:assert", modulesAssert],
     [
         "node:assert/strict",
-        "import assert from 'node:assert'; export default assert.strict; export * from 'node:assert';",
+        "import assert from 'node:assert'; const s = assert.strict; export default s; " +
+            "export const { " +
+            "ok, equal, notEqual, deepEqual, notDeepEqual, strictEqual, " +
+            "notStrictEqual, deepStrictEqual, notDeepStrictEqual, throws, doesNotThrow, rejects, " +
+            "doesNotReject, match, doesNotMatch, ifError, fail, AssertionError, " +
+            "strict " +
+            "} = s;",
     ],
     ["node:querystring", modulesQuerystring],
     ["node:timers", modulesTimers],
