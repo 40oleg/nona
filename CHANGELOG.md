@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`util.types.isDate`, `isMap`, `isSet`, `isRegExp`, `isWeakMap`, `isWeakSet`, `isPromise`, `isArrayBuffer` and `isSharedArrayBuffer` check the internal slot.** They used `instanceof`, so `Object.create(Date.prototype)` was reported as a date and a real date with a null prototype was not. ([#470](https://github.com/40oleg/nona/issues/470))
+- **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
 
 ## v0.26.0 — 2026-10-23
 
