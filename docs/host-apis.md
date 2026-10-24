@@ -141,6 +141,12 @@ The default export and named `EventEmitter` export are the same constructor.
 subscription disposable under `Symbol.dispose`. The `Symbol.dispose` and
 `Symbol.asyncDispose` globals use the distinct symbol identities from Node.js 26.
 
+`structuredClone(value, { transfer })` is a global linked when a program names it.
+It follows the HTML structured clone algorithm on one thread: cycles and shared
+references are kept, class instances become plain objects, functions, symbols and
+weak collections throw a `DOMException` named `DataCloneError`, and `transfer`
+detaches the listed `ArrayBuffer`s.
+
 Nona supplies `Event`, `CustomEvent`, `EventTarget`, `AbortController`,
 `AbortSignal` and `DOMException` globals. Event targets support listener objects,
 capture matching, once listeners, signal removal, cancellation and dispatch
