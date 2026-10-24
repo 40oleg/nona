@@ -244,6 +244,11 @@ writeFileSync(
 Readable, Writable, Duplex, Transform and PassThrough constructors on every
 native target. They inherit the canonical EventEmitter used by process.
 `node:stream/promises` and `node:stream/consumers` also have bare and nona aliases.
+`node:stream/web` (with `stream/web` and `nona:stream/web`) exports the Web stream
+classes Nona has, identical to the globals: `ReadableStream`,
+`ReadableStreamDefaultReader`, `ReadableStreamBYOBReader`, `WritableStream` and
+`WritableStreamDefaultWriter`. `TransformStream` and the other classes Nona lacks
+are not exported.
 No Node.js source, external interpreter or third-party polyfill is bundled.
 
 Readable queues implement demand, push/unshift/read, object and byte modes,

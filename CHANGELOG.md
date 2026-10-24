@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`node:stream/web` exists.** `require("node:stream/web")`, `stream/web` and `nona:stream/web` export `ReadableStream`, `ReadableStreamDefaultReader`, `ReadableStreamBYOBReader`, `WritableStream` and `WritableStreamDefaultWriter`, identical to the globals; classes Nona lacks (such as `TransformStream`) are not exported. It failed with `MODULE_NOT_FOUND`. ([#491](https://github.com/40oleg/nona/issues/491))
+
 ## v0.27.0 — 2026-10-24
 
 ### Fixes
