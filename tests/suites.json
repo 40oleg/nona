@@ -105,6 +105,7 @@
                 "assert-strict",
                 "util-types-brand",
                 "util-inspect-circular",
+                "util-inspect-compact",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
