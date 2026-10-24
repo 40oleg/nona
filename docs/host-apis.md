@@ -377,7 +377,7 @@ startup. Each is available as `node:<name>` and `<name>`.
   detection.
 - `node:util`: `format` and `formatWithOptions` (`%s %d %i %f %j %o %O %c
 %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
-  `compact`, `maxArrayLength`, `customInspect`), `inherits`, `promisify` (with
+  `compact`, `maxArrayLength`, `maxStringLength`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
   `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
   `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` and the legacy
