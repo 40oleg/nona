@@ -64,6 +64,10 @@ import {
     typedArrayPropertyRoots,
 } from "./typed-array.js";
 import {
+    typedArrayProxyRoots,
+    typedArrayProxyPropertyRoots,
+} from "./typed-array-proxy.js";
+import {
     descriptorRoots,
     descriptorPropertyRoots,
 } from "./property-descriptors.js";
@@ -1142,6 +1146,7 @@ export function emitGc(
             ...atomicsRoots,
             ...dataViewRoots,
             ...typedArrayRoots,
+            ...typedArrayProxyRoots,
             ...objectMethodRoots,
             ...wrapperMethodRoots,
             ...constructorRoots,
@@ -1198,6 +1203,7 @@ export function emitGc(
             ...atomicsPropertyRoots,
             ...dataViewPropertyRoots,
             ...typedArrayPropertyRoots,
+            ...typedArrayProxyPropertyRoots,
             ...callStaticProperties,
             ...applyStaticProperties,
             ...bindStaticProperties,

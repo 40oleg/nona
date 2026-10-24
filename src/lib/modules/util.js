@@ -1,3 +1,5 @@
+const isProxy = globalThis.__nonaIsProxy;
+delete globalThis.__nonaIsProxy;
 const customInspect = Symbol.for("nodejs.util.inspect.custom");
 const customPromisify = Symbol.for("nodejs.util.promisify.custom");
 const objectToString = Object.prototype.toString;
@@ -88,7 +90,7 @@ export const types = {
     isStringObject: (value) => value instanceof String,
     isBooleanObject: (value) => value instanceof Boolean,
     isSymbolObject: (value) => value instanceof Symbol,
-    isProxy: (value) => false,
+    isProxy,
     isExternal: (value) => false,
     isModuleNamespaceObject: (value) => tag(value) === "Module",
 };
