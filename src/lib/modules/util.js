@@ -135,6 +135,9 @@ function functionLabel(fn) {
     if (isClass) return "[class " + (fn.name || "(anonymous)") + "]";
     return "[" + kind + (fn.name ? ": " + fn.name : " (anonymous)") + "]";
 }
+function formatNumber(value) {
+    return Object.is(value, -0) ? "-0" : String(value);
+}
 function formatString(value, options) {
     const max = options && options.maxStringLength;
     if (typeof max !== "number" || !Number.isFinite(max)) return quote(value);
@@ -151,8 +154,7 @@ function formatString(value, options) {
 function formatPrimitive(value, options) {
     if (typeof value === "string") return formatString(value, options);
     if (typeof value === "bigint") return String(value) + "n";
-    if (typeof value === "number")
-        return Object.is(value, -0) ? "-0" : String(value);
+    if (typeof value === "number") return formatNumber(value);
     if (typeof value === "symbol") return value.toString();
     return String(value);
 }
@@ -509,26 +511,28 @@ export function formatWithOptions(options, ...args) {
                                               depth: 0,
                                           }),
                                       )
-                                    : String(arg);
+                                    : typeof arg === "number"
+                                      ? formatNumber(arg)
+                                      : String(arg);
                     else if (next === "d")
                         out +=
                             typeof arg === "bigint"
                                 ? arg + "n"
                                 : typeof arg === "symbol"
                                   ? "NaN"
-                                  : String(Number(arg));
+                                  : formatNumber(Number(arg));
                     else if (next === "i")
                         out +=
                             typeof arg === "bigint"
                                 ? arg + "n"
                                 : typeof arg === "symbol"
                                   ? "NaN"
-                                  : String(parseInt(arg));
+                                  : formatNumber(parseInt(arg));
                     else if (next === "f")
                         out +=
                             typeof arg === "symbol"
                                 ? "NaN"
-                                : String(parseFloat(arg));
+                                : formatNumber(parseFloat(arg));
                     else if (next === "j") {
                         try {
                             out += JSON.stringify(arg);
