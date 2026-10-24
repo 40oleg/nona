@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`atob` and `btoa` are global functions.** They were only exported from `node:buffer`; they are now writable, configurable, non-enumerable properties of `globalThis`, and naming either links the buffer prelude. Bad input throws a `DOMException` named `InvalidCharacterError` (code 5) instead of a plain `Error`. ([#488](https://github.com/40oleg/nona/issues/488))
+
 ## v0.27.0 — 2026-10-24
 
 ### Fixes
