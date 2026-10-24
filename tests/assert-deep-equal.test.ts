@@ -114,6 +114,19 @@ eq('cycle differ', a, c);
 const m1 = new Map(); m1.set('m', m1);
 const m2 = new Map(); m2.set('m', m2);
 eq('map cycle', m1, m2);
+eq('nested nan', { v: [NaN, { w: NaN }] }, { v: [NaN, { w: NaN }] });
+const arr1 = [1]; arr1.push(arr1);
+const arr2 = [1]; arr2.push(arr2);
+eq('circular array', arr1, arr2);
+const arr3 = [1, 2]; arr3.push(arr3);
+eq('circular array differ', arr1, arr3);
+const parent1 = { n: 1 };
+const child1 = { self: parent1 };
+parent1.child = child1;
+const parent2_nested = { n: 1 };
+const child2_nested = { self: parent2_nested };
+parent2_nested.child = child2_nested;
+eq('nested cycle', parent1, parent2_nested);
 `));
 
 test("assert.deepStrictEqual matches Map keys deeply", () =>

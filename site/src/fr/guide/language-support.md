@@ -1,6 +1,6 @@
 # Prise en charge du langage
 
-Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions documentées. Cette page résume ce qui est pris en charge dans **v0.25.0**. Les chiffres de Test262 proviennent du dernier audit complet (v0.8.0) de la révision figée décrite sur la page [Test262](/fr/reference/test262).
+Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions documentées. Cette page résume ce qui est pris en charge dans **v0.27.0**. Les chiffres de Test262 proviennent du dernier audit complet (v0.8.0) de la révision figée décrite sur la page [Test262](/fr/reference/test262).
 
 **Pris en charge** signifie implémenté et couvert par des tests unitaires et par Test262, dans les limites indiquées dans la colonne Remarques. La matrice détaillée par fonctionnalité, avec les noms des tests, se trouve dans [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md) (en russe).
 

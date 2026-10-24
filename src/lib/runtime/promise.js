@@ -264,6 +264,14 @@ var __nonaPromiseDrainJobs = (function () {
         writable: true,
         configurable: true,
     });
+    // Brand check for util.types.isPromise: reads the slot, no side effects.
+    defineProperty(globalThis, "__nonaIsPromise", {
+        value: function (value) {
+            return isObject(value) && promiseGet(value, 0) >= 0;
+        },
+        writable: true,
+        configurable: true,
+    });
     function record(value) {
         if (promiseGet(value, 0) < 0)
             throw new TypeError("Incompatible Promise receiver");
@@ -668,7 +676,10 @@ var __nonaPromiseDrainJobs = (function () {
     }.race;
     var AggregateErrorConstructor = __nonaRegexpVm.AggregateError;
     function aggregate(errors) {
-        var error = new AggregateErrorConstructor([]);
+        var error = new AggregateErrorConstructor(
+            [],
+            "All promises were rejected",
+        );
         Object.defineProperty(error, "errors", {
             value: errors,
             writable: true,
