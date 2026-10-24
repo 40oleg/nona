@@ -47,6 +47,22 @@ test("console.error and console.warn write to stderr, info and debug to stdout (
     assertMatchesNode(source);
 });
 
+test("console methods print symbol arguments as Symbol(description) (#463)", () => {
+    const symbolSource = `
+for (const method of ['log', 'info', 'debug', 'warn', 'error']) {
+    console[method](Symbol('s'));
+    console[method](Symbol());
+    console[method](Symbol.iterator, 'after', Symbol('x'));
+}
+console.log(Symbol('s'), 'after');
+`;
+    assertMatchesNode(symbolSource);
+    assert.equal(
+        runOnHost(`console.log(Symbol('s'), 'after');`).stdout,
+        "Symbol(s) after\n",
+    );
+});
+
 test("console streams interleave with process.stdout and process.stderr writes (#230)", () => {
     assertMatchesNode(rawSource, { gcStress: false });
 });
