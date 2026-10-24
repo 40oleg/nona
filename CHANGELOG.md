@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.27.0 — 2026-10-24
+
 ### Fixes
 
 - **`fs.readdirSync({recursive: true})` enters symbolic links to directories on Linux and macOS.** The walk now lists the entries below a symlinked directory (`link/b`, `link/deep`) and the `Dirent` `parentPath` goes through the link, like Node.js. ([#558](https://github.com/40oleg/nona/issues/558))
