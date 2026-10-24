@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`fs.constants` has the open flags, file type bits and permission bits.** It had only `COPYFILE_EXCL` and the access modes; it now carries Node.js's full set (`S_IF*`, `S_I[RWX]{USR,GRP,OTH}`, `O_*`, `UV_*` and `COPYFILE_*`) with per-platform values for Linux, macOS, FreeBSD, OpenBSD and Windows (the smaller Windows set). The FreeBSD and OpenBSD values come from the platform headers, not from a Node.js dump. ([#487](https://github.com/40oleg/nona/issues/487))
+
 ## v0.27.0 — 2026-10-24
 
 ### Fixes

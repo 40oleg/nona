@@ -371,3 +371,9 @@ fs.readFile('errno-dir/missing', (e) => {
 });
 `,
     }));
+
+test("fs.constants has the keys and values of Node.js", () =>
+    expectModules({
+        "main.mjs":
+            "import fs from 'node:fs';\nconsole.log(JSON.stringify(Object.entries(fs.constants)));",
+    }));
