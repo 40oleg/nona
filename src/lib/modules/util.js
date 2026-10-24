@@ -172,11 +172,25 @@ function inspectValue(value, options, depth, seen, circular) {
         typeof value[customInspect] === "function" &&
         value[customInspect] !== inspect
     ) {
-        const result = value[customInspect](
-            options.depth - depth,
-            options,
-            inspect,
-        );
+        const remaining = options.depth - depth;
+        const custom = Object.assign({}, options, {
+            stylize(text, styleType) {
+                const plain = String(text);
+                if (!custom.colors) return plain;
+                const codes = inspect.colors[inspect.styles[styleType]];
+                if (!codes) return plain;
+                return (
+                    "\u001b[" +
+                    codes[0] +
+                    "m" +
+                    plain +
+                    "\u001b[" +
+                    codes[1] +
+                    "m"
+                );
+            },
+        });
+        const result = value[customInspect](remaining, custom, inspect);
         if (result !== value)
             return typeof result === "string"
                 ? result

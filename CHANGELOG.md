@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`util.inspect` honors `maxStringLength`.** Strings longer than the limit (default 10000) were printed in full. They are now cut and followed by `... N more character(s)`, as in Node.js, at the top level and inside arrays, objects, Maps, Sets and boxed strings; `null` and `Infinity` disable the limit and property keys are not truncated. ([#478](https://github.com/40oleg/nona/issues/478))
+- **`util.inspect.custom` inspectors receive `options.stylize`.** They were called with the raw settings object, so `options.stylize(text, "special")` threw a `TypeError`. The options are now a copy with `stylize(text, styleType)` (identity unless `colors` is set, then ANSI codes from `inspect.styles`/`inspect.colors`). ([#475](https://github.com/40oleg/nona/issues/475))
 - **`util.inspect` shows the state of a promise.** It printed `Promise { <unknown> }` for every promise. It now prints `Promise { <pending> }`, `Promise { 2 }` and `Promise { <rejected> 3 }` like Node.js, reading the state without marking the promise as handled. ([#479](https://github.com/40oleg/nona/issues/479))
 
 ## v0.27.0 — 2026-10-24
