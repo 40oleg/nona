@@ -111,6 +111,7 @@
                 "typed-array-fast-path",
                 "typed-array-inline",
                 "typed-array-bce",
+                "util-types-proxy",
                 "typedarray-change-by-copy",
                 "typedarray-sort-large",
                 "float16",
