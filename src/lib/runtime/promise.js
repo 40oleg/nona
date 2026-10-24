@@ -251,6 +251,19 @@ var __nonaPromiseDrainJobs = (function () {
     __nonaRegexpVm.markPromiseHandled = function (promise) {
         markHandled(record(promise));
     };
+    // The state of a promise for util.inspect, without marking it handled:
+    // [kind, value] with kind 0 pending, 1 fulfilled, 2 rejected, or
+    // undefined for a value that is not a promise.
+    __nonaRegexpVm.promiseState = function (promise) {
+        var bits = promiseGet(promise, 0);
+        if (bits < 0) return undefined;
+        return [bits & 3, promiseGet(promise, 1)];
+    };
+    defineProperty(globalThis, "__nonaPromiseState", {
+        value: __nonaRegexpVm.promiseState,
+        writable: true,
+        configurable: true,
+    });
     // Brand check for util.types.isPromise: reads the slot, no side effects.
     defineProperty(globalThis, "__nonaIsPromise", {
         value: function (value) {
