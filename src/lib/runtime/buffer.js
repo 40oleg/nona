@@ -1001,10 +1001,10 @@
         value = String(value);
         for (var i = 0; i < value.length; i++)
             if (value.charCodeAt(i) > 255) {
-                var e = new Error("Invalid character");
-                e.name = "InvalidCharacterError";
-                e.code = 5;
-                throw e;
+                throw new DOMException(
+                    "Invalid character",
+                    "InvalidCharacterError",
+                );
             }
         return decodeBytes(encodeString(value, "latin1"), "base64");
     }
@@ -1012,10 +1012,10 @@
         value = String(value).replace(/[\t\n\f\r ]/g, "");
         if (value.length % 4 === 0) value = value.replace(/==?$/, "");
         if (value.length % 4 === 1 || /[^A-Za-z0-9+/]/.test(value)) {
-            var e = new Error("Invalid character");
-            e.name = "InvalidCharacterError";
-            e.code = 5;
-            throw e;
+            throw new DOMException(
+                "Invalid character",
+                "InvalidCharacterError",
+            );
         }
         return decodeBytes(encodeString(value, "base64"), "latin1");
     }
@@ -2268,6 +2268,18 @@
     });
     define(globalThis, "File", {
         value: File,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+    });
+    define(globalThis, "atob", {
+        value: atob,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+    });
+    define(globalThis, "btoa", {
+        value: btoa,
         writable: true,
         enumerable: false,
         configurable: true,
