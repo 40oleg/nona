@@ -239,6 +239,41 @@ console.log(fs.realpathSync(dir + '/file-link') === fs.realpathSync(dir + '/targ
     }
 });
 
+test("readdir recursive lists all descendants like Node.js and enters symbolic links to directories", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "nona-recursive-"));
+    try {
+        mkdirSync(join(directory, "rd", "sub", "deep"), { recursive: true });
+        mkdirSync(join(directory, "rd", "empty"));
+        for (const f of ["a", "sub/b", "sub/deep/c"])
+            writeFileSync(join(directory, "rd", f), "");
+        try {
+            symlinkSync(
+                join(directory, "rd", "sub"),
+                join(directory, "rd", "link"),
+                "dir",
+            );
+        } catch (error) {
+            t.diagnostic("no symbolic links: " + (error as Error).message);
+        }
+        expectModules({
+            "main.mjs": `
+import fs from 'node:fs';
+import {readdir as readdirP} from 'node:fs/promises';
+const root = ${JSON.stringify(join(directory, "rd"))};
+const sorted = (list) => JSON.stringify(list.map((n) => n.replaceAll('\\\\', '/')).sort());
+console.log(sorted(fs.readdirSync(root, {recursive: true})));
+console.log(sorted(fs.readdirSync(root, {recursive: false})));
+console.log(sorted(fs.readdirSync(root, 'utf8')));
+console.log(sorted(fs.readdirSync(root, {recursive: true, withFileTypes: true}).map((d) => d.parentPath.slice(root.length).replaceAll('\\\\', '/') + '|' + d.name + '|' + d.isDirectory())));
+console.log(sorted(await readdirP(root, {recursive: true})));
+fs.readdir(root, {recursive: true}, (error, names) => console.log(error, sorted(names)));
+`,
+        });
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
 test("fs reads Windows junctions as links", (t) => {
     if (process.platform !== "win32") {
         t.skip("junctions are a Windows feature");
@@ -306,5 +341,33 @@ await call('rmdir', rmdir, 'cb-dir');
 try { readFile('cb-dir/a.txt'); } catch (e) { console.log(e.name, e.code); }
 console.log(typeof fs.readFile, fs.writeFile === writeFile);
 })();
+`,
+    }));
+
+test("fs errors carry the errno of Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+fs.mkdirSync('errno-dir', {recursive: true});
+fs.writeFileSync('errno-dir/f.txt', 'x');
+const cases = [
+  () => fs.statSync('errno-dir/missing'),
+  () => fs.mkdirSync('errno-dir'),
+  () => fs.copyFileSync('errno-dir/f.txt', 'errno-dir/f.txt', fs.constants.COPYFILE_EXCL),
+  () => fs.readFileSync('errno-dir'),
+  () => fs.readdirSync('errno-dir/f.txt'),
+  () => fs.rmdirSync('errno-dir'),
+];
+for (const f of cases) {
+  try { f(); console.log('no error'); } catch (e) { console.log(e.code, e.errno, e.syscall, typeof e.errno); }
+}
+fs.readFile('errno-dir/missing', (e) => {
+  console.log(e.code, e.errno, e.syscall);
+  fs.promises.readFile('errno-dir/missing').catch((p) => {
+    console.log(p.code, p.errno, p.syscall);
+    fs.unlinkSync('errno-dir/f.txt');
+    fs.rmdirSync('errno-dir');
+  });
+});
 `,
     }));

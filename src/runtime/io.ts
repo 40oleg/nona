@@ -134,7 +134,14 @@ function emitLog(b: RuntimeBuilder, name: string, writer: string): void {
             a.label(name + ".arg");
             a.load("rdx", slot(56));
             a.lea("rcx", slot(72));
+            a.load("rax", { base: "rdx" });
+            a.cmp("rax", 6);
+            a.jcc("ne", name + ".plain");
+            a.call("rt.symbolDescriptiveString");
+            a.jmp(name + ".converted");
+            a.label(name + ".plain");
             a.call("rt.toString");
+            a.label(name + ".converted");
             a.load("rcx", slot(80));
             a.call(writer);
             a.load("rax", slot(56));

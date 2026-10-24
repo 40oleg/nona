@@ -170,6 +170,12 @@ test("Promise.try runs a callback and settles with its result", () =>
  console.log(log.join());
 `));
 
+test("Promise.any rejects with AggregateError having message 'All promises were rejected'", () =>
+    expectStress(`
+ Promise.any([Promise.reject(new Error("a"))]).catch((e) => console.log(e.name, JSON.stringify(e.message), e.errors.length, Object.prototype.hasOwnProperty.call(e, "message")));
+ Promise.any([]).catch((e) => console.log(e.name, JSON.stringify(e.message), Object.prototype.hasOwnProperty.call(e, "message")));
+`));
+
 test("Promise.withResolvers resolves, rejects and honours subclasses", () =>
     expectStress(`
  var r=Promise.withResolvers();
