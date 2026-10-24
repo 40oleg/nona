@@ -1,6 +1,6 @@
 # 语言支持
 
-Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说明。本页概述 **v0.25.0** 支持的内容。Test262 的数据来自最近一次完整审计（v0.8.0），使用 [Test262](/zh/reference/test262) 页面所述的固定版本。
+Nona 以 ECMA-262 第 11 版（ES2020）为目标，例外情况均有文档说明。本页概述 **v0.27.0** 支持的内容。Test262 的数据来自最近一次完整审计（v0.8.0），使用 [Test262](/zh/reference/test262) 页面所述的固定版本。
 
 **支持**表示已实现，并在“说明”列所述的范围内由单元测试和 Test262 覆盖。带测试名称的详细特性矩阵见 [`docs/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/language-support.md)（俄文）。
 

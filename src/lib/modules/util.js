@@ -1,25 +1,75 @@
+const isProxy = globalThis.__nonaIsProxy;
+delete globalThis.__nonaIsProxy;
 const customInspect = Symbol.for("nodejs.util.inspect.custom");
 const customPromisify = Symbol.for("nodejs.util.promisify.custom");
 const objectToString = Object.prototype.toString;
 const tag = (value) => objectToString.call(value).slice(8, -1);
 
+const getter = (proto, name) =>
+    Object.getOwnPropertyDescriptor(proto, name).get;
+// Calls a built-in accessor or method that throws a TypeError for a receiver
+// without the internal slot; Reflect.apply ignores the receiver's prototype.
+const brand = (fn, value, ...args) => {
+    if (
+        value === null ||
+        (typeof value !== "object" && typeof value !== "function")
+    )
+        return false;
+    try {
+        Reflect.apply(fn, value, args);
+        return true;
+    } catch {
+        return false;
+    }
+};
+const dateGetTime = Date.prototype.getTime;
+const mapHas = Map.prototype.has;
+const setHas = Set.prototype.has;
+const weakMapHas = WeakMap.prototype.has;
+const weakSetHas = WeakSet.prototype.has;
+const arrayBufferByteLength = getter(ArrayBuffer.prototype, "byteLength");
+const sharedByteLength =
+    typeof SharedArrayBuffer === "function"
+        ? getter(SharedArrayBuffer.prototype, "byteLength")
+        : undefined;
+// RegExp.prototype.global returns undefined for %RegExp.prototype% itself.
+const regExpGlobal = getter(RegExp.prototype, "global");
+const isRegExpObject = (value) => {
+    if (value === null || typeof value !== "object") return false;
+    try {
+        return typeof Reflect.apply(regExpGlobal, value, []) === "boolean";
+    } catch {
+        return false;
+    }
+};
+// Installed by the promise prelude: reads the promise slot, no side effects.
+const isPromise = (value) => {
+    const hook = globalThis.__nonaIsPromise;
+    return typeof hook === "function" ? hook(value) : value instanceof Promise;
+};
+const isSharedArrayBuffer = (value) =>
+    sharedByteLength !== undefined && brand(sharedByteLength, value);
+
 export const types = {
-    isDate: (value) => value instanceof Date,
-    isRegExp: (value) => value instanceof RegExp,
-    isMap: (value) => value instanceof Map,
-    isSet: (value) => value instanceof Set,
-    isWeakMap: (value) => value instanceof WeakMap,
-    isWeakSet: (value) => value instanceof WeakSet,
-    isPromise: (value) => value instanceof Promise,
-    isNativeError: (value) => value instanceof Error,
-    isArrayBuffer: (value) => value instanceof ArrayBuffer,
+    isDate: (value) => brand(dateGetTime, value),
+    isRegExp: isRegExpObject,
+    isMap: (value) => brand(mapHas, value, undefined),
+    isSet: (value) => brand(setHas, value, undefined),
+    isWeakMap: (value) => brand(weakMapHas, value, {}),
+    isWeakSet: (value) => brand(weakSetHas, value, {}),
+    isPromise,
+    // [[ErrorData]] is what gives an object the built-in "Error" tag.
+    isNativeError: (value) =>
+        typeof Error.isError === "function"
+            ? Error.isError(value)
+            : value !== null &&
+              typeof value === "object" &&
+              !(Symbol.toStringTag in value) &&
+              tag(value) === "Error",
+    isArrayBuffer: (value) => brand(arrayBufferByteLength, value),
     isAnyArrayBuffer: (value) =>
-        value instanceof ArrayBuffer ||
-        (typeof SharedArrayBuffer === "function" &&
-            value instanceof SharedArrayBuffer),
-    isSharedArrayBuffer: (value) =>
-        typeof SharedArrayBuffer === "function" &&
-        value instanceof SharedArrayBuffer,
+        brand(arrayBufferByteLength, value) || isSharedArrayBuffer(value),
+    isSharedArrayBuffer,
     isArrayBufferView: (value) => ArrayBuffer.isView(value),
     isTypedArray: (value) =>
         ArrayBuffer.isView(value) && !(value instanceof DataView),
@@ -40,7 +90,7 @@ export const types = {
     isStringObject: (value) => value instanceof String,
     isBooleanObject: (value) => value instanceof Boolean,
     isSymbolObject: (value) => value instanceof Symbol,
-    isProxy: (value) => false,
+    isProxy,
     isExternal: (value) => false,
     isModuleNamespaceObject: (value) => tag(value) === "Module",
 };
@@ -93,7 +143,11 @@ function formatPrimitive(value) {
     if (typeof value === "symbol") return value.toString();
     return String(value);
 }
-function inspectValue(value, options, depth, seen) {
+function refPrefix(value, circular) {
+    const index = circular.get(value);
+    return index === undefined ? "" : "<ref *" + index + "> ";
+}
+function inspectValue(value, options, depth, seen, circular) {
     if (
         value === null ||
         (typeof value !== "object" && typeof value !== "function")
@@ -127,27 +181,36 @@ function inspectValue(value, options, depth, seen) {
         if (result !== value)
             return typeof result === "string"
                 ? result
-                : inspectValue(result, options, depth, seen);
+                : inspectValue(result, options, depth, seen, circular);
     }
-    if (seen.includes(value)) return "[Circular *1]";
+    if (seen.includes(value)) {
+        let index = circular.get(value);
+        if (index === undefined) {
+            index = circular.size + 1;
+            circular.set(value, index);
+        }
+        return "[Circular *" + index + "]";
+    }
     if (typeof value === "function") {
         const own = Object.keys(value);
         const label = functionLabel(value);
         if (!own.length) return label;
         if (depth > options.depth) return label;
+        const entries = own.map(
+            (k) =>
+                key(k) +
+                ": " +
+                inspectValue(
+                    value[k],
+                    options,
+                    depth + 1,
+                    seen.concat([value]),
+                    circular,
+                ),
+        );
         return formatEntries(
-            label + " ",
-            own.map(
-                (k) =>
-                    key(k) +
-                    ": " +
-                    inspectValue(
-                        value[k],
-                        options,
-                        depth + 1,
-                        seen.concat([value]),
-                    ),
-            ),
+            refPrefix(value, circular) + label + " ",
+            entries,
             "{",
             "}",
             options,
@@ -167,7 +230,8 @@ function inspectValue(value, options, depth, seen) {
     if (types.isBoxedPrimitive(value))
         return "[" + tag(value) + ": " + formatPrimitive(value.valueOf()) + "]";
     const inner = seen.concat([value]);
-    const nested = (item) => inspectValue(item, options, depth + 1, inner);
+    const nested = (item) =>
+        inspectValue(item, options, depth + 1, inner, circular);
     if (Array.isArray(value)) {
         if (depth > options.depth) return "[Array]";
         const items = [];
@@ -200,14 +264,20 @@ function inspectValue(value, options, depth, seen) {
         for (const k of Object.keys(value))
             if (!/^(0|[1-9]\d*)$/.test(k))
                 items.push(key(k) + ": " + nested(value[k]));
-        return formatEntries("", items, "[", "]", options);
+        return formatEntries(
+            refPrefix(value, circular),
+            items,
+            "[",
+            "]",
+            options,
+        );
     }
     if (value instanceof Map) {
         if (depth > options.depth) return "[Map]";
         const items = [];
         for (const [k, v] of value) items.push(nested(k) + " => " + nested(v));
         return formatEntries(
-            "Map(" + value.size + ") ",
+            refPrefix(value, circular) + "Map(" + value.size + ") ",
             items,
             "{",
             "}",
@@ -219,7 +289,7 @@ function inspectValue(value, options, depth, seen) {
         const items = [];
         for (const v of value) items.push(nested(v));
         return formatEntries(
-            "Set(" + value.size + ") ",
+            refPrefix(value, circular) + "Set(" + value.size + ") ",
             items,
             "{",
             "}",
@@ -240,7 +310,7 @@ function inspectValue(value, options, depth, seen) {
                     " more items",
             );
         return formatEntries(
-            name + "(" + value.length + ") ",
+            refPrefix(value, circular) + name + "(" + value.length + ") ",
             items,
             "[",
             "]",
@@ -286,7 +356,13 @@ function inspectValue(value, options, depth, seen) {
     for (const s of Object.getOwnPropertySymbols(value))
         if (Object.getOwnPropertyDescriptor(value, s).enumerable)
             items.push(key(s) + ": " + nested(value[s]));
-    return formatEntries(prefix, items, "{", "}", options);
+    return formatEntries(
+        refPrefix(value, circular) + prefix,
+        items,
+        "{",
+        "}",
+        options,
+    );
 }
 function formatEntries(prefix, items, open, close, options) {
     if (!items.length) return prefix + open + close;
@@ -324,7 +400,7 @@ export function inspect(value, options) {
     );
     if (typeof options === "boolean") settings.showHidden = options;
     if (settings.depth === null) settings.depth = Infinity;
-    return inspectValue(value, settings, 0, []);
+    return inspectValue(value, settings, 0, [], new Map());
 }
 inspect.custom = customInspect;
 inspect.defaultOptions = {
