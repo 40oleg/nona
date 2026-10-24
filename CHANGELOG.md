@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`util.format` keeps the sign of `-0`.** `%s`, `%d` and `%i` printed `-0` as `0`; they now print `-0` like Node.js. ([#477](https://github.com/40oleg/nona/issues/477))
+- **`util.inspect.custom` inspectors receive `options.stylize`.** They were called with the raw settings object, so `options.stylize(text, "special")` threw a `TypeError`. The options are now a copy with `stylize(text, styleType)` (identity unless `colors` is set, then ANSI codes from `inspect.styles`/`inspect.colors`). ([#475](https://github.com/40oleg/nona/issues/475))
 - **`util.inspect` shows the state of a promise.** It printed `Promise { <unknown> }` for every promise. It now prints `Promise { <pending> }`, `Promise { 2 }` and `Promise { <rejected> 3 }` like Node.js, reading the state without marking the promise as handled. ([#479](https://github.com/40oleg/nona/issues/479))
 
 ## v0.27.0 — 2026-10-24
