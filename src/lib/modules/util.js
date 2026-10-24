@@ -5,23 +5,71 @@ const customPromisify = Symbol.for("nodejs.util.promisify.custom");
 const objectToString = Object.prototype.toString;
 const tag = (value) => objectToString.call(value).slice(8, -1);
 
+const getter = (proto, name) =>
+    Object.getOwnPropertyDescriptor(proto, name).get;
+// Calls a built-in accessor or method that throws a TypeError for a receiver
+// without the internal slot; Reflect.apply ignores the receiver's prototype.
+const brand = (fn, value, ...args) => {
+    if (
+        value === null ||
+        (typeof value !== "object" && typeof value !== "function")
+    )
+        return false;
+    try {
+        Reflect.apply(fn, value, args);
+        return true;
+    } catch {
+        return false;
+    }
+};
+const dateGetTime = Date.prototype.getTime;
+const mapHas = Map.prototype.has;
+const setHas = Set.prototype.has;
+const weakMapHas = WeakMap.prototype.has;
+const weakSetHas = WeakSet.prototype.has;
+const arrayBufferByteLength = getter(ArrayBuffer.prototype, "byteLength");
+const sharedByteLength =
+    typeof SharedArrayBuffer === "function"
+        ? getter(SharedArrayBuffer.prototype, "byteLength")
+        : undefined;
+// RegExp.prototype.global returns undefined for %RegExp.prototype% itself.
+const regExpGlobal = getter(RegExp.prototype, "global");
+const isRegExpObject = (value) => {
+    if (value === null || typeof value !== "object") return false;
+    try {
+        return typeof Reflect.apply(regExpGlobal, value, []) === "boolean";
+    } catch {
+        return false;
+    }
+};
+// Installed by the promise prelude: reads the promise slot, no side effects.
+const isPromise = (value) => {
+    const hook = globalThis.__nonaIsPromise;
+    return typeof hook === "function" ? hook(value) : value instanceof Promise;
+};
+const isSharedArrayBuffer = (value) =>
+    sharedByteLength !== undefined && brand(sharedByteLength, value);
+
 export const types = {
-    isDate: (value) => value instanceof Date,
-    isRegExp: (value) => value instanceof RegExp,
-    isMap: (value) => value instanceof Map,
-    isSet: (value) => value instanceof Set,
-    isWeakMap: (value) => value instanceof WeakMap,
-    isWeakSet: (value) => value instanceof WeakSet,
-    isPromise: (value) => value instanceof Promise,
-    isNativeError: (value) => value instanceof Error,
-    isArrayBuffer: (value) => value instanceof ArrayBuffer,
+    isDate: (value) => brand(dateGetTime, value),
+    isRegExp: isRegExpObject,
+    isMap: (value) => brand(mapHas, value, undefined),
+    isSet: (value) => brand(setHas, value, undefined),
+    isWeakMap: (value) => brand(weakMapHas, value, {}),
+    isWeakSet: (value) => brand(weakSetHas, value, {}),
+    isPromise,
+    // [[ErrorData]] is what gives an object the built-in "Error" tag.
+    isNativeError: (value) =>
+        typeof Error.isError === "function"
+            ? Error.isError(value)
+            : value !== null &&
+              typeof value === "object" &&
+              !(Symbol.toStringTag in value) &&
+              tag(value) === "Error",
+    isArrayBuffer: (value) => brand(arrayBufferByteLength, value),
     isAnyArrayBuffer: (value) =>
-        value instanceof ArrayBuffer ||
-        (typeof SharedArrayBuffer === "function" &&
-            value instanceof SharedArrayBuffer),
-    isSharedArrayBuffer: (value) =>
-        typeof SharedArrayBuffer === "function" &&
-        value instanceof SharedArrayBuffer,
+        brand(arrayBufferByteLength, value) || isSharedArrayBuffer(value),
+    isSharedArrayBuffer,
     isArrayBufferView: (value) => ArrayBuffer.isView(value),
     isTypedArray: (value) =>
         ArrayBuffer.isView(value) && !(value instanceof DataView),
