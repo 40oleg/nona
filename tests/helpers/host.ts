@@ -25,7 +25,12 @@ const TIMEOUT_MS = 60_000;
 /** Compile with the runtime prelude for the host's native target and run it. */
 export function runOnHost(
     source: string,
-    options: { gcStress?: boolean; realms?: number; link?: RuntimeLink } = {
+    options: {
+        gcStress?: boolean;
+        realms?: number;
+        link?: RuntimeLink;
+        timeoutMs?: number;
+    } = {
         gcStress: true,
     },
 ): HostRun {
@@ -34,7 +39,9 @@ export function runOnHost(
         ...(options.realms ? { realms: options.realms } : {}),
         ...(options.link ? { link: options.link } : {}),
     });
-    const timeout = options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS;
+    const timeout =
+        options.timeoutMs ??
+        (options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS);
     if (process.platform !== "linux") {
         const result = runNative(linkHost(program), timeout);
         return {
