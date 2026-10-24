@@ -149,8 +149,12 @@ let order=[];new Intl.DateTimeFormat("en-US",new Proxy({},{get(t,k){order.push(S
 for (const [name, source] of Object.entries(dateTimePrograms))
     test(`Intl: ${name}`, () => {
         const expected = runOracle(source, { timezone: "UTC" }).stdout;
+        const stress = name === "DateTimeFormat under GC stress";
+        // Intl data setup under GC stress needs far more than the default
+        // allowance on a loaded macOS arm64 runner (#558).
         const run = runOnHost(source, {
-            gcStress: name === "DateTimeFormat under GC stress",
+            gcStress: stress,
+            ...(stress ? { timeoutMs: 600_000 } : {}),
         });
         assert.equal(run.error, undefined);
         assert.equal(run.status, 0, run.stderr);

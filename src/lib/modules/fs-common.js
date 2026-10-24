@@ -28,6 +28,7 @@ function fail(code, syscall, path, dest) {
     if (path !== undefined) message += " '" + path + "'";
     if (dest !== undefined) message += " -> '" + dest + "'";
     const error = new Error(message);
+    error.errno = errnos[code] !== undefined ? errnos[code] : errnos.UNKNOWN;
     error.code = code;
     error.syscall = syscall;
     if (path !== undefined) error.path = path;
@@ -45,11 +46,34 @@ function pathString(path, name) {
         return path;
     }
     if (path instanceof Uint8Array) return decoder.decode(path);
-    throw new TypeError(
+    throw typeError(
         'The "' +
             name +
-            '" argument must be of type string or an instance of Uint8Array',
+            '" argument must be of type string or an instance of Buffer or Uint8Array',
     );
+}
+function typeError(message) {
+    const error = new TypeError(message);
+    error.code = "ERR_INVALID_ARG_TYPE";
+    return error;
+}
+/** Whether the argument is a file descriptor; only 0, 1 and 2 are supported. */
+function isFd(fd, syscall) {
+    if (typeof fd !== "number") return false;
+    if (!Number.isInteger(fd))
+        throw typeError(
+            'The "fd" argument must be of type integer. Received ' + fd,
+        );
+    if (fd < 0 || fd > 2147483647) {
+        const error = new RangeError(
+            'The value of "fd" is out of range. It must be an integer >= 0 && <= 2147483647. Received ' +
+                fd,
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    if (fd > 2) fail("EBADF", syscall);
+    return true;
 }
 function encodingOf(options) {
     if (typeof options === "string") return options;
@@ -72,7 +96,7 @@ function bytesOf(data) {
     if (ArrayBuffer.isView(data))
         return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
     if (data instanceof ArrayBuffer) return new Uint8Array(data);
-    throw new TypeError(
+    throw typeError(
         'The "data" argument must be of type string or an instance of Uint8Array, TypedArray or DataView',
     );
 }
@@ -182,13 +206,18 @@ function statsOf(result, options) {
     return value;
 }
 export function readFileSync(path, options) {
-    path = pathString(path, "path");
+    const fd = isFd(path, "read");
+    if (!fd) path = pathString(path, "path");
     const encoding = encodingOf(options);
     checkEncoding(encoding);
-    const bytes = sys.readAll(path);
+    const bytes = fd ? sys.readAllFd(path) : sys.readAll(path);
     return encoding === null ? bytes : decoder.decode(bytes);
 }
 export function writeFileSync(path, data, options) {
+    if (isFd(path, "write")) {
+        sys.writeAllFd(path, bytesOf(data));
+        return;
+    }
     path = pathString(path, "path");
     const flag =
         options !== null && typeof options === "object"
@@ -205,6 +234,10 @@ export function writeFileSync(path, data, options) {
     sys.writeAll(path, bytesOf(data), flag === "a", flag === "wx", mode);
 }
 export function appendFileSync(path, data) {
+    if (isFd(path, "write")) {
+        sys.writeAllFd(path, bytesOf(data));
+        return;
+    }
     sys.writeAll(pathString(path, "path"), bytesOf(data), true);
 }
 export function accessSync(path, mode) {
@@ -248,15 +281,45 @@ export function realpathSync(path, options) {
 realpathSync.native = realpathSync;
 export function readdirSync(path, options) {
     path = pathString(path, "path");
-    const names = sys.readdir(path);
-    if (options && typeof options === "object" && options.withFileTypes)
-        return names.map((name) => {
-            const info = sys.lstat(join(path, name));
-            return info === null
-                ? new Dirent(name, path, "other", 0)
-                : new Dirent(name, path, info.kind, info.mode);
-        });
-    return names;
+    const object = options && typeof options === "object";
+    const withFileTypes = object && options.withFileTypes;
+    const recursive = object && options.recursive;
+    if (!recursive) {
+        const names = sys.readdir(path);
+        if (withFileTypes)
+            return names.map((name) => {
+                const info = sys.lstat(join(path, name));
+                return info === null
+                    ? new Dirent(name, path, "other", 0)
+                    : new Dirent(name, path, info.kind, info.mode);
+            });
+        return names;
+    }
+    // Depth-first walk; a directory is listed before its children and symbolic
+    // links to directories are entered like directories, as Node.js does.
+    const result = [];
+    const walk = (relative) => {
+        const directory = relative === "" ? path : join(path, relative);
+        for (const name of sys.readdir(directory)) {
+            const info = sys.lstat(join(directory, name));
+            const entry = relative === "" ? name : join(relative, name);
+            result.push(
+                withFileTypes
+                    ? info === null
+                        ? new Dirent(name, directory, "other", 0)
+                        : new Dirent(name, directory, info.kind, info.mode)
+                    : entry,
+            );
+            if (info === null) continue;
+            if (info.kind === "dir") walk(entry);
+            else if (info.kind === "symlink") {
+                const target = sys.stat(join(directory, name));
+                if (target !== null && target.kind === "dir") walk(entry);
+            }
+        }
+    };
+    walk("");
+    return result;
 }
 export function mkdirSync(path, options) {
     path = pathString(path, "path");
