@@ -106,6 +106,7 @@
                 "util-types-brand",
                 "util-inspect-circular",
                 "util-inspect-compact",
+                "util-inspect-custom",
                 "util-inspect-promise",
                 "array-builtins",
                 "array-from-async",
