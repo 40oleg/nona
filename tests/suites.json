@@ -103,6 +103,7 @@
                 "assert-deep-equal",
                 "assert-throws",
                 "assert-strict",
+                "util-types-brand",
                 "util-inspect-circular",
                 "array-builtins",
                 "array-from-async",
