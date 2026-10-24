@@ -105,6 +105,7 @@
                 "assert-strict",
                 "util-types-brand",
                 "util-inspect-circular",
+                "util-inspect-max-string-length",
                 "util-inspect-custom",
                 "util-inspect-promise",
                 "array-builtins",
