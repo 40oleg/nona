@@ -135,8 +135,21 @@ function functionLabel(fn) {
     if (isClass) return "[class " + (fn.name || "(anonymous)") + "]";
     return "[" + kind + (fn.name ? ": " + fn.name : " (anonymous)") + "]";
 }
-function formatPrimitive(value) {
-    if (typeof value === "string") return quote(value);
+function formatString(value, options) {
+    const max = options && options.maxStringLength;
+    if (typeof max !== "number" || !Number.isFinite(max)) return quote(value);
+    if (value.length <= max) return quote(value);
+    const remaining = value.length - max;
+    return (
+        quote(value.slice(0, max)) +
+        "... " +
+        remaining +
+        " more character" +
+        (remaining > 1 ? "s" : "")
+    );
+}
+function formatPrimitive(value, options) {
+    if (typeof value === "string") return formatString(value, options);
     if (typeof value === "bigint") return String(value) + "n";
     if (typeof value === "number")
         return Object.is(value, -0) ? "-0" : String(value);
@@ -152,7 +165,7 @@ function inspectValue(value, options, depth, seen, circular) {
         value === null ||
         (typeof value !== "object" && typeof value !== "function")
     )
-        return formatPrimitive(value);
+        return formatPrimitive(value, options);
     if (
         options.customInspect !== false &&
         value &&
@@ -228,7 +241,13 @@ function inspectValue(value, options, depth, seen, circular) {
         return value.stack ? stack : "[" + stack + "]";
     }
     if (types.isBoxedPrimitive(value))
-        return "[" + tag(value) + ": " + formatPrimitive(value.valueOf()) + "]";
+        return (
+            "[" +
+            tag(value) +
+            ": " +
+            formatPrimitive(value.valueOf(), options) +
+            "]"
+        );
     const inner = seen.concat([value]);
     const nested = (item) =>
         inspectValue(item, options, depth + 1, inner, circular);
@@ -302,7 +321,7 @@ function inspectValue(value, options, depth, seen, circular) {
         if (depth > options.depth) return "[" + name + "]";
         const items = [];
         for (let i = 0; i < Math.min(value.length, options.maxArrayLength); i++)
-            items.push(formatPrimitive(value[i]));
+            items.push(formatPrimitive(value[i], options));
         if (value.length > options.maxArrayLength)
             items.push(
                 "... " +
