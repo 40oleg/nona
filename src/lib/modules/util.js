@@ -135,8 +135,36 @@ function functionLabel(fn) {
     if (isClass) return "[class " + (fn.name || "(anonymous)") + "]";
     return "[" + kind + (fn.name ? ": " + fn.name : " (anonymous)") + "]";
 }
-function formatNumber(value) {
-    return Object.is(value, -0) ? "-0" : String(value);
+function addNumericSeparator(integerString) {
+    let result = "";
+    let i = integerString.length;
+    const start = integerString.startsWith("-") ? 1 : 0;
+    for (; i >= start + 4; i -= 3)
+        result = "_" + integerString.slice(i - 3, i) + result;
+    return i === integerString.length
+        ? integerString
+        : integerString.slice(0, i) + result;
+}
+function addNumericSeparatorEnd(fractionString) {
+    let result = "";
+    let i = 0;
+    for (; i < fractionString.length - 3; i += 3)
+        result += fractionString.slice(i, i + 3) + "_";
+    return i === 0 ? fractionString : result + fractionString.slice(i);
+}
+function formatNumber(value, options) {
+    if (!options || !options.numericSeparator)
+        return Object.is(value, -0) ? "-0" : String(value);
+    const string = String(value);
+    if (!Number.isFinite(value)) return string;
+    const dot = string.indexOf(".");
+    if (dot < 0)
+        return string.includes("e") ? string : addNumericSeparator(string);
+    return (
+        addNumericSeparator(string.slice(0, dot)) +
+        "." +
+        addNumericSeparatorEnd(string.slice(dot + 1))
+    );
 }
 function formatString(value, options) {
     const max = options && options.maxStringLength;
@@ -153,8 +181,13 @@ function formatString(value, options) {
 }
 function formatPrimitive(value, options) {
     if (typeof value === "string") return formatString(value, options);
-    if (typeof value === "bigint") return String(value) + "n";
-    if (typeof value === "number") return formatNumber(value);
+    if (typeof value === "bigint")
+        return (
+            (options && options.numericSeparator
+                ? addNumericSeparator(String(value))
+                : String(value)) + "n"
+        );
+    if (typeof value === "number") return formatNumber(value, options);
     if (typeof value === "symbol") return value.toString();
     return String(value);
 }
@@ -428,23 +461,41 @@ function inspectValue(value, options, depth, seen, circular) {
         return "[" + (constructorName || "Object") + "]";
     const previous = enter(depth);
     const items = [];
+    const accessor = (descriptor) => {
+        const label = descriptor.set ? "Getter/Setter" : "Getter";
+        if (
+            !descriptor.get ||
+            !options.getters ||
+            !(
+                options.getters === true ||
+                (options.getters === "get" && !descriptor.set) ||
+                (options.getters === "set" && descriptor.set)
+            )
+        )
+            return descriptor.get ? "[" + label + "]" : "[Setter]";
+        try {
+            const got = descriptor.get.call(value);
+            if (got === null) return "[" + label + ": null]";
+            if (typeof got === "object")
+                return "[" + label + "] " + nested(got);
+            return "[" + label + ": " + formatPrimitive(got, options) + "]";
+        } catch (err) {
+            return "[" + label + ": <Inspection threw (" + err.message + ")>]";
+        }
+    };
     for (const k of Object.keys(value)) {
         const descriptor = Object.getOwnPropertyDescriptor(value, k);
         if (descriptor && (descriptor.get || descriptor.set))
-            items.push(
-                key(k) +
-                    ": " +
-                    (descriptor.get && descriptor.set
-                        ? "[Getter/Setter]"
-                        : descriptor.get
-                          ? "[Getter]"
-                          : "[Setter]"),
-            );
+            items.push(key(k) + ": " + accessor(descriptor));
         else items.push(property(key(k), nested(value[k]), options));
     }
-    for (const s of Object.getOwnPropertySymbols(value))
-        if (Object.getOwnPropertyDescriptor(value, s).enumerable)
-            items.push(property(key(s), nested(value[s]), options));
+    for (const s of Object.getOwnPropertySymbols(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, s);
+        if (!descriptor.enumerable) continue;
+        if (descriptor.get || descriptor.set)
+            items.push(key(s) + ": " + accessor(descriptor));
+        else items.push(property(key(s), nested(value[s]), options));
+    }
     return formatEntries(
         refPrefix(value, circular) + prefix,
         items,
@@ -592,6 +643,8 @@ inspect.defaultOptions = {
     customInspect: true,
     maxArrayLength: 100,
     maxStringLength: 10000,
+    getters: false,
+    numericSeparator: false,
     breakLength: 80,
     compact: 3,
     sorted: false,

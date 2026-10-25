@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect` honors `getters` and `numericSeparator`.** Both options were accepted but ignored. `getters: true | "get" | "set"` now evaluates accessors like Node.js (`[Getter: 1]`, `[Getter/Setter: 2]`, `[Getter: <Inspection threw (message)>]`), and `numericSeparator: true` groups the digits of numbers and bigints (`1_234_567.891`, `123_456_789n`). ([#496](https://github.com/40oleg/nona/issues/496))
+
 ## v0.28.0 — 2026-10-25
 
 ### Fixes
