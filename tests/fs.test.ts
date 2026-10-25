@@ -78,6 +78,33 @@ unlinkSync('g.txt');
         true,
     ));
 
+test("fs.Stats has the times, owner, link count and block fields like Node.js", () => {
+    const exact = process.platform === "linux";
+    const source = `
+import fs from 'node:fs';
+fs.mkdirSync('stat-w', {recursive: true});
+fs.writeFileSync('stat-w/f.txt', 'hello');
+const s = fs.statSync('stat-w/f.txt');
+const numbers = ['atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs', 'uid', 'gid', 'nlink', 'rdev', 'blksize', 'blocks', 'size', 'mode', 'dev', 'ino'];
+const dates = ['atime', 'mtime', 'ctime', 'birthtime'];
+console.log(numbers.map((k) => k + ':' + typeof s[k]).join(' '));
+console.log(dates.map((k) => k + ':' + (s[k] instanceof Date) + ':' + (s[k].getTime() === s[k + 'Ms'] || Math.abs(s[k].getTime() - s[k + 'Ms']) < 1)).join(' '));
+console.log(s.birthtimeMs <= s.ctimeMs, s.nlink >= 1, s.blksize > 0);
+const d = fs.statSync('stat-w');
+console.log(typeof d.ctime.getTime(), d.isDirectory(), typeof fs.statSync('stat-w', {bigint: true}).ino);
+${
+    exact
+        ? `console.log(['uid', 'gid', 'nlink', 'rdev', 'blksize', 'blocks', 'mode', 'size'].map((k) => s[k]).join());
+console.log(['atimeMs', 'mtimeMs', 'ctimeMs'].map((k) => Math.abs(s[k] - Date.now()) < 60000).join());
+const l = fs.lstatSync('/proc/self');
+console.log(l.isSymbolicLink(), typeof l.ctime.getTime(), l.uid);`
+        : `const l = fs.lstatSync('stat-w/f.txt'); console.log(l.isFile());`
+}
+fs.rmSync('stat-w', {recursive: true});
+`;
+    expectModules({ "main.mjs": source }, true);
+});
+
 test("fs.truncateSync, truncate and promises.truncate match Node.js", () =>
     expectModules({
         "main.mjs": `
@@ -489,6 +516,29 @@ try {
 
 unlinkSync('mode-test.txt');
 })();
+`,
+    }));
+
+test("fs.mkdtempSync, mkdtemp and promises.mkdtemp create unique directories (#483)", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+const prefix = path.join(os.tmpdir(), 'app-');
+const a = fs.mkdtempSync(prefix), b = fs.mkdtempSync(prefix);
+const c = await new Promise((resolve, reject) => fs.mkdtemp(prefix, (e, d) => e ? reject(e) : resolve(d)));
+const d = await fs.promises.mkdtemp(prefix);
+const all = [a, b, c, d];
+console.log(new Set(all).size);
+for (const dir of all) {
+  const name = path.basename(dir);
+  console.log(name.length, name.startsWith('app-'), /^[A-Za-z0-9]{6}$/.test(name.slice(4)), fs.statSync(dir).isDirectory());
+}
+if (process.platform !== 'win32') console.log((fs.statSync(a).mode & 0o777).toString(8));
+try { fs.mkdtempSync(path.join(os.tmpdir(), 'no-such-dir', 'x-')); } catch (e) { console.log(e.code, e.syscall); }
+for (const dir of all) fs.rmSync(dir, {recursive: true});
+console.log(fs.existsSync(a));
 `,
     }));
 

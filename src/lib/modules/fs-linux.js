@@ -69,8 +69,19 @@ function cpath(path) {
 }
 const statBuffer = new Uint8Array(144),
     statView = new DataView(statBuffer.buffer);
+// Byte offsets in struct stat: the x86-64 layout, patched for AArch64.
+// Linux has no birth time without statx, so birthtime is the change time.
+const statLayout = { mode: 24, nlink: 16, uid: 28, gid: 32, rdev: 40 };
+function statMs(offset) {
+    return (
+        (statView.getUint32(offset, true) +
+            statView.getInt32(offset + 4, true) * 4294967296) *
+            1000 +
+        statView.getUint32(offset + 8, true) / 1e6
+    );
+}
 function statResult() {
-    const mode = statView.getUint32(24, true),
+    const mode = statView.getUint32(statLayout.mode, true),
         type = mode & 0o170000;
     const size =
         statView.getUint32(48, true) +
@@ -78,7 +89,21 @@ function statResult() {
     const seconds =
         statView.getUint32(88, true) + statView.getInt32(92, true) * 4294967296;
     const nanos = statView.getUint32(96, true);
+    const ctimeMs = statMs(104);
     return {
+        nlink: statView.getUint32(statLayout.nlink, true),
+        uid: statView.getUint32(statLayout.uid, true),
+        gid: statView.getUint32(statLayout.gid, true),
+        rdev:
+            statView.getUint32(statLayout.rdev, true) +
+            statView.getUint32(statLayout.rdev + 4, true) * 4294967296,
+        blksize: statView.getInt32(56, true),
+        blocks:
+            statView.getUint32(64, true) +
+            statView.getInt32(68, true) * 4294967296,
+        atimeMs: statMs(72),
+        ctimeMs,
+        birthtimeMs: ctimeMs,
         kind:
             type === 0o040000
                 ? "dir"
@@ -234,8 +259,8 @@ const sys = {
         }
         return names;
     },
-    mkdir(path) {
-        check(sysMkdir(cpath(path), 0o777), "mkdir", path);
+    mkdir(path, mode = 0o777) {
+        check(sysMkdir(cpath(path), mode), "mkdir", path);
     },
     rmdir(path) {
         check(sysRmdir(cpath(path)), "rmdir", path);

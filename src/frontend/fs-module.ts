@@ -81,7 +81,11 @@ function linuxArm64Source(): string {
     source = renumberSyscall(source, "sysUtimes", "88");
     for (const [name, statements] of Object.entries(replacements))
         source = replaceSyscall(source, name, statements);
-    source = patchSource(source, "getUint32(24, true)", "getUint32(16, true)");
+    source = patchSource(
+        source,
+        "{ mode: 24, nlink: 16, uid: 28, gid: 32, rdev: 40 }",
+        "{ mode: 16, nlink: 20, uid: 24, gid: 28, rdev: 32 }",
+    );
     return patchSource(source, "O_DIRECTORY = 0x10000", "O_DIRECTORY = 0x4000");
 }
 
@@ -171,13 +175,38 @@ function bsdSource(target: Target): string {
         sizeOffset = darwin ? 96 : freebsd ? 112 : 80,
         timeOffset = freebsd ? 64 : 48;
     const modeRead = darwin || freebsd ? "getUint16" : "getUint32";
+    // struct stat offsets of the other fields; OpenBSD keeps its birth time last.
+    const nlink = darwin
+            ? "statView.getUint16(6,true)"
+            : freebsd
+              ? "Number(statView.getBigUint64(16,true))"
+              : "statView.getUint32(16,true)",
+        [uidOffset, gidOffset] = darwin
+            ? [16, 20]
+            : freebsd
+              ? [28, 32]
+              : [20, 24],
+        rdev = darwin
+            ? "statView.getInt32(24,true)"
+            : freebsd
+              ? "Number(statView.getBigUint64(40,true))"
+              : "statView.getInt32(28,true)",
+        atimeOffset = freebsd ? 48 : 32,
+        ctimeOffset = freebsd ? 80 : 64,
+        birthOffset = darwin ? 80 : freebsd ? 96 : 112,
+        blocksOffset = darwin ? 104 : freebsd ? 120 : 88,
+        blksizeOffset = darwin ? 112 : freebsd ? 128 : 96;
     source = patchSource(
         source,
         /function statResult\(\) \{[\s\S]*?\n\}/,
         `function statResult(){
   const mode=statView.${modeRead}(${modeOffset},true),type=mode&0o170000;
+  const ms=(o)=>Number(statView.getBigInt64(o,true))*1000+Number(statView.getBigInt64(o+8,true))/1e6;
   return {kind:type===0o040000?'dir':type===0o100000?'file':type===0o120000?'symlink':'other',
-   size:Number(statView.getBigInt64(${sizeOffset},true)),mtimeMs:Number(statView.getBigInt64(${timeOffset},true))*1000+Number(statView.getBigInt64(${timeOffset + 8},true))/1e6,mode,
+   nlink:${nlink},uid:statView.getUint32(${uidOffset},true),gid:statView.getUint32(${gidOffset},true),rdev:${rdev},
+   blksize:statView.getInt32(${blksizeOffset},true),blocks:Number(statView.getBigInt64(${blocksOffset},true)),
+   atimeMs:ms(${atimeOffset}),ctimeMs:ms(${ctimeOffset}),birthtimeMs:ms(${birthOffset}),
+   size:Number(statView.getBigInt64(${sizeOffset},true)),mtimeMs:ms(${timeOffset}),mode,
    dev:${freebsd ? "statView.getBigUint64(0,true)" : "BigInt(statView.getUint32(" + (darwin ? 0 : 4) + ",true))"},ino:statView.getBigUint64(8,true)};
  }`,
     );
