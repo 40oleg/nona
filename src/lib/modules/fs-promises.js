@@ -15,5 +15,6 @@ export const readFile = promises.readFile,
     rmdir = promises.rmdir,
     unlink = promises.unlink,
     rename = promises.rename,
+    truncate = promises.truncate,
     copyFile = promises.copyFile,
     constants = fs.constants;

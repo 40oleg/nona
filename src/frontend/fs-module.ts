@@ -53,6 +53,7 @@ function linuxArm64Source(): string {
         sysClose: "57",
         sysFstat: "80",
         sysGetdents: "61",
+        sysTruncate: "45",
     };
     for (const [name, number] of Object.entries(numbers))
         source = renumberSyscall(source, name, number);
@@ -98,6 +99,7 @@ function bsdSource(target: Target): string {
         sysRmdir: "137",
         sysUnlink: "10",
         sysReadlink: "58",
+        sysTruncate: darwin ? "200" : freebsd ? "479" : "92",
     };
     let source = linux;
     for (const [name, number] of Object.entries(calls))
