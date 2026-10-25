@@ -103,12 +103,20 @@
                 "assert-deep-equal",
                 "assert-throws",
                 "assert-strict",
+                "util-types-brand",
+                "util-inspect-circular",
+                "util-inspect-compact",
+                "util-format",
+                "util-inspect-max-string-length",
+                "util-inspect-custom",
+                "util-inspect-promise",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
                 "typed-array-fast-path",
                 "typed-array-inline",
                 "typed-array-bce",
+                "util-types-proxy",
                 "typedarray-change-by-copy",
                 "typedarray-sort-large",
                 "float16",
@@ -161,7 +169,7 @@
         },
         "fs": {
             "description": "node:fs (native loader jobs).",
-            "files": ["fs"]
+            "files": ["fs", "fs-fd"]
         },
         "process": {
             "description": "Portable process suites (native loader jobs).",
@@ -291,6 +299,7 @@
                 "number-builtins",
                 "number-parse-fast",
                 "number-to-string",
+                "pow10-tables",
                 "object-collections",
                 "object-literal-methods",
                 "object-methods",
