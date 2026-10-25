@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- **`Intl.Segmenter` no longer needs the RegExp engine.** It validated the locale with a RegExp literal, so a program that segmented a string and had no RegExp of its own failed with "compiled without the RegExp engine" ([#502](https://github.com/40oleg/nona/issues/502)).
+
 ## v0.29.0 — 2026-10-25
 
 ### Features
