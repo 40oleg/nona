@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`assert.ifError` wraps errors in an `AssertionError`.** An `Error` argument was rethrown as is. `ifError` now always throws an `AssertionError` with `operator: "ifError"`, `actual` set to the value and the Node.js message `ifError got unwanted exception: <message>`. ([#494](https://github.com/40oleg/nona/issues/494))
+
 ## v0.28.0 — 2026-10-25
 
 ### Fixes
