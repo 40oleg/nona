@@ -93,7 +93,9 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
 - `performance.now()` uses the monotonic clock (`QueryPerformanceCounter`,
   `clock_gettime(CLOCK_MONOTONIC)`) and counts milliseconds from program start.
 - An uncaught exception in a timer callback terminates the process with exit
-  code 1, like an uncaught exception in the top-level program.
+  code 1, like an uncaught exception in the top-level program. The error's
+  `stack` (or `String(value)`) is printed on stderr first, whether or not the
+  program uses `process` (#501).
 - Realms created by the Test262 host do not install their own timers.
 
 ## Long-running programs
