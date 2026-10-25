@@ -297,6 +297,42 @@ fs.readdir(root, {recursive: true}, (error, names) => console.log(error, sorted(
     }
 });
 
+test("fs.symlinkSync, symlink and promises.symlink create links like Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+import {symlink as symlinkP} from 'node:fs/promises';
+// The Node.js oracle runs in the directory the executable has just used.
+for (const name of fs.readdirSync('.')) if (name.startsWith('sl-')) fs.rmSync(name, {recursive: true, force: true});
+fs.writeFileSync('sl-target.txt', 'linked');
+fs.mkdirSync('sl-dir');
+let allowed = true;
+try {
+  fs.symlinkSync('sl-target.txt', 'sl-link.txt');
+} catch (e) {
+  if (e.code !== 'EPERM') throw e;
+  allowed = false;
+  console.log('links are not permitted');
+}
+if (allowed) {
+console.log(fs.readlinkSync('sl-link.txt'), fs.lstatSync('sl-link.txt').isSymbolicLink(), fs.readFileSync('sl-link.txt', 'utf8'));
+try { fs.symlinkSync('sl-target.txt', 'sl-link.txt'); } catch (e) { console.log(e.code, e.syscall, e.message.startsWith('EEXIST: file already exists, symlink')); }
+try { fs.symlinkSync('sl-target.txt', 'sl-missing/link.txt'); } catch (e) { console.log(e.code, e.syscall); }
+try { fs.symlinkSync(1, 'sl-x'); } catch (e) { console.log(e.code); }
+fs.symlinkSync('sl-dir', 'sl-dir-link');
+fs.symlinkSync('sl-dir', 'sl-dir-link2', 'dir');
+console.log(fs.statSync('sl-dir-link').isDirectory(), fs.statSync('sl-dir-link2').isDirectory());
+await symlinkP('sl-target.txt', 'sl-promise.txt');
+console.log(fs.readlinkSync('sl-promise.txt'));
+await symlinkP('sl-target.txt', 'sl-promise.txt').catch((e) => console.log(e.code, e.syscall));
+await new Promise((resolve) => fs.symlink('sl-target.txt', 'sl-callback.txt', (error) => {
+  console.log(error, fs.readlinkSync('sl-callback.txt'));
+  fs.symlink('sl-target.txt', 'sl-callback.txt', (error) => { console.log(error.code, error.syscall); resolve(); });
+}));
+}
+`,
+    }));
+
 test("fs reads Windows junctions as links", (t) => {
     if (process.platform !== "win32") {
         t.skip("junctions are a Windows feature");

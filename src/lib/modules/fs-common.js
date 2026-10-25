@@ -274,6 +274,11 @@ export function readlinkSync(path, options) {
     checkEncoding(encodingOf(options));
     return sys.readlink(path);
 }
+export function symlinkSync(target, path, type) {
+    target = pathString(target, "target");
+    path = pathString(path, "path");
+    sys.symlink(target, path, type);
+}
 export function realpathSync(path, options) {
     checkEncoding(encodingOf(options));
     return sys.realpath(resolve(pathString(path, "path")));
@@ -473,7 +478,8 @@ export const readFile = callbackForm(readFileSync),
     unlink = callbackForm(unlinkSync),
     rename = callbackForm(renameSync),
     truncate = callbackForm(truncateSync),
-    copyFile = callbackForm(copyFileSync);
+    copyFile = callbackForm(copyFileSync),
+    symlink = callbackForm(symlinkSync);
 realpath.native = realpath;
 export function exists(path, callback) {
     const result = existsSync(path);
@@ -497,6 +503,7 @@ export const promises = {
     rename: promiseForm(renameSync),
     truncate: promiseForm(truncateSync),
     copyFile: promiseForm(copyFileSync),
+    symlink: promiseForm(symlinkSync),
 };
 export const constants = {
     COPYFILE_EXCL: 1,
@@ -523,6 +530,7 @@ export default {
     renameSync,
     truncateSync,
     copyFileSync,
+    symlinkSync,
     readFile,
     writeFile,
     appendFile,
@@ -540,6 +548,7 @@ export default {
     rename,
     truncate,
     copyFile,
+    symlink,
     promises,
     Dirent,
     Stats,
