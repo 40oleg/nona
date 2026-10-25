@@ -24,7 +24,9 @@ test("Linux ARM64 filesystem emits at-style calls and native stat mode layout", 
     assert.ok(
         source.includes('define("syscall", "56", "i64(i64,buf,i64,i64)")'),
     );
-    assert.ok(source.includes("getUint32(16, true)"));
+    assert.ok(
+        source.includes("{ mode: 16, nlink: 20, uid: 24, gid: 28, rdev: 32 }"),
+    );
     const result = compile(
         'import {readFileSync} from "node:fs";console.log(readFileSync("a","utf8"))',
         { fileName: "fs.js", target: "linux-arm64", module: true },
