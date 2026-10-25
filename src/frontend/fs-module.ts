@@ -145,6 +145,8 @@ function bsdSource(target: Target): string {
         "exclusive ? 0x800 : 0",
     );
     source = patchSource(source, '39: "ENOTEMPTY"', '66: "ENOTEMPTY"');
+    source = patchSource(source, "ENOTEMPTY: -39", "ENOTEMPTY: -66");
+    source = patchSource(source, "ELOOP: -40", "ELOOP: -62");
     source = patchSource(
         source,
         "const statBuffer = new Uint8Array(144)",

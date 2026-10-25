@@ -6,6 +6,30 @@
 
 - `fs.Stats` now has `atime`, `ctime`, `birthtime` (with the `*Ms` numbers), `uid`, `gid`, `nlink`, `rdev`, `blksize` and `blocks` on every target (#482).
 
+## v0.28.0 — 2026-10-25
+
+### Fixes
+
+- **`util.format("%s")` calls a user-defined `toString`.** Objects with an own or inherited `toString` (other than the built-in ones) were always inspected, so a class with a meaningful `toString` printed as `Point { x: 1 }`. `%s` now follows Node.js: such objects are converted with `String(value)`, and other objects are still inspected with depth 0. ([#476](https://github.com/40oleg/nona/issues/476))
+- **`util.format` keeps the sign of `-0`.** `%s`, `%d` and `%i` printed `-0` as `0`; they now print `-0` like Node.js. ([#477](https://github.com/40oleg/nona/issues/477))
+- **`util.inspect` honors `maxStringLength`.** Strings longer than the limit (default 10000) were printed in full. They are now cut and followed by `... N more character(s)`, as in Node.js, at the top level and inside arrays, objects, Maps, Sets and boxed strings; `null` and `Infinity` disable the limit and property keys are not truncated. ([#478](https://github.com/40oleg/nona/issues/478))
+- **`util.inspect` honors the `compact` option.** It was listed in `inspect.defaultOptions` but never read. `compact: false` now prints every property and array element on its own line, a number N combines an object on one line only when it nests at most N levels (default 3) and groups arrays of more than six short items into columns like Node.js, and `compact: true` uses the old layout. Empty objects and arrays past `depth` print as `{}` and `[]`. ([#480](https://github.com/40oleg/nona/issues/480))
+- **`util.inspect.custom` inspectors receive `options.stylize`.** They were called with the raw settings object, so `options.stylize(text, "special")` threw a `TypeError`. The options are now a copy with `stylize(text, styleType)` (identity unless `colors` is set, then ANSI codes from `inspect.styles`/`inspect.colors`). ([#475](https://github.com/40oleg/nona/issues/475))
+- **`util.inspect` shows the state of a promise.** It printed `Promise { <unknown> }` for every promise. It now prints `Promise { <pending> }`, `Promise { 2 }` and `Promise { <rejected> 3 }` like Node.js, reading the state without marking the promise as handled. ([#479](https://github.com/40oleg/nona/issues/479))
+
+## v0.27.0 — 2026-10-24
+
+### Fixes
+
+- **`fs.readdirSync({recursive: true})` enters symbolic links to directories on Linux and macOS.** The walk now lists the entries below a symlinked directory (`link/b`, `link/deep`) and the `Dirent` `parentPath` goes through the link, like Node.js. ([#558](https://github.com/40oleg/nona/issues/558))
+- **The self-hosted compiler is back to its v0.25.0 speed.** Since v0.26.0 every compiler process computed the 128-bit power-of-ten tables of number parsing and formatting with BigInt while building the runtime; in the native compiler that took about four minutes per compile on x64 and timed out on arm64. The tables are now generated data (`src/runtime/data/pow10-data.ts`, written by `scripts/generate-pow10-tables.mjs`), and a cold compile takes a few seconds again. ([#558](https://github.com/40oleg/nona/issues/558))
+- **`util.types.isProxy` detects proxies.** It was a stub that always returned `false`; it now returns `true` for every Proxy object (plain, callable and revoked ones) through an internal runtime check that runs no trap, and `false` for everything else. ([#469](https://github.com/40oleg/nona/issues/469))
+- **`util.types.isDate`, `isMap`, `isSet`, `isRegExp`, `isWeakMap`, `isWeakSet`, `isPromise`, `isArrayBuffer` and `isSharedArrayBuffer` check the internal slot.** They used `instanceof`, so `Object.create(Date.prototype)` was reported as a date and a real date with a null prototype was not. ([#470](https://github.com/40oleg/nona/issues/470))
+- **`node:fs` errors carry `errno`.** Like Node.js, `error.errno` is the libuv error number: the negated native errno on Linux and the BSDs (`-2` for `ENOENT`, `-17` for `EEXIST`, `-21` for `EISDIR`) and libuv's `UV_` values on Windows (`-4058`, `-4075`, `-4068`). ([#472](https://github.com/40oleg/nona/issues/472))
+- **`util.inspect` marks circular targets with `<ref *N>`.** Each object that a `[Circular *N]` points to now gets the matching `<ref *N>` prefix, and the indexes are numbered in Node.js's order instead of always being `*1`. ([#474](https://github.com/40oleg/nona/issues/474))
+- **`Promise.any` rejects with an `AggregateError` with message `"All promises were rejected"`.** When every promise passed to `Promise.any` rejects, the error's message property now matches Node.js. ([#471](https://github.com/40oleg/nona/issues/471))
+- **`fs.readFileSync(0)`, `fs.writeFileSync(1, …)` and `fs.appendFileSync` accept the descriptors 0, 1 and 2.** `readFileSync(0, 'utf8')` reads all of stdin until EOF and the write functions write all bytes to stdout or stderr, on every target (Windows uses `GetStdHandle`; a broken pipe is the end of input). Invalid path, data or descriptor types now throw errors with `code: 'ERR_INVALID_ARG_TYPE'`. ([#473](https://github.com/40oleg/nona/issues/473))
+
 ## v0.26.0 — 2026-10-23
 
 ### Fixes

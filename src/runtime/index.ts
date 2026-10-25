@@ -124,6 +124,7 @@ import {
 } from "./weak-collections.js";
 import { emitDataViewPrototype, emitDataView } from "./data-view.js";
 import { emitTypedArrayPrototype, emitTypedArray } from "./typed-array.js";
+import { emitTypedArrayIsProxy } from "./typed-array-proxy.js";
 import { emitViewBounds } from "./view-bounds.js";
 import { emitTypedLoopGuard } from "./typed-loop-guard.js";
 import { emitTypedArrayKernels } from "./typed-array-kernels.js";
@@ -242,6 +243,7 @@ export function emitRuntime(
     emitSharedArrayBuffer(b);
     emitDataView(b, float16);
     emitTypedArray(b);
+    emitTypedArrayIsProxy(b);
     emitTypedArrayKernels(b);
     emitViewBounds(b);
     emitTypedLoopGuard(b);
