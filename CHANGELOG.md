@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+### Features
+
 - **`TextEncoder.prototype.encodeInto` exists.** It writes whole UTF-8 sequences into a `Uint8Array`, replaces lone surrogates with U+FFFD and returns `{ read, written }` in UTF-16 code units and bytes. ([#490](https://github.com/40oleg/nona/issues/490))
+
+### Fixes
+
+- **`atob` and `btoa` are global functions.** They were only exported from `node:buffer`; they are now writable, configurable, non-enumerable properties of `globalThis`, and naming either links the buffer prelude. Bad input throws a `DOMException` named `InvalidCharacterError` (code 5) instead of a plain `Error`. ([#488](https://github.com/40oleg/nona/issues/488))
 
 ## v0.29.0 — 2026-10-25
 
