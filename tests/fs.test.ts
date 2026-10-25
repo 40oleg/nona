@@ -239,7 +239,7 @@ console.log(fs.realpathSync(dir + '/file-link') === fs.realpathSync(dir + '/targ
     }
 });
 
-test("readdir recursive lists all descendants like Node.js and skips symbolic links", (t) => {
+test("readdir recursive lists all descendants like Node.js and enters symbolic links to directories", (t) => {
     const directory = mkdtempSync(join(tmpdir(), "nona-recursive-"));
     try {
         mkdirSync(join(directory, "rd", "sub", "deep"), { recursive: true });
@@ -364,5 +364,33 @@ if (process.platform !== 'win32') console.log((fs.statSync(a).mode & 0o777).toSt
 try { fs.mkdtempSync(path.join(os.tmpdir(), 'no-such-dir', 'x-')); } catch (e) { console.log(e.code, e.syscall); }
 for (const dir of all) fs.rmSync(dir, {recursive: true});
 console.log(fs.existsSync(a));
+`,
+    }));
+
+test("fs errors carry the errno of Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+fs.mkdirSync('errno-dir', {recursive: true});
+fs.writeFileSync('errno-dir/f.txt', 'x');
+const cases = [
+  () => fs.statSync('errno-dir/missing'),
+  () => fs.mkdirSync('errno-dir'),
+  () => fs.copyFileSync('errno-dir/f.txt', 'errno-dir/f.txt', fs.constants.COPYFILE_EXCL),
+  () => fs.readFileSync('errno-dir'),
+  () => fs.readdirSync('errno-dir/f.txt'),
+  () => fs.rmdirSync('errno-dir'),
+];
+for (const f of cases) {
+  try { f(); console.log('no error'); } catch (e) { console.log(e.code, e.errno, e.syscall, typeof e.errno); }
+}
+fs.readFile('errno-dir/missing', (e) => {
+  console.log(e.code, e.errno, e.syscall);
+  fs.promises.readFile('errno-dir/missing').catch((p) => {
+    console.log(p.code, p.errno, p.syscall);
+    fs.unlinkSync('errno-dir/f.txt');
+    fs.rmdirSync('errno-dir');
+  });
+});
 `,
     }));
