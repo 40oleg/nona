@@ -1,5 +1,17 @@
 # Журнал разработки Nona
 
+## 2026-10-25 — выпуск v0.28.0
+
+- Версия package.json и package-lock.json обновлена до 0.28.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли исправления для `util.format` с пользовательским `toString` (#476), сохранения знака `-0` в `util.format` (#477), поддержки `maxStringLength` в `util.inspect` (#478), поддержки опции `compact` в `util.inspect` (#480), передачи `options.stylize` в `util.inspect.custom` (#475) и отображения состояния промисов в `util.inspect` (#479).
+- Полный аудит Test262 для v0.28.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
+## 2026-10-24 — выпуск v0.27.0
+
+- Версия package.json и package-lock.json обновлена до 0.27.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли исправления для `fs.readdirSync` с рекурсией на symlink (#558), оптимизация производительности компилятора с pow10 tables (#558), `util.types.isProxy` (#469), `util.types` предикаты (#470), `node:fs` ошибки с errno (#472), `util.inspect` циклические ссылки (#474), `Promise.any` сообщение (#471), поддержка дескрипторов stdin/stdout/stderr (#473).
+- Полный аудит Test262 для v0.27.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-23 — выпуск v0.26.0
 
 - Версия package.json и package-lock.json обновлена до 0.26.0; `src/version.ts`, CLI help и `--version` — тоже.

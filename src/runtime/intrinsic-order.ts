@@ -212,6 +212,7 @@ export function orderIntrinsicProperties(b: RuntimeBuilder): void {
             "__nonaDefaultConstructorInternal",
             "__nonaIsTypedArrayInternal",
             "__nonaIsConstructorInternal",
+            "__nonaIsProxyInternal",
             "__nonaRawLengthInternal",
             "__nonaRawByteOffsetInternal",
         ],
