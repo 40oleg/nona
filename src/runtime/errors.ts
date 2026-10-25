@@ -204,6 +204,95 @@ function emitNullishErrors(b: RuntimeBuilder): void {
             },
         );
 }
+// rt.throwNullishDestructure(RCX source Value*, RDX key Value* (a string, read
+// only when R8 is 1), R8 hasKey): throw the TypeError of Node.js for a
+// destructuring pattern applied to undefined or null, "Cannot destructure
+// property 'a' of 'null' as it is null." or, without a key (an empty pattern or
+// a computed first key), "Cannot destructure 'null' as it is null."
+function emitNullishDestructureError(b: RuntimeBuilder): void {
+    b.bundle.fragments.push(
+        stringLiteral(
+            "rt.error.destructure.property",
+            "Cannot destructure property '",
+        ),
+        stringLiteral("rt.error.destructure.plain", "Cannot destructure '"),
+        stringLiteral("rt.error.destructure.of", "' of '"),
+        stringLiteral("rt.error.destructure.as", "' as it is "),
+        stringLiteral("rt.error.destructure.dot", "."),
+    );
+    rootedFn(
+        b,
+        "rt.throwNullishDestructure",
+        136,
+        [
+            { kind: "value", register: "rdx" },
+            { kind: "locals", offset: 64, count: 4 },
+        ],
+        (a) => {
+            const text = (offset: number, name: string) => {
+                a.mov("rax", 4);
+                a.store(slot(offset), "rax");
+                a.lea("rax", { rip: "rt.error.nullish." + name });
+                a.store(slot(offset + 8), "rax");
+            };
+            const destructure = (offset: number, name: string) => {
+                a.mov("rax", 4);
+                a.store(slot(offset), "rax");
+                a.lea("rax", { rip: "rt.error.destructure." + name });
+                a.store(slot(offset + 8), "rax");
+            };
+            const concat = (right: number) => {
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(right));
+                a.call("rt.concat");
+            };
+            const isNull = a.unique("isNull"),
+                based = a.unique("based"),
+                plain = a.unique("plain"),
+                named = a.unique("named");
+            a.load("rax", { base: "rcx" });
+            a.store(slot(40), "rax");
+            a.store(slot(48), "rdx");
+            a.store(slot(56), "r8");
+            for (const n of [0, 8]) {
+                a.load("rax", { base: "rdx", disp: n });
+                a.store(slot(96 + n), "rax");
+            }
+            a.load("rax", slot(40));
+            a.cmp("rax", 1);
+            a.jcc("e", isNull);
+            text(80, "undefined");
+            a.jmp(based);
+            a.label(isNull);
+            text(80, "null");
+            a.label(based);
+            a.load("rax", slot(56));
+            a.cmp("rax", 1);
+            a.jcc("ne", plain);
+            destructure(64, "property");
+            concat(96);
+            destructure(112, "of");
+            concat(112);
+            a.jmp(named);
+            a.label(plain);
+            destructure(64, "plain");
+            a.label(named);
+            concat(80);
+            destructure(112, "as");
+            concat(112);
+            concat(80);
+            destructure(112, "dot");
+            concat(112);
+            a.lea("rcx", slot(112));
+            a.mov("rdx", 1);
+            a.lea("r8", slot(64));
+            a.call("rt.TypeError.code");
+            a.lea("rcx", slot(112));
+            a.call("rt.throw");
+        },
+    );
+}
 export function emitErrors(b: RuntimeBuilder): void {
     b.bundle.fragments.push(
         stringLiteral("rt.error.runtimeMessage", "Invalid operation"),
@@ -293,6 +382,7 @@ export function emitErrors(b: RuntimeBuilder): void {
             a.call("rt.throw");
         });
     emitNullishErrors(b);
+    emitNullishDestructureError(b);
     b.bundle.fragments.push(
         stringLiteral("rt.error.messageText", "message"),
         stringLiteral("rt.error.separator", ": "),

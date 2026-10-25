@@ -438,7 +438,11 @@ length/radix/argument limits — RangeError. Uncaught throw пока испол�
 undefined/null (`rt.throwNullishGet`/`rt.throwNullishSet`, #503): сообщение как
 в Node.js, `Cannot read properties of undefined (reading 'x')` и `Cannot set
 properties of null (setting 'x')`; ключ-объект не преобразуется (это мог бы быть
-пользовательский код), и тогда часть с ключом опускается. V8 `Error.captureStackTrace` реализован
+пользовательский код), и тогда часть с ключом опускается. Деструктуризация
+объектного паттерна от undefined/null (`rt.throwNullishDestructure`, #503):
+`Cannot destructure property 'a' of 'null' as it is null.`, а для пустого
+паттерна или вычисляемого первого ключа `Cannot destructure 'null' as it is
+null.` V8 `Error.captureStackTrace` реализован
 с placeholder-кадрами (prelude `errorStack`); ES2022 cause не входит в
 реализованный ES2020 Error surface.
 

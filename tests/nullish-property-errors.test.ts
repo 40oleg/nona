@@ -74,3 +74,43 @@ t(() => { delete null.x; });`;
         "Invalid operation true true true\nInvalid operation true true true\n",
     );
 });
+
+test("destructuring undefined or null names the first property", () => {
+    const source =
+        report +
+        String.raw`
+t(() => { const { a } = null; });
+t(() => { let { b } = undefined; });
+t(() => { let c; ({ c } = null); });
+t(() => { function f({ d }) {} f(undefined); });
+t(() => { const {} = null; });
+t(() => { const {} = undefined; });
+t(() => { const k = "q"; const { [k]: v } = null; });
+t(() => { const { "str key": s, other } = undefined; });
+t(() => { const { ...r } = null; });`;
+    const run = runOnHost(source, { gcStress: true });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stdout, runOracle(source).stdout);
+});
+
+// V8 names the base '.for' or '.catch' for these heads and reports nested and
+// default-valued patterns as property reads; Nona uses the Node.js wording of
+// the plain case throughout.
+test("destructuring in nested patterns, for-of heads and catch parameters", () => {
+    const source =
+        report +
+        String.raw`
+t(() => { const { e: { f } } = { e: null }; });
+t(() => { for (const { g } of [null]); });
+t(() => { try { throw null; } catch ({ h }) {} });
+t(() => { const { i = 1 } = null; });`;
+    const run = runOnHost(source, { gcStress: true });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(
+        run.stdout,
+        "Cannot destructure property 'f' of 'null' as it is null. true true true\n" +
+            "Cannot destructure property 'g' of 'null' as it is null. true true true\n" +
+            "Cannot destructure property 'h' of 'null' as it is null. true true true\n" +
+            "Cannot destructure property 'i' of 'null' as it is null. true true true\n",
+    );
+});
