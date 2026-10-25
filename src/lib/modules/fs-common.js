@@ -398,6 +398,26 @@ export function rmdirSync(path) {
 export function unlinkSync(path) {
     sys.unlink(pathString(path, "path"));
 }
+export function truncateSync(path, len = 0) {
+    path = pathString(path, "path");
+    if (typeof len !== "number") {
+        const error = new TypeError(
+            'The "len" argument must be of type number. Received ' +
+                (len === null ? "null" : "type " + typeof len),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    if (!Number.isInteger(len) || Math.abs(len) > Number.MAX_SAFE_INTEGER) {
+        const error = new RangeError(
+            'The value of "len" is out of range. It must be an integer. Received ' +
+                len,
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    sys.truncate(path, len < 0 ? 0 : len);
+}
 export function renameSync(from, to) {
     sys.rename(pathString(from, "oldPath"), pathString(to, "newPath"));
 }
@@ -493,6 +513,7 @@ export const readFile = callbackForm(readFileSync),
     rename = callbackForm(renameSync),
     chmod = callbackForm(chmodSync),
     utimes = callbackForm(utimesSync),
+    truncate = callbackForm(truncateSync),
     copyFile = callbackForm(copyFileSync);
 realpath.native = realpath;
 export function exists(path, callback) {
@@ -517,6 +538,7 @@ export const promises = {
     rename: promiseForm(renameSync),
     chmod: promiseForm(chmodSync),
     utimes: promiseForm(utimesSync),
+    truncate: promiseForm(truncateSync),
     copyFile: promiseForm(copyFileSync),
 };
 export const constants = {
@@ -544,6 +566,7 @@ export default {
     renameSync,
     chmodSync,
     utimesSync,
+    truncateSync,
     copyFileSync,
     readFile,
     writeFile,
@@ -562,6 +585,7 @@ export default {
     rename,
     chmod,
     utimes,
+    truncate,
     copyFile,
     promises,
     Dirent,

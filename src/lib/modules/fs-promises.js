@@ -17,5 +17,6 @@ export const readFile = promises.readFile,
     rename = promises.rename,
     chmod = promises.chmod,
     utimes = promises.utimes,
+    truncate = promises.truncate,
     copyFile = promises.copyFile,
     constants = fs.constants;
