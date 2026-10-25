@@ -18,4 +18,5 @@ export const readFile = promises.readFile,
     rename = promises.rename,
     truncate = promises.truncate,
     copyFile = promises.copyFile,
+    symlink = promises.symlink,
     constants = fs.constants;
