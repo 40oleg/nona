@@ -1,5 +1,11 @@
 # Журнал разработки Nona
 
+## 2026-10-25 — выпуск v0.29.0
+
+- Версия package.json и package-lock.json обновлена до 0.29.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли добавления в `fs`: `symlinkSync`, `mkdtemp` и `mkdtempSync`, `chmod`/`utimes` и их async варианты, `truncate` и `truncateSync`, а также расширение `fs.Stats` новыми полями (`atime`, `ctime`, `birthtime`, `uid`, `gid`, `nlink`, `rdev`, `blksize`, `blocks`) (#482, #483, #484, #485, #486); и добавление `util.parseArgs` (#481).
+- Полный аудит Test262 для v0.29.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-25 — выпуск v0.28.0
 
 - Версия package.json и package-lock.json обновлена до 0.28.0; `src/version.ts`, CLI help и `--version` — тоже.
