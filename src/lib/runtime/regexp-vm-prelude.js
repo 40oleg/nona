@@ -35,3 +35,7 @@ __nonaRegexpVm.isTypedArray=__nonaRegexpVm.typedArrayConstructor.__nonaIsTypedAr
 delete __nonaRegexpVm.typedArrayConstructor.__nonaIsTypedArrayInternal;
 __nonaRegexpVm.isConstructor=__nonaRegexpVm.typedArrayConstructor.__nonaIsConstructorInternal;
 delete __nonaRegexpVm.typedArrayConstructor.__nonaIsConstructorInternal;
+__nonaRegexpVm.isProxy=__nonaRegexpVm.typedArrayConstructor.__nonaIsProxyInternal;
+delete __nonaRegexpVm.typedArrayConstructor.__nonaIsProxyInternal;
+// nona:util takes it from the global object and deletes it (util.types.isProxy, #469).
+Object.defineProperty(globalThis,'__nonaIsProxy',{value:__nonaRegexpVm.isProxy,writable:true,configurable:true});
