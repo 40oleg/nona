@@ -78,6 +78,29 @@ unlinkSync('g.txt');
         true,
     ));
 
+test("fs.truncateSync, truncate and promises.truncate match Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs, {truncateSync, writeFileSync, readFileSync, unlinkSync} from 'node:fs';
+import {truncate as truncateAsync} from 'node:fs/promises';
+const name = 'trunc-486.txt';
+writeFileSync(name, 'hello world');
+truncateSync(name, 5); console.log(readFileSync(name, 'utf8'));
+truncateSync(name, 8); console.log(Array.from(readFileSync(name)).join(','), readFileSync(name).length);
+truncateSync(name, -3); console.log(readFileSync(name).length);
+writeFileSync(name, 'abc'); truncateSync(name); console.log(readFileSync(name).length);
+writeFileSync(name, 'callback');
+await new Promise((resolve) => fs.truncate(name, 4, (error) => { console.log(error, readFileSync(name, 'utf8')); resolve(); }));
+await fs.promises.truncate(name, 2); console.log(readFileSync(name, 'utf8'));
+await truncateAsync(name, 0); console.log(readFileSync(name).length);
+for (const f of [() => truncateSync('missing-486.txt', 1), () => truncateSync(name, '1'), () => truncateSync(name, 1.5)]) {
+  try { f(); console.log('no error'); } catch (e) { console.log(e.name, e.code, e.syscall, e.message.startsWith(e.code + ': ')); }
+}
+try { await fs.promises.truncate('missing-486.txt'); } catch (e) { console.log(e.code, e.syscall); }
+unlinkSync(name);
+`,
+    }));
+
 test("fs uses Win32 imports on Windows and system calls on Linux", () => {
     const imports = (source: string) => {
         const win = compile(source, {
