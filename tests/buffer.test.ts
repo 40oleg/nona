@@ -71,3 +71,24 @@ console.log(Buffer.from(JSON.stringify(user)).toString(),Buffer.from('aGk=','bas
     assert.equal(native.status, 0, JSON.stringify(native));
     assert.equal(native.stdout, runOracle(source).stdout);
 });
+
+// atob and btoa are writable, configurable, non-enumerable globals (#488).
+test("global atob and btoa match Node", () => {
+    const source = `
+var show=function(f){try{return String(f())}catch(e){return e.constructor.name+':'+e.name+':'+e.code+':'+(e instanceof DOMException)}};
+console.log(typeof atob,typeof btoa,atob.name,btoa.name,atob.length,btoa.length);
+['atob','btoa'].forEach(function(k){var d=Object.getOwnPropertyDescriptor(globalThis,k);console.log(k,d.writable,d.configurable)});
+console.log(btoa('hi'),atob('aGk='),btoa(''),atob(''),atob(' aG k=\\n'),atob('aGk'));
+var all='';for(var i=0;i<256;i++)all+=String.fromCharCode(i);
+console.log(atob(btoa(all))===all,btoa(all).length);
+console.log(show(function(){return atob('a')}),show(function(){return atob('***')}),show(function(){return btoa('€')}));
+`;
+    const native = runOnHost(source, { gcStress: true });
+    assert.equal(native.status, 0, JSON.stringify(native));
+    assert.equal(native.stdout, runOracle(source).stdout);
+    // Node.js lists them as enumerable; the issue asks for non-enumerable.
+    const flags = runOnHost(
+        "console.log(['atob','btoa'].map(function(k){return Object.getOwnPropertyDescriptor(globalThis,k).enumerable}).join())",
+    );
+    assert.equal(flags.stdout, "false,false\n");
+});
