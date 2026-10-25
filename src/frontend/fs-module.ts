@@ -128,7 +128,9 @@ function bsdSource(target: Target): string {
         "sysUtimes",
         'const bsdUtimes = define("syscall", "' +
             (target === "openbsd-x64" ? "107" : "138") +
-            '", "i64(buf,buf)");function sysUtimes(dir,path,times,flags){const v=new DataView(times.buffer);v.setInt32(8,Math.floor(v.getInt32(8,true)/1000),true);v.setInt32(24,Math.floor(v.getInt32(24,true)/1000),true);return bsdUtimes(path,times)}',
+            '", "i64(buf,buf)");function sysUtimes(dir,path,times,flags){const v=new DataView(times.buffer);' +
+            "v.setInt32(8,Math.floor(v.getInt32(8,true)/1000),true);v.setInt32(24,Math.floor(v.getInt32(24,true)/1000),true);" +
+            "return bsdUtimes(path,times)}",
     );
     source = replaceSyscall(
         source,
