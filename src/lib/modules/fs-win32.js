@@ -54,6 +54,12 @@ const MoveFileExW = define(
     "MoveFileExW",
     "bool(wstr,wstr,u32)",
 );
+const SetFilePointerEx = define(
+    "kernel32.dll",
+    "SetFilePointerEx",
+    "bool(ptr,i64,ptr,u32)",
+);
+const SetEndOfFile = define("kernel32.dll", "SetEndOfFile", "bool(ptr)");
 const FindFirstFileW = define(
     "kernel32.dll",
     "FindFirstFileW",
@@ -65,6 +71,32 @@ const DeviceIoControl = define(
     "kernel32.dll",
     "DeviceIoControl",
     "bool(ptr,u32,ptr,u32,buf,u32,buf,ptr)",
+);
+const GetFileAttributesW = define(
+    "kernel32.dll",
+    "GetFileAttributesW",
+    "u32(wstr)",
+);
+const SetFileAttributesW = define(
+    "kernel32.dll",
+    "SetFileAttributesW",
+    "bool(wstr,u32)",
+);
+const SetFileTime = define(
+    "kernel32.dll",
+    "SetFileTime",
+    "bool(ptr,ptr,buf,buf)",
+);
+const DeviceIoControlIn = define(
+    "kernel32.dll",
+    "DeviceIoControl",
+    "bool(ptr,u32,buf,u32,ptr,u32,buf,ptr)",
+);
+const CreateSymbolicLinkW = define(
+    "kernel32.dll",
+    "CreateSymbolicLinkW",
+    // Returns a BOOLEAN (one byte); the rest of the register is undefined.
+    "u8(wstr,wstr,u32)",
 );
 const INVALID_HANDLE = -1,
     DIRECTORY = 0x10,
@@ -103,6 +135,7 @@ function codeOf(error) {
             return "ENOENT";
         case 5:
         case 19:
+        case 1314:
             return "EPERM";
         case 32:
         case 33:
@@ -192,6 +225,62 @@ function linkTarget(path, throws = false) {
         : value.startsWith("\\??\\")
           ? value.slice(4)
           : value;
+}
+/** A directory with a mount-point reparse buffer; the target must be absolute. */
+function junction(target, path) {
+    const absolute = resolve(target).split("/").join("\\");
+    const substitute = "\\??\\" + absolute,
+        print = absolute;
+    const subBytes = substitute.length * 2,
+        printBytes = print.length * 2;
+    const data = new Uint8Array(16 + subBytes + printBytes + 4),
+        view = new DataView(data.buffer);
+    view.setUint32(0, MOUNT_POINT_TAG, true);
+    view.setUint16(4, 8 + subBytes + printBytes + 4, true);
+    view.setUint16(10, subBytes, true);
+    view.setUint16(12, subBytes + 2, true);
+    view.setUint16(14, printBytes, true);
+    for (let i = 0; i < substitute.length; i++)
+        view.setUint16(16 + i * 2, substitute.charCodeAt(i), true);
+    for (let i = 0; i < print.length; i++)
+        view.setUint16(18 + subBytes + i * 2, print.charCodeAt(i), true);
+    if (!CreateDirectoryW(path, null)) error("symlink", target, path);
+    const handle = CreateFileW(
+        path,
+        0x40000000,
+        7,
+        null,
+        3,
+        BACKUP_SEMANTICS | OPEN_REPARSE_POINT,
+        null,
+    );
+    if (handle !== INVALID_HANDLE) {
+        try {
+            // FSCTL_SET_REPARSE_POINT
+            if (
+                DeviceIoControlIn(
+                    handle,
+                    0x000900a4,
+                    data,
+                    data.length,
+                    null,
+                    0,
+                    counter,
+                    null,
+                )
+            )
+                return;
+        } finally {
+            CloseHandle(handle);
+        }
+    }
+    const code = codeOf(lastError());
+    RemoveDirectoryW(path);
+    fail(code, "symlink", target, path);
+}
+function isAbsoluteWin32(path) {
+    const first = path.charCodeAt(0) | 32;
+    return path[0] === "\\" || (first >= 97 && first <= 122 && path[1] === ":");
 }
 const sys = {
     separator: "\\",
@@ -331,9 +420,25 @@ const sys = {
         const targetTicks =
             identityView.getUint32(20, true) +
             identityView.getUint32(24, true) * 4294967296;
+        const fileTimeMs = (offset) =>
+            (identityView.getUint32(offset, true) +
+                identityView.getUint32(offset + 4, true) * 4294967296 -
+                116444736000000000) /
+            10000;
+        const resultSize = targetDirectory ? 0 : targetSize;
+        // Node.js reports ChangeTime for ctime; the last write time stands in.
         return {
             kind: targetDirectory ? "dir" : "file",
-            size: targetDirectory ? 0 : targetSize,
+            size: resultSize,
+            nlink: identityView.getUint32(40, true),
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            blksize: 4096,
+            blocks: Math.ceil(resultSize / 512),
+            atimeMs: fileTimeMs(12),
+            ctimeMs: (targetTicks - 116444736000000000) / 10000,
+            birthtimeMs: fileTimeMs(4),
             dev: extended
                 ? idView.getBigUint64(0, true)
                 : BigInt(identityView.getUint32(28, true)),
@@ -358,6 +463,20 @@ const sys = {
         const target = linkTarget(path, true);
         if (target === null) fail("EINVAL", "readlink", path);
         return target;
+    },
+    symlink(target, path, type) {
+        if (type === "junction") return junction(target, path);
+        target = target.split("/").join("\\");
+        let flags = 2;
+        if (type === "dir") flags |= 1;
+        else if (type !== "file") {
+            const absolute = isAbsoluteWin32(target)
+                ? target
+                : join(dirname(resolve(path)), target);
+            if (isDirectory(absolute)) flags |= 1;
+        }
+        if (CreateSymbolicLinkW(path, target, flags) === 0)
+            error("symlink", target, path);
     },
     realpath(path) {
         const handle = CreateFileW(path, 0, 7, null, 3, 0x02000000, null);
@@ -435,8 +554,55 @@ const sys = {
             error("unlink", path);
         }
     },
+    truncate(path, len) {
+        // GENERIC_WRITE, share read/write/delete, OPEN_EXISTING.
+        const handle = CreateFileW(path, 0x40000000, 7, null, 3, 0x80, null);
+        if (handle === INVALID_HANDLE) error("open", path);
+        try {
+            if (!SetFilePointerEx(handle, len, null, 0)) error("open", path);
+            if (!SetEndOfFile(handle)) error("open", path);
+        } finally {
+            CloseHandle(handle);
+        }
+    },
     rename(from, to) {
         if (!MoveFileExW(from, to, 3)) error("rename", from, to);
+    },
+    chmod(path, mode) {
+        // Like Node.js, only the read-only attribute reflects the write bit.
+        const current = GetFileAttributesW(path);
+        if (current === 0xffffffff) error("chmod", path);
+        const next = mode & 0o200 ? current & ~1 : current | 1;
+        if (next !== current && !SetFileAttributesW(path, next || 0x80))
+            error("chmod", path);
+    },
+    utimes(path, atime, mtime) {
+        const handle = CreateFileW(
+            path,
+            0x100,
+            7,
+            null,
+            3,
+            BACKUP_SEMANTICS,
+            null,
+        );
+        if (handle === INVALID_HANDLE) error("utime", path);
+        const times = new Uint8Array(16),
+            view = new DataView(times.buffer);
+        [atime, mtime].forEach((value, i) => {
+            // 100-nanosecond ticks since 1601, split in two 32-bit words.
+            const ticks = Math.round(value * 1e7) + 116444736000000000;
+            const high = Math.floor(ticks / 4294967296);
+            view.setUint32(i * 8, ticks - high * 4294967296, true);
+            view.setUint32(i * 8 + 4, high, true);
+        });
+        try {
+            const access = times.subarray(0, 8),
+                write = times.subarray(8, 16);
+            if (!SetFileTime(handle, null, access, write)) error("utime", path);
+        } finally {
+            CloseHandle(handle);
+        }
     },
     copy(from, to) {
         if (!CopyFileW(from, to, false)) error("copyfile", from, to);

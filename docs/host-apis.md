@@ -379,14 +379,17 @@ startup. Each is available as `node:<name>` and `<name>`.
   detection.
 - `node:util`: `format` and `formatWithOptions` (`%s %d %i %f %j %o %O %c
 %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
-  `maxArrayLength`, `customInspect`), `inherits`, `promisify` (with
+  `compact`, `maxArrayLength`, `maxStringLength`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
   `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
+  `parseArgs` (all options, `tokens` and Node.js's `ERR_PARSE_ARGS_*` errors;
+  `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no
+  script path),
   `stripVTControlCharacters`, `TextEncoder`/`TextDecoder` and the legacy
   `is*` predicates. `inspect` approximates Node.js's layout: objects, arrays,
   Maps, Sets, typed arrays, functions, classes, errors, dates, boxed values,
   getters and circular references are shown, but colors, `showHidden`,
-  `sorted` and Node.js's grouping of long arrays into columns are not
+  `sorted` are not
   reproduced exactly. `node:util/types` is `util.types`.
 - `node:url`: `URL`, `URLSearchParams`, `fileURLToPath`, `pathToFileURL`
   (Windows drive letters and UNC hosts on Windows), `urlToHttpOptions`,
