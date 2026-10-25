@@ -207,7 +207,7 @@ function linkTarget(path, throws = false) {
 }
 /** A directory with a mount-point reparse buffer; the target must be absolute. */
 function junction(target, path) {
-    const absolute = resolve(target).replace(/\//g, "\\");
+    const absolute = resolve(target).split("/").join("\\");
     const substitute = "\\??\\" + absolute,
         print = absolute;
     const subBytes = substitute.length * 2,
@@ -256,6 +256,10 @@ function junction(target, path) {
     const code = codeOf(lastError());
     RemoveDirectoryW(path);
     fail(code, "symlink", target, path);
+}
+function isAbsoluteWin32(path) {
+    const first = path.charCodeAt(0) | 32;
+    return path[0] === "\\" || (first >= 97 && first <= 122 && path[1] === ":");
 }
 const sys = {
     separator: "\\",
@@ -425,11 +429,11 @@ const sys = {
     },
     symlink(target, path, type) {
         if (type === "junction") return junction(target, path);
-        target = target.replace(/\//g, "\\");
+        target = target.split("/").join("\\");
         let flags = 2;
         if (type === "dir") flags |= 1;
         else if (type !== "file") {
-            const absolute = /^([a-zA-Z]:|\\)/.test(target)
+            const absolute = isAbsoluteWin32(target)
                 ? target
                 : join(dirname(resolve(path)), target);
             if (isDirectory(absolute)) flags |= 1;
