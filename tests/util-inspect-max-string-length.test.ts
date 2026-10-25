@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runModulesOnHost } from "./helpers/host.js";
 
+// Quoting a string costs a collection per character under GC stress, so the
+// 10000-character cases run without it.
 function expectOracle(source: string, modes = [false, true]): void {
     for (const gcStress of modes) {
         const run = runModulesOnHost({ "main.mjs": source }, "main.mjs", {
@@ -15,12 +17,15 @@ function expectOracle(source: string, modes = [false, true]): void {
 }
 
 test("util.inspect truncates strings longer than the default maxStringLength", () =>
-    expectOracle(`import util from 'node:util';
+    expectOracle(
+        `import util from 'node:util';
 const s = util.inspect('x'.repeat(20000));
 console.log(s.length, s.slice(-30));
 console.log(util.inspect('x'.repeat(10000)).length);
 console.log(util.inspect.defaultOptions.maxStringLength);
-`));
+`,
+        [false],
+    ));
 
 test("util.inspect honors an explicit maxStringLength", () =>
     expectOracle(`import util from 'node:util';

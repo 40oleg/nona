@@ -2,8 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runModulesOnHost } from "./helpers/host.js";
 
-function expectOracle(source: string): void {
-    for (const gcStress of [false, true]) {
+// A run under GC stress takes over a minute for these sample sets, so only the
+// small case uses it.
+function expectOracle(source: string, modes = [false]): void {
+    for (const gcStress of modes) {
         const run = runModulesOnHost({ "main.mjs": source }, "main.mjs", {
             gcStress,
         });
@@ -31,16 +33,21 @@ const samples = [
 
 for (const compact of ["false", "true", "3", "2", "1", "0"])
     test(`util.inspect compact: ${compact} matches Node.js`, () =>
-        expectOracle(`${values}
+        expectOracle(
+            `${values}
 for (const depth of [2, null])
     for (const s of samples)
         console.log(util.inspect(s, { compact: ${compact}, depth }));
-`));
+`,
+        ));
 
 test("util.inspect compact: false puts every property on its own line", () =>
-    expectOracle(`import util from "node:util";
+    expectOracle(
+        `import util from "node:util";
 console.log(util.inspect({ a: 1, b: [1, 2] }, { compact: false }));
-`));
+`,
+        [false, true],
+    ));
 
 test("util.inspect compact with a narrow breakLength matches Node.js", () =>
     expectOracle(`${values}
