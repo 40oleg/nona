@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **The fatal runtime error message ends with `\n`.** `Nona runtime error` was written with `\r\n` on every target, leaving a stray carriage return on Linux, macOS and BSD. ([#495](https://github.com/40oleg/nona/issues/495))
+
 ## v0.28.0 — 2026-10-25
 
 ### Fixes
