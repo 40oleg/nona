@@ -23,10 +23,12 @@ and `require('fs')` work.
 | `rmSync(path, {recursive, force}?)`                                       | Removes a file, or a directory tree with `recursive`; `force` ignores a missing path.                                                                                                                                                                                                                                                                                                                                                   |
 | `truncateSync(path, len = 0)`                                             | Shortens a file to `len` bytes or extends it with zero bytes; a negative `len` counts as 0. `TypeError` (`ERR_INVALID_ARG_TYPE`) for a non-number, `RangeError` (`ERR_OUT_OF_RANGE`) for a non-integer; errors report syscall `open`.                                                                                                                                                                                                   |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` is supported.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `chmodSync(path, mode)`, `chmod(path, mode, callback)`                    | Changes file permissions. On Windows, `chmod` maps the write bit (0o200) to the read-only attribute (other bits are ignored).                                                                                                                                                                                                                                                                                                           |
+| `utimesSync(path, atime, mtime)`, `utimes(path, atime, mtime, callback)`  | Changes file access and modification times. Times can be numbers (seconds), Dates, or numeric strings.                                                                                                                                                                                                                                                                                                                                  |
 
 Callback functions have the same names without `Sync`: `readFile`, `writeFile`,
 `appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `mkdtemp`, `rmdir`, `unlink`,
-`rename`, `truncate`, `copyFile` and `exists` (deprecated in Node.js: the callback receives
+`rename`, `truncate`, `copyFile`, `chmod`, `utimes` and `exists` (deprecated in Node.js: the callback receives
 only a boolean). Each runs the synchronous function and calls back on a later
 turn of the event loop with `(error, result)`; a wrong argument type (including
 a missing callback) throws synchronously, as in Node.js. `fs.promises` is not
@@ -72,7 +74,7 @@ identities when deciding whether paths refer to the same file.
 
 `readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`,
 `realpath` (with `realpath.native`), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`,
-`unlink`, `rename`, `truncate`, `copyFile`, `symlink` and `exists` take a Node.js callback
+`unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` and `exists` take a Node.js callback
 (`(error, result)`; `exists` passes only a boolean). The same functions without
 `exists` return promises from `fs.promises` and from the `node:fs/promises`
 module (`fs/promises`, `nona:fs/promises`), which is the same object as

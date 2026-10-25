@@ -72,6 +72,21 @@ const DeviceIoControl = define(
     "DeviceIoControl",
     "bool(ptr,u32,ptr,u32,buf,u32,buf,ptr)",
 );
+const GetFileAttributesW = define(
+    "kernel32.dll",
+    "GetFileAttributesW",
+    "u32(wstr)",
+);
+const SetFileAttributesW = define(
+    "kernel32.dll",
+    "SetFileAttributesW",
+    "bool(wstr,u32)",
+);
+const SetFileTime = define(
+    "kernel32.dll",
+    "SetFileTime",
+    "bool(ptr,ptr,buf,buf)",
+);
 const DeviceIoControlIn = define(
     "kernel32.dll",
     "DeviceIoControl",
@@ -552,6 +567,42 @@ const sys = {
     },
     rename(from, to) {
         if (!MoveFileExW(from, to, 3)) error("rename", from, to);
+    },
+    chmod(path, mode) {
+        // Like Node.js, only the read-only attribute reflects the write bit.
+        const current = GetFileAttributesW(path);
+        if (current === 0xffffffff) error("chmod", path);
+        const next = mode & 0o200 ? current & ~1 : current | 1;
+        if (next !== current && !SetFileAttributesW(path, next || 0x80))
+            error("chmod", path);
+    },
+    utimes(path, atime, mtime) {
+        const handle = CreateFileW(
+            path,
+            0x100,
+            7,
+            null,
+            3,
+            BACKUP_SEMANTICS,
+            null,
+        );
+        if (handle === INVALID_HANDLE) error("utime", path);
+        const times = new Uint8Array(16),
+            view = new DataView(times.buffer);
+        [atime, mtime].forEach((value, i) => {
+            // 100-nanosecond ticks since 1601, split in two 32-bit words.
+            const ticks = Math.round(value * 1e7) + 116444736000000000;
+            const high = Math.floor(ticks / 4294967296);
+            view.setUint32(i * 8, ticks - high * 4294967296, true);
+            view.setUint32(i * 8 + 4, high, true);
+        });
+        try {
+            const access = times.subarray(0, 8),
+                write = times.subarray(8, 16);
+            if (!SetFileTime(handle, null, access, write)) error("utime", path);
+        } finally {
+            CloseHandle(handle);
+        }
     },
     copy(from, to) {
         if (!CopyFileW(from, to, false)) error("copyfile", from, to);

@@ -14,6 +14,8 @@ const sysRmdir = define("syscall", "84", "i64(buf)");
 const sysUnlink = define("syscall", "87", "i64(buf)");
 const sysTruncate = define("syscall", "76", "i64(buf,i64)");
 const sysGetdents = define("syscall", "217", "i64(i64,buf,i64)");
+const sysChmod = define("syscall", "90", "i64(buf,i64)");
+const sysUtimes = define("syscall", "280", "i64(i64,buf,buf,i64)");
 const O_WRONLY = 1,
     O_CREAT = 0x40,
     O_TRUNC = 0x200,
@@ -29,6 +31,7 @@ const codes = {
     16: "EBUSY",
     17: "EEXIST",
     18: "EXDEV",
+    30: "EROFS",
     20: "ENOTDIR",
     21: "EISDIR",
     22: "EINVAL",
@@ -270,6 +273,27 @@ const sys = {
     },
     rename(from, to) {
         check(sysRename(cpath(from), cpath(to)), "rename", from, to);
+    },
+    chmod(path, mode) {
+        check(sysChmod(cpath(path), mode), "chmod", path);
+    },
+    utimes(path, atime, mtime) {
+        // Two timespecs (seconds, nanoseconds); the BSD adapter turns them into timevals.
+        const times = new Uint8Array(32),
+            view = new DataView(times.buffer);
+        [atime, mtime].forEach((value, i) => {
+            let seconds = Math.floor(value),
+                nanos = Math.floor((value - seconds) * 1e9);
+            if (nanos > 999999999) nanos = 999999999;
+            view.setUint32(
+                i * 16,
+                seconds - Math.floor(seconds / 4294967296) * 4294967296,
+                true,
+            );
+            view.setInt32(i * 16 + 4, Math.floor(seconds / 4294967296), true);
+            view.setInt32(i * 16 + 8, nanos, true);
+        });
+        check(sysUtimes(-100, cpath(path), times, 0), "utime", path);
     },
     copy(from, to) {
         const input = check(

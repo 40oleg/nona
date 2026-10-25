@@ -75,7 +75,10 @@ function linuxArm64Source(): string {
         sysRmdir:
             'const unlinkat = define("syscall", "35", "i64(i64,buf,i64)");function sysRmdir(path){return unlinkat(-100,path,512)}',
         sysUnlink: "function sysUnlink(path){return unlinkat(-100,path,0)}",
+        sysChmod:
+            'const fchmodat = define("syscall", "53", "i64(i64,buf,i64,i64)");function sysChmod(path,mode){return fchmodat(-100,path,mode,0)}',
     };
+    source = renumberSyscall(source, "sysUtimes", "88");
     for (const [name, statements] of Object.entries(replacements))
         source = replaceSyscall(source, name, statements);
     source = patchSource(
@@ -101,6 +104,7 @@ function bsdSource(target: Target): string {
         sysRmdir: "137",
         sysUnlink: "10",
         sysReadlink: "58",
+        sysChmod: "15",
         sysSymlink: "57",
         sysTruncate: darwin ? "200" : freebsd ? "479" : "92",
     };
@@ -122,6 +126,16 @@ function bsdSource(target: Target): string {
         source = renumberSyscall(source, "sysStat", darwin ? "338" : "38");
         source = renumberSyscall(source, "sysLstat", darwin ? "340" : "40");
     }
+    // BSDs set times with utimes(path, timeval[2]); microseconds replace the nanoseconds.
+    source = replaceSyscall(
+        source,
+        "sysUtimes",
+        'const bsdUtimes = define("syscall", "' +
+            (target === "openbsd-x64" ? "107" : "138") +
+            '", "i64(buf,buf)");function sysUtimes(dir,path,times,flags){const v=new DataView(times.buffer);' +
+            "v.setInt32(8,Math.floor(v.getInt32(8,true)/1000),true);v.setInt32(24,Math.floor(v.getInt32(24,true)/1000),true);" +
+            "return bsdUtimes(path,times)}",
+    );
     source = replaceSyscall(
         source,
         "sysGetdents",
