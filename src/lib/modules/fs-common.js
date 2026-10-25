@@ -1,4 +1,5 @@
 import { resolve, join, dirname } from "nona:internal/path-core";
+import { randomBytes } from "nona:internal/entropy";
 const encoder = new TextEncoder(),
     decoder = new TextDecoder();
 const descriptions = {
@@ -14,6 +15,7 @@ const descriptions = {
     EBADF: "bad file descriptor",
     EXDEV: "cross-device link not permitted",
     EIO: "i/o error",
+    EROFS: "read-only file system",
     UNKNOWN: "unknown error",
 };
 function fail(code, syscall, path, dest) {
@@ -131,11 +133,30 @@ function readChunks(sizeHint, readInto) {
     return concat(chunks, total);
 }
 export class Stats {
-    constructor(kind, size, mtimeMs, mode) {
-        this.size = size;
+    // r is a platform stat result; fields a platform lacks fall back to
+    // mtime (times) or 0 (the rest), and dev/ino are filled in by statsOf.
+    constructor(kind, r, bigint) {
+        const mtimeMs = r.mtimeMs,
+            number = (value) => (value === undefined ? 0 : value),
+            time = (value) => (value === undefined ? mtimeMs : value);
+        this.dev = bigint ? r.dev : Number(r.dev);
+        this.mode = r.mode;
+        this.nlink = number(r.nlink);
+        this.uid = number(r.uid);
+        this.gid = number(r.gid);
+        this.rdev = number(r.rdev);
+        this.blksize = number(r.blksize);
+        this.ino = bigint ? r.ino : Number(r.ino);
+        this.size = r.size;
+        this.blocks = number(r.blocks);
+        this.atimeMs = time(r.atimeMs);
         this.mtimeMs = mtimeMs;
-        this.mode = mode;
+        this.ctimeMs = time(r.ctimeMs);
+        this.birthtimeMs = time(r.birthtimeMs);
+        this.atime = new Date(this.atimeMs);
         this.mtime = new Date(mtimeMs);
+        this.ctime = new Date(this.ctimeMs);
+        this.birthtime = new Date(this.birthtimeMs);
         Object.defineProperty(this, "_kind", { value: kind });
     }
     isFile() {
@@ -195,15 +216,7 @@ export class Dirent {
     }
 }
 function statsOf(result, options) {
-    const value = new Stats(
-        result.kind,
-        result.size,
-        result.mtimeMs,
-        result.mode,
-    );
-    value.dev = options && options.bigint ? result.dev : Number(result.dev);
-    value.ino = options && options.bigint ? result.ino : Number(result.ino);
-    return value;
+    return new Stats(result.kind, result, !!(options && options.bigint));
 }
 export function readFileSync(path, options) {
     const fd = isFd(path, "read");
@@ -273,6 +286,11 @@ export function readlinkSync(path, options) {
     path = pathString(path, "path");
     checkEncoding(encodingOf(options));
     return sys.readlink(path);
+}
+export function symlinkSync(target, path, type) {
+    target = pathString(target, "target");
+    path = pathString(path, "path");
+    sys.symlink(target, path, type);
 }
 export function realpathSync(path, options) {
     checkEncoding(encodingOf(options));
@@ -360,6 +378,34 @@ export function mkdirSync(path, options) {
     }
     return parts.length ? parts[parts.length - 1] : undefined;
 }
+const tempAlphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+/** Six characters of [A-Za-z0-9] from OS entropy; bytes >= 248 are rejected to avoid modulo bias. */
+function tempSuffix() {
+    let out = "";
+    while (out.length < 6) {
+        const bytes = randomBytes(12);
+        for (let i = 0; i < bytes.length && out.length < 6; i++)
+            if (bytes[i] < 248) out += tempAlphabet[bytes[i] % 62];
+    }
+    return out;
+}
+export function mkdtempSync(prefix, options) {
+    prefix = pathString(prefix, "prefix");
+    const encoding = encodingOf(options);
+    if (encoding !== null && encoding !== "buffer") checkEncoding(encoding);
+    for (let attempt = 0; ; attempt++) {
+        const path = prefix + tempSuffix();
+        try {
+            sys.mkdir(path, 0o700);
+        } catch (e) {
+            if (e.code === "EEXIST" && attempt < 100) continue;
+            if (e.code === "EEXIST" || e.syscall !== "mkdir") throw e;
+            fail(e.code, "mkdtemp", prefix + "XXXXXX");
+        }
+        return encoding === "buffer" ? encoder.encode(path) : path;
+    }
+}
 export function rmSync(path, options) {
     path = pathString(path, "path");
     const recursive = !!(options && options.recursive),
@@ -397,8 +443,72 @@ export function rmdirSync(path) {
 export function unlinkSync(path) {
     sys.unlink(pathString(path, "path"));
 }
+export function truncateSync(path, len = 0) {
+    path = pathString(path, "path");
+    if (typeof len !== "number") {
+        const error = new TypeError(
+            'The "len" argument must be of type number. Received ' +
+                (len === null ? "null" : "type " + typeof len),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    if (!Number.isInteger(len) || Math.abs(len) > Number.MAX_SAFE_INTEGER) {
+        const error = new RangeError(
+            'The value of "len" is out of range. It must be an integer. Received ' +
+                len,
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    sys.truncate(path, len < 0 ? 0 : len);
+}
 export function renameSync(from, to) {
     sys.rename(pathString(from, "oldPath"), pathString(to, "newPath"));
+}
+function invalidArg(message) {
+    const error = new TypeError(message);
+    error.code = "ERR_INVALID_ARG_TYPE";
+    return error;
+}
+function isOctal(text) {
+    if (text.length === 0) return false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        if (c < 48 || c > 55) return false;
+    }
+    return true;
+}
+export function chmodSync(path, mode) {
+    path = pathString(path, "path");
+    if (typeof mode === "string" && isOctal(mode)) mode = parseInt(mode, 8);
+    if (typeof mode !== "number" || !Number.isInteger(mode) || mode < 0)
+        throw invalidArg(
+            'The "mode" argument must be of type number or an octal string',
+        );
+    sys.chmod(path, mode & 0o7777);
+}
+/** Seconds since the epoch of a number, a numeric string or a Date. */
+function timeSeconds(value, name) {
+    let seconds = NaN;
+    if (typeof value === "number") seconds = value;
+    else if (value instanceof Date) seconds = value.getTime() / 1000;
+    else if (typeof value === "string" && value !== "") seconds = Number(value);
+    if (
+        typeof seconds !== "number" ||
+        seconds !== seconds ||
+        !isFinite(seconds)
+    )
+        throw invalidArg(
+            'The "' +
+                name +
+                '" argument must be of type number, string or an instance of Date',
+        );
+    return seconds;
+}
+export function utimesSync(path, atime, mtime) {
+    path = pathString(path, "path");
+    sys.utimes(path, timeSeconds(atime, "atime"), timeSeconds(mtime, "mtime"));
 }
 export function copyFileSync(from, to, mode) {
     from = pathString(from, "src");
@@ -448,11 +558,16 @@ export const readFile = callbackForm(readFileSync),
     realpath = callbackForm(realpathSync),
     readdir = callbackForm(readdirSync),
     mkdir = callbackForm(mkdirSync),
+    mkdtemp = callbackForm(mkdtempSync),
     rm = callbackForm(rmSync),
     rmdir = callbackForm(rmdirSync),
     unlink = callbackForm(unlinkSync),
     rename = callbackForm(renameSync),
-    copyFile = callbackForm(copyFileSync);
+    chmod = callbackForm(chmodSync),
+    utimes = callbackForm(utimesSync),
+    truncate = callbackForm(truncateSync),
+    copyFile = callbackForm(copyFileSync),
+    symlink = callbackForm(symlinkSync);
 realpath.native = realpath;
 export function exists(path, callback) {
     const result = existsSync(path);
@@ -470,11 +585,16 @@ export const promises = {
     realpath: promiseForm(realpathSync),
     readdir: promiseForm(readdirSync),
     mkdir: promiseForm(mkdirSync),
+    mkdtemp: promiseForm(mkdtempSync),
     rm: promiseForm(rmSync),
     rmdir: promiseForm(rmdirSync),
     unlink: promiseForm(unlinkSync),
     rename: promiseForm(renameSync),
+    chmod: promiseForm(chmodSync),
+    utimes: promiseForm(utimesSync),
+    truncate: promiseForm(truncateSync),
     copyFile: promiseForm(copyFileSync),
+    symlink: promiseForm(symlinkSync),
 };
 const fsPlatform = process.platform;
 const fsPosixCommon = [
@@ -666,11 +786,16 @@ export default {
     realpathSync,
     readdirSync,
     mkdirSync,
+    mkdtempSync,
     rmSync,
     rmdirSync,
     unlinkSync,
     renameSync,
+    chmodSync,
+    utimesSync,
+    truncateSync,
     copyFileSync,
+    symlinkSync,
     readFile,
     writeFile,
     appendFile,
@@ -682,11 +807,16 @@ export default {
     realpath,
     readdir,
     mkdir,
+    mkdtemp,
     rm,
     rmdir,
     unlink,
     rename,
+    chmod,
+    utimes,
+    truncate,
     copyFile,
+    symlink,
     promises,
     Dirent,
     Stats,

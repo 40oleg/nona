@@ -6,6 +6,31 @@
 
 - **`fs.constants` has the open flags, file type bits and permission bits.** It had only `COPYFILE_EXCL` and the access modes; it now carries Node.js's full set (`S_IF*`, `S_I[RWX]{USR,GRP,OTH}`, `O_*`, `UV_*` and `COPYFILE_*`) with per-platform values for Linux, macOS, FreeBSD, OpenBSD and Windows (the smaller Windows set). The FreeBSD and OpenBSD values come from the platform headers, not from a Node.js dump. ([#487](https://github.com/40oleg/nona/issues/487))
 
+## v0.29.0 — 2026-10-25
+
+### Features
+
+- **`fs.chmodSync`, `fs.chmod`, `fs.promises.chmod` and `fs.utimesSync`, `fs.utimes`, `fs.promises.utimes` change file permissions and times.** `chmod` and `utimes` have callback and promise forms; times are numbers (seconds), Dates or numeric strings; on Windows `chmod` maps the write bit to the read-only attribute, and other bits are ignored ([#485](https://github.com/40oleg/nona/issues/485)).
+- **`util.parseArgs` is available.** It supports `args`, `options` (`type`, `short`, `multiple`, `default`), `strict`, `allowPositionals`, `allowNegative` and `tokens`, with Node.js's error codes (`ERR_PARSE_ARGS_UNKNOWN_OPTION`, ...). `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no script path. ([#481](https://github.com/40oleg/nona/issues/481))
+- **`fs.truncateSync`, `truncate` and `fs.promises.truncate`.** `truncateSync(path, len = 0)` shortens a file in place or extends it with zero bytes; a negative `len` counts as 0, and a non-number or non-integer `len` throws like Node.js. Linux and the BSDs use the `truncate` system call, Windows `SetFilePointerEx` + `SetEndOfFile`. ([#486](https://github.com/40oleg/nona/issues/486))
+- **`fs.mkdtempSync`, `fs.mkdtemp` and `fs.promises.mkdtemp`.** They create a unique temporary directory from a prefix plus six random characters, with mode `0o700` on POSIX ([#483](https://github.com/40oleg/nona/issues/483)).
+
+### Fixes
+
+- `fs.Stats` now has `atime`, `ctime`, `birthtime` (with the `*Ms` numbers), `uid`, `gid`, `nlink`, `rdev`, `blksize` and `blocks` on every target (#482).
+- **`fs.symlinkSync`, `fs.symlink` and `fs.promises.symlink` create symbolic links.** They were missing although `readlinkSync` and `lstatSync` existed. `type` (`file`, `dir`, `junction`) is honoured on Windows, including real junctions; errors carry Node.js codes (`EEXIST`, `ENOENT`, `EPERM`). ([#484](https://github.com/40oleg/nona/issues/484))
+
+## v0.28.0 — 2026-10-25
+
+### Fixes
+
+- **`util.format("%s")` calls a user-defined `toString`.** Objects with an own or inherited `toString` (other than the built-in ones) were always inspected, so a class with a meaningful `toString` printed as `Point { x: 1 }`. `%s` now follows Node.js: such objects are converted with `String(value)`, and other objects are still inspected with depth 0. ([#476](https://github.com/40oleg/nona/issues/476))
+- **`util.format` keeps the sign of `-0`.** `%s`, `%d` and `%i` printed `-0` as `0`; they now print `-0` like Node.js. ([#477](https://github.com/40oleg/nona/issues/477))
+- **`util.inspect` honors `maxStringLength`.** Strings longer than the limit (default 10000) were printed in full. They are now cut and followed by `... N more character(s)`, as in Node.js, at the top level and inside arrays, objects, Maps, Sets and boxed strings; `null` and `Infinity` disable the limit and property keys are not truncated. ([#478](https://github.com/40oleg/nona/issues/478))
+- **`util.inspect` honors the `compact` option.** It was listed in `inspect.defaultOptions` but never read. `compact: false` now prints every property and array element on its own line, a number N combines an object on one line only when it nests at most N levels (default 3) and groups arrays of more than six short items into columns like Node.js, and `compact: true` uses the old layout. Empty objects and arrays past `depth` print as `{}` and `[]`. ([#480](https://github.com/40oleg/nona/issues/480))
+- **`util.inspect.custom` inspectors receive `options.stylize`.** They were called with the raw settings object, so `options.stylize(text, "special")` threw a `TypeError`. The options are now a copy with `stylize(text, styleType)` (identity unless `colors` is set, then ANSI codes from `inspect.styles`/`inspect.colors`). ([#475](https://github.com/40oleg/nona/issues/475))
+- **`util.inspect` shows the state of a promise.** It printed `Promise { <unknown> }` for every promise. It now prints `Promise { <pending> }`, `Promise { 2 }` and `Promise { <rejected> 3 }` like Node.js, reading the state without marking the promise as handled. ([#479](https://github.com/40oleg/nona/issues/479))
+
 ## v0.27.0 — 2026-10-24
 
 ### Fixes
