@@ -1,25 +1,75 @@
+const isProxy = globalThis.__nonaIsProxy;
+delete globalThis.__nonaIsProxy;
 const customInspect = Symbol.for("nodejs.util.inspect.custom");
 const customPromisify = Symbol.for("nodejs.util.promisify.custom");
 const objectToString = Object.prototype.toString;
 const tag = (value) => objectToString.call(value).slice(8, -1);
 
+const getter = (proto, name) =>
+    Object.getOwnPropertyDescriptor(proto, name).get;
+// Calls a built-in accessor or method that throws a TypeError for a receiver
+// without the internal slot; Reflect.apply ignores the receiver's prototype.
+const brand = (fn, value, ...args) => {
+    if (
+        value === null ||
+        (typeof value !== "object" && typeof value !== "function")
+    )
+        return false;
+    try {
+        Reflect.apply(fn, value, args);
+        return true;
+    } catch {
+        return false;
+    }
+};
+const dateGetTime = Date.prototype.getTime;
+const mapHas = Map.prototype.has;
+const setHas = Set.prototype.has;
+const weakMapHas = WeakMap.prototype.has;
+const weakSetHas = WeakSet.prototype.has;
+const arrayBufferByteLength = getter(ArrayBuffer.prototype, "byteLength");
+const sharedByteLength =
+    typeof SharedArrayBuffer === "function"
+        ? getter(SharedArrayBuffer.prototype, "byteLength")
+        : undefined;
+// RegExp.prototype.global returns undefined for %RegExp.prototype% itself.
+const regExpGlobal = getter(RegExp.prototype, "global");
+const isRegExpObject = (value) => {
+    if (value === null || typeof value !== "object") return false;
+    try {
+        return typeof Reflect.apply(regExpGlobal, value, []) === "boolean";
+    } catch {
+        return false;
+    }
+};
+// Installed by the promise prelude: reads the promise slot, no side effects.
+const isPromise = (value) => {
+    const hook = globalThis.__nonaIsPromise;
+    return typeof hook === "function" ? hook(value) : value instanceof Promise;
+};
+const isSharedArrayBuffer = (value) =>
+    sharedByteLength !== undefined && brand(sharedByteLength, value);
+
 export const types = {
-    isDate: (value) => value instanceof Date,
-    isRegExp: (value) => value instanceof RegExp,
-    isMap: (value) => value instanceof Map,
-    isSet: (value) => value instanceof Set,
-    isWeakMap: (value) => value instanceof WeakMap,
-    isWeakSet: (value) => value instanceof WeakSet,
-    isPromise: (value) => value instanceof Promise,
-    isNativeError: (value) => value instanceof Error,
-    isArrayBuffer: (value) => value instanceof ArrayBuffer,
+    isDate: (value) => brand(dateGetTime, value),
+    isRegExp: isRegExpObject,
+    isMap: (value) => brand(mapHas, value, undefined),
+    isSet: (value) => brand(setHas, value, undefined),
+    isWeakMap: (value) => brand(weakMapHas, value, {}),
+    isWeakSet: (value) => brand(weakSetHas, value, {}),
+    isPromise,
+    // [[ErrorData]] is what gives an object the built-in "Error" tag.
+    isNativeError: (value) =>
+        typeof Error.isError === "function"
+            ? Error.isError(value)
+            : value !== null &&
+              typeof value === "object" &&
+              !(Symbol.toStringTag in value) &&
+              tag(value) === "Error",
+    isArrayBuffer: (value) => brand(arrayBufferByteLength, value),
     isAnyArrayBuffer: (value) =>
-        value instanceof ArrayBuffer ||
-        (typeof SharedArrayBuffer === "function" &&
-            value instanceof SharedArrayBuffer),
-    isSharedArrayBuffer: (value) =>
-        typeof SharedArrayBuffer === "function" &&
-        value instanceof SharedArrayBuffer,
+        brand(arrayBufferByteLength, value) || isSharedArrayBuffer(value),
+    isSharedArrayBuffer,
     isArrayBufferView: (value) => ArrayBuffer.isView(value),
     isTypedArray: (value) =>
         ArrayBuffer.isView(value) && !(value instanceof DataView),
@@ -40,7 +90,7 @@ export const types = {
     isStringObject: (value) => value instanceof String,
     isBooleanObject: (value) => value instanceof Boolean,
     isSymbolObject: (value) => value instanceof Symbol,
-    isProxy: (value) => false,
+    isProxy,
     isExternal: (value) => false,
     isModuleNamespaceObject: (value) => tag(value) === "Module",
 };
@@ -85,58 +135,123 @@ function functionLabel(fn) {
     if (isClass) return "[class " + (fn.name || "(anonymous)") + "]";
     return "[" + kind + (fn.name ? ": " + fn.name : " (anonymous)") + "]";
 }
-function formatPrimitive(value) {
-    if (typeof value === "string") return quote(value);
+function formatNumber(value) {
+    return Object.is(value, -0) ? "-0" : String(value);
+}
+function formatString(value, options) {
+    const max = options && options.maxStringLength;
+    if (typeof max !== "number" || !Number.isFinite(max)) return quote(value);
+    if (value.length <= max) return quote(value);
+    const remaining = value.length - max;
+    return (
+        quote(value.slice(0, max)) +
+        "... " +
+        remaining +
+        " more character" +
+        (remaining > 1 ? "s" : "")
+    );
+}
+function formatPrimitive(value, options) {
+    if (typeof value === "string") return formatString(value, options);
     if (typeof value === "bigint") return String(value) + "n";
-    if (typeof value === "number")
-        return Object.is(value, -0) ? "-0" : String(value);
+    if (typeof value === "number") return formatNumber(value);
     if (typeof value === "symbol") return value.toString();
     return String(value);
 }
-function inspectValue(value, options, depth, seen) {
+// A property of an object; with compact: true Node.js indents nested values by 3
+// and moves a value wider than breakLength to its own line.
+function property(name, str, options) {
+    if (options.compact !== true) return name + ": " + str;
+    const width = str.length - (str.split("\n").length - 1);
+    return (
+        name +
+        ":" +
+        (options.breakLength < width ? "\n " : " ") +
+        str.split("\n").join("\n ")
+    );
+}
+// Depth of the object most recently entered, like ctx.currentDepth in Node.js.
+let currentDepth = 0;
+function enter(depth) {
+    const previous = currentDepth;
+    currentDepth = depth;
+    return previous;
+}
+function refPrefix(value, circular) {
+    const index = circular.get(value);
+    return index === undefined ? "" : "<ref *" + index + "> ";
+}
+function inspectValue(value, options, depth, seen, circular) {
     if (
         value === null ||
         (typeof value !== "object" && typeof value !== "function")
     )
-        return formatPrimitive(value);
+        return formatPrimitive(value, options);
     if (
         options.customInspect !== false &&
         value &&
         typeof value[customInspect] === "function" &&
         value[customInspect] !== inspect
     ) {
-        const result = value[customInspect](
-            options.depth - depth,
-            options,
-            inspect,
-        );
+        const remaining = options.depth - depth;
+        const custom = Object.assign({}, options, {
+            stylize(text, styleType) {
+                const plain = String(text);
+                if (!custom.colors) return plain;
+                const codes = inspect.colors[inspect.styles[styleType]];
+                if (!codes) return plain;
+                return (
+                    "\u001b[" +
+                    codes[0] +
+                    "m" +
+                    plain +
+                    "\u001b[" +
+                    codes[1] +
+                    "m"
+                );
+            },
+        });
+        const result = value[customInspect](remaining, custom, inspect);
         if (result !== value)
             return typeof result === "string"
                 ? result
-                : inspectValue(result, options, depth, seen);
+                : inspectValue(result, options, depth, seen, circular);
     }
-    if (seen.includes(value)) return "[Circular *1]";
+    if (seen.includes(value)) {
+        let index = circular.get(value);
+        if (index === undefined) {
+            index = circular.size + 1;
+            circular.set(value, index);
+        }
+        return "[Circular *" + index + "]";
+    }
     if (typeof value === "function") {
         const own = Object.keys(value);
         const label = functionLabel(value);
         if (!own.length) return label;
         if (depth > options.depth) return label;
-        return formatEntries(
-            label + " ",
-            own.map(
-                (k) =>
-                    key(k) +
-                    ": " +
-                    inspectValue(
-                        value[k],
-                        options,
-                        depth + 1,
-                        seen.concat([value]),
-                    ),
+        const previous = enter(depth);
+        const entries = own.map((k) =>
+            property(
+                key(k),
+                inspectValue(
+                    value[k],
+                    options,
+                    depth + 1,
+                    seen.concat([value]),
+                    circular,
+                ),
+                options,
             ),
+        );
+        return formatEntries(
+            refPrefix(value, circular) + label + " ",
+            entries,
             "{",
             "}",
             options,
+            depth,
+            previous,
         );
     }
     if (value instanceof Date)
@@ -151,11 +266,20 @@ function inspectValue(value, options, depth, seen) {
         return value.stack ? stack : "[" + stack + "]";
     }
     if (types.isBoxedPrimitive(value))
-        return "[" + tag(value) + ": " + formatPrimitive(value.valueOf()) + "]";
+        return (
+            "[" +
+            tag(value) +
+            ": " +
+            formatPrimitive(value.valueOf(), options) +
+            "]"
+        );
     const inner = seen.concat([value]);
-    const nested = (item) => inspectValue(item, options, depth + 1, inner);
+    const nested = (item) =>
+        inspectValue(item, options, depth + 1, inner, circular);
     if (Array.isArray(value)) {
-        if (depth > options.depth) return "[Array]";
+        if (depth > options.depth && Object.keys(value).length)
+            return "[Array]";
+        const previous = enter(depth);
         const items = [];
         let holes = 0;
         const limit = Math.min(value.length, options.maxArrayLength);
@@ -186,39 +310,55 @@ function inspectValue(value, options, depth, seen) {
         for (const k of Object.keys(value))
             if (!/^(0|[1-9]\d*)$/.test(k))
                 items.push(key(k) + ": " + nested(value[k]));
-        return formatEntries("", items, "[", "]", options);
+        return formatEntries(
+            refPrefix(value, circular),
+            items,
+            "[",
+            "]",
+            options,
+            depth,
+            previous,
+            value,
+        );
     }
     if (value instanceof Map) {
-        if (depth > options.depth) return "[Map]";
+        if (depth > options.depth && value.size) return "[Map]";
+        const previous = enter(depth);
         const items = [];
         for (const [k, v] of value) items.push(nested(k) + " => " + nested(v));
         return formatEntries(
-            "Map(" + value.size + ") ",
+            refPrefix(value, circular) + "Map(" + value.size + ") ",
             items,
             "{",
             "}",
             options,
+            depth,
+            previous,
         );
     }
     if (value instanceof Set) {
-        if (depth > options.depth) return "[Set]";
+        if (depth > options.depth && value.size) return "[Set]";
+        const previous = enter(depth);
         const items = [];
         for (const v of value) items.push(nested(v));
         return formatEntries(
-            "Set(" + value.size + ") ",
+            refPrefix(value, circular) + "Set(" + value.size + ") ",
             items,
             "{",
             "}",
             options,
+            depth,
+            previous,
         );
     }
     if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
         const name =
             (value.constructor && value.constructor.name) || tag(value);
-        if (depth > options.depth) return "[" + name + "]";
+        if (depth > options.depth && value.length) return "[" + name + "]";
+        const previous = enter(depth);
         const items = [];
         for (let i = 0; i < Math.min(value.length, options.maxArrayLength); i++)
-            items.push(formatPrimitive(value[i]));
+            items.push(formatPrimitive(value[i], options));
         if (value.length > options.maxArrayLength)
             items.push(
                 "... " +
@@ -226,14 +366,41 @@ function inspectValue(value, options, depth, seen) {
                     " more items",
             );
         return formatEntries(
-            name + "(" + value.length + ") ",
+            refPrefix(value, circular) + name + "(" + value.length + ") ",
             items,
             "[",
             "]",
             options,
+            depth,
+            previous,
+            value,
         );
     }
-    if (value instanceof Promise) return "Promise { <unknown> }";
+    if (value instanceof Promise) {
+        const promiseState = globalThis.__nonaPromiseState;
+        const state =
+            typeof promiseState === "function"
+                ? promiseState(value)
+                : undefined;
+        if (state === undefined) return "Promise { <unknown> }";
+        if (depth > options.depth) return "[Promise]";
+        const previous = enter(depth);
+        const text =
+            state[0] === 0
+                ? "<pending>"
+                : state[0] === 1
+                  ? nested(state[1])
+                  : "<rejected> " + nested(state[1]);
+        return formatEntries(
+            refPrefix(value, circular) + "Promise ",
+            [text],
+            "{",
+            "}",
+            options,
+            depth,
+            previous,
+        );
+    }
     const proto = Object.getPrototypeOf(value);
     const constructorName =
         proto === null
@@ -253,7 +420,13 @@ function inspectValue(value, options, depth, seen) {
               : "";
     if (toStringTag && toStringTag !== constructorName)
         prefix = (prefix || "Object ") + "[" + toStringTag + "] ";
-    if (depth > options.depth) return "[" + (constructorName || "Object") + "]";
+    if (
+        depth > options.depth &&
+        (Object.keys(value).length ||
+            Object.getOwnPropertySymbols(value).length)
+    )
+        return "[" + (constructorName || "Object") + "]";
+    const previous = enter(depth);
     const items = [];
     for (const k of Object.keys(value)) {
         const descriptor = Object.getOwnPropertyDescriptor(value, k);
@@ -267,37 +440,136 @@ function inspectValue(value, options, depth, seen) {
                           ? "[Getter]"
                           : "[Setter]"),
             );
-        else items.push(key(k) + ": " + nested(value[k]));
+        else items.push(property(key(k), nested(value[k]), options));
     }
     for (const s of Object.getOwnPropertySymbols(value))
         if (Object.getOwnPropertyDescriptor(value, s).enumerable)
-            items.push(key(s) + ": " + nested(value[s]));
-    return formatEntries(prefix, items, "{", "}", options);
+            items.push(property(key(s), nested(value[s]), options));
+    return formatEntries(
+        refPrefix(value, circular) + prefix,
+        items,
+        "{",
+        "}",
+        options,
+        depth,
+        previous,
+    );
 }
-function formatEntries(prefix, items, open, close, options) {
-    if (!items.length) return prefix + open + close;
-    const single = prefix + open + " " + items.join(", ") + " " + close;
+function groupArrayElements(options, output, value, indentation) {
+    let totalLength = 0;
+    let maxLength = 0;
+    let outputLength = output.length;
+    if (options.maxArrayLength < output.length) outputLength--;
+    const dataLen = new Array(outputLength);
+    for (let i = 0; i < outputLength; i++) {
+        const len = output[i].length;
+        dataLen[i] = len;
+        totalLength += len + 2;
+        if (maxLength < len) maxLength = len;
+    }
+    const actualMax = maxLength + 2;
     if (
-        single.length <= options.breakLength &&
-        !items.some((item) => item.includes("\n"))
-    )
-        return single;
-    if (
-        open === "[" &&
-        items.length > 6 &&
-        items.every((item) => item.length <= 6)
+        actualMax * 3 + indentation < options.breakLength &&
+        (totalLength / actualMax > 5 || maxLength <= 6)
     ) {
-        // Node groups short array items into columns; a fixed width of 16 per line is close.
-        const lines = [];
-        for (let i = 0; i < items.length; i += 16)
-            lines.push(items.slice(i, i + 16).join(", "));
-        return prefix + open + "\n  " + lines.join(",\n  ") + "\n" + close;
+        const averageBias = Math.sqrt(actualMax - totalLength / output.length);
+        const biasedMax = Math.max(actualMax - 3 - averageBias, 1);
+        const columns = Math.min(
+            Math.round(Math.sqrt(2.5 * biasedMax * outputLength) / biasedMax),
+            Math.floor((options.breakLength - indentation) / actualMax),
+            options.compact * 4,
+            15,
+        );
+        if (columns <= 1) return output;
+        const tmp = [];
+        const maxLineLength = [];
+        for (let i = 0; i < columns; i++) {
+            let lineLength = 0;
+            for (let j = i; j < output.length; j += columns)
+                if (dataLen[j] > lineLength) lineLength = dataLen[j];
+            maxLineLength.push(lineLength + 2);
+        }
+        let padStart = true;
+        for (let i = 0; i < output.length; i++) {
+            if (typeof value[i] !== "number" && typeof value[i] !== "bigint") {
+                padStart = false;
+                break;
+            }
+        }
+        for (let i = 0; i < outputLength; i += columns) {
+            const max = Math.min(i + columns, outputLength);
+            let str = "";
+            let j = i;
+            for (; j < max - 1; j++) {
+                const cell = output[j] + ", ";
+                str += padStart
+                    ? cell.padStart(maxLineLength[j - i], " ")
+                    : cell.padEnd(maxLineLength[j - i], " ");
+            }
+            str += padStart
+                ? output[j].padStart(maxLineLength[j - i] - 2, " ")
+                : output[j];
+            tmp.push(str);
+        }
+        if (options.maxArrayLength < output.length)
+            tmp.push(output[outputLength]);
+        return tmp;
+    }
+    return output;
+}
+function isBelowBreakLength(options, output, start) {
+    let totalLength = output.length + start;
+    if (totalLength + output.length > options.breakLength) return false;
+    for (let i = 0; i < output.length; i++) {
+        totalLength += output[i].length;
+        if (totalLength > options.breakLength) return false;
+    }
+    return true;
+}
+const indent = (item) => item.split("\n").join("\n  ");
+function formatEntries(
+    prefix,
+    items,
+    open,
+    close,
+    options,
+    depth,
+    previous,
+    array,
+) {
+    if (!items.length) {
+        currentDepth = previous;
+        return prefix + open + close;
+    }
+    const compact = options.compact;
+    let output = items;
+    if (compact === true) {
+        if (isBelowBreakLength(options, output, 0))
+            return prefix + open + " " + output.join(", ") + " " + close;
+        const ln = prefix === "" && open.length === 1 ? " " : "\n  ";
+        return (
+            prefix + open + ln + output.map(indent).join(",\n  ") + " " + close
+        );
+    }
+    if (typeof compact === "number" && compact >= 1) {
+        const entries = output.length;
+        if (array && entries > 6)
+            output = groupArrayElements(options, output, array, depth * 2);
+        if (currentDepth - depth < compact && entries === output.length) {
+            const start =
+                output.length + depth * 2 + prefix.length + open.length + 10;
+            if (isBelowBreakLength(options, output, start)) {
+                const joined = output.join(", ");
+                if (!joined.includes("\n"))
+                    return prefix + open + " " + joined + " " + close;
+            }
+        }
     }
     return (
         prefix +
         open +
         "\n" +
-        items.map((item) => "  " + item.split("\n").join("\n  ")).join(",\n") +
+        output.map((item) => "  " + indent(item)).join(",\n") +
         "\n" +
         close
     );
@@ -310,7 +582,7 @@ export function inspect(value, options) {
     );
     if (typeof options === "boolean") settings.showHidden = options;
     if (settings.depth === null) settings.depth = Infinity;
-    return inspectValue(value, settings, 0, []);
+    return inspectValue(value, settings, 0, [], new Map());
 }
 inspect.custom = customInspect;
 inspect.defaultOptions = {
@@ -353,6 +625,22 @@ inspect.styles = {
     module: "underline",
 };
 
+function hasBuiltInToString(value) {
+    if (typeof value.toString !== "function") return true;
+    if (Object.prototype.hasOwnProperty.call(value, "toString")) return false;
+    let pointer = value;
+    do {
+        pointer = Object.getPrototypeOf(pointer);
+    } while (!Object.prototype.hasOwnProperty.call(pointer, "toString"));
+    const descriptor = Object.getOwnPropertyDescriptor(pointer, "constructor");
+    return (
+        descriptor !== undefined &&
+        typeof descriptor.value === "function" &&
+        /^[A-Z]/.test(descriptor.value.name) &&
+        globalThis[descriptor.value.name] === descriptor.value
+    );
+}
+
 export function formatWithOptions(options, ...args) {
     const first = args[0];
     let out = "";
@@ -377,7 +665,9 @@ export function formatWithOptions(options, ...args) {
                                 ? arg
                                 : typeof arg === "bigint"
                                   ? arg + "n"
-                                  : (typeof arg === "object" && arg !== null) ||
+                                  : (typeof arg === "object" &&
+                                          arg !== null &&
+                                          hasBuiltInToString(arg)) ||
                                       typeof arg === "symbol"
                                     ? inspect(
                                           arg,
@@ -385,26 +675,28 @@ export function formatWithOptions(options, ...args) {
                                               depth: 0,
                                           }),
                                       )
-                                    : String(arg);
+                                    : typeof arg === "number"
+                                      ? formatNumber(arg)
+                                      : String(arg);
                     else if (next === "d")
                         out +=
                             typeof arg === "bigint"
                                 ? arg + "n"
                                 : typeof arg === "symbol"
                                   ? "NaN"
-                                  : String(Number(arg));
+                                  : formatNumber(Number(arg));
                     else if (next === "i")
                         out +=
                             typeof arg === "bigint"
                                 ? arg + "n"
                                 : typeof arg === "symbol"
                                   ? "NaN"
-                                  : String(parseInt(arg));
+                                  : formatNumber(parseInt(arg));
                     else if (next === "f")
                         out +=
                             typeof arg === "symbol"
                                 ? "NaN"
-                                : String(parseFloat(arg));
+                                : formatNumber(parseFloat(arg));
                     else if (next === "j") {
                         try {
                             out += JSON.stringify(arg);
