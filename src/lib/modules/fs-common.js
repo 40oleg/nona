@@ -1,5 +1,5 @@
 import { resolve, join, dirname } from "nona:internal/path-core";
-import { randomBytes } from "node:crypto";
+import { randomBytes } from "nona:internal/entropy";
 const encoder = new TextEncoder(),
     decoder = new TextDecoder();
 const descriptions = {
