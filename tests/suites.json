@@ -106,6 +106,7 @@
                 "util-types-brand",
                 "util-inspect-circular",
                 "util-inspect-compact",
+                "util-format",
                 "util-inspect-max-string-length",
                 "util-inspect-custom",
                 "util-inspect-promise",

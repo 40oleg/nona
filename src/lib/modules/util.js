@@ -623,6 +623,22 @@ inspect.styles = {
     module: "underline",
 };
 
+function hasBuiltInToString(value) {
+    if (typeof value.toString !== "function") return true;
+    if (Object.prototype.hasOwnProperty.call(value, "toString")) return false;
+    let pointer = value;
+    do {
+        pointer = Object.getPrototypeOf(pointer);
+    } while (!Object.prototype.hasOwnProperty.call(pointer, "toString"));
+    const descriptor = Object.getOwnPropertyDescriptor(pointer, "constructor");
+    return (
+        descriptor !== undefined &&
+        typeof descriptor.value === "function" &&
+        /^[A-Z]/.test(descriptor.value.name) &&
+        globalThis[descriptor.value.name] === descriptor.value
+    );
+}
+
 export function formatWithOptions(options, ...args) {
     const first = args[0];
     let out = "";
@@ -647,7 +663,9 @@ export function formatWithOptions(options, ...args) {
                                 ? arg
                                 : typeof arg === "bigint"
                                   ? arg + "n"
-                                  : (typeof arg === "object" && arg !== null) ||
+                                  : (typeof arg === "object" &&
+                                          arg !== null &&
+                                          hasBuiltInToString(arg)) ||
                                       typeof arg === "symbol"
                                     ? inspect(
                                           arg,
