@@ -107,6 +107,7 @@
                 "util-inspect-circular",
                 "util-inspect-compact",
                 "util-format",
+                "util-parse-args",
                 "util-inspect-max-string-length",
                 "util-inspect-custom",
                 "util-inspect-promise",
