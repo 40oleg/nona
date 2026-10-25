@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- `fs.Stats` now has `atime`, `ctime`, `birthtime` (with the `*Ms` numbers), `uid`, `gid`, `nlink`, `rdev`, `blksize` and `blocks` on every target (#482).
 - **`fs.symlinkSync`, `fs.symlink` and `fs.promises.symlink` create symbolic links.** They were missing although `readlinkSync` and `lstatSync` existed. `type` (`file`, `dir`, `junction`) is honoured on Windows, including real junctions; errors carry Node.js codes (`EEXIST`, `ENOENT`, `EPERM`). ([#484](https://github.com/40oleg/nona/issues/484))
 
 ## v0.28.0 — 2026-10-25
