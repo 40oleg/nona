@@ -596,7 +596,8 @@ export const promises = {
     copyFile: promiseForm(copyFileSync),
     symlink: promiseForm(symlinkSync),
 };
-const fsPlatform = process.platform;
+// fsPlatform is declared by the platform layer (fsModuleSource): reading
+// process.platform here would link the process prelude and the RegExp engine.
 const fsPosixCommon = [
     ["UV_FS_SYMLINK_DIR", 1],
     ["UV_FS_SYMLINK_JUNCTION", 2],

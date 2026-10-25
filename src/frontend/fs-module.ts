@@ -218,7 +218,19 @@ function bsdSource(target: Target): string {
     return source;
 }
 
+/** The host platform name of a target, as process.platform reports it. */
+function platformName(target: Target): string {
+    return target.slice(0, target.indexOf("-"));
+}
+
 export function fsModuleSource(target: Target): string {
+    return (
+        `const fsPlatform = ${JSON.stringify(platformName(target))};` +
+        fsPlatformSource(target)
+    );
+}
+
+function fsPlatformSource(target: Target): string {
     if (
         target.startsWith("darwin-") ||
         target === "freebsd-x64" ||
