@@ -7,6 +7,10 @@
 - **`fs.chmodSync`, `fs.chmod`, `fs.promises.chmod` and `fs.utimesSync`, `fs.utimes`, `fs.promises.utimes` change file permissions and times.** `chmod` and `utimes` have callback and promise forms; times are numbers (seconds), Dates or numeric strings; on Windows `chmod` maps the write bit to the read-only attribute, and other bits are ignored ([#485](https://github.com/40oleg/nona/issues/485)).
 - **`fs.truncateSync`, `truncate` and `fs.promises.truncate`.** `truncateSync(path, len = 0)` shortens a file in place or extends it with zero bytes; a negative `len` counts as 0, and a non-number or non-integer `len` throws like Node.js. Linux and the BSDs use the `truncate` system call, Windows `SetFilePointerEx` + `SetEndOfFile`. ([#486](https://github.com/40oleg/nona/issues/486))
 
+### Fixes
+
+- **`fs.symlinkSync`, `fs.symlink` and `fs.promises.symlink` create symbolic links.** They were missing although `readlinkSync` and `lstatSync` existed. `type` (`file`, `dir`, `junction`) is honoured on Windows, including real junctions; errors carry Node.js codes (`EEXIST`, `ENOENT`, `EPERM`). ([#484](https://github.com/40oleg/nona/issues/484))
+
 ## v0.28.0 — 2026-10-25
 
 ### Fixes
