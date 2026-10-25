@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.28.0 — 2026-10-25
+
 ### Fixes
 
 - **`util.format("%s")` calls a user-defined `toString`.** Objects with an own or inherited `toString` (other than the built-in ones) were always inspected, so a class with a meaningful `toString` printed as `Point { x: 1 }`. `%s` now follows Node.js: such objects are converted with `String(value)`, and other objects are still inspected with depth 0. ([#476](https://github.com/40oleg/nona/issues/476))
