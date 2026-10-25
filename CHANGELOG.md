@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Documentation.** Archived stale language support pages (`docs/language-support.md` for Nona 0.5.0 and `docs/status.md` for 0.17–0.20) to `docs/history/` with historical notes; README links now point to the current [site Language support page](https://40oleg.github.io/nona/guide/language-support). Corrected outdated claims about Error `cause` support in documentation ([#500](https://github.com/40oleg/nona/issues/500)).
+
 ## v0.29.0 — 2026-10-25
 
 ### Features

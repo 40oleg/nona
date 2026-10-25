@@ -2,7 +2,7 @@
 
 **Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в небольшие самостоятельные исполняемые файлы для Windows, Linux, macOS, FreeBSD и OpenBSD.**
 
-[Документация](https://40oleg.github.io/nona/) (англ.) · [Песочница](https://40oleg.github.io/nona/playground) · [Релизы](https://github.com/40oleg/nona/releases) · [English](README.md) · [Поддержка языка](docs/language-support.md) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
+[Документация](https://40oleg.github.io/nona/) (англ.) · [Песочница](https://40oleg.github.io/nona/playground) · [Релизы](https://github.com/40oleg/nona/releases) · [English](README.md) · [Поддержка языка](https://40oleg.github.io/nona/guide/language-support) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
 
 ```sh
 $ nona build hello.js -o hello
@@ -125,7 +125,7 @@ nona --help | --version
 
 **Программы для Windows** могут быть оконными, без консоли (`--subsystem windows`), и содержать иконку, манифест и сведения о версии ([исполняемые файлы Windows](docs/windows-executables.md)).
 
-Точное поведение и покрытие тестами — в [матрице поддержки языка](docs/language-support.md). Неподдерживаемый синтаксис отклоняется при компиляции.
+Точное поведение и покрытие тестами — в [матрице поддержки языка](https://40oleg.github.io/nona/guide/language-support). Неподдерживаемый синтаксис отклоняется при компиляции.
 
 ## Производительность
 

@@ -1,5 +1,7 @@
 # Матрица поддержки языка
 
+> **Historical:** Last checked for Nona 0.5.0. This matrix has not been updated since then and may describe features as unsupported that are already implemented. See the [site's Language support page](https://40oleg.github.io/nona/guide/language-support) for the current reference.
+
 Дата проверки: 2026-09-28. Опубликованная версия: **Nona 0.5.0**; работа 0.6–0.16 ведётся в одной ветке без промежуточных релизов.
 
 > **Матрица не обновлялась после 0.5.0.** Строки «нет» и «частично» могут описывать возможности, которые уже реализованы (например, `with`, Symbol, Proxy, BigInt, `for...in`). Актуальный срез ES2020 — в [status.md](status.md), сводка для пользователей — в разделе Language support документации сайта.

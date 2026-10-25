@@ -2,7 +2,7 @@
 
 **Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into small standalone native executables for Windows, Linux, macOS, FreeBSD and OpenBSD.**
 
-[Documentation](https://40oleg.github.io/nona/) · [Playground](https://40oleg.github.io/nona/playground) · [Releases](https://github.com/40oleg/nona/releases) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md) · [All docs](docs/README.md)
+[Documentation](https://40oleg.github.io/nona/) · [Playground](https://40oleg.github.io/nona/playground) · [Releases](https://github.com/40oleg/nona/releases) · [Русская версия](README.ru.md) · [Language support](https://40oleg.github.io/nona/guide/language-support) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md) · [All docs](docs/README.md)
 
 ```sh
 $ nona build hello.js -o hello
@@ -125,7 +125,7 @@ nona --help | --version
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
-The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
+The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 
 ## Performance
 
