@@ -94,6 +94,8 @@ export const preludeTriggers = {
         "Buffer",
         "Blob",
         "File",
+        "atob",
+        "btoa",
         "URL",
         "ReadableStream",
         "ReadableStreamDefaultReader",
@@ -214,7 +216,7 @@ export const preludeDependencies: Partial<
     Record<OptionalPrelude, readonly OptionalPrelude[]>
 > = {
     process: ["encoding", "proxy", "timers", "eventEmitter", "binaryData"],
-    buffer: ["encoding", "url", "binaryData"],
+    buffer: ["encoding", "url", "binaryData", "events"],
     url: ["encoding"],
     encoding: ["binaryData"],
     es2021: ["binaryData"],

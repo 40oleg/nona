@@ -997,14 +997,24 @@
             return false;
         }
     }
+    // The events prelude (a dependency of this one) provides DOMException; the
+    // prelude tests run without it and get a plain Error with the same name.
+    function invalidCharacter() {
+        if (typeof DOMException === "function")
+            return new DOMException(
+                "Invalid character",
+                "InvalidCharacterError",
+            );
+        var e = new Error("Invalid character");
+        e.name = "InvalidCharacterError";
+        e.code = 5;
+        return e;
+    }
     function btoa(value) {
         value = String(value);
         for (var i = 0; i < value.length; i++)
             if (value.charCodeAt(i) > 255) {
-                var e = new Error("Invalid character");
-                e.name = "InvalidCharacterError";
-                e.code = 5;
-                throw e;
+                throw invalidCharacter();
             }
         return decodeBytes(encodeString(value, "latin1"), "base64");
     }
@@ -1012,10 +1022,7 @@
         value = String(value).replace(/[\t\n\f\r ]/g, "");
         if (value.length % 4 === 0) value = value.replace(/==?$/, "");
         if (value.length % 4 === 1 || /[^A-Za-z0-9+/]/.test(value)) {
-            var e = new Error("Invalid character");
-            e.name = "InvalidCharacterError";
-            e.code = 5;
-            throw e;
+            throw invalidCharacter();
         }
         return decodeBytes(encodeString(value, "base64"), "latin1");
     }
@@ -2272,4 +2279,17 @@
         enumerable: false,
         configurable: true,
     });
+    // Host realms (the vm contexts of the prelude tests) may own these non-configurably.
+    function installGlobal(name, value) {
+        var existing = Object.getOwnPropertyDescriptor(globalThis, name);
+        if (existing && !existing.configurable) return;
+        define(globalThis, name, {
+            value: value,
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+    }
+    installGlobal("atob", atob);
+    installGlobal("btoa", btoa);
 })();
