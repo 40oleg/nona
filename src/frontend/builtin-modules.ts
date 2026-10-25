@@ -20,6 +20,7 @@ import { httpModuleSource } from "./http-module.js";
 import { pathCoreSourceForTarget, pathModuleSource } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
+import { entropySource } from "../selfhost-adapters.js";
 import { httpsModuleSource } from "./https-module.js";
 import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
 import { tlsModuleSource } from "./tls-module.js";
@@ -137,6 +138,10 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:events", eventsModuleForTarget],
     ["node:path", () => pathModuleSource],
     ["nona:internal/path-core", pathCoreSourceForTarget],
+    [
+        "nona:internal/entropy",
+        (target) => entropySource(target) + "export { randomBytes };",
+    ],
     ...["posix", "win32"].map(
         (flavor) =>
             [

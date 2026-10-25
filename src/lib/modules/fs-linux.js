@@ -256,8 +256,8 @@ const sys = {
         }
         return names;
     },
-    mkdir(path) {
-        check(sysMkdir(cpath(path), 0o777), "mkdir", path);
+    mkdir(path, mode = 0o777) {
+        check(sysMkdir(cpath(path), mode), "mkdir", path);
     },
     rmdir(path) {
         check(sysRmdir(cpath(path)), "rmdir", path);

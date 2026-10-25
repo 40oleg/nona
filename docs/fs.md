@@ -19,12 +19,13 @@ and `require('fs')` work.
 | `realpathSync(path)`, `realpathSync.native(path)`                         | Canonical absolute path after resolving symbolic links.                                                                                                                                                                                                                                                                                                                                                                                 |
 | `readdirSync(path, options?)`                                             | Names without `.` and `..`, in file system order. `{withFileTypes: true}` returns `fs.Dirent` objects with `name`, `parentPath`, `path` and the `is*()` methods of `Stats`. `{recursive: true}` also lists all descendants as relative names joined with the platform separator (`sub/deep/c`), a directory before its entries, entering symbolic links to directories like directories; `parentPath` is then the containing directory. |
 | `mkdirSync(path, {recursive}?)`                                           | With `recursive`, returns the first directory created.                                                                                                                                                                                                                                                                                                                                                                                  |
+| `mkdtempSync(prefix, options?)`                                           | Creates a directory named `prefix` plus six random `[A-Za-z0-9]` characters (OS entropy, mode `0o700` on POSIX, retried on `EEXIST`) and returns its path; `{encoding: 'buffer'}` returns bytes.                                                                                                                                                                                                                                        |
 | `rmSync(path, {recursive, force}?)`                                       | Removes a file, or a directory tree with `recursive`; `force` ignores a missing path.                                                                                                                                                                                                                                                                                                                                                   |
 | `truncateSync(path, len = 0)`                                             | Shortens a file to `len` bytes or extends it with zero bytes; a negative `len` counts as 0. `TypeError` (`ERR_INVALID_ARG_TYPE`) for a non-number, `RangeError` (`ERR_OUT_OF_RANGE`) for a non-integer; errors report syscall `open`.                                                                                                                                                                                                   |
 | `rmdirSync`, `unlinkSync`, `renameSync`, `copyFileSync(src, dest, mode?)` | `constants.COPYFILE_EXCL` is supported.                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 Callback functions have the same names without `Sync`: `readFile`, `writeFile`,
-`appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`,
+`appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `mkdtemp`, `rmdir`, `unlink`,
 `rename`, `truncate`, `copyFile` and `exists` (deprecated in Node.js: the callback receives
 only a boolean). Each runs the synchronous function and calls back on a later
 turn of the event loop with `(error, result)`; a wrong argument type (including
@@ -70,7 +71,7 @@ identities when deciding whether paths refer to the same file.
 ## Callbacks and promises
 
 `readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`,
-`realpath` (with `realpath.native`), `readdir`, `mkdir`, `rm`, `rmdir`,
+`realpath` (with `realpath.native`), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`,
 `unlink`, `rename`, `truncate`, `copyFile`, `symlink` and `exists` take a Node.js callback
 (`(error, result)`; `exists` passes only a boolean). The same functions without
 `exists` return promises from `fs.promises` and from the `node:fs/promises`
