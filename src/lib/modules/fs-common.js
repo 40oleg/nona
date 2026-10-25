@@ -426,10 +426,17 @@ function invalidArg(message) {
     error.code = "ERR_INVALID_ARG_TYPE";
     return error;
 }
+function isOctal(text) {
+    if (text.length === 0) return false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        if (c < 48 || c > 55) return false;
+    }
+    return true;
+}
 export function chmodSync(path, mode) {
     path = pathString(path, "path");
-    if (typeof mode === "string" && /^[0-7]+$/.test(mode))
-        mode = parseInt(mode, 8);
+    if (typeof mode === "string" && isOctal(mode)) mode = parseInt(mode, 8);
     if (typeof mode !== "number" || !Number.isInteger(mode) || mode < 0)
         throw invalidArg(
             'The "mode" argument must be of type number or an octal string',
@@ -441,8 +448,7 @@ function timeSeconds(value, name) {
     let seconds = NaN;
     if (typeof value === "number") seconds = value;
     else if (value instanceof Date) seconds = value.getTime() / 1000;
-    else if (typeof value === "string" && value.trim() !== "")
-        seconds = Number(value);
+    else if (typeof value === "string" && value !== "") seconds = Number(value);
     if (
         typeof seconds !== "number" ||
         seconds !== seconds ||
