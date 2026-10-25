@@ -1,5 +1,17 @@
 # Журнал разработки Nona
 
+## 2026-10-25 — выпуск v0.29.0
+
+- Версия package.json и package-lock.json обновлена до 0.29.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли добавления в `fs`: `symlinkSync`, `mkdtemp` и `mkdtempSync`, `chmod`/`utimes` и их async варианты, `truncate` и `truncateSync`, а также расширение `fs.Stats` новыми полями (`atime`, `ctime`, `birthtime`, `uid`, `gid`, `nlink`, `rdev`, `blksize`, `blocks`) (#482, #483, #484, #485, #486); и добавление `util.parseArgs` (#481).
+- Полный аудит Test262 для v0.29.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
+## 2026-10-25 — выпуск v0.28.0
+
+- Версия package.json и package-lock.json обновлена до 0.28.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли исправления для `util.format` с пользовательским `toString` (#476), сохранения знака `-0` в `util.format` (#477), поддержки `maxStringLength` в `util.inspect` (#478), поддержки опции `compact` в `util.inspect` (#480), передачи `options.stylize` в `util.inspect.custom` (#475) и отображения состояния промисов в `util.inspect` (#479).
+- Полный аудит Test262 для v0.28.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-24 — выпуск v0.27.0
 
 - Версия package.json и package-lock.json обновлена до 0.27.0; `src/version.ts`, CLI help и `--version` — тоже.

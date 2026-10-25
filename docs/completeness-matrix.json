@@ -868,6 +868,15 @@
             "capabilities": ["api.internal-modules"],
             "evidence": ["src/frontend/builtin-modules.ts"],
             "note": "Implementation bridge excluded from public builtin inventory; not a supported application API."
+        },
+        {
+            "id": "module.internal.entropy",
+            "specifier": "nona:internal/entropy",
+            "aliases": [],
+            "visibility": "internal",
+            "capabilities": ["api.internal-modules"],
+            "evidence": ["src/frontend/builtin-modules.ts"],
+            "note": "Implementation bridge excluded from public builtin inventory; not a supported application API."
         }
     ],
     "evidence": {
