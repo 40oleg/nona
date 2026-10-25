@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`util.format("%s")` calls a user-defined `toString`.** Objects with an own or inherited `toString` (other than the built-in ones) were always inspected, so a class with a meaningful `toString` printed as `Point { x: 1 }`. `%s` now follows Node.js: such objects are converted with `String(value)`, and other objects are still inspected with depth 0. ([#476](https://github.com/40oleg/nona/issues/476))
 - **`util.format` keeps the sign of `-0`.** `%s`, `%d` and `%i` printed `-0` as `0`; they now print `-0` like Node.js. ([#477](https://github.com/40oleg/nona/issues/477))
 - **`util.inspect` honors `maxStringLength`.** Strings longer than the limit (default 10000) were printed in full. They are now cut and followed by `... N more character(s)`, as in Node.js, at the top level and inside arrays, objects, Maps, Sets and boxed strings; `null` and `Infinity` disable the limit and property keys are not truncated. ([#478](https://github.com/40oleg/nona/issues/478))
 - **`util.inspect.custom` inspectors receive `options.stylize`.** They were called with the raw settings object, so `options.stylize(text, "special")` threw a `TypeError`. The options are now a copy with `stylize(text, styleType)` (identity unless `colors` is set, then ANSI codes from `inspect.styles`/`inspect.colors`). ([#475](https://github.com/40oleg/nona/issues/475))
