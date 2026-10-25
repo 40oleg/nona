@@ -9,7 +9,7 @@ and `require('fs')` work.
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `readFileSync(path, options?)`                                            | Without an encoding returns a `Uint8Array` (Node.js returns a `Buffer`); `'utf8'` returns a string.                                                                                                                                                                                                                                                                                                                                     |
 | `writeFileSync(path, data, options?)`                                     | `data`: string (UTF-8), typed array, DataView or ArrayBuffer. Flags: `w` replaces, `a` appends, `wx` creates exclusively. `mode` controls new POSIX file permissions.                                                                                                                                                                                                                                                                   |
-| `appendFileSync(path, data)`                                              |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `appendFileSync(path, data)`                                              | Always appends (like `writeFileSync` with flag `a`, creating the file if needed); it takes no `options` argument, so `flag`, `mode` and `encoding` cannot be passed.                                                                                                                                                                                                                                                                    |
 | `existsSync(path)`                                                        |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `accessSync(path, mode?)`                                                 | Throws `ENOENT` when the path does not exist; permission bits are not checked.                                                                                                                                                                                                                                                                                                                                                          |
 | `statSync(path, options?)`                                                | `isFile()`, `isDirectory()`, `isSymbolicLink()`, `isBlockDevice()`, `isCharacterDevice()`, `isFIFO()`, `isSocket()`, `dev`, `mode`, `nlink`, `uid`, `gid`, `rdev`, `blksize`, `ino`, `size`, `blocks`, `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs`, `atime`, `mtime`, `ctime`, `birthtime` (see below); `{throwIfNoEntry: false}`. `{bigint: true}` preserves exact `dev`/`ino` identities; other numeric fields remain numbers.     |
@@ -26,13 +26,12 @@ and `require('fs')` work.
 | `chmodSync(path, mode)`, `chmod(path, mode, callback)`                    | Changes file permissions. On Windows, `chmod` maps the write bit (0o200) to the read-only attribute (other bits are ignored).                                                                                                                                                                                                                                                                                                           |
 | `utimesSync(path, atime, mtime)`, `utimes(path, atime, mtime, callback)`  | Changes file access and modification times. Times can be numbers (seconds), Dates, or numeric strings.                                                                                                                                                                                                                                                                                                                                  |
 
-Callback functions have the same names without `Sync`: `readFile`, `writeFile`,
-`appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `mkdtemp`, `rmdir`, `unlink`,
-`rename`, `truncate`, `copyFile`, `chmod`, `utimes` and `exists` (deprecated in Node.js: the callback receives
-only a boolean). Each runs the synchronous function and calls back on a later
-turn of the event loop with `(error, result)`; a wrong argument type (including
-a missing callback) throws synchronously, as in Node.js. `fs.promises` is not
-provided.
+Every function also has a callback form (same name without `Sync`) and, except
+`exists`, a promise form in `fs.promises` (the same object as `node:fs/promises`);
+see [Callbacks and promises](#callbacks-and-promises) for the complete list. The
+module also exports the `Dirent` and `Stats` classes (returned by `readdirSync`
+with `withFileTypes` and by `statSync`) and the `constants` object
+(`COPYFILE_EXCL`, `F_OK`, `R_OK`, `W_OK`, `X_OK`).
 
 `readFileSync`, `writeFileSync` and `appendFileSync` also accept the file
 descriptors `0` (stdin), `1` (stdout) and `2` (stderr) instead of a path, so
@@ -74,13 +73,14 @@ identities when deciding whether paths refer to the same file.
 
 `readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`,
 `realpath` (with `realpath.native`), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`,
-`unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` and `exists` take a Node.js callback
-(`(error, result)`; `exists` passes only a boolean). The same functions without
-`exists` return promises from `fs.promises` and from the `node:fs/promises`
-module (`fs/promises`, `nona:fs/promises`), which is the same object as
-`fs.promises`. Both forms run the synchronous operation when called and only
-defer the callback to a later tick or settle the promise: they do not overlap
-file system work with other code.
+`unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` and `exists`
+take a Node.js callback (`(error, result)`; `exists`, deprecated in Node.js,
+passes only a boolean). The same functions without `exists` return promises from
+`fs.promises` and from the `node:fs/promises` module (`fs/promises`,
+`nona:fs/promises`), which is the same object as `fs.promises`. Both forms run the
+synchronous operation when called and only defer the callback to a later tick or
+settle the promise: they do not overlap file system work with other code. A wrong
+argument type (including a missing callback) throws synchronously, as in Node.js.
 
 ## TextEncoder and TextDecoder
 
