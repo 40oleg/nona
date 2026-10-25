@@ -4,6 +4,7 @@
 
 ### Features
 
+- **`fs.truncateSync`, `truncate` and `fs.promises.truncate`.** `truncateSync(path, len = 0)` shortens a file in place or extends it with zero bytes; a negative `len` counts as 0, and a non-number or non-integer `len` throws like Node.js. Linux and the BSDs use the `truncate` system call, Windows `SetFilePointerEx` + `SetEndOfFile`. ([#486](https://github.com/40oleg/nona/issues/486))
 - **`fs.mkdtempSync`, `fs.mkdtemp` and `fs.promises.mkdtemp`.** They create a unique temporary directory from a prefix plus six random characters, with mode `0o700` on POSIX ([#483](https://github.com/40oleg/nona/issues/483)).
 
 ## v0.28.0 — 2026-10-25
