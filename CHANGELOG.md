@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Reading or writing a property of `undefined` or `null` throws a descriptive `TypeError`.** The message was `Invalid operation`; it is now Node.js's `Cannot read properties of undefined (reading 'x')` or `Cannot set properties of null (setting 'x')`, for `o.x`, `o[k]`, method calls, assignments and compound assignments. String, number, boolean, BigInt and symbol keys are named; an object key is not converted, and the key part is left out. Other runtime `TypeError`s keep `Invalid operation`. ([#503](https://github.com/40oleg/nona/issues/503))
+
 ## v0.29.0 — 2026-10-25
 
 ### Features
