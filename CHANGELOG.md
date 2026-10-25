@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.inspect` shows `ArrayBuffer`, `SharedArrayBuffer` and weak collections.** Buffers printed as `ArrayBuffer {}`; they now show `[Uint8Contents]` (limited by `maxArrayLength`) and `[byteLength]`, and `WeakMap`/`WeakSet` print `<items unknown>`, as in Node.js. ([#497](https://github.com/40oleg/nona/issues/497))
+
 ## v0.28.0 — 2026-10-25
 
 ### Fixes
