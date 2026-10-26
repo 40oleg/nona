@@ -18,8 +18,6 @@ const fsPosixCommon: Entry[] = [
     ["UV_DIRENT_SOCKET", 5],
     ["UV_DIRENT_CHAR", 6],
     ["UV_DIRENT_BLOCK", 7],
-    ["EXTENSIONLESS_FORMAT_JAVASCRIPT", 0],
-    ["EXTENSIONLESS_FORMAT_WASM", 1],
     ["S_IFMT", 61440],
     ["S_IFREG", 32768],
     ["S_IFDIR", 16384],
@@ -81,7 +79,7 @@ function fsOpenFlags(v: Record<string, number>): Entry[] {
     for (const name of names) if (name in v) out.push([name, v[name]!]);
     return out;
 }
-function fsConstantEntries(fsPlatform: string): Entry[] {
+function fsConstantEntries(fsPlatform: string, arch: string): Entry[] {
     if (fsPlatform === "win32") {
         return [
             ["UV_FS_SYMLINK_DIR", 1],
@@ -128,6 +126,10 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
             O_CREAT: 512,
             O_EXCL: 2048,
             UV_FS_O_FILEMAP: 0,
+            UV_FS_O_TEMPORARY: 0,
+            UV_FS_O_SHORT_LIVED: 0,
+            UV_FS_O_SEQUENTIAL: 0,
+            UV_FS_O_RANDOM: 0,
             O_NOCTTY: 131072,
             O_TRUNC: 1024,
             O_APPEND: 8,
@@ -143,6 +145,10 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
             O_CREAT: 512,
             O_EXCL: 2048,
             UV_FS_O_FILEMAP: 0,
+            UV_FS_O_TEMPORARY: 0,
+            UV_FS_O_SHORT_LIVED: 0,
+            UV_FS_O_SEQUENTIAL: 0,
+            UV_FS_O_RANDOM: 0,
             O_NOCTTY: 32768,
             O_TRUNC: 1024,
             O_APPEND: 8,
@@ -158,6 +164,10 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
             O_CREAT: 512,
             O_EXCL: 2048,
             UV_FS_O_FILEMAP: 0,
+            UV_FS_O_TEMPORARY: 0,
+            UV_FS_O_SHORT_LIVED: 0,
+            UV_FS_O_SEQUENTIAL: 0,
+            UV_FS_O_RANDOM: 0,
             O_NOCTTY: 32768,
             O_TRUNC: 1024,
             O_APPEND: 8,
@@ -172,6 +182,10 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
             O_CREAT: 64,
             O_EXCL: 128,
             UV_FS_O_FILEMAP: 0,
+            UV_FS_O_TEMPORARY: 0,
+            UV_FS_O_SHORT_LIVED: 0,
+            UV_FS_O_SEQUENTIAL: 0,
+            UV_FS_O_RANDOM: 0,
             O_NOCTTY: 256,
             O_TRUNC: 512,
             O_APPEND: 1024,
@@ -183,6 +197,12 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
             O_DIRECT: 16384,
             O_NONBLOCK: 2048,
         };
+        // arm64 Linux uses the asm-generic values of these three flags.
+        if (arch === "arm64") {
+            flags.O_DIRECTORY = 16384;
+            flags.O_NOFOLLOW = 32768;
+            flags.O_DIRECT = 65536;
+        }
     }
     return [
         ...fsPosixCommon,
@@ -192,7 +212,10 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
     ];
 }
 
-/** The `fs.constants` object for a platform name (`process.platform`). */
-export function fsConstants(platform: string): Record<string, number> {
-    return Object.fromEntries(fsConstantEntries(platform));
+/** The `fs.constants` object for a platform and architecture (`process.platform`, `process.arch`). */
+export function fsConstants(
+    platform: string,
+    arch: string,
+): Record<string, number> {
+    return Object.fromEntries(fsConstantEntries(platform, arch));
 }
