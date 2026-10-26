@@ -183,6 +183,14 @@ for (const [name, source, expected] of [
         `for(let s of ['','2020-00-01','2020-13-01','2020-01-00','2020-01-32','2020-01-01T25:00Z','2020-01-01T00:60Z'])console.log(Number.isNaN(Date.parse(s)))`,
     ],
     [
+        "parse ISO-like space separator, long fractions and +hhmm offsets",
+        `for(let s of ['2021-06-15 10:20:30','2021-06-15 10:20:30Z','2021-06-15T10:20:30.123456Z','2021-06-15T10:20:30+0200','2021-06-15 10:20','2021-06-15 10:20:30.5','2021-06-15 10:20:30.123999+02:30','2021-06-15 10:20:30-0530'])console.log(Date.parse(s))`,
+    ],
+    [
+        "reject invalid ISO-like variants",
+        `for(let s of ['2021-06-15 25:20:30','2021-06-15 10:60','2021-13-15 10:20:30','2021-06-15 10:20:30.','2021-06-15T10:20:30+0260','2021-06-15T10:20:30+02:','2021-06-15T10:20:30+02:3','2021-06-15 24:00:01'])console.log(Date.parse(s))`,
+    ],
+    [
         "parse Date string formats",
         `for(let t of [0,Date.UTC(2000,1,29,12,34,56),Date.UTC(-123,6,1)]){let d=new Date(t);console.log(Date.parse(d.toString()),Date.parse(d.toUTCString()),t)}`,
         "0 0 0\n951827696000 951827696000 951827696000\n-66033014400000 -66033014400000 -66033014400000\n",
