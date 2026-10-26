@@ -111,6 +111,7 @@
                 "util-inspect-max-string-length",
                 "util-inspect-custom",
                 "util-inspect-promise",
+                "util-inspect-buffers",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
