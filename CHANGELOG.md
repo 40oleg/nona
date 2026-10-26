@@ -4,6 +4,7 @@
 
 ### Features
 
+- **`TextEncoder.prototype.encodeInto` exists.** It writes whole UTF-8 sequences into a `Uint8Array`, replaces lone surrogates with U+FFFD and returns `{ read, written }` in UTF-16 code units and bytes. ([#490](https://github.com/40oleg/nona/issues/490))
 - **`structuredClone` global.** `structuredClone(value, { transfer })` deep-copies primitives (including BigInt), plain objects, arrays (holes and extra properties), `Date`, `RegExp`, `Map`, `Set`, boxed primitives, `ArrayBuffer`, typed arrays and `DataView` (views sharing a buffer keep sharing its clone), the standard `Error` types with `message`, `stack` and `cause`, and cycles or shared references. Functions, symbols, `WeakMap`, `WeakSet`, `WeakRef` and promises throw a `DOMException` named `DataCloneError`; class instances clone as plain objects; `transfer` detaches the listed `ArrayBuffer`s. The runtime part is linked only when a program names `structuredClone` ([#489](https://github.com/40oleg/nona/issues/489)).
 
 ### Fixes
