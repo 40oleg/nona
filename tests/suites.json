@@ -156,6 +156,7 @@
                 "symbols",
                 "json",
                 "json-bytes",
+                "structured-clone",
                 "intl",
                 "uri",
                 "classes",

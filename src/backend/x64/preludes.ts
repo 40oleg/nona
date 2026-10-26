@@ -49,6 +49,7 @@ import { es2021PreludeSource } from "../../runtime/es2021-source.js";
 import { iteratorHelpersPreludeSource } from "../../runtime/iterator-helpers-source.js";
 import { setMethodsPreludeSource } from "../../runtime/set-methods-source.js";
 import { wellFormedPreludeSource } from "../../runtime/well-formed-source.js";
+import { structuredClonePreludeSource } from "../../runtime/structured-clone-source.js";
 import { weakRefPreludeSource } from "../../runtime/weakref-source.js";
 import { finalizationRegistryPreludeSource } from "../../runtime/finalization-registry-source.js";
 import { intlPreludeSource } from "../../runtime/intl-source.js";
@@ -133,6 +134,7 @@ export function lowerRuntimePrelude(
             ["events", eventsPreludeSource],
             ["asyncHooks", asyncHooksPreludeSource],
             ["eventEmitter", eventEmitterPreludeSource],
+            ["structuredClone", structuredClonePreludeSource],
             ["stream", streamPreludeForTarget(currentNativeTarget())],
             ["process", processPreludeForTarget(currentNativeTarget())],
             ["timers", timersPreludeSource],
