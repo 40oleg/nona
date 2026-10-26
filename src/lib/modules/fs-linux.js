@@ -6,12 +6,16 @@ const sysClose = define("syscall", "3", "i64(i64)");
 const sysStat = define("syscall", "4", "i64(buf,buf)");
 const sysLstat = define("syscall", "6", "i64(buf,buf)");
 const sysReadlink = define("syscall", "89", "i64(buf,buf,i64)");
+const sysSymlink = define("syscall", "88", "i64(buf,buf)");
 const sysFstat = define("syscall", "5", "i64(i64,buf)");
 const sysRename = define("syscall", "82", "i64(buf,buf)");
 const sysMkdir = define("syscall", "83", "i64(buf,i64)");
 const sysRmdir = define("syscall", "84", "i64(buf)");
 const sysUnlink = define("syscall", "87", "i64(buf)");
+const sysTruncate = define("syscall", "76", "i64(buf,i64)");
 const sysGetdents = define("syscall", "217", "i64(i64,buf,i64)");
+const sysChmod = define("syscall", "90", "i64(buf,i64)");
+const sysUtimes = define("syscall", "280", "i64(i64,buf,buf,i64)");
 const O_WRONLY = 1,
     O_CREAT = 0x40,
     O_TRUNC = 0x200,
@@ -27,9 +31,12 @@ const codes = {
     16: "EBUSY",
     17: "EEXIST",
     18: "EXDEV",
+    30: "EROFS",
     20: "ENOTDIR",
     21: "EISDIR",
     22: "EINVAL",
+    26: "ETXTBSY",
+    27: "EFBIG",
     39: "ENOTEMPTY",
 };
 // libuv error numbers (negated native errno); the BSD sources patch the
@@ -62,8 +69,19 @@ function cpath(path) {
 }
 const statBuffer = new Uint8Array(144),
     statView = new DataView(statBuffer.buffer);
+// Byte offsets in struct stat: the x86-64 layout, patched for AArch64.
+// Linux has no birth time without statx, so birthtime is the change time.
+const statLayout = { mode: 24, nlink: 16, uid: 28, gid: 32, rdev: 40 };
+function statMs(offset) {
+    return (
+        (statView.getUint32(offset, true) +
+            statView.getInt32(offset + 4, true) * 4294967296) *
+            1000 +
+        statView.getUint32(offset + 8, true) / 1e6
+    );
+}
 function statResult() {
-    const mode = statView.getUint32(24, true),
+    const mode = statView.getUint32(statLayout.mode, true),
         type = mode & 0o170000;
     const size =
         statView.getUint32(48, true) +
@@ -71,7 +89,21 @@ function statResult() {
     const seconds =
         statView.getUint32(88, true) + statView.getInt32(92, true) * 4294967296;
     const nanos = statView.getUint32(96, true);
+    const ctimeMs = statMs(104);
     return {
+        nlink: statView.getUint32(statLayout.nlink, true),
+        uid: statView.getUint32(statLayout.uid, true),
+        gid: statView.getUint32(statLayout.gid, true),
+        rdev:
+            statView.getUint32(statLayout.rdev, true) +
+            statView.getUint32(statLayout.rdev + 4, true) * 4294967296,
+        blksize: statView.getInt32(56, true),
+        blocks:
+            statView.getUint32(64, true) +
+            statView.getInt32(68, true) * 4294967296,
+        atimeMs: statMs(72),
+        ctimeMs,
+        birthtimeMs: ctimeMs,
         kind:
             type === 0o040000
                 ? "dir"
@@ -161,6 +193,9 @@ const sys = {
             );
         return decoder.decode(data.subarray(0, length));
     },
+    symlink(target, path) {
+        check(sysSymlink(cpath(target), cpath(path)), "symlink", target, path);
+    },
     realpath(path) {
         let parts = path.split("/").filter(Boolean),
             resolved = "/",
@@ -224,8 +259,8 @@ const sys = {
         }
         return names;
     },
-    mkdir(path) {
-        check(sysMkdir(cpath(path), 0o777), "mkdir", path);
+    mkdir(path, mode = 0o777) {
+        check(sysMkdir(cpath(path), mode), "mkdir", path);
     },
     rmdir(path) {
         check(sysRmdir(cpath(path)), "rmdir", path);
@@ -233,8 +268,32 @@ const sys = {
     unlink(path) {
         check(sysUnlink(cpath(path)), "unlink", path);
     },
+    truncate(path, len) {
+        check(sysTruncate(cpath(path), len), "open", path);
+    },
     rename(from, to) {
         check(sysRename(cpath(from), cpath(to)), "rename", from, to);
+    },
+    chmod(path, mode) {
+        check(sysChmod(cpath(path), mode), "chmod", path);
+    },
+    utimes(path, atime, mtime) {
+        // Two timespecs (seconds, nanoseconds); the BSD adapter turns them into timevals.
+        const times = new Uint8Array(32),
+            view = new DataView(times.buffer);
+        [atime, mtime].forEach((value, i) => {
+            let seconds = Math.floor(value),
+                nanos = Math.floor((value - seconds) * 1e9);
+            if (nanos > 999999999) nanos = 999999999;
+            view.setUint32(
+                i * 16,
+                seconds - Math.floor(seconds / 4294967296) * 4294967296,
+                true,
+            );
+            view.setInt32(i * 16 + 4, Math.floor(seconds / 4294967296), true);
+            view.setInt32(i * 16 + 8, nanos, true);
+        });
+        check(sysUtimes(-100, cpath(path), times, 0), "utime", path);
     },
     copy(from, to) {
         const input = check(
