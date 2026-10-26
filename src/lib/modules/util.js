@@ -155,11 +155,11 @@ function addNumericSeparatorEnd(fractionString) {
 function formatNumber(value, options) {
     if (!options || !options.numericSeparator)
         return Object.is(value, -0) ? "-0" : String(value);
+    if (Object.is(value, -0)) return "-0";
     const string = String(value);
-    if (!Number.isFinite(value)) return string;
+    if (!Number.isFinite(value) || string.includes("e")) return string;
     const dot = string.indexOf(".");
-    if (dot < 0)
-        return string.includes("e") ? string : addNumericSeparator(string);
+    if (dot < 0) return addNumericSeparator(string);
     return (
         addNumericSeparator(string.slice(0, dot)) +
         "." +
