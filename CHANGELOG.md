@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Calls of non-callable values throw TypeErrors that say what went wrong.** They all threw `TypeError: Invalid operation`. Calling a value that is not a function now throws `value is not a function`, `new` on a non-constructor (an arrow function, a method, an async function or generator, a non-constructable Proxy) throws `value is not a constructor`, and calling a class without `new` throws `Class constructor A cannot be invoked without 'new'`, named after the class's own `name` data property, in the class's realm. ([#504](https://github.com/40oleg/nona/issues/504))
+
 ## v0.30.0 — 2026-10-26
 
 ### Features

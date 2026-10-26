@@ -446,7 +446,7 @@ export function emitFunctions(b: RuntimeBuilder): void {
             a.store(slot(72), "r10");
             a.load("rax", { base: "rdx" });
             a.cmp("rax", 5);
-            failIf(a, "ne", "rt.throwTypeError");
+            failIf(a, "ne", "rt.throwNotCallable");
             a.load("rax", { base: "rdx", disp: 8 });
             a.load("r10", { base: "rax", disp: O.kind });
             const ready = a.unique("ready"),
@@ -460,7 +460,7 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.load("r10", { base: "rax", disp: O.flags });
                 a.and("r10", ProxyCallable);
                 a.test("r10", "r10");
-                failIf(a, "e", "rt.throwTypeError");
+                failIf(a, "e", "rt.throwNotCallable");
                 a.load("rax", slot(72));
                 a.store(slot(32), "rax");
                 a.load("rcx", slot(40));
@@ -471,10 +471,10 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.jmp(done);
                 a.label(ordinaryCallee);
                 a.cmp("r10", FunctionKind);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotCallable");
             } else {
                 a.cmp("r10", FunctionKind);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotCallable");
             }
             a.load("r10", { base: "rax", disp: FunctionLayout.bound });
             a.test("r10", "r10");
@@ -497,9 +497,12 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.load("r10", { base: "rax", disp: FunctionLayout.realm });
                 a.and("r10", 255);
                 a.shl("r10", 3);
-                a.lea("r11", { rip: realmTable("rt.throwTypeError") });
+                a.lea("r11", {
+                    rip: realmTable("rt.throwClassConstructorCall"),
+                });
                 a.add("r11", "r10");
                 a.load("r11", { base: "r11" });
+                a.load("rcx", slot(48));
                 a.callRegister("r11");
                 a.label(callable);
             }
@@ -670,27 +673,27 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.label(unwrap);
                 a.load("rax", { base: "rdx" });
                 a.cmp("rax", 5);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotConstructor");
                 a.load("rax", { base: "rdx", disp: 8 });
                 a.load("r10", { base: "rax", disp: O.kind });
                 const proxyInstance = a.unique("proxyInstance");
                 a.cmp("r10", ProxyKind);
                 a.jcc("e", proxyInstance);
                 a.cmp("r10", FunctionKind);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotConstructor");
                 a.load("r10", {
                     base: "rax",
                     disp: FunctionLayout.constructable,
                 });
                 a.test("r10", "r10");
-                failIf(a, "e", "rt.throwTypeError");
+                failIf(a, "e", "rt.throwNotConstructor");
                 const validInstance = a.unique("validInstance");
                 a.jmp(validInstance);
                 a.label(proxyInstance);
                 a.load("r10", { base: "rax", disp: O.flags });
                 a.and("r10", ProxyConstructable);
                 a.test("r10", "r10");
-                failIf(a, "e", "rt.throwTypeError");
+                failIf(a, "e", "rt.throwNotConstructor");
                 if (!raw) {
                     a.load("rcx", slot(40));
                     a.lea("r10", { rip: "rt.undefinedValue" });
