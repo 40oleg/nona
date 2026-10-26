@@ -2013,7 +2013,19 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             section: ".data",
                             alignment: 8,
                             bytes: new Uint8Array(NewCacheLayout.size),
-                            fixups: [],
+                            fixups:
+                                op.notConstructorMessage === undefined
+                                    ? []
+                                    : [
+                                          {
+                                              offset: NewCacheLayout.message,
+                                              kind: "va64",
+                                              target: constantValue(
+                                                  op.notConstructorMessage,
+                                              ),
+                                              addend: 0,
+                                          },
+                                      ],
                             symbols: {},
                         });
                         pointer("rcx", op.dest);
@@ -2112,33 +2124,53 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     ) => {
                         // rt.invoke and rt.prepareTailCall take no new.target; a construct
                         // site ends with its new.target entry (SiteNone: the callee).
+                        // Only an invoke site names the message of a callee that is not callable.
                         const construct = !!op.construct && !op.tail;
-                        const operands = [
-                            value(op.callee),
-                            op.receiver === undefined
-                                ? { rip: "rt.undefinedValue" }
-                                : value(op.receiver),
-                            ...op.arguments.map((n) => value(n)),
-                        ];
+                        const message =
+                            op.notCallableMessage !== undefined &&
+                            !op.construct &&
+                            !op.tail
+                                ? op.notCallableMessage
+                                : undefined;
                         const bytes = new Uint8Array(
-                                SD.callee +
-                                    4 * operands.length +
+                                SD.entries +
+                                    4 * op.arguments.length +
                                     (construct ? 4 : 0),
                             ),
                             view = new DataView(bytes.buffer),
                             fixups: NamedFragment["fixups"] = [];
                         view.setUint32(SD.argc, op.arguments.length, true);
                         view.setInt32(SD.area, argsBase - frameBias, true);
-                        operands.forEach((mem, i) =>
+                        writeSiteEntry(
+                            view,
+                            fixups,
+                            SD.callee,
+                            value(op.callee),
+                        );
+                        writeSiteEntry(
+                            view,
+                            fixups,
+                            SD.receiver,
+                            op.receiver === undefined
+                                ? { rip: "rt.undefinedValue" }
+                                : value(op.receiver),
+                        );
+                        if (message === undefined)
+                            view.setInt32(SD.message, SiteNone, true);
+                        else
+                            writeSiteEntry(view, fixups, SD.message, {
+                                rip: constantValue(message),
+                            });
+                        op.arguments.forEach((n, i) =>
                             writeSiteEntry(
                                 view,
                                 fixups,
-                                SD.callee + 4 * i,
-                                mem,
+                                SD.entries + 4 * i,
+                                value(n),
                             ),
                         );
                         if (construct) {
-                            const at = SD.callee + 4 * operands.length;
+                            const at = SD.entries + 4 * op.arguments.length;
                             if (op.newTarget === undefined)
                                 view.setInt32(at, SiteNone, true);
                             else
