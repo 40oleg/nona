@@ -369,6 +369,7 @@
                 "stream-emission-source",
                 "stream-probes-source",
                 "stream-source",
+                "stream-web",
                 "strict",
                 "strict-writes",
                 "strings",
