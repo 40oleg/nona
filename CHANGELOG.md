@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`util.inspect` honors `getters` and `numericSeparator`.** Both options were accepted but ignored. `getters: true | "get" | "set"` now evaluates accessors like Node.js (`[Getter: 1]`, `[Getter/Setter: 2]`, `[Getter: <Inspection threw (message)>]`), and `numericSeparator: true` groups the digits of numbers and bigints (`1_234_567.891`, `123_456_789n`). ([#496](https://github.com/40oleg/nona/issues/496))
+- **The fatal runtime error message ends with `\n`.** `Nona runtime error` was written with `\r\n` on every target, leaving a stray carriage return on Linux, macOS and BSD. ([#495](https://github.com/40oleg/nona/issues/495))
 - `Date.parse` accepts ISO-like strings with a space instead of `T`, fractions longer than milliseconds (truncated) and `±hhmm` offsets without a colon ([#493](https://github.com/40oleg/nona/issues/493)).
 
 ## v0.30.0 — 2026-10-26
