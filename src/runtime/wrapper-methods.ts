@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./errors.js";
 import { rootedFn } from "./root-scope.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { ObjectLayout as O } from "./object-layout.js";
@@ -139,12 +140,33 @@ export function emitWrapperMethods(b: RuntimeBuilder): void {
             a.mov("rax", 2);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "p", "rt.throwRangeError");
-            failIf(a, "b", "rt.throwRangeError");
+            failIf(
+                a,
+                "p",
+                rangeErrorThrower(
+                    b,
+                    "toString() radix argument must be between 2 and 36",
+                ),
+            );
+            failIf(
+                a,
+                "b",
+                rangeErrorThrower(
+                    b,
+                    "toString() radix argument must be between 2 and 36",
+                ),
+            );
             a.mov("rax", 37);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "ae", "rt.throwRangeError");
+            failIf(
+                a,
+                "ae",
+                rangeErrorThrower(
+                    b,
+                    "toString() radix argument must be between 2 and 36",
+                ),
+            );
             a.cvttsd2si("rax", "xmm0");
             a.store(slot(96), "rax");
             a.label(format);
@@ -229,11 +251,25 @@ export function emitWrapperMethods(b: RuntimeBuilder): void {
             a.mov("rax", -1);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "be", "rt.throwRangeError");
+            failIf(
+                a,
+                "be",
+                rangeErrorThrower(
+                    b,
+                    "toFixed() digits argument must be between 0 and 100",
+                ),
+            );
             a.mov("rax", 101);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "ae", "rt.throwRangeError");
+            failIf(
+                a,
+                "ae",
+                rangeErrorThrower(
+                    b,
+                    "toFixed() digits argument must be between 0 and 100",
+                ),
+            );
             a.cvttsd2si("rax", "xmm0");
             a.store(slot(96), "rax");
             a.jmp(ready);
@@ -296,18 +332,38 @@ export function emitWrapperMethods(b: RuntimeBuilder): void {
                 failIf(
                     a,
                     name === "toPrecision" ? "b" : "be",
-                    "rt.throwRangeError",
+                    rangeErrorThrower(
+                        b,
+                        name === "toPrecision"
+                            ? "toPrecision() argument must be between 1 and 100"
+                            : "toExponential() argument must be between 0 and 100",
+                    ),
                 );
                 a.mov("rax", 101);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "ae", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "ae",
+                    rangeErrorThrower(
+                        b,
+                        name === "toPrecision"
+                            ? "toPrecision() argument must be between 1 and 100"
+                            : "toExponential() argument must be between 0 and 100",
+                    ),
+                );
                 a.cvttsd2si("rax", "xmm0");
                 a.add("rax", name === "toExponential" ? 1 : 0);
                 a.store(slot(96), "rax");
                 a.jmp(ready);
                 a.label(zero);
-                if (name === "toPrecision") a.call("rt.throwRangeError");
+                if (name === "toPrecision")
+                    a.call(
+                        rangeErrorThrower(
+                            b,
+                            "toPrecision() argument must be between 1 and 100",
+                        ),
+                    );
                 a.mov("rax", 1);
                 a.store(slot(96), "rax");
                 a.jmp(ready);
