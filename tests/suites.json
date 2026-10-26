@@ -122,6 +122,7 @@
                 "typedarray-sort-large",
                 "float16",
                 "string-builtins",
+                "text-encoder-encode-into",
                 "string-index-inline",
                 "intl",
                 "simd",
