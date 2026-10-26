@@ -6,6 +6,10 @@
 
 - **`performance` has `timeOrigin`, `mark` and `measure`.** `performance.timeOrigin`, `mark`, `measure` (names and options forms), `getEntries`, `getEntriesByName`, `getEntriesByType`, `clearMarks`, `clearMeasures` and `toJSON` are available, and `PerformanceEntry`, `PerformanceMark` and `PerformanceMeasure` are globals and exports of `node:perf_hooks`. ([#492](https://github.com/40oleg/nona/issues/492))
 
+### Fixes
+
+- `Date.parse` accepts ISO-like strings with a space instead of `T`, fractions longer than milliseconds (truncated) and `±hhmm` offsets without a colon ([#493](https://github.com/40oleg/nona/issues/493)).
+
 ## v0.30.0 — 2026-10-26
 
 ### Features
