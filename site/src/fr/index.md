@@ -78,7 +78,7 @@ L’exécutable contient le code machine du programme et le runtime de Nona. Il 
 
 ## État du projet
 
-La version actuelle est **v0.28.0** ; Nona est expérimental. Il ne remplace pas Node.js tel quel et n’a fait l’objet d’aucun audit de sécurité.
+La version actuelle est **v0.30.0** ; Nona est expérimental. Il ne remplace pas Node.js tel quel et n’a fait l’objet d’aucun audit de sécurité.
 
 - **Conformité.** Lors du dernier audit complet (v0.8.0), la suite Test262 figée a réussi 22436/22492 tests language, 15868/15933 tests built-ins, 268/268 tests Atomics et 996/1016 tests Annex B sous Windows x64. Chaque échec restant est classé sur la [page d’état](/fr/guide/status).
 - **Vitesse.** Le démarrage, la taille de l’exécutable et la mémoire sont les points forts de Nona. Le calcul à l’intérieur d’un programme n’a pas de JIT : d’un niveau comparable à V8 sur de simples boucles, il est de plusieurs fois à plusieurs dizaines de fois plus lent sur les appels, l’allocation et les programmes réels de longue durée. [Performances](/fr/guide/performance) donne les mesures et les points lents connus.

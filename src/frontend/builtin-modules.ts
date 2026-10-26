@@ -10,6 +10,7 @@ import {
     streamModuleSource,
     streamPromisesModuleSource,
     streamConsumersModuleSource,
+    streamWebModuleSource,
 } from "./stream-module.js";
 import { stringDecoderModuleSource } from "./string-decoder-module.js";
 import { nativeModuleSource } from "./native-module.js";
@@ -20,6 +21,7 @@ import { httpModuleSource } from "./http-module.js";
 import { pathCoreSourceForTarget, pathModuleSource } from "./path-module.js";
 import { networkStreamModuleSource } from "./network-stream-module.js";
 import { commonJsModuleSource } from "./commonjs-module.js";
+import { entropySource } from "../selfhost-adapters.js";
 import { httpsModuleSource } from "./https-module.js";
 import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
 import { tlsModuleSource } from "./tls-module.js";
@@ -137,6 +139,10 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:events", eventsModuleForTarget],
     ["node:path", () => pathModuleSource],
     ["nona:internal/path-core", pathCoreSourceForTarget],
+    [
+        "nona:internal/entropy",
+        (target) => entropySource(target) + "export { randomBytes };",
+    ],
     ...["posix", "win32"].map(
         (flavor) =>
             [
@@ -156,6 +162,9 @@ const sources = new Map<string, (target: Target) => string>([
     ...["node:stream/consumers", "nona:stream/consumers"].map(
         (name) =>
             [name, () => streamConsumersModuleSource] as [string, () => string],
+    ),
+    ...["node:stream/web", "nona:stream/web"].map(
+        (name) => [name, () => streamWebModuleSource] as [string, () => string],
     ),
     ["node:process", () => processModuleSource],
     ["node:string_decoder", () => stringDecoderModuleSource],

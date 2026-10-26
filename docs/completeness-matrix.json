@@ -479,6 +479,18 @@
             "note": "Alias availability is target-dependent; read capability rows. Importable stubs do not establish working services."
         },
         {
+            "id": "module.stream.web",
+            "specifier": "node:stream/web",
+            "aliases": ["stream/web", "nona:stream/web"],
+            "visibility": "public",
+            "capabilities": ["api.stream.helpers"],
+            "evidence": [
+                "src/frontend/builtin-modules.ts",
+                "src/frontend/node-compat-modules.ts"
+            ],
+            "note": "Alias availability is target-dependent; read capability rows. Importable stubs do not establish working services."
+        },
+        {
             "id": "module.string-decoder",
             "specifier": "node:string_decoder",
             "aliases": ["string_decoder", "nona:string_decoder"],
@@ -851,6 +863,15 @@
         {
             "id": "module.internal.path-core",
             "specifier": "nona:internal/path-core",
+            "aliases": [],
+            "visibility": "internal",
+            "capabilities": ["api.internal-modules"],
+            "evidence": ["src/frontend/builtin-modules.ts"],
+            "note": "Implementation bridge excluded from public builtin inventory; not a supported application API."
+        },
+        {
+            "id": "module.internal.entropy",
+            "specifier": "nona:internal/entropy",
             "aliases": [],
             "visibility": "internal",
             "capabilities": ["api.internal-modules"],
