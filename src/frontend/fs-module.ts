@@ -1,6 +1,7 @@
 import type { Target } from "../target.js";
 import { CompileError } from "../diagnostics.js";
 import { patchSource } from "../source-patch.js";
+import { fsConstants } from "./fs-constants.js";
 import {
     modulesFsCommon,
     modulesFsWin32,
@@ -225,7 +226,7 @@ function platformName(target: Target): string {
 
 export function fsModuleSource(target: Target): string {
     return (
-        `const fsPlatform = ${JSON.stringify(platformName(target))};` +
+        `const fsConstants = ${JSON.stringify(fsConstants(platformName(target)))};\n` +
         fsPlatformSource(target)
     );
 }
