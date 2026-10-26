@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`performance` has `timeOrigin`, `mark` and `measure`.** `performance.timeOrigin`, `mark`, `measure` (names and options forms), `getEntries`, `getEntriesByName`, `getEntriesByType`, `clearMarks`, `clearMeasures` and `toJSON` are available, and `PerformanceEntry`, `PerformanceMark` and `PerformanceMeasure` are globals and exports of `node:perf_hooks`. ([#492](https://github.com/40oleg/nona/issues/492))
+
 ### Fixes
 
 - **The fatal runtime error message ends with `\n`.** `Nona runtime error` was written with `\r\n` on every target, leaving a stray carriage return on Linux, macOS and BSD. ([#495](https://github.com/40oleg/nona/issues/495))
