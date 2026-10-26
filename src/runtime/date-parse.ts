@@ -2,7 +2,7 @@ import { RuntimeBuilder, slot } from "./abi.js";
 import { rootedFn } from "./root-scope.js";
 
 // ES date-time string format subset with UTC as the host local-time policy.
-// The legacy implementation-defined input forms are handled separately.
+// Other strings fall back to the legacy implementation-defined forms.
 export function emitDateParse(b: RuntimeBuilder): void {
     b.fn("rt.parseIsoDate", 312, (a) => {
         a.store(slot(40), "rcx");
@@ -17,18 +17,6 @@ export function emitDateParse(b: RuntimeBuilder): void {
         a.load("rax", slot(64));
         a.test("rax", "rax");
         a.jcc("e", invalid);
-        a.load("r10", slot(48));
-        a.load("rax", { base: "r10", disp: 8 }, 16);
-        const iso = a.unique("iso");
-        a.cmp("rax", 65);
-        a.jcc("b", iso);
-        a.cmp("rax", 90);
-        a.jcc("a", iso);
-        a.load("rcx", slot(40));
-        a.load("rdx", slot(48));
-        a.call("rt.parseDateString");
-        a.jmp("rt.parseIsoDate.done");
-        a.label(iso);
         const peek = () => {
             a.load("r10", slot(56));
             a.load("r11", slot(64));
@@ -290,214 +278,550 @@ export function emitDateParse(b: RuntimeBuilder): void {
         a.cvtsi2sd("xmm0", "rax");
         a.storesd({ base: "rcx", disp: 8 }, "xmm0");
         a.jmp("rt.parseIsoDate.done");
+        // Strings outside the ISO format go to the legacy parser.
         a.label(invalid);
         a.load("rcx", slot(40));
-        a.mov("rax", 3);
-        a.store({ base: "rcx" }, "rax");
-        a.mov("rax", 0x7ff8000000000000n);
-        a.store({ base: "rcx", disp: 8 }, "rax");
+        a.load("rdx", slot(48));
+        a.call("rt.parseDateString");
         a.label("rt.parseIsoDate.done");
     });
-    b.fn("rt.parseDateString", 312, (a) => {
+    // Legacy implementation-defined forms, read token by token as V8 does:
+    // month and weekday names (any case, 3-letter prefix), bare day and year
+    // numbers in any order, slash dates, H:MM[:SS[.fff]] with AM/PM,
+    // GMT/UTC/UT/Z and signed offsets, and parenthesized comments.
+    b.fn("rt.parseDateString", 376, (a) => {
+        // 40 output, 48 string, 56 length, 64 position, 72 zone name read,
+        // 80..128 year month day hour minute second ms (month -1, day 0 and
+        // hour -1 when missing), 136 offset sign, 144/152 offset hh/mm,
+        // 160 year read, 168/176 number and its digit count, 184 scratch,
+        // 312 word length, 320 AM/PM, 328/336 second number and digit count.
         a.store(slot(40), "rcx");
         a.store(slot(48), "rdx");
         a.load("rax", { base: "rdx" });
         a.store(slot(56), "rax");
-        a.mov("rax", 3);
-        a.store(slot(64), "rax");
-        for (const offset of [128, 136, 144, 152, 160, 176, 184]) {
+        for (const offset of [
+            64, 72, 80, 96, 112, 120, 128, 136, 144, 152, 160, 320,
+        ]) {
             a.mov("rax", 0);
             a.store(slot(offset), "rax");
         }
+        a.mov("rax", -1);
+        a.store(slot(88), "rax");
+        a.store(slot(104), "rax");
         const invalid = a.unique("invalid"),
-            finish = a.unique("finish");
-        const peek = () => {
+            loop = a.unique("loop"),
+            end = a.unique("end");
+        // r11 = code unit at the position; jumps to atEnd past the end.
+        const peek = (atEnd: string) => {
             a.load("r10", slot(64));
             a.load("r11", slot(56));
             a.cmp("r10", "r11");
-            a.jcc("ae", invalid);
+            a.jcc("ae", atEnd);
             a.shl("r10", 1);
             a.load("r11", slot(48));
             a.add("r11", "r10");
             a.load("r11", { base: "r11", disp: 8 }, 16);
         };
-        const consume = (code: number) => {
-            peek();
-            a.cmp("r11", code);
-            a.jcc("ne", invalid);
+        const advance = () => {
             a.load("r10", slot(64));
             a.add("r10", 1);
             a.store(slot(64), "r10");
         };
-        const digits = (count: number, offset: number) => {
-            a.mov("rax", 0);
-            for (let i = 0; i < count; i++) {
-                peek();
-                a.cmp("r11", 48);
-                a.jcc("b", invalid);
-                a.cmp("r11", 57);
-                a.jcc("a", invalid);
-                a.mov("r10", 10);
-                a.imul("rax", "r10");
-                a.sub("r11", 48);
-                a.add("rax", "r11");
-                a.load("r10", slot(64));
-                a.add("r10", 1);
-                a.store(slot(64), "r10");
-            }
+        const store = (offset: number, value: number) => {
+            a.mov("rax", value);
             a.store(slot(offset), "rax");
         };
-        const month = () => {
-            a.mov("rax", 0);
-            for (let i = 0; i < 3; i++) {
-                peek();
-                a.shl("r11", i * 16);
-                a.or("rax", "r11");
-                a.load("r10", slot(64));
-                a.add("r10", 1);
-                a.store(slot(64), "r10");
-            }
-            a.store(slot(184), "rax");
-            a.lea("r10", { rip: "rt.date.months" });
-            a.mov("r8", 0);
-            const loop = a.unique("monthLoop"),
-                found = a.unique("monthFound");
-            a.label(loop);
-            a.cmp("r8", 12);
-            a.jcc("ae", invalid);
-            a.load("r11", { base: "r10" });
-            a.load("rax", slot(184));
-            a.cmp("rax", "r11");
-            a.jcc("e", found);
-            a.add("r10", 8);
-            a.add("r8", 1);
-            a.jmp(loop);
-            a.label(found);
-            a.store(slot(88), "r8");
+        // Reads a run of up to nine digits into the value and count slots.
+        const number = (value: number, count: number) => {
+            const digit = a.unique("digit"),
+                done = a.unique("numberDone");
+            store(value, 0);
+            store(count, 0);
+            a.label(digit);
+            peek(done);
+            a.cmp("r11", 48);
+            a.jcc("b", done);
+            a.cmp("r11", 57);
+            a.jcc("a", done);
+            a.load("rax", slot(count));
+            a.add("rax", 1);
+            a.cmp("rax", 9);
+            a.jcc("a", invalid);
+            a.store(slot(count), "rax");
+            a.load("rax", slot(value));
+            a.mov("r10", 10);
+            a.imul("rax", "r10");
+            a.sub("r11", 48);
+            a.add("rax", "r11");
+            a.store(slot(value), "rax");
+            advance();
+            a.jmp(digit);
+            a.label(done);
         };
-        peek();
-        const utc = a.unique("utc"),
-            afterDayMonth = a.unique("afterDayMonth");
-        a.cmp("r11", 44);
-        a.jcc("e", utc);
-        consume(32);
-        month();
-        consume(32);
-        digits(2, 96);
-        a.jmp(afterDayMonth);
-        a.label(utc);
-        consume(44);
-        consume(32);
-        digits(2, 96);
-        consume(32);
-        month();
-        a.label(afterDayMonth);
-        a.load("rax", slot(96));
-        a.cmp("rax", 1);
-        a.jcc("b", invalid);
-        a.cmp("rax", 31);
-        a.jcc("a", invalid);
-        consume(32);
-        // Year has at least four digits, with an optional negative sign.
-        peek();
-        const yearUnsigned = a.unique("yearUnsigned");
+        const requireDigits = (count: number) => {
+            a.load("rax", slot(count));
+            a.test("rax", "rax");
+            a.jcc("e", invalid);
+        };
+        const range = (offset: number, low: number, high: number) => {
+            a.load("rax", slot(offset));
+            a.cmp("rax", low);
+            a.jcc("l", invalid);
+            a.cmp("rax", high);
+            a.jcc("g", invalid);
+        };
+        // Stores the year; 1-2 digit years mean 2000-2049 and 1950-1999.
+        const year = (value: number, count: number) => {
+            const ready = a.unique("yearReady");
+            a.load("rax", slot(160));
+            a.test("rax", "rax");
+            a.jcc("ne", invalid);
+            store(160, 1);
+            a.load("rax", slot(value));
+            a.load("r10", slot(count));
+            a.cmp("r10", 2);
+            a.jcc("a", ready);
+            a.add("rax", 1900);
+            a.cmp("rax", 1950);
+            a.jcc("ge", ready);
+            a.add("rax", 100);
+            a.label(ready);
+            a.store(slot(80), "rax");
+        };
+        const notZone = () => store(72, 0);
+        a.label(loop);
+        peek(end);
+        const digitToken = a.unique("digitToken"),
+            signToken = a.unique("signToken"),
+            wordToken = a.unique("wordToken"),
+            comment = a.unique("comment"),
+            skip = a.unique("skip");
+        for (const code of [32, 9, 44]) {
+            a.cmp("r11", code);
+            a.jcc("e", skip);
+        }
+        a.cmp("r11", 40);
+        a.jcc("e", comment);
+        a.cmp("r11", 43);
+        a.jcc("e", signToken);
         a.cmp("r11", 45);
-        a.jcc("ne", yearUnsigned);
-        a.mov("rax", 1);
-        a.store(slot(160), "rax");
-        consume(45);
-        a.label(yearUnsigned);
-        a.mov("rax", 0);
-        a.store(slot(80), "rax");
-        const yearLoop = a.unique("yearLoop"),
-            yearDone = a.unique("yearDone");
-        a.label(yearLoop);
-        peek();
-        a.cmp("r11", 32);
-        a.jcc("e", yearDone);
+        a.jcc("e", signToken);
         a.cmp("r11", 48);
         a.jcc("b", invalid);
         a.cmp("r11", 57);
-        a.jcc("a", invalid);
-        a.load("rax", slot(176));
-        a.add("rax", 1);
-        a.cmp("rax", 6);
-        a.jcc("a", invalid);
-        a.store(slot(176), "rax");
-        a.load("rax", slot(80));
-        a.mov("r10", 10);
-        a.imul("rax", "r10");
-        a.sub("r11", 48);
-        a.add("rax", "r11");
-        a.store(slot(80), "rax");
-        a.load("r10", slot(64));
-        a.add("r10", 1);
-        a.store(slot(64), "r10");
-        a.jmp(yearLoop);
-        a.label(yearDone);
-        a.load("rax", slot(176));
-        a.cmp("rax", 4);
+        a.jcc("be", digitToken);
+        a.or("r11", 32);
+        a.cmp("r11", 97);
         a.jcc("b", invalid);
+        a.cmp("r11", 122);
+        a.jcc("be", wordToken);
+        a.jmp(invalid);
+        a.label(skip);
+        advance();
+        a.jmp(loop);
+
+        // A comment runs to the matching ')'.
+        a.label(comment);
+        notZone();
+        store(184, 0);
+        const commentLoop = a.unique("commentLoop"),
+            commentClose = a.unique("commentClose");
+        a.label(commentLoop);
+        peek(end);
+        advance();
+        a.cmp("r11", 40);
+        a.jcc("ne", commentClose);
+        a.load("rax", slot(184));
+        a.add("rax", 1);
+        a.store(slot(184), "rax");
+        a.jmp(commentLoop);
+        a.label(commentClose);
+        a.cmp("r11", 41);
+        a.jcc("ne", commentLoop);
+        a.load("rax", slot(184));
+        a.sub("rax", 1);
+        a.store(slot(184), "rax");
+        a.test("rax", "rax");
+        a.jcc("e", loop);
+        a.jmp(commentLoop);
+
+        // Numbers: a time, a slash date, a day or a year.
+        a.label(digitToken);
+        notZone();
+        number(168, 176);
+        const time = a.unique("time"),
+            slash = a.unique("slash"),
+            bare = a.unique("bare"),
+            isYear = a.unique("isYear");
+        peek(bare);
+        a.cmp("r11", 58);
+        a.jcc("e", time);
+        a.cmp("r11", 47);
+        a.jcc("e", slash);
+        a.label(bare);
+        a.load("rax", slot(96));
+        a.test("rax", "rax");
+        a.jcc("ne", isYear);
+        a.load("rax", slot(168));
+        a.cmp("rax", 31);
+        a.jcc("a", isYear);
+        a.test("rax", "rax");
+        a.jcc("e", invalid);
+        a.store(slot(96), "rax");
+        a.jmp(loop);
+        a.label(isYear);
+        year(168, 176);
+        a.jmp(loop);
+
+        a.label(time);
+        a.load("rax", slot(104));
+        a.cmp("rax", -1);
+        a.jcc("ne", invalid);
+        a.load("rax", slot(168));
+        a.store(slot(104), "rax");
+        advance();
+        number(328, 336);
+        requireDigits(336);
+        a.load("rax", slot(328));
+        a.store(slot(112), "rax");
+        const timeDone = a.unique("timeDone");
+        peek(timeDone);
+        a.cmp("r11", 58);
+        a.jcc("ne", timeDone);
+        advance();
+        number(328, 336);
+        requireDigits(336);
+        a.load("rax", slot(328));
+        a.store(slot(120), "rax");
+        peek(timeDone);
+        a.cmp("r11", 46);
+        a.jcc("ne", timeDone);
+        advance();
+        // Fractional seconds: the first three digits are milliseconds.
+        store(336, 0);
+        const fraction = a.unique("fraction"),
+            fractionDone = a.unique("fractionDone");
+        a.label(fraction);
+        peek(fractionDone);
+        a.cmp("r11", 48);
+        a.jcc("b", fractionDone);
+        a.cmp("r11", 57);
+        a.jcc("a", fractionDone);
+        advance();
+        a.sub("r11", 48);
+        a.load("rax", slot(336));
+        a.add("rax", 1);
+        a.store(slot(336), "rax");
+        for (const [place, scale] of [
+            [1, 100],
+            [2, 10],
+            [3, 1],
+        ] as const) {
+            const other = a.unique("place");
+            a.cmp("rax", place);
+            a.jcc("ne", other);
+            a.mov("r10", scale);
+            a.imul("r11", "r10");
+            a.load("r10", slot(128));
+            a.add("r10", "r11");
+            a.store(slot(128), "r10");
+            a.label(other);
+        }
+        a.jmp(fraction);
+        a.label(fractionDone);
+        requireDigits(336);
+        a.label(timeDone);
+        range(112, 0, 59);
+        range(120, 0, 59);
+        a.jmp(loop);
+
+        // YYYY/MM/DD when the first number has three or more digits,
+        // MM/DD/YYYY otherwise.
+        a.label(slash);
+        for (const offset of [96, 160]) {
+            a.load("rax", slot(offset));
+            a.test("rax", "rax");
+            a.jcc("ne", invalid);
+        }
+        a.load("rax", slot(88));
+        a.cmp("rax", -1);
+        a.jcc("ne", invalid);
+        advance();
+        number(328, 336);
+        requireDigits(336);
+        a.load("rax", slot(328));
+        a.store(slot(184), "rax");
+        peek(invalid);
+        a.cmp("r11", 47);
+        a.jcc("ne", invalid);
+        advance();
+        number(328, 336);
+        requireDigits(336);
+        const monthFirst = a.unique("monthFirst"),
+            slashDone = a.unique("slashDone");
+        a.load("rax", slot(176));
+        a.cmp("rax", 3);
+        a.jcc("b", monthFirst);
+        a.load("rax", slot(168));
+        a.store(slot(80), "rax");
+        store(160, 1);
+        a.load("rax", slot(184));
+        a.store(slot(88), "rax");
+        a.load("rax", slot(328));
+        a.store(slot(96), "rax");
+        a.jmp(slashDone);
+        a.label(monthFirst);
+        a.load("rax", slot(168));
+        a.store(slot(88), "rax");
+        a.load("rax", slot(184));
+        a.store(slot(96), "rax");
+        year(328, 336);
+        a.label(slashDone);
+        range(88, 1, 12);
+        a.load("rax", slot(88));
+        a.sub("rax", 1);
+        a.store(slot(88), "rax");
+        range(96, 1, 31);
+        a.jmp(loop);
+
+        // '+' or '-' starts a zone offset after a zone name or a time;
+        // otherwise '-' starts a negative year.
+        a.label(signToken);
+        const offset = a.unique("offset"),
+            negativeYear = a.unique("negativeYear"),
+            signReady = a.unique("signReady");
+        a.mov("rax", 1);
+        a.cmp("r11", 43);
+        a.jcc("e", signReady);
+        a.mov("rax", -1);
+        a.label(signReady);
+        a.store(slot(184), "rax");
+        advance();
+        a.load("rax", slot(72));
+        a.test("rax", "rax");
+        a.jcc("ne", offset);
+        a.load("rax", slot(104));
+        a.cmp("rax", -1);
+        a.jcc("e", negativeYear);
+        a.load("rax", slot(136));
+        a.test("rax", "rax");
+        a.jcc("e", offset);
+        a.label(negativeYear);
+        a.load("rax", slot(184));
+        a.cmp("rax", -1);
+        a.jcc("ne", invalid);
+        number(168, 176);
+        requireDigits(176);
         a.load("rax", slot(160));
         a.test("rax", "rax");
-        const yearReady = a.unique("yearReady");
-        a.jcc("e", yearReady);
-        a.load("rax", slot(80));
+        a.jcc("ne", invalid);
+        store(160, 1);
+        a.load("rax", slot(168));
         a.neg("rax");
         a.store(slot(80), "rax");
-        a.label(yearReady);
-        consume(32);
-        digits(2, 104);
-        consume(58);
-        digits(2, 112);
-        consume(58);
-        digits(2, 120);
-        consume(32);
-        consume(71);
-        consume(77);
-        consume(84);
-        for (const [offset, limit] of [
-            [104, 23],
-            [112, 59],
-            [120, 59],
+        a.jmp(loop);
+        a.label(offset);
+        notZone();
+        a.load("rax", slot(136));
+        a.test("rax", "rax");
+        a.jcc("ne", invalid);
+        a.load("rax", slot(184));
+        a.store(slot(136), "rax");
+        number(168, 176);
+        requireDigits(176);
+        const packedOffset = a.unique("packedOffset"),
+            offsetDone = a.unique("offsetDone");
+        a.load("rax", slot(176));
+        a.cmp("rax", 2);
+        a.jcc("a", packedOffset);
+        // h, hh or hh:mm
+        a.load("rax", slot(168));
+        a.store(slot(144), "rax");
+        peek(offsetDone);
+        a.cmp("r11", 58);
+        a.jcc("ne", offsetDone);
+        advance();
+        number(328, 336);
+        a.load("rax", slot(336));
+        a.cmp("rax", 2);
+        a.jcc("ne", invalid);
+        a.load("rax", slot(328));
+        a.store(slot(152), "rax");
+        a.jmp(offsetDone);
+        // hmm or hhmm
+        a.label(packedOffset);
+        a.cmp("rax", 4);
+        a.jcc("a", invalid);
+        a.load("rax", slot(168));
+        a.mov("rdx", 0);
+        a.mov("r10", 100);
+        a.div("r10");
+        a.store(slot(144), "rax");
+        a.store(slot(152), "rdx");
+        a.label(offsetDone);
+        range(144, 0, 23);
+        range(152, 0, 59);
+        a.jmp(loop);
+
+        // Words: month and weekday names, zone names and AM/PM. The first
+        // three letters are folded to lower case and packed like the name
+        // tables.
+        a.label(wordToken);
+        notZone();
+        store(184, 0);
+        store(312, 0);
+        const letter = a.unique("letter"),
+            counted = a.unique("counted"),
+            wordDone = a.unique("wordDone");
+        a.label(letter);
+        peek(wordDone);
+        a.or("r11", 32);
+        a.cmp("r11", 97);
+        a.jcc("b", wordDone);
+        a.cmp("r11", 122);
+        a.jcc("a", wordDone);
+        advance();
+        a.load("rcx", slot(312));
+        a.cmp("rcx", 3);
+        a.jcc("ae", counted);
+        a.shl("rcx", 4);
+        a.shl("r11", "cl");
+        a.load("rax", slot(184));
+        a.or("rax", "r11");
+        a.store(slot(184), "rax");
+        a.load("rcx", slot(312));
+        a.label(counted);
+        a.add("rcx", 1);
+        a.store(slot(312), "rcx");
+        a.jmp(letter);
+        a.label(wordDone);
+        const pack = (word: string) =>
+            word.charCodeAt(0) +
+            (word.length > 1 ? word.charCodeAt(1) * 0x10000 : 0) +
+            (word.length > 2 ? word.charCodeAt(2) * 0x100000000 : 0);
+        const shortWord = a.unique("shortWord"),
+            zone = a.unique("zone"),
+            month = a.unique("month");
+        a.load("rax", slot(312));
+        a.cmp("rax", 3);
+        a.jcc("b", shortWord);
+        // Any word that starts with a month or weekday name; the table
+        // names are capitalized, so fold them to lower case too.
+        a.mov("r9", pack("   "));
+        for (const [table, count, matched] of [
+            ["rt.date.months", 12, month],
+            ["rt.date.weekdays", 7, loop],
         ] as const) {
-            a.load("rax", slot(offset));
-            a.cmp("rax", limit);
-            a.jcc("a", invalid);
+            const next = a.unique("nameLoop"),
+                none = a.unique("noName");
+            a.lea("r10", { rip: table });
+            a.mov("r8", 0);
+            a.label(next);
+            a.cmp("r8", count);
+            a.jcc("ae", none);
+            a.load("r11", { base: "r10" });
+            a.or("r11", "r9");
+            a.load("rax", slot(184));
+            a.cmp("rax", "r11");
+            a.jcc("e", matched);
+            a.add("r10", 8);
+            a.add("r8", 1);
+            a.jmp(next);
+            a.label(none);
         }
-        a.load("r10", slot(64));
-        a.load("r11", slot(56));
-        a.cmp("r10", "r11");
-        a.jcc("e", finish);
-        peek();
-        const negative = a.unique("negative"),
-            zoneDigits = a.unique("zoneDigits");
-        a.cmp("r11", 45);
-        a.jcc("e", negative);
-        a.cmp("r11", 43);
+        a.load("rax", slot(312));
+        a.cmp("rax", 3);
         a.jcc("ne", invalid);
-        a.mov("rax", 1);
-        a.store(slot(136), "rax");
-        consume(43);
-        a.jmp(zoneDigits);
-        a.label(negative);
-        a.mov("rax", -1);
-        a.store(slot(136), "rax");
-        consume(45);
-        a.label(zoneDigits);
-        digits(2, 144);
-        digits(2, 152);
-        a.load("rax", slot(144));
-        a.cmp("rax", 23);
-        a.jcc("a", invalid);
-        a.load("rax", slot(152));
-        a.cmp("rax", 59);
-        a.jcc("a", invalid);
-        a.label(finish);
-        a.load("r10", slot(64));
-        a.load("r11", slot(56));
-        a.cmp("r10", "r11");
+        a.load("rax", slot(184));
+        for (const name of ["gmt", "utc"]) {
+            a.mov("r10", pack(name));
+            a.cmp("rax", "r10");
+            a.jcc("e", zone);
+        }
+        a.jmp(invalid);
+        a.label(month);
+        a.load("rax", slot(88));
+        a.cmp("rax", -1);
         a.jcc("ne", invalid);
+        a.store(slot(88), "r8");
+        a.jmp(loop);
+        a.label(shortWord);
+        a.load("rax", slot(184));
+        for (const [name, meridiem] of [
+            ["ut", 0],
+            ["z", 0],
+            ["am", 1],
+            ["pm", 2],
+        ] as const) {
+            const other = a.unique("word");
+            a.mov("r10", pack(name));
+            a.cmp("rax", "r10");
+            a.jcc("ne", other);
+            if (meridiem === 0) a.jmp(zone);
+            else {
+                a.load("rax", slot(320));
+                a.test("rax", "rax");
+                a.jcc("ne", invalid);
+                store(320, meridiem);
+                a.jmp(loop);
+            }
+            a.label(other);
+        }
+        a.jmp(invalid);
+        a.label(zone);
+        store(72, 1);
+        a.jmp(loop);
+
+        // The year, month and day are required; the time defaults to 0.
+        a.label(end);
+        a.load("rax", slot(160));
+        a.test("rax", "rax");
+        a.jcc("e", invalid);
+        a.load("rax", slot(88));
+        a.cmp("rax", -1);
+        a.jcc("e", invalid);
+        a.load("rax", slot(96));
+        a.test("rax", "rax");
+        a.jcc("e", invalid);
+        const hasTime = a.unique("hasTime"),
+            clock24 = a.unique("clock24"),
+            notTwelve = a.unique("notTwelve"),
+            morning = a.unique("morning"),
+            hourReady = a.unique("hourReady");
+        a.load("rax", slot(104));
+        a.cmp("rax", -1);
+        a.jcc("ne", hasTime);
+        a.load("rax", slot(320));
+        a.test("rax", "rax");
+        a.jcc("ne", invalid);
+        store(104, 0);
+        a.jmp(hourReady);
+        a.label(hasTime);
+        a.load("r10", slot(320));
+        a.test("r10", "r10");
+        a.jcc("e", clock24);
+        // 12-hour clock: 12 AM is 0, 12 PM is 12.
+        range(104, 0, 12);
+        a.cmp("rax", 12);
+        a.jcc("ne", notTwelve);
+        a.mov("rax", 0);
+        a.label(notTwelve);
+        a.cmp("r10", 2);
+        a.jcc("ne", morning);
+        a.add("rax", 12);
+        a.label(morning);
+        a.store(slot(104), "rax");
+        a.jmp(hourReady);
+        a.label(clock24);
+        range(104, 0, 24);
+        a.cmp("rax", 24);
+        a.jcc("ne", hourReady);
+        for (const offset of [112, 120, 128]) {
+            a.load("rax", slot(offset));
+            a.test("rax", "rax");
+            a.jcc("ne", invalid);
+        }
+        a.label(hourReady);
         for (let i = 0; i < 7; i++) {
             a.load("rax", slot(80 + 8 * i));
             a.cvtsi2sd("xmm0", "rax");
