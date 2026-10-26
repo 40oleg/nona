@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- **`fs.constants` has the open flags, file type bits and permission bits.** It had only `COPYFILE_EXCL` and the access modes; it now carries Node.js's full set (`S_IF*`, `S_I[RWX]{USR,GRP,OTH}`, `O_*`, `UV_*` and `COPYFILE_*`) with per-platform values for Linux, macOS, FreeBSD, OpenBSD and Windows (the smaller Windows set). The FreeBSD and OpenBSD values come from the platform headers, not from a Node.js dump. ([#487](https://github.com/40oleg/nona/issues/487))
 - **`node:stream/web` exists.** `require("node:stream/web")`, `stream/web` and `nona:stream/web` export `ReadableStream`, `ReadableStreamDefaultReader`, `ReadableStreamBYOBReader`, `WritableStream` and `WritableStreamDefaultWriter`, identical to the globals; classes Nona lacks (such as `TransformStream`) are not exported. It failed with `MODULE_NOT_FOUND`. ([#491](https://github.com/40oleg/nona/issues/491))
 - **`atob` and `btoa` are global functions.** They were only exported from `node:buffer`; they are now writable, configurable, non-enumerable properties of `globalThis`, and naming either links the buffer prelude. Bad input throws a `DOMException` named `InvalidCharacterError` (code 5) instead of a plain `Error`. ([#488](https://github.com/40oleg/nona/issues/488))
 
