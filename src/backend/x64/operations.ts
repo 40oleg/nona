@@ -2571,12 +2571,28 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                 case "checkInitialized":
                     a.load("rax", value(op.slot));
                     a.cmp("rax", 255);
-                    failIf(a, "e", "rt.throwReferenceError");
+                    if (op.name === undefined)
+                        failIf(a, "e", "rt.throwReferenceError");
+                    else {
+                        const ok = a.unique("initialized");
+                        a.jcc("ne", ok);
+                        a.lea("rcx", { rip: literal(op.name) });
+                        a.call("rt.throwReferenceErrorTdz");
+                        a.label(ok);
+                    }
                     break;
                 case "checkResolvable":
                     a.load("rax", payload(op.slot));
                     a.test("rax", "rax");
-                    failIf(a, "e", "rt.throwReferenceError");
+                    if (op.name === undefined)
+                        failIf(a, "e", "rt.throwReferenceError");
+                    else {
+                        const ok = a.unique("resolvable");
+                        a.jcc("ne", ok);
+                        a.lea("rcx", { rip: literal(op.name) });
+                        a.call("rt.throwReferenceErrorNotDefined");
+                        a.label(ok);
+                    }
                     break;
                 case "immutableWrite":
                     a.call("rt.throw" + (op.error ?? "TypeError"));

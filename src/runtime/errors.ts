@@ -151,6 +151,57 @@ export function emitErrors(b: RuntimeBuilder): void {
         a.lea("rcx", slot(48));
         a.call("rt.throw");
     });
+    // RCX string descriptor of the identifier; throws a ReferenceError whose
+    // message is prefix + name + suffix (V8 wording).
+    for (const [helper, prefix, suffix] of [
+        ["NotDefined", "", " is not defined"],
+        ["Tdz", "Cannot access '", "' before initialization"],
+    ] as const) {
+        const fragment = (key: string, text: string): string => {
+            const symbol = "rt.error.reference." + helper + key;
+            if (text === "") return "rt.error.key.empty";
+            b.bundle.fragments.push(stringLiteral(symbol, text));
+            const bytes = new Uint8Array(16);
+            bytes[0] = 4;
+            b.bundle.fragments.push({
+                name: symbol + "Value",
+                section: ".rdata",
+                alignment: 8,
+                bytes,
+                symbols: {},
+                fixups: [pointer(8, symbol)],
+            });
+            return symbol + "Value";
+        };
+        const prefixValue = fragment("Prefix", prefix),
+            suffixValue = fragment("Suffix", suffix);
+        rootedFn(
+            b,
+            "rt.throwReferenceError" + helper,
+            168,
+            [{ kind: "locals", offset: 64, count: 4 }],
+            (a) => {
+                // Locals: name (64), prefix + name (80), message (96), error (112).
+                a.mov("rax", 4);
+                a.store(slot(64), "rax");
+                a.store(slot(72), "rcx");
+                a.lea("rcx", slot(80));
+                a.lea("rdx", { rip: prefixValue });
+                a.lea("r8", slot(64));
+                a.call("rt.concat");
+                a.lea("rcx", slot(96));
+                a.lea("rdx", slot(80));
+                a.lea("r8", { rip: suffixValue });
+                a.call("rt.concat");
+                a.lea("rcx", slot(112));
+                a.mov("rdx", 1);
+                a.lea("r8", slot(96));
+                a.call("rt.ReferenceError.code");
+                a.lea("rcx", slot(112));
+                a.call("rt.throw");
+            },
+        );
+    }
     for (const name of [
         "TypeError",
         "ReferenceError",
