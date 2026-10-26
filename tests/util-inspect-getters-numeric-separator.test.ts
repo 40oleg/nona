@@ -27,7 +27,7 @@ const o = {
     get b() { return 2; },
     set b(v) {},
     set c(v) {},
-    get d() { throw new Error("boom"); },
+    get d() { const e = new Error("boom"); e.stack = "Error: boom"; throw e; },
     get e() { return { n: 1 }; },
     get f() { return null; },
     [Symbol("s")]: 1,
@@ -35,7 +35,9 @@ const o = {
 };
 for (const getters of [false, true, "get", "set"])
     console.log(util.inspect(o, { getters }));
-console.log(util.inspect({ get x() { throw new Error("bad"); }, set x(v) {} }, { getters: true }));
+console.log(util.inspect({ get x() { throw "bad"; }, set x(v) {} }, { getters: true }));
+console.log(util.inspect({ get a() { throw null; }, get b() { throw undefined; }, get c() { throw 5; }, get d() { throw { m: { n: 1 } }; } }, { getters: true }));
+console.log(util.inspect({ x: { get d() { throw { a: { b: 1 } }; } } }, { getters: true, depth: 1 }));
 `));
 
 test("util.inspect numericSeparator formats numbers and bigints", () =>

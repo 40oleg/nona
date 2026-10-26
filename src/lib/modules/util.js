@@ -119,7 +119,7 @@ function quote(text) {
 }
 const identifier = /^[A-Za-z_$][\w$]*$/;
 function key(name) {
-    if (typeof name === "symbol") return "[" + name.toString() + "]";
+    if (typeof name === "symbol") return name.toString();
     return identifier.test(name) ? name : quote(name);
 }
 function functionLabel(fn) {
@@ -296,7 +296,7 @@ function inspectValue(value, options, depth, seen, circular) {
                 ? value.stack
                 : (value.name || "Error") +
                   (value.message ? ": " + value.message : "");
-        return value.stack ? stack : "[" + stack + "]";
+        return stack.includes("\n    at") ? stack : "[" + stack + "]";
     }
     if (types.isBoxedPrimitive(value))
         return (
@@ -523,7 +523,7 @@ function inspectValue(value, options, depth, seen, circular) {
                 return "[" + label + "] " + nested(got);
             return "[" + label + ": " + formatPrimitive(got, options) + "]";
         } catch (err) {
-            return "[" + label + ": <Inspection threw (" + err.message + ")>]";
+            return "[" + label + ": <Inspection threw (" + nested(err) + ")>]";
         }
     };
     for (const k of Object.keys(value)) {
