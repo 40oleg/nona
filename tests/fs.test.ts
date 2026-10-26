@@ -78,6 +78,56 @@ unlinkSync('g.txt');
         true,
     ));
 
+test("fs.Stats has the times, owner, link count and block fields like Node.js", () => {
+    const exact = process.platform === "linux";
+    const source = `
+import fs from 'node:fs';
+fs.mkdirSync('stat-w', {recursive: true});
+fs.writeFileSync('stat-w/f.txt', 'hello');
+const s = fs.statSync('stat-w/f.txt');
+const numbers = ['atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs', 'uid', 'gid', 'nlink', 'rdev', 'blksize', 'blocks', 'size', 'mode', 'dev', 'ino'];
+const dates = ['atime', 'mtime', 'ctime', 'birthtime'];
+console.log(numbers.map((k) => k + ':' + typeof s[k]).join(' '));
+console.log(dates.map((k) => k + ':' + (s[k] instanceof Date) + ':' + (s[k].getTime() === s[k + 'Ms'] || Math.abs(s[k].getTime() - s[k + 'Ms']) < 1)).join(' '));
+console.log(s.birthtimeMs <= s.ctimeMs, s.nlink >= 1, s.blksize > 0);
+const d = fs.statSync('stat-w');
+console.log(typeof d.ctime.getTime(), d.isDirectory(), typeof fs.statSync('stat-w', {bigint: true}).ino);
+${
+    exact
+        ? `console.log(['uid', 'gid', 'nlink', 'rdev', 'blksize', 'blocks', 'mode', 'size'].map((k) => s[k]).join());
+console.log(['atimeMs', 'mtimeMs', 'ctimeMs'].map((k) => Math.abs(s[k] - Date.now()) < 60000).join());
+const l = fs.lstatSync('/proc/self');
+console.log(l.isSymbolicLink(), typeof l.ctime.getTime(), l.uid);`
+        : `const l = fs.lstatSync('stat-w/f.txt'); console.log(l.isFile());`
+}
+fs.rmSync('stat-w', {recursive: true});
+`;
+    expectModules({ "main.mjs": source }, true);
+});
+
+test("fs.truncateSync, truncate and promises.truncate match Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs, {truncateSync, writeFileSync, readFileSync, unlinkSync} from 'node:fs';
+import {truncate as truncateAsync} from 'node:fs/promises';
+const name = 'trunc-486.txt';
+writeFileSync(name, 'hello world');
+truncateSync(name, 5); console.log(readFileSync(name, 'utf8'));
+truncateSync(name, 8); console.log(Array.from(readFileSync(name)).join(','), readFileSync(name).length);
+truncateSync(name, -3); console.log(readFileSync(name).length);
+writeFileSync(name, 'abc'); truncateSync(name); console.log(readFileSync(name).length);
+writeFileSync(name, 'callback');
+await new Promise((resolve) => fs.truncate(name, 4, (error) => { console.log(error, readFileSync(name, 'utf8')); resolve(); }));
+await fs.promises.truncate(name, 2); console.log(readFileSync(name, 'utf8'));
+await truncateAsync(name, 0); console.log(readFileSync(name).length);
+for (const f of [() => truncateSync('missing-486.txt', 1), () => truncateSync(name, '1'), () => truncateSync(name, 1.5)]) {
+  try { f(); console.log('no error'); } catch (e) { console.log(e.name, e.code, e.syscall, e.message.startsWith(e.code + ': ')); }
+}
+try { await fs.promises.truncate('missing-486.txt'); } catch (e) { console.log(e.code, e.syscall); }
+unlinkSync(name);
+`,
+    }));
+
 test("fs uses Win32 imports on Windows and system calls on Linux", () => {
     const imports = (source: string) => {
         const win = compile(source, {
@@ -274,6 +324,42 @@ fs.readdir(root, {recursive: true}, (error, names) => console.log(error, sorted(
     }
 });
 
+test("fs.symlinkSync, symlink and promises.symlink create links like Node.js", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+import {symlink as symlinkP} from 'node:fs/promises';
+// The Node.js oracle runs in the directory the executable has just used.
+for (const name of fs.readdirSync('.')) if (name.startsWith('sl-')) fs.rmSync(name, {recursive: true, force: true});
+fs.writeFileSync('sl-target.txt', 'linked');
+fs.mkdirSync('sl-dir');
+let allowed = true;
+try {
+  fs.symlinkSync('sl-target.txt', 'sl-link.txt');
+} catch (e) {
+  if (e.code !== 'EPERM') throw e;
+  allowed = false;
+  console.log('links are not permitted');
+}
+if (allowed) {
+console.log(fs.readlinkSync('sl-link.txt'), fs.lstatSync('sl-link.txt').isSymbolicLink(), fs.readFileSync('sl-link.txt', 'utf8'));
+try { fs.symlinkSync('sl-target.txt', 'sl-link.txt'); } catch (e) { console.log(e.code, e.syscall, e.message.startsWith('EEXIST: file already exists, symlink')); }
+try { fs.symlinkSync('sl-target.txt', 'sl-missing/link.txt'); } catch (e) { console.log(e.code, e.syscall); }
+try { fs.symlinkSync(1, 'sl-x'); } catch (e) { console.log(e.code); }
+fs.symlinkSync('sl-dir', 'sl-dir-link');
+fs.symlinkSync('sl-dir', 'sl-dir-link2', 'dir');
+console.log(fs.statSync('sl-dir-link').isDirectory(), fs.statSync('sl-dir-link2').isDirectory());
+await symlinkP('sl-target.txt', 'sl-promise.txt');
+console.log(fs.readlinkSync('sl-promise.txt'));
+await symlinkP('sl-target.txt', 'sl-promise.txt').catch((e) => console.log(e.code, e.syscall));
+await new Promise((resolve) => fs.symlink('sl-target.txt', 'sl-callback.txt', (error) => {
+  console.log(error, fs.readlinkSync('sl-callback.txt'));
+  fs.symlink('sl-target.txt', 'sl-callback.txt', (error) => { console.log(error.code, error.syscall); resolve(); });
+}));
+}
+`,
+    }));
+
 test("fs reads Windows junctions as links", (t) => {
     if (process.platform !== "win32") {
         t.skip("junctions are a Windows feature");
@@ -344,6 +430,118 @@ console.log(typeof fs.readFile, fs.writeFile === writeFile);
 `,
     }));
 
+test("fs.chmod, fs.chmodSync, fs.utimes, fs.utimesSync work with modes and times", () =>
+    expectModules({
+        "main.mjs": `
+import fs, {chmodSync, chmod, utimesSync, utimes, writeFileSync, unlinkSync, statSync} from 'node:fs';
+import fsp from 'node:fs/promises';
+
+(async () => {
+writeFileSync('mode-test.txt', 'test');
+chmodSync('mode-test.txt', 0o755);
+let st = statSync('mode-test.txt');
+const savedMode = st.mode & 0o777;
+console.log(savedMode === 0o755 || savedMode === 0o666);
+
+utimesSync('mode-test.txt', 1000, 2000);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2000000);
+
+const d = new Date(3000000);
+utimesSync('mode-test.txt', new Date(1000000), d);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 3000000);
+
+utimesSync('mode-test.txt', 1500, 2500);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2500000);
+
+let cbError = null;
+let cbOk = false;
+await new Promise((resolve) => {
+  chmod('mode-test.txt', 0o644, (error) => {
+    cbError = error;
+    cbOk = !error;
+    resolve();
+  });
+});
+console.log(cbOk);
+
+cbError = null;
+cbOk = false;
+await new Promise((resolve) => {
+  utimes('mode-test.txt', 1100, 2200, (error) => {
+    cbError = error;
+    cbOk = !error;
+    resolve();
+  });
+});
+console.log(cbOk);
+
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2200000);
+
+await fsp.chmod('mode-test.txt', 0o600);
+await fsp.utimes('mode-test.txt', 1200, 2300);
+st = statSync('mode-test.txt');
+console.log(st.mtimeMs === 2300000);
+
+try {
+  chmodSync('missing.txt', 0o755);
+  console.log(false);
+} catch (e) {
+  console.log(e.code === 'ENOENT');
+}
+
+try {
+  utimesSync('missing.txt', 1000, 2000);
+  console.log(false);
+} catch (e) {
+  console.log(e.code === 'ENOENT');
+}
+
+try {
+  chmodSync('mode-test.txt', 'invalid');
+  console.log(false);
+} catch (e) {
+  console.log(e instanceof TypeError);
+}
+
+try {
+  utimesSync('mode-test.txt', NaN, 2000);
+  console.log(false);
+} catch (e) {
+  console.log(e instanceof TypeError);
+}
+
+unlinkSync('mode-test.txt');
+})();
+`,
+    }));
+
+test("fs.mkdtempSync, mkdtemp and promises.mkdtemp create unique directories (#483)", () =>
+    expectModules({
+        "main.mjs": `
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+const prefix = path.join(os.tmpdir(), 'app-');
+const a = fs.mkdtempSync(prefix), b = fs.mkdtempSync(prefix);
+const c = await new Promise((resolve, reject) => fs.mkdtemp(prefix, (e, d) => e ? reject(e) : resolve(d)));
+const d = await fs.promises.mkdtemp(prefix);
+const all = [a, b, c, d];
+console.log(new Set(all).size);
+for (const dir of all) {
+  const name = path.basename(dir);
+  console.log(name.length, name.startsWith('app-'), /^[A-Za-z0-9]{6}$/.test(name.slice(4)), fs.statSync(dir).isDirectory());
+}
+if (process.platform !== 'win32') console.log((fs.statSync(a).mode & 0o777).toString(8));
+try { fs.mkdtempSync(path.join(os.tmpdir(), 'no-such-dir', 'x-')); } catch (e) { console.log(e.code, e.syscall); }
+for (const dir of all) fs.rmSync(dir, {recursive: true});
+console.log(fs.existsSync(a));
+`,
+    }));
+
 test("fs errors carry the errno of Node.js", () =>
     expectModules({
         "main.mjs": `
@@ -370,4 +568,10 @@ fs.readFile('errno-dir/missing', (e) => {
   });
 });
 `,
+    }));
+
+test("fs.constants has the keys and values of Node.js", () =>
+    expectModules({
+        "main.mjs":
+            "import fs from 'node:fs';\nconsole.log(JSON.stringify(Object.entries(fs.constants)));",
     }));

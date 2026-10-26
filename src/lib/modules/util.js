@@ -1082,6 +1082,319 @@ export const TextEncoder = globalThis.TextEncoder,
 export function getSystemErrorName(code) {
     return "Unknown system error " + code;
 }
+function parseArgsError(Type, code, message) {
+    const error = new Type(message);
+    error.code = code;
+    return error;
+}
+function parseArgsReceived(value) {
+    if (value === null || value === undefined) return " Received " + value;
+    if (typeof value === "function") return " Received function " + value.name;
+    if (typeof value === "object") {
+        const name = value.constructor && value.constructor.name;
+        if (name) return " Received an instance of " + name;
+        return " Received " + inspect(value, { depth: -1 });
+    }
+    let shown = inspect(value, { colors: false });
+    if (shown.length > 28) shown = shown.slice(0, 25) + "...";
+    return " Received type " + typeof value + " (" + shown + ")";
+}
+function parseArgsTypeError(name, expected, value) {
+    return parseArgsError(
+        TypeError,
+        "ERR_INVALID_ARG_TYPE",
+        'The "' +
+            name +
+            '" ' +
+            (name.includes(".") ? "property" : "argument") +
+            " must be " +
+            expected +
+            "." +
+            parseArgsReceived(value),
+    );
+}
+function parseArgsValidate(value, name, type) {
+    if (typeof value !== type)
+        throw parseArgsTypeError(name, "of type " + type, value);
+}
+function parseArgsValidateArray(value, name, type) {
+    if (!Array.isArray(value))
+        throw parseArgsTypeError(name, "an instance of Array", value);
+    if (type)
+        for (let i = 0; i < value.length; i++)
+            parseArgsValidate(value[i], name + "[" + i + "]", type);
+}
+function parseArgsValidateObject(value, name) {
+    if (value === null || Array.isArray(value) || typeof value !== "object")
+        throw parseArgsTypeError(name, "of type object", value);
+}
+function parseArgsOwn(object, key) {
+    return Object.hasOwn(object, key) ? object[key] : undefined;
+}
+function parseArgsOptionOwn(options, name, key) {
+    return Object.hasOwn(options, name)
+        ? parseArgsOwn(options[name], key)
+        : undefined;
+}
+function parseArgsLongForShort(short, options) {
+    for (const name of Object.keys(options))
+        if (parseArgsOwn(options[name], "short") === short) return name;
+    return short;
+}
+function parseArgsTokens(args, options, allowNegative, negated) {
+    const tokens = [];
+    let index = -1;
+    let groupCount = 0;
+    const remaining = args.slice();
+    const isValue = (value) => value !== undefined && value !== null;
+    const isGroupOrValue = (arg, wantString) => {
+        if (arg[0] !== "-" || arg[1] === "-" || arg.length <= 2) return false;
+        const long = parseArgsLongForShort(arg[1], options);
+        return (
+            (parseArgsOptionOwn(options, long, "type") === "string") ===
+            wantString
+        );
+    };
+    const optionToken = (name, rawName, value, inlineValue) => {
+        const token = { kind: "option", name, rawName, index };
+        if (value !== undefined) {
+            token.value = value;
+            token.inlineValue = inlineValue;
+        }
+        return token;
+    };
+    while (remaining.length > 0) {
+        const arg = remaining.shift();
+        const next = remaining[0];
+        if (groupCount > 0) groupCount--;
+        else index++;
+        if (arg === "--") {
+            tokens.push({ kind: "option-terminator", index });
+            for (const rest of remaining)
+                tokens.push({
+                    kind: "positional",
+                    index: ++index,
+                    value: rest,
+                });
+            break;
+        }
+        if (arg.length === 2 && arg[0] === "-" && arg[1] !== "-") {
+            const long = parseArgsLongForShort(arg[1], options);
+            let value;
+            let inlineValue;
+            if (
+                parseArgsOptionOwn(options, long, "type") === "string" &&
+                isValue(next)
+            ) {
+                value = remaining.shift();
+                inlineValue = false;
+            }
+            tokens.push(optionToken(long, arg, value, inlineValue));
+            if (value != null) ++index;
+            continue;
+        }
+        if (isGroupOrValue(arg, false)) {
+            const expanded = [];
+            for (let i = 1; i < arg.length; i++) {
+                const long = parseArgsLongForShort(arg[i], options);
+                if (
+                    parseArgsOptionOwn(options, long, "type") !== "string" ||
+                    i === arg.length - 1
+                ) {
+                    expanded.push("-" + arg[i]);
+                } else {
+                    expanded.push("-" + arg.slice(i));
+                    break;
+                }
+            }
+            remaining.unshift(...expanded);
+            groupCount = expanded.length;
+            continue;
+        }
+        if (isGroupOrValue(arg, true)) {
+            tokens.push(
+                optionToken(
+                    parseArgsLongForShort(arg[1], options),
+                    "-" + arg[1],
+                    arg.slice(2),
+                    true,
+                ),
+            );
+            continue;
+        }
+        if (arg.length > 2 && arg.startsWith("--")) {
+            const equal = arg.indexOf("=", 3);
+            let token;
+            if (equal === -1) {
+                const name = arg.slice(2);
+                let value;
+                let inlineValue;
+                if (
+                    parseArgsOptionOwn(options, name, "type") === "string" &&
+                    isValue(next)
+                ) {
+                    value = remaining.shift();
+                    inlineValue = false;
+                }
+                token = optionToken(name, arg, value, inlineValue);
+                if (value != null) ++index;
+            } else {
+                const name = arg.slice(2, equal);
+                token = optionToken(
+                    name,
+                    "--" + name,
+                    arg.slice(equal + 1),
+                    true,
+                );
+            }
+            if (allowNegative && token.name.startsWith("no-")) {
+                token.name = token.name.slice(3);
+                negated.add(token);
+            }
+            tokens.push(token);
+            continue;
+        }
+        tokens.push({ kind: "positional", index, value: arg });
+    }
+    return tokens;
+}
+function parseArgsCheckOption(config, token, negative) {
+    const { options, allowPositionals } = config;
+    if (
+        !Object.hasOwn(options, token.name) ||
+        (negative &&
+            parseArgsOptionOwn(options, token.name, "type") !== "boolean")
+    )
+        throw parseArgsError(
+            TypeError,
+            "ERR_PARSE_ARGS_UNKNOWN_OPTION",
+            "Unknown option '" +
+                token.rawName +
+                "'" +
+                (allowPositionals
+                    ? ". To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- " +
+                      JSON.stringify(token.rawName)
+                    : ""),
+        );
+    const short = parseArgsOptionOwn(options, token.name, "short");
+    const both = (short ? "-" + short + ", " : "") + "--" + token.name;
+    const type = parseArgsOptionOwn(options, token.name, "type");
+    if (type === "string" && typeof token.value !== "string")
+        throw parseArgsError(
+            TypeError,
+            "ERR_PARSE_ARGS_INVALID_OPTION_VALUE",
+            "Option '" + both + " <value>' argument missing",
+        );
+    if (type === "boolean" && token.value != null)
+        throw parseArgsError(
+            TypeError,
+            "ERR_PARSE_ARGS_INVALID_OPTION_VALUE",
+            "Option '" + both + "' does not take an argument",
+        );
+    if (
+        !token.inlineValue &&
+        typeof token.value === "string" &&
+        token.value.length > 1 &&
+        token.value[0] === "-"
+    ) {
+        const raw = token.rawName;
+        const example = raw.startsWith("--")
+            ? raw + "=-XYZ"
+            : "--" + token.name + "=-XYZ' or '" + raw + "-XYZ";
+        throw parseArgsError(
+            TypeError,
+            "ERR_PARSE_ARGS_INVALID_OPTION_VALUE",
+            "Option '" +
+                raw +
+                "' argument is ambiguous.\nDid you forget to specify the option argument for '" +
+                raw +
+                "'?\nTo specify an option argument starting with a dash use '" +
+                example +
+                "'.",
+        );
+    }
+}
+export function parseArgs(config = {}) {
+    const args = parseArgsOwn(config, "args") ?? process.argv.slice(1);
+    const strict = parseArgsOwn(config, "strict") ?? true;
+    const allowPositionals =
+        parseArgsOwn(config, "allowPositionals") ?? !strict;
+    const returnTokens = parseArgsOwn(config, "tokens") ?? false;
+    const allowNegative = parseArgsOwn(config, "allowNegative") ?? false;
+    const options = parseArgsOwn(config, "options") ?? Object.create(null);
+    parseArgsValidateArray(args, "args");
+    parseArgsValidate(strict, "strict", "boolean");
+    parseArgsValidate(allowPositionals, "allowPositionals", "boolean");
+    parseArgsValidate(returnTokens, "tokens", "boolean");
+    parseArgsValidate(allowNegative, "allowNegative", "boolean");
+    parseArgsValidateObject(options, "options");
+    for (const name of Object.keys(options)) {
+        const option = options[name];
+        const path = "options." + name;
+        parseArgsValidateObject(option, path);
+        const type = parseArgsOwn(option, "type");
+        if (type !== "string" && type !== "boolean")
+            throw parseArgsTypeError(
+                path + ".type",
+                "('string|boolean')",
+                type,
+            );
+        if (Object.hasOwn(option, "short")) {
+            parseArgsValidate(option.short, path + ".short", "string");
+            if (option.short.length !== 1)
+                throw parseArgsError(
+                    TypeError,
+                    "ERR_INVALID_ARG_VALUE",
+                    "The property '" +
+                        path +
+                        ".short' must be a single character. Received " +
+                        inspect(option.short),
+                );
+        }
+        const multiple = parseArgsOwn(option, "multiple");
+        if (Object.hasOwn(option, "multiple"))
+            parseArgsValidate(multiple, path + ".multiple", "boolean");
+        const def = parseArgsOwn(option, "default");
+        if (def !== undefined) {
+            if (multiple) parseArgsValidateArray(def, path + ".default", type);
+            else parseArgsValidate(def, path + ".default", type);
+        }
+    }
+    const negated = new Set();
+    const tokens = parseArgsTokens(args, options, allowNegative, negated);
+    const result = { values: Object.create(null), positionals: [] };
+    if (returnTokens) result.tokens = tokens;
+    const parseConfig = { options, allowPositionals };
+    for (const token of tokens) {
+        if (token.kind === "option") {
+            const negative = negated.has(token);
+            if (strict) parseArgsCheckOption(parseConfig, token, negative);
+            if (token.name === "__proto__") continue;
+            const value = negative ? false : (token.value ?? true);
+            if (parseArgsOptionOwn(options, token.name, "multiple")) {
+                if (result.values[token.name] !== undefined)
+                    result.values[token.name].push(value);
+                else result.values[token.name] = [value];
+            } else result.values[token.name] = value;
+        } else if (token.kind === "positional") {
+            if (!allowPositionals)
+                throw parseArgsError(
+                    TypeError,
+                    "ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL",
+                    "Unexpected argument '" +
+                        token.value +
+                        "'. This command does not take positional arguments",
+                );
+            result.positionals.push(token.value);
+        }
+    }
+    for (const name of Object.keys(options)) {
+        const def = parseArgsOwn(options[name], "default");
+        if (def !== undefined && result.values[name] === undefined)
+            result.values[name] = def;
+    }
+    return result;
+}
 const util = {
     format,
     formatWithOptions,
@@ -1114,5 +1427,6 @@ const util = {
     TextEncoder,
     TextDecoder,
     getSystemErrorName,
+    parseArgs,
 };
 export default util;
