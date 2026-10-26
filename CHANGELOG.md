@@ -6,6 +6,33 @@
 
 - **The fatal runtime error message ends with `\n`.** `Nona runtime error` was written with `\r\n` on every target, leaving a stray carriage return on Linux, macOS and BSD. ([#495](https://github.com/40oleg/nona/issues/495))
 
+## v0.30.0 — 2026-10-26
+
+### Features
+
+- **`TextEncoder.prototype.encodeInto` exists.** It writes whole UTF-8 sequences into a `Uint8Array`, replaces lone surrogates with U+FFFD and returns `{ read, written }` in UTF-16 code units and bytes. ([#490](https://github.com/40oleg/nona/issues/490))
+- **`structuredClone` global.** `structuredClone(value, { transfer })` deep-copies primitives (including BigInt), plain objects, arrays (holes and extra properties), `Date`, `RegExp`, `Map`, `Set`, boxed primitives, `ArrayBuffer`, typed arrays and `DataView` (views sharing a buffer keep sharing its clone), the standard `Error` types with `message`, `stack` and `cause`, and cycles or shared references. Functions, symbols, `WeakMap`, `WeakSet`, `WeakRef` and promises throw a `DOMException` named `DataCloneError`; class instances clone as plain objects; `transfer` detaches the listed `ArrayBuffer`s. The runtime part is linked only when a program names `structuredClone` ([#489](https://github.com/40oleg/nona/issues/489)).
+
+### Fixes
+
+- **`fs.constants` has the open flags, file type bits and permission bits.** It had only `COPYFILE_EXCL` and the access modes; it now carries Node.js's full set (`S_IF*`, `S_I[RWX]{USR,GRP,OTH}`, `O_*`, `UV_*` and `COPYFILE_*`) with per-platform values for Linux, macOS, FreeBSD, OpenBSD and Windows (the smaller Windows set). The FreeBSD and OpenBSD values come from the platform headers, not from a Node.js dump. ([#487](https://github.com/40oleg/nona/issues/487))
+- **`node:stream/web` exists.** `require("node:stream/web")`, `stream/web` and `nona:stream/web` export `ReadableStream`, `ReadableStreamDefaultReader`, `ReadableStreamBYOBReader`, `WritableStream` and `WritableStreamDefaultWriter`, identical to the globals; classes Nona lacks (such as `TransformStream`) are not exported. It failed with `MODULE_NOT_FOUND`. ([#491](https://github.com/40oleg/nona/issues/491))
+- **`atob` and `btoa` are global functions.** They were only exported from `node:buffer`; they are now writable, configurable, non-enumerable properties of `globalThis`, and naming either links the buffer prelude. Bad input throws a `DOMException` named `InvalidCharacterError` (code 5) instead of a plain `Error`. ([#488](https://github.com/40oleg/nona/issues/488))
+
+## v0.29.0 — 2026-10-25
+
+### Features
+
+- **`fs.chmodSync`, `fs.chmod`, `fs.promises.chmod` and `fs.utimesSync`, `fs.utimes`, `fs.promises.utimes` change file permissions and times.** `chmod` and `utimes` have callback and promise forms; times are numbers (seconds), Dates or numeric strings; on Windows `chmod` maps the write bit to the read-only attribute, and other bits are ignored ([#485](https://github.com/40oleg/nona/issues/485)).
+- **`util.parseArgs` is available.** It supports `args`, `options` (`type`, `short`, `multiple`, `default`), `strict`, `allowPositionals`, `allowNegative` and `tokens`, with Node.js's error codes (`ERR_PARSE_ARGS_UNKNOWN_OPTION`, ...). `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no script path. ([#481](https://github.com/40oleg/nona/issues/481))
+- **`fs.truncateSync`, `truncate` and `fs.promises.truncate`.** `truncateSync(path, len = 0)` shortens a file in place or extends it with zero bytes; a negative `len` counts as 0, and a non-number or non-integer `len` throws like Node.js. Linux and the BSDs use the `truncate` system call, Windows `SetFilePointerEx` + `SetEndOfFile`. ([#486](https://github.com/40oleg/nona/issues/486))
+- **`fs.mkdtempSync`, `fs.mkdtemp` and `fs.promises.mkdtemp`.** They create a unique temporary directory from a prefix plus six random characters, with mode `0o700` on POSIX ([#483](https://github.com/40oleg/nona/issues/483)).
+
+### Fixes
+
+- `fs.Stats` now has `atime`, `ctime`, `birthtime` (with the `*Ms` numbers), `uid`, `gid`, `nlink`, `rdev`, `blksize` and `blocks` on every target (#482).
+- **`fs.symlinkSync`, `fs.symlink` and `fs.promises.symlink` create symbolic links.** They were missing although `readlinkSync` and `lstatSync` existed. `type` (`file`, `dir`, `junction`) is honoured on Windows, including real junctions; errors carry Node.js codes (`EEXIST`, `ENOENT`, `EPERM`). ([#484](https://github.com/40oleg/nona/issues/484))
+
 ## v0.28.0 — 2026-10-25
 
 ### Fixes

@@ -1,6 +1,7 @@
 import type { Target } from "../target.js";
 import { CompileError } from "../diagnostics.js";
 import { patchSource } from "../source-patch.js";
+import { fsConstants } from "./fs-constants.js";
 import {
     modulesFsCommon,
     modulesFsWin32,
@@ -53,6 +54,7 @@ function linuxArm64Source(): string {
         sysClose: "57",
         sysFstat: "80",
         sysGetdents: "61",
+        sysTruncate: "45",
     };
     for (const [name, number] of Object.entries(numbers))
         source = renumberSyscall(source, name, number);
@@ -65,6 +67,8 @@ function linuxArm64Source(): string {
             "function sysLstat(path,buffer){return statat(-100,path,buffer,256)}",
         sysReadlink:
             'const readlinkat = define("syscall", "78", "i64(i64,buf,buf,i64)");function sysReadlink(path,buffer,size){return readlinkat(-100,path,buffer,size)}',
+        sysSymlink:
+            'const symlinkat = define("syscall", "36", "i64(buf,i64,buf)");function sysSymlink(target,path){return symlinkat(target,-100,path)}',
         sysRename:
             'const renameat = define("syscall", "276", "i64(i64,buf,i64,buf,i64)");function sysRename(from,to){return renameat(-100,from,-100,to,0)}',
         sysMkdir:
@@ -72,10 +76,17 @@ function linuxArm64Source(): string {
         sysRmdir:
             'const unlinkat = define("syscall", "35", "i64(i64,buf,i64)");function sysRmdir(path){return unlinkat(-100,path,512)}',
         sysUnlink: "function sysUnlink(path){return unlinkat(-100,path,0)}",
+        sysChmod:
+            'const fchmodat = define("syscall", "53", "i64(i64,buf,i64,i64)");function sysChmod(path,mode){return fchmodat(-100,path,mode,0)}',
     };
+    source = renumberSyscall(source, "sysUtimes", "88");
     for (const [name, statements] of Object.entries(replacements))
         source = replaceSyscall(source, name, statements);
-    source = patchSource(source, "getUint32(24, true)", "getUint32(16, true)");
+    source = patchSource(
+        source,
+        "{ mode: 24, nlink: 16, uid: 28, gid: 32, rdev: 40 }",
+        "{ mode: 16, nlink: 20, uid: 24, gid: 28, rdev: 32 }",
+    );
     return patchSource(source, "O_DIRECTORY = 0x10000", "O_DIRECTORY = 0x4000");
 }
 
@@ -94,6 +105,9 @@ function bsdSource(target: Target): string {
         sysRmdir: "137",
         sysUnlink: "10",
         sysReadlink: "58",
+        sysChmod: "15",
+        sysSymlink: "57",
+        sysTruncate: darwin ? "200" : freebsd ? "479" : "92",
     };
     let source = linux;
     for (const [name, number] of Object.entries(calls))
@@ -113,6 +127,16 @@ function bsdSource(target: Target): string {
         source = renumberSyscall(source, "sysStat", darwin ? "338" : "38");
         source = renumberSyscall(source, "sysLstat", darwin ? "340" : "40");
     }
+    // BSDs set times with utimes(path, timeval[2]); microseconds replace the nanoseconds.
+    source = replaceSyscall(
+        source,
+        "sysUtimes",
+        'const bsdUtimes = define("syscall", "' +
+            (target === "openbsd-x64" ? "107" : "138") +
+            '", "i64(buf,buf)");function sysUtimes(dir,path,times,flags){const v=new DataView(times.buffer);' +
+            "v.setInt32(8,Math.floor(v.getInt32(8,true)/1000),true);v.setInt32(24,Math.floor(v.getInt32(24,true)/1000),true);" +
+            "return bsdUtimes(path,times)}",
+    );
     source = replaceSyscall(
         source,
         "sysGetdents",
@@ -152,13 +176,38 @@ function bsdSource(target: Target): string {
         sizeOffset = darwin ? 96 : freebsd ? 112 : 80,
         timeOffset = freebsd ? 64 : 48;
     const modeRead = darwin || freebsd ? "getUint16" : "getUint32";
+    // struct stat offsets of the other fields; OpenBSD keeps its birth time last.
+    const nlink = darwin
+            ? "statView.getUint16(6,true)"
+            : freebsd
+              ? "Number(statView.getBigUint64(16,true))"
+              : "statView.getUint32(16,true)",
+        [uidOffset, gidOffset] = darwin
+            ? [16, 20]
+            : freebsd
+              ? [28, 32]
+              : [20, 24],
+        rdev = darwin
+            ? "statView.getInt32(24,true)"
+            : freebsd
+              ? "Number(statView.getBigUint64(40,true))"
+              : "statView.getInt32(28,true)",
+        atimeOffset = freebsd ? 48 : 32,
+        ctimeOffset = freebsd ? 80 : 64,
+        birthOffset = darwin ? 80 : freebsd ? 96 : 112,
+        blocksOffset = darwin ? 104 : freebsd ? 120 : 88,
+        blksizeOffset = darwin ? 112 : freebsd ? 128 : 96;
     source = patchSource(
         source,
         /function statResult\(\) \{[\s\S]*?\n\}/,
         `function statResult(){
   const mode=statView.${modeRead}(${modeOffset},true),type=mode&0o170000;
+  const ms=(o)=>Number(statView.getBigInt64(o,true))*1000+Number(statView.getBigInt64(o+8,true))/1e6;
   return {kind:type===0o040000?'dir':type===0o100000?'file':type===0o120000?'symlink':'other',
-   size:Number(statView.getBigInt64(${sizeOffset},true)),mtimeMs:Number(statView.getBigInt64(${timeOffset},true))*1000+Number(statView.getBigInt64(${timeOffset + 8},true))/1e6,mode,
+   nlink:${nlink},uid:statView.getUint32(${uidOffset},true),gid:statView.getUint32(${gidOffset},true),rdev:${rdev},
+   blksize:statView.getInt32(${blksizeOffset},true),blocks:Number(statView.getBigInt64(${blocksOffset},true)),
+   atimeMs:ms(${atimeOffset}),ctimeMs:ms(${ctimeOffset}),birthtimeMs:ms(${birthOffset}),
+   size:Number(statView.getBigInt64(${sizeOffset},true)),mtimeMs:ms(${timeOffset}),mode,
    dev:${freebsd ? "statView.getBigUint64(0,true)" : "BigInt(statView.getUint32(" + (darwin ? 0 : 4) + ",true))"},ino:statView.getBigUint64(8,true)};
  }`,
     );
@@ -170,7 +219,19 @@ function bsdSource(target: Target): string {
     return source;
 }
 
+/** The host platform name of a target, as process.platform reports it. */
+function platformName(target: Target): string {
+    return target.slice(0, target.indexOf("-"));
+}
+
 export function fsModuleSource(target: Target): string {
+    return (
+        `const fsConstants = ${JSON.stringify(fsConstants(platformName(target), target.slice(target.indexOf("-") + 1)))};\n` +
+        fsPlatformSource(target)
+    );
+}
+
+function fsPlatformSource(target: Target): string {
     if (
         target.startsWith("darwin-") ||
         target === "freebsd-x64" ||
