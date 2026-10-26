@@ -1036,8 +1036,87 @@ export function isPrimitive(value) {
 }
 export const TextEncoder = globalThis.TextEncoder,
     TextDecoder = globalThis.TextDecoder;
-export function getSystemErrorName(code) {
-    return "Unknown system error " + code;
+// libuv error numbers: the Linux values, the Windows values that fs-win32.js
+// reports, and the codes libuv defines itself.
+const systemErrorNames = {
+    "-1": "EPERM",
+    "-2": "ENOENT",
+    "-3": "ESRCH",
+    "-4": "EINTR",
+    "-5": "EIO",
+    "-7": "E2BIG",
+    "-8": "ENOEXEC",
+    "-9": "EBADF",
+    "-10": "ECHILD",
+    "-11": "EAGAIN",
+    "-12": "ENOMEM",
+    "-13": "EACCES",
+    "-14": "EFAULT",
+    "-16": "EBUSY",
+    "-17": "EEXIST",
+    "-18": "EXDEV",
+    "-20": "ENOTDIR",
+    "-21": "EISDIR",
+    "-22": "EINVAL",
+    "-24": "EMFILE",
+    "-25": "ENOTTY",
+    "-28": "ENOSPC",
+    "-29": "ESPIPE",
+    "-30": "EROFS",
+    "-32": "EPIPE",
+    "-36": "ENAMETOOLONG",
+    "-38": "ENOSYS",
+    "-39": "ENOTEMPTY",
+    "-40": "ELOOP",
+    "-61": "ENODATA",
+    "-88": "ENOTSOCK",
+    "-95": "ENOTSUP",
+    "-98": "EADDRINUSE",
+    "-99": "EADDRNOTAVAIL",
+    "-101": "ENETUNREACH",
+    "-103": "ECONNABORTED",
+    "-104": "ECONNRESET",
+    "-106": "EISCONN",
+    "-107": "ENOTCONN",
+    "-110": "ETIMEDOUT",
+    "-111": "ECONNREFUSED",
+    "-113": "EHOSTUNREACH",
+    "-125": "ECANCELED",
+    "-3008": "ENOTFOUND",
+    "-4037": "EXDEV",
+    "-4048": "EPERM",
+    "-4051": "ENOTEMPTY",
+    "-4052": "ENOTDIR",
+    "-4058": "ENOENT",
+    "-4068": "EISDIR",
+    "-4070": "EIO",
+    "-4071": "EINVAL",
+    "-4075": "EEXIST",
+    "-4082": "EBUSY",
+    "-4083": "EBADF",
+    "-4092": "EACCES",
+    "-4094": "UNKNOWN",
+    "-4095": "EOF",
+    "-4114": "ELOOP",
+};
+export function getSystemErrorName(err) {
+    if (typeof err !== "number") {
+        const error = new TypeError(
+            'The "err" argument must be of type number.' +
+                parseArgsReceived(err),
+        );
+        error.code = "ERR_INVALID_ARG_TYPE";
+        throw error;
+    }
+    if (err >= 0 || !Number.isSafeInteger(err)) {
+        const error = new RangeError(
+            'The value of "err" is out of range. It must be a negative integer. Received ' +
+                String(err),
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    return systemErrorNames[err] || "Unknown system error " + err;
 }
 function parseArgsError(Type, code, message) {
     const error = new Type(message);

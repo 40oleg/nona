@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`util.getSystemErrorName` maps libuv error numbers to names.** `-2` gives `ENOENT`, `-13` gives `EACCES` and so on (the Linux values, the Windows values that `fs` reports, `EOF`, `UNKNOWN` and `ENOTFOUND`); other negative integers give `Unknown system error N`, and a non-negative or non-integer number throws `ERR_OUT_OF_RANGE`. ([#506](https://github.com/40oleg/nona/issues/506))
+
 ## v0.30.0 — 2026-10-26
 
 ### Features

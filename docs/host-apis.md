@@ -392,7 +392,7 @@ startup. Each is available as `node:<name>` and `<name>`.
 %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
   `compact`, `maxArrayLength`, `maxStringLength`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
-  `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
+  `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `getSystemErrorName`, `types`, `styleText`,
   `parseArgs` (all options, `tokens` and Node.js's `ERR_PARSE_ARGS_*` errors;
   `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no
   script path),
