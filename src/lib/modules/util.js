@@ -401,6 +401,49 @@ function inspectValue(value, options, depth, seen, circular) {
             previous,
         );
     }
+    if (types.isAnyArrayBuffer(value)) {
+        const name = types.isSharedArrayBuffer(value)
+            ? "SharedArrayBuffer"
+            : "ArrayBuffer";
+        if (depth > options.depth) return "[" + name + "]";
+        const previous = enter(depth);
+        const bytes = new Uint8Array(value);
+        const shown = Math.min(bytes.length, options.maxArrayLength);
+        let hex = [];
+        for (let i = 0; i < shown; i++)
+            hex.push((bytes[i] < 16 ? "0" : "") + bytes[i].toString(16));
+        let contents = hex.join(" ");
+        if (bytes.length > shown) {
+            const more = bytes.length - shown;
+            contents += " ... " + more + " more byte" + (more > 1 ? "s" : "");
+        }
+        return formatEntries(
+            refPrefix(value, circular) + name + " ",
+            [
+                "[Uint8Contents]: <" + contents + ">",
+                "[byteLength]: " + formatPrimitive(value.byteLength, options),
+            ],
+            "{",
+            "}",
+            options,
+            depth,
+            previous,
+        );
+    }
+    if (types.isWeakMap(value) || types.isWeakSet(value)) {
+        const previous = enter(depth);
+        return formatEntries(
+            refPrefix(value, circular) +
+                (types.isWeakMap(value) ? "WeakMap" : "WeakSet") +
+                " ",
+            ["<items unknown>"],
+            "{",
+            "}",
+            options,
+            depth,
+            previous,
+        );
+    }
     const proto = Object.getPrototypeOf(value);
     const constructorName =
         proto === null
