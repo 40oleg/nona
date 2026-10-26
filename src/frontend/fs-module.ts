@@ -226,7 +226,7 @@ function platformName(target: Target): string {
 
 export function fsModuleSource(target: Target): string {
     return (
-        `const fsConstants = ${JSON.stringify(fsConstants(platformName(target)))};\n` +
+        `const fsConstants = ${JSON.stringify(fsConstants(platformName(target), target.slice(target.indexOf("-") + 1)))};\n` +
         fsPlatformSource(target)
     );
 }

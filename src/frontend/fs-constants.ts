@@ -79,7 +79,7 @@ function fsOpenFlags(v: Record<string, number>): Entry[] {
     for (const name of names) if (name in v) out.push([name, v[name]!]);
     return out;
 }
-function fsConstantEntries(fsPlatform: string): Entry[] {
+function fsConstantEntries(fsPlatform: string, arch: string): Entry[] {
     if (fsPlatform === "win32") {
         return [
             ["UV_FS_SYMLINK_DIR", 1],
@@ -197,6 +197,12 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
             O_DIRECT: 16384,
             O_NONBLOCK: 2048,
         };
+        // arm64 Linux uses the asm-generic values of these three flags.
+        if (arch === "arm64") {
+            flags.O_DIRECTORY = 16384;
+            flags.O_NOFOLLOW = 32768;
+            flags.O_DIRECT = 65536;
+        }
     }
     return [
         ...fsPosixCommon,
@@ -206,7 +212,10 @@ function fsConstantEntries(fsPlatform: string): Entry[] {
     ];
 }
 
-/** The `fs.constants` object for a platform name (`process.platform`). */
-export function fsConstants(platform: string): Record<string, number> {
-    return Object.fromEntries(fsConstantEntries(platform));
+/** The `fs.constants` object for a platform and architecture (`process.platform`, `process.arch`). */
+export function fsConstants(
+    platform: string,
+    arch: string,
+): Record<string, number> {
+    return Object.fromEntries(fsConstantEntries(platform, arch));
 }
