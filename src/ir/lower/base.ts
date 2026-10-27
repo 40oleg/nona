@@ -660,6 +660,16 @@ export abstract class LowererBase {
             no: ok.id,
         });
         this.select(fail);
+        // The read throws the TypeError that names the base and the key; the
+        // runtime checks the base before it converts the key, so no user code runs.
+        this.emit({
+            kind: "property",
+            operation: "get",
+            dest: this.slot(),
+            object: ref.object,
+            key: ref.key,
+            ...(ref.keyName !== undefined ? { keyName: ref.keyName } : {}),
+        });
         this.emit({ kind: "immutableWrite" });
         this.end({ kind: "jump", target: ok.id });
         this.select(ok);

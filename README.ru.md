@@ -2,7 +2,7 @@
 
 **Nona — компилятор ahead-of-time, который превращает JavaScript (ES2020 с документированными исключениями) в небольшие самостоятельные исполняемые файлы для Windows, Linux, macOS, FreeBSD и OpenBSD.**
 
-[Документация](https://40oleg.github.io/nona/) (англ.) · [Песочница](https://40oleg.github.io/nona/playground) · [Релизы](https://github.com/40oleg/nona/releases) · [English](README.md) · [Поддержка языка](docs/language-support.md) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
+[Документация](https://40oleg.github.io/nona/) (англ.) · [Песочница](https://40oleg.github.io/nona/playground) · [Релизы](https://github.com/40oleg/nona/releases) · [English](README.md) · [Поддержка языка](https://40oleg.github.io/nona/guide/language-support) · [Производительность](PERFORMANCE.md) (англ.) · [Изменения](CHANGELOG.md) · [Все документы](docs/README.md)
 
 ```sh
 $ nona build hello.js -o hello
@@ -12,7 +12,7 @@ Hello, from Nona!
 
 В исполняемом файле только машинный код вашей программы и среда выполнения Nona. Внутри нет Node.js, V8 или интерпретатора, а для сборки не нужны C/C++-компилятор и LLVM.
 
-> **Статус этой рабочей копии:** версия пакета `0.30.0`, экспериментальная. По аудиту v0.8.0 закреплённый Test262 (возможности ES2020 и поддержанные более поздние, например элементы классов ES2022) на Windows x64: language **22436/22492**, built-ins **15868/15933**, Atomics **268/268**, Annex B **996/1016**. Каждый оставшийся отказ разобран на [странице статуса](https://40oleg.github.io/nona/guide/status). Nona не заменяет Node.js и не проходила аудит безопасности.
+> **Статус этой рабочей копии:** версия пакета `0.32.0`, экспериментальная. По аудиту v0.8.0 закреплённый Test262 (возможности ES2020 и поддержанные более поздние, например элементы классов ES2022) на Windows x64: language **22436/22492**, built-ins **15868/15933**, Atomics **268/268**, Annex B **996/1016**. Каждый оставшийся отказ разобран на [странице статуса](https://40oleg.github.io/nona/guide/status). Nona не заменяет Node.js и не проходила аудит безопасности.
 
 ## Зачем Nona
 
@@ -125,7 +125,7 @@ nona --help | --version
 
 **Программы для Windows** могут быть оконными, без консоли (`--subsystem windows`), и содержать иконку, манифест и сведения о версии ([исполняемые файлы Windows](docs/windows-executables.md)).
 
-Точное поведение и покрытие тестами — в [матрице поддержки языка](docs/language-support.md). Неподдерживаемый синтаксис отклоняется при компиляции.
+Точное поведение и покрытие тестами — в [матрице поддержки языка](https://40oleg.github.io/nona/guide/language-support). Неподдерживаемый синтаксис отклоняется при компиляции.
 
 ## Производительность
 

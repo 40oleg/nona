@@ -2,7 +2,7 @@
 
 ## 当前版本
 
-**v0.30.0**——参见[更新日志](/changelog)（英文）。Nona 仍处于实验阶段：它没有经过安全审计，也不能直接替代 Node.js。
+**v0.32.0**——参见[更新日志](/changelog)（英文）。Nona 仍处于实验阶段：它没有经过安全审计，也不能直接替代 Node.js。
 
 ## Test262 审计
 
@@ -48,7 +48,7 @@ v0.8.0 的审计还发现了七个崩溃（对带元素的 `Math` 调用 `Array.
 
 ## 详细报告
 
-- [0.17–0.20 的 ES2020 状态](https://github.com/40oleg/nona/blob/main/docs/status.md)（俄文）
+- [0.17–0.20 的 ES2020 状态](https://github.com/40oleg/nona/blob/main/docs/history/status.md)（俄文）
 - [发布历史](/changelog)和[开发日志](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md)（俄文）
 - [路线图：参考 V8 的计划与目标架构（英文）](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [0.4–0.20 版本路线图](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md)（俄文）
