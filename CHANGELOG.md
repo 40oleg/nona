@@ -6,6 +6,10 @@
 
 - **Reading or writing a property of `undefined` or `null` throws a descriptive `TypeError`.** The message was `Invalid operation`; it is now Node.js's `Cannot read properties of undefined (reading 'x')` or `Cannot set properties of null (setting 'x')`, for `o.x`, `o[k]`, method calls, assignments and compound assignments. String, number, boolean, BigInt and symbol keys are named; an object key is not converted, and the key part is left out. Destructuring an object pattern from them throws `Cannot destructure property 'a' of 'null' as it is null.` (`Cannot destructure 'null' as it is null.` for an empty pattern or a computed first key). Other runtime `TypeError`s keep `Invalid operation`. ([#503](https://github.com/40oleg/nona/issues/503))
 
+### Documentation
+
+- **`docs/fs.md` no longer says `fs.promises` is missing.** It now has one list of the synchronous, callback and promise functions that matches `src/lib/modules/fs-common.js`, mentions `Dirent`, `Stats` and `constants`, and states that `appendFileSync` takes no options ([#498](https://github.com/40oleg/nona/issues/498)).
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
