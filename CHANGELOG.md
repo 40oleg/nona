@@ -6,6 +6,10 @@
 
 - **Uncaught exceptions are reported in every program.** A program that does not use `process` printed only `Nona runtime error` for an uncaught throw, a failing timer or promise job, or an unhandled rejection; it now prints the error (`TypeError: bad thing`) on stderr and exits with code 1, like a program that does ([#501](https://github.com/40oleg/nona/issues/501)).
 
+### Documentation
+
+- **`docs/fs.md` no longer says `fs.promises` is missing.** It now has one list of the synchronous, callback and promise functions that matches `src/lib/modules/fs-common.js`, mentions `Dirent`, `Stats` and `constants`, and states that `appendFileSync` takes no options ([#498](https://github.com/40oleg/nona/issues/498)).
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
