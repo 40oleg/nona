@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`util.getSystemErrorName` maps libuv error numbers to names.** `-2` gives `ENOENT`, `-13` gives `EACCES` and so on (the Linux values, the Windows values that `fs` reports, `EOF`, `UNKNOWN` and `ENOTFOUND`); other negative integers give `Unknown system error N`, and a non-negative or non-integer number throws `ERR_OUT_OF_RANGE`. ([#506](https://github.com/40oleg/nona/issues/506))
+- **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
 
 ## v0.32.0 — 2026-10-27
 
