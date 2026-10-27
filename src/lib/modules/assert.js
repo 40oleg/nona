@@ -313,6 +313,19 @@ function checkError(error, expected, message, operator) {
     const text = mismatchMessage(error, expected);
     if (text !== undefined) fail(error, expected, message, operator, text);
 }
+function missing(expected, message, operator, word) {
+    const name =
+        typeof expected === "function" && expected.name
+            ? " (" + expected.name + ")"
+            : "";
+    fail(
+        undefined,
+        expected,
+        undefined,
+        operator,
+        "Missing expected " + word + name + (message ? ": " + message : "."),
+    );
+}
 export function throws(fn, expected, message) {
     if (typeof expected === "string") {
         message = expected;
@@ -324,13 +337,7 @@ export function throws(fn, expected, message) {
         checkError(error, expected, message, "throws");
         return;
     }
-    fail(
-        undefined,
-        expected,
-        message,
-        "throws",
-        "Missing expected exception" + (message ? ": " + message : "."),
-    );
+    missing(expected, message, "throws", "exception");
 }
 export function doesNotThrow(fn, message) {
     try {
@@ -358,13 +365,7 @@ export async function rejects(promise, expected, message) {
         checkError(error, expected, message, "rejects");
         return;
     }
-    fail(
-        undefined,
-        expected,
-        message,
-        "rejects",
-        "Missing expected rejection" + (message ? ": " + message : "."),
-    );
+    missing(expected, message, "rejects", "rejection");
 }
 export async function doesNotReject(promise, message) {
     try {

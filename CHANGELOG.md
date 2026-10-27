@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`assert.throws` and `assert.rejects` keep the `Missing expected exception` prefix.** A string message replaced the whole text when the function did not throw. The error message is now `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#512](https://github.com/40oleg/nona/issues/512))
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
