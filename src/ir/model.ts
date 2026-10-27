@@ -250,7 +250,11 @@ export type Operation =
     | { kind: "uninitialized"; dest: number }
     | { kind: "checkInitialized"; slot: number }
     | { kind: "checkResolvable"; slot: number }
-    | { kind: "immutableWrite"; error?: "ReferenceError" }
+    | {
+          kind: "immutableWrite";
+          error?: "ReferenceError";
+          message?: string;
+      }
     | { kind: "constant"; dest: number; value: Constant }
     | { kind: "copy"; dest: number; source: number }
     | { kind: "loadGlobal"; dest: number; index: number; prelude?: boolean }

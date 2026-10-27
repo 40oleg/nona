@@ -2579,7 +2579,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     failIf(a, "e", "rt.throwReferenceError");
                     break;
                 case "immutableWrite":
-                    a.call("rt.throw" + (op.error ?? "TypeError"));
+                    if (op.message !== undefined) {
+                        a.lea("rcx", { rip: literal(op.message) });
+                        a.call("rt.throwTypeErrorMessage");
+                    } else a.call("rt.throw" + (op.error ?? "TypeError"));
                     break;
                 case "constant": {
                     if (staticConstant(op.dest)) break;

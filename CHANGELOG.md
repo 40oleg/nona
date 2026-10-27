@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Assignment to a `const` and `Object.setPrototypeOf` failures have their own messages.** `Assignment to constant variable.`, `Cyclic __proto__ value` and `#<Object> is not extensible` replace `Invalid operation`. ([#511](https://github.com/40oleg/nona/issues/511))
+
 ## v0.31.0 — 2026-10-27
 
 ### Features

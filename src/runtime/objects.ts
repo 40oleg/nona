@@ -560,7 +560,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.load("r10", { base: "rcx", disp: O.flags });
             a.and("r10", 1);
             a.test("r10", "r10");
-            failIf(a, "ne", "rt.throwTypeError");
+            failIf(a, "ne", "rt.throwTypeError.notExtensible");
             a.lea("r10", { rip: "rt.objectPrototype" });
             a.cmp("rcx", "r10");
             const mutable = a.unique("mutable");
@@ -574,7 +574,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             const write = a.unique("write");
             a.jcc("e", write);
             a.cmp("r10", "rcx");
-            failIf(a, "e", "rt.throwTypeError");
+            failIf(a, "e", "rt.throwTypeError.cyclicPrototype");
             a.load("r10", { base: "r10", disp: O.prototype });
             a.jmp(loop);
             a.label(write);

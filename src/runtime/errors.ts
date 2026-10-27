@@ -167,6 +167,28 @@ export function emitErrors(b: RuntimeBuilder): void {
             a.lea("rcx", slot(48));
             a.call("rt.throw");
         });
+    // RCX points to a static string literal; the message is a string Value built in the frame.
+    b.fn("rt.throwTypeErrorMessage", 72, (a) => {
+        a.mov("r10", 4);
+        a.store(slot(32), "r10");
+        a.store(slot(40), "rcx");
+        a.lea("rcx", slot(48));
+        a.mov("rdx", 1);
+        a.lea("r8", slot(32));
+        a.call("rt.TypeError.code");
+        a.lea("rcx", slot(48));
+        a.call("rt.throw");
+    });
+    for (const [key, text] of [
+        ["cyclicPrototype", "Cyclic __proto__ value"],
+        ["notExtensible", "#<Object> is not extensible"],
+    ] as const) {
+        b.bundle.fragments.push(stringLiteral("rt.error.text." + key, text));
+        b.fn("rt.throwTypeError." + key, 40, (a) => {
+            a.lea("rcx", { rip: "rt.error.text." + key });
+            a.call("rt.throwTypeErrorMessage");
+        });
+    }
     b.bundle.fragments.push(
         stringLiteral("rt.error.messageText", "message"),
         stringLiteral("rt.error.separator", ": "),
