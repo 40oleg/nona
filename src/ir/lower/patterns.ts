@@ -45,7 +45,16 @@ export abstract class PatternLowerer extends CallLowerer {
                 no: ready.id,
             });
             this.select(error);
-            this.emit({ kind: "immutableWrite" });
+            const first = pattern.properties[0],
+                keyName =
+                    first && !first.computed && first.key.kind === "Literal"
+                        ? String(first.key.value)
+                        : undefined;
+            this.emit({
+                kind: "nullishDestructure",
+                source: value,
+                key: keyName === undefined ? undefined : this.constant(keyName),
+            });
             this.end({ kind: "jump", target: ready.id });
             this.select(ready);
             const excluded: number[] = [];
