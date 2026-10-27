@@ -1235,6 +1235,7 @@ export function emitMemory(b: RuntimeBuilder): void {
         a.jmp(clear);
         a.label(cleared);
     });
+    const fatalMessage = new TextEncoder().encode("Nona runtime error\n");
     b.fn("rt.fail", 72, (a) => {
         const exit = a.unique("exit"),
             noReport = a.unique("noReport");
@@ -1256,7 +1257,7 @@ export function emitMemory(b: RuntimeBuilder): void {
         a.callImport("GetStdHandle");
         a.mov("rcx", "rax");
         a.lea("rdx", { rip: "rt.error" });
-        a.mov("r8", 20);
+        a.mov("r8", fatalMessage.length);
         a.lea("r9", slot(48));
         a.mov("rax", 0);
         a.store(slot(32), "rax");
@@ -1265,5 +1266,5 @@ export function emitMemory(b: RuntimeBuilder): void {
         a.mov("rcx", 1);
         a.callImport("ExitProcess");
     });
-    b.data("rt.error", new TextEncoder().encode("Nona runtime error\r\n"));
+    b.data("rt.error", fatalMessage);
 }

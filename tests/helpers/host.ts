@@ -79,7 +79,11 @@ import { compileModuleToIR } from "../../src/compiler.js";
 export function runModulesOnHost(
     files: Record<string, string>,
     entry: string,
-    options: { gcStress?: boolean; oracleSource?: string } = { gcStress: true },
+    options: {
+        gcStress?: boolean;
+        oracleSource?: string;
+        timeoutMs?: number;
+    } = { gcStress: true },
 ): { native: HostRun; oracle: string; oracleStatus: number | null } {
     const directory = mkdtempSync(join(tmpdir(), "nona-modules-"));
     try {
@@ -99,7 +103,9 @@ export function runModulesOnHost(
         const result = spawnSync(executable, [], {
             cwd: directory,
             encoding: "utf8",
-            timeout: options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS,
+            timeout:
+                options.timeoutMs ??
+                (options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS),
             windowsHide: true,
         });
         const native: HostRun = {
