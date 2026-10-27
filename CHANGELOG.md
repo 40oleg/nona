@@ -5,6 +5,7 @@
 ### Fixes
 
 - **`ReferenceError` messages name the variable.** Reading an undeclared global (or assigning to one in strict code) now throws `x is not defined`, and reading a `let`/`const`/class binding or a parameter in its temporal dead zone throws `Cannot access 'x' before initialization`, also from closures. Both threw `Invalid operation`. ([#505](https://github.com/40oleg/nona/issues/505))
+- **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
 
 ## v0.32.0 — 2026-10-27
 

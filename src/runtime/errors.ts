@@ -438,6 +438,30 @@ export function emitErrors(b: RuntimeBuilder): void {
             },
         );
     }
+    for (const [fn, text] of <[string, string][]>[
+        ["rt.throwJsonCircular", "Converting circular structure to JSON"],
+        ["rt.throwJsonBigInt", "Do not know how to serialize a BigInt"],
+    ]) {
+        b.bundle.fragments.push(stringLiteral(fn + ".message", text));
+        const message = new Uint8Array(16);
+        message[0] = 4;
+        b.bundle.fragments.push({
+            name: fn + ".messageValue",
+            section: ".rdata",
+            alignment: 8,
+            bytes: message,
+            symbols: {},
+            fixups: [pointer(8, fn + ".message")],
+        });
+        b.fn(fn, 72, (a) => {
+            a.lea("rcx", slot(48));
+            a.mov("rdx", 1);
+            a.lea("r8", { rip: fn + ".messageValue" });
+            a.call("rt.TypeError.code");
+            a.lea("rcx", slot(48));
+            a.call("rt.throw");
+        });
+    }
     for (const name of [
         "TypeError",
         "ReferenceError",
