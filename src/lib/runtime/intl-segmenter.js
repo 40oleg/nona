@@ -197,7 +197,26 @@
         };
     }
 
-    var localePattern = null;
+    // Accepts what /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/ accepts, without a
+    // RegExp: linking the segmenter must not need the RegExp engine (#502).
+    function isLocaleTag(locale) {
+        var start = 0;
+        var length = locale.length;
+        for (var subtag = 0; ; subtag++) {
+            var end = start;
+            while (end < length && locale.charCodeAt(end) !== 45) {
+                var c = locale.charCodeAt(end);
+                var letter = (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+                if (!letter && (subtag === 0 || c < 48 || c > 57)) return false;
+                end++;
+            }
+            var size = end - start;
+            if (size < (subtag === 0 ? 2 : 1) || size > 8) return false;
+            if (end === length) return true;
+            start = end + 1;
+        }
+    }
+
     function requestedLocales(locales) {
         if (locales === undefined) return [];
         var list = typeof locales === "string" ? [locales] : Object(locales);
@@ -211,9 +230,7 @@
                     "Language ID should be string or object.",
                 );
             locale = toStr(locale);
-            if (localePattern === null)
-                localePattern = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/;
-            if (!localePattern.test(locale))
+            if (!isLocaleTag(locale))
                 throw new RangeErrorConstructor(
                     "Incorrect locale information provided",
                 );

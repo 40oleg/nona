@@ -260,3 +260,19 @@ for (const f of [() => Intl.Segmenter(), () => new Intl.Segmenter("en", { granul
     () => new Intl.Segmenter("en", { localeMatcher: "x" }), () => Intl.Segmenter.prototype.segment.call({}, "a"), () => segments.containing.call({}, 0)])
     try { f(); console.log("no error"); } catch (e) { console.log(e.constructor.name); }
 `));
+
+// The segmenter validates its locale without a RegExp, so a program without
+// any RegExp can use it (#502).
+test("Intl.Segmenter works in a program without RegExp", () => {
+    const source = String.raw`const s = new Intl.Segmenter("en", { granularity: "grapheme" }); console.log([...s.segment("aé\u{1F44D}\u{1F3FD}")].length);`;
+    const native = runOnHost(source);
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(native.stdout, "3\n");
+    assert.equal(native.stdout, runOracle(source).stdout);
+});
+
+test("Intl.Segmenter validates locales without RegExp", () =>
+    expectOracle(String.raw`
+for (const l of ["", "a", "en-", "-en", "en--US", "en-US-", "e1", "en_US", "abcdefghi", "en-abcdefghi", "en-US", "en-u-ca-gregory"])
+    try { new Intl.Segmenter(l); console.log(JSON.stringify(l), "ok"); } catch (e) { console.log(JSON.stringify(l), e.constructor.name); }
+`));
