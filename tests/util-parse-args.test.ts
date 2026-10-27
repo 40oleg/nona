@@ -4,8 +4,11 @@ import { runModulesOnHost } from "./helpers/host.js";
 
 function expectOracle(source: string): void {
     for (const gcStress of [false, true]) {
+        // Under GC stress the configuration cases take about 180 s on the
+        // emulated win32-arm64 runner, the default allowance (#582).
         const run = runModulesOnHost({ "main.mjs": source }, "main.mjs", {
             gcStress,
+            ...(gcStress ? { timeoutMs: 600_000 } : {}),
         });
         assert.equal(run.native.error, undefined);
         assert.equal(run.native.status, 0, run.native.stderr);
