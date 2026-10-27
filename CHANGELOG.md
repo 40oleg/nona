@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Docs
+
+- **`docs/host-apis.md` removes stale limits and updates the zlib, TLS and https paragraph.** The documentation claimed property, element and Map storage is linear (#36) and every heap block is a separate mapping on Linux (#37); both are fixed. The paragraph about `node:tls`, `node:http2` and `node:zlib` throwing `ERR_NONA_UNSUPPORTED` is replaced with the current state: zlib compresses and decompresses, TLS and https are clients only, and http2 is constants-only. ([#515](https://github.com/40oleg/nona/issues/515))
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
