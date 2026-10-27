@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.32.0 — 2026-10-27
+
 ### Fixes
 
 - **Uncaught exceptions are reported in every program.** A program that does not use `process` printed only `Nona runtime error` for an uncaught throw, a failing timer or promise job, or an unhandled rejection; it now prints the error (`TypeError: bad thing`) on stderr and exits with code 1, like a program that does ([#501](https://github.com/40oleg/nona/issues/501)).
