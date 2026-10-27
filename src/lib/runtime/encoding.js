@@ -251,6 +251,59 @@
         if (!hasEncoder(this)) throw new TypeError("Illegal invocation");
         return encode(input);
     });
+    method(
+        TextEncoder.prototype,
+        "encodeInto",
+        function encodeInto(source, destination) {
+            if (!hasEncoder(this)) throw new TypeError("Illegal invocation");
+            var s = String(source);
+            if (!(destination instanceof U8))
+                throw new TypeError(
+                    'The "dest" argument must be an instance of Uint8Array.',
+                );
+            var n = s.length,
+                room = destination.length,
+                read = 0,
+                written = 0,
+                c,
+                d,
+                cp,
+                units;
+            while (read < n) {
+                c = s.charCodeAt(read);
+                units = 1;
+                cp = c;
+                if (c >= 0xd800 && c < 0xdc00) {
+                    d = read + 1 < n ? s.charCodeAt(read + 1) : 0;
+                    if (d >= 0xdc00 && d < 0xe000) {
+                        cp = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00);
+                        units = 2;
+                    } else cp = 0xfffd;
+                } else if (c >= 0xdc00 && c < 0xe000) cp = 0xfffd;
+                if (cp < 0x80) {
+                    if (written + 1 > room) break;
+                    destination[written++] = cp;
+                } else if (cp < 0x800) {
+                    if (written + 2 > room) break;
+                    destination[written++] = 0xc0 | (cp >> 6);
+                    destination[written++] = 0x80 | (cp & 63);
+                } else if (cp < 0x10000) {
+                    if (written + 3 > room) break;
+                    destination[written++] = 0xe0 | (cp >> 12);
+                    destination[written++] = 0x80 | ((cp >> 6) & 63);
+                    destination[written++] = 0x80 | (cp & 63);
+                } else {
+                    if (written + 4 > room) break;
+                    destination[written++] = 0xf0 | (cp >> 18);
+                    destination[written++] = 0x80 | ((cp >> 12) & 63);
+                    destination[written++] = 0x80 | ((cp >> 6) & 63);
+                    destination[written++] = 0x80 | (cp & 63);
+                }
+                read += units;
+            }
+            return { read: read, written: written };
+        },
+    );
     getter(TextEncoder.prototype, "encoding", function () {
         return "utf-8";
     });

@@ -411,13 +411,18 @@ export function doesNotMatch(text, pattern, message) {
 }
 export function ifError(value) {
     if (value !== null && value !== undefined) {
-        if (value instanceof Error) throw value;
+        let message;
+        if (typeof value === "object" && typeof value.message === "string") {
+            if (value.message.length === 0 && value.constructor)
+                message = value.constructor.name;
+            else message = value.message;
+        } else message = inspect(value);
         fail(
             value,
             null,
             undefined,
             "ifError",
-            "ifError got unwanted exception: " + inspect(value),
+            "ifError got unwanted exception: " + message,
         );
     }
 }

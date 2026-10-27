@@ -59,6 +59,8 @@ export const preludeTriggers = {
         "nona.events.internal",
     ],
     proxy: ["Proxy"],
+    // structuredClone throws the DOMException of the events prelude.
+    structuredClone: ["structuredClone"],
     errorStack: ["captureStackTrace", "stackTraceLimit", "prepareStackTrace"],
     // Also linked whenever the RegExp engine is (see lowerRuntimePrelude).
     regexpProtocol: ["replaceAll"],
@@ -92,6 +94,8 @@ export const preludeTriggers = {
         "Buffer",
         "Blob",
         "File",
+        "atob",
+        "btoa",
         "URL",
         "ReadableStream",
         "ReadableStreamDefaultReader",
@@ -212,11 +216,12 @@ export const preludeDependencies: Partial<
     Record<OptionalPrelude, readonly OptionalPrelude[]>
 > = {
     process: ["encoding", "proxy", "timers", "eventEmitter", "binaryData"],
-    buffer: ["encoding", "url", "binaryData"],
+    buffer: ["encoding", "url", "binaryData", "events"],
     url: ["encoding"],
     encoding: ["binaryData"],
     es2021: ["binaryData"],
     events: ["timers"],
+    structuredClone: ["events", "binaryData"],
     asyncHooks: ["events", "timers"],
     eventEmitter: ["events", "asyncHooks"],
     stream: ["eventEmitter", "buffer", "process"],
