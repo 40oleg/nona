@@ -312,6 +312,7 @@
                 "object-spread",
                 "optional-chaining",
                 "nullish-facts",
+                "nullish-property-errors",
                 "optional-chaining-frontend",
                 "optional-chaining-gc",
                 "optional-global-shadow",
