@@ -1,6 +1,6 @@
 # Language support
 
-Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.31.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
+Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.32.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
 
 **Supported** means implemented and covered by unit tests and Test262 within the limits in the Notes column. An older per-feature matrix with test names, last checked for v0.5.0, is archived in [`docs/history/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/history/language-support.md) (Russian).
 
