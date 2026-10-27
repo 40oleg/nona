@@ -79,7 +79,7 @@ test("Function prototype is not constructable even with a prototype property", (
     const run = runNative(result.image);
     assert.equal(run.error, undefined);
     assert.equal(run.status, 1);
-    assert.match(run.stderr.toString(), /Nona runtime error/);
+    assert.match(run.stderr.toString(), /^\w*Error: /m);
 });
 test("static Function prototype retains dynamic properties through stress GC", () => {
     const source =

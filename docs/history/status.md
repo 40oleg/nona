@@ -1,13 +1,15 @@
 # 0.17–0.20: итоговый срез ES2020
 
+> **Historical:** Last checked for Nona 0.17–0.20. See [`../README.md`](../README.md) for current documentation and [`../roadmap.md`](../roadmap.md) for the current status.
+
 Ветка `work/v0.17-v0.20` (PR #18) продолжает gate ES2020 после PR #5
 (0.6–0.16). Нормативная цель и исключения — в
-[`es2020-contract.md`](es2020-contract.md), матрица реализации — в
+[`../es2020-contract.md`](../es2020-contract.md), матрица реализации — в
 [`language-support.md`](language-support.md). Результат выпускается как
 **«ES2020 с документированными исключениями»**: `eval` и динамические
 конструкторы функций с исходным текстом, вычисленным во время исполнения,
 не поддерживаются: это постоянное исключение (решение в
-[`es2020-contract.md`](es2020-contract.md), issue #11).
+[`../es2020-contract.md`](../es2020-contract.md), issue #11).
 
 ## Что сделано
 

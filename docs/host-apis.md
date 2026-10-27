@@ -92,8 +92,16 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
   timers and no referenced sockets or servers remain.
 - `performance.now()` uses the monotonic clock (`QueryPerformanceCounter`,
   `clock_gettime(CLOCK_MONOTONIC)`) and counts milliseconds from program start.
+  `performance.timeOrigin` is the wall-clock time of program start in
+  milliseconds since the epoch. `performance.mark`/`measure` store
+  `PerformanceMark`/`PerformanceMeasure` entries that `getEntries`,
+  `getEntriesByName`, `getEntriesByType`, `clearMarks` and `clearMeasures`
+  query; a `measure` naming a missing mark throws a `SyntaxError` with code
+  `ERR_INVALID_PERFORMANCE_MARK`.
 - An uncaught exception in a timer callback terminates the process with exit
-  code 1, like an uncaught exception in the top-level program.
+  code 1, like an uncaught exception in the top-level program. The error's
+  `stack` (or `String(value)`) is printed on stderr first, whether or not the
+  program uses `process` (#501).
 - Realms created by the Test262 host do not install their own timers.
 
 ## Long-running programs
@@ -390,7 +398,7 @@ startup. Each is available as `node:<name>` and `<name>`.
   detection.
 - `node:util`: `format` and `formatWithOptions` (`%s %d %i %f %j %o %O %c
 %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
-  `compact`, `maxArrayLength`, `maxStringLength`, `customInspect`), `inherits`, `promisify` (with
+  `compact`, `maxArrayLength`, `maxStringLength`, `getters`, `numericSeparator`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
   `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `getSystemErrorName`, `types`, `styleText`,
   `parseArgs` (all options, `tokens` and Node.js's `ERR_PARSE_ARGS_*` errors;
@@ -426,7 +434,11 @@ startup. Each is available as `node:<name>` and `<name>`.
 - `node:timers`: the global timer functions. `node:timers/promises`:
   `setTimeout`, `setImmediate` (both with an `AbortSignal`), `setInterval` as
   an async iterator, and `scheduler.wait`/`yield`.
-- `node:perf_hooks`: `performance`; `PerformanceObserver` and
+- `node:perf_hooks`: `performance` (`now()`, `timeOrigin`, `mark`, `measure`
+  in the names and options forms, `getEntries`, `getEntriesByName`,
+  `getEntriesByType`, `clearMarks`, `clearMeasures`, `toJSON`);
+  `PerformanceEntry`, `PerformanceMark` and `PerformanceMeasure` (also
+  globals); `PerformanceObserver` and
   `monitorEventLoopDelay` observe nothing.
 - `node:module`: `builtinModules` and `isBuiltin`. `createRequire(filename)`
   returns a `require` that resolves only the modules the program contains when

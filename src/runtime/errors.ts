@@ -13,6 +13,7 @@ import {
 } from "./function-builtin.js";
 import { stringLiteral } from "./value.js";
 import type { Fixup } from "../backend/machine/model.js";
+import type { Assembler } from "../backend/machine/context.js";
 import { ProxyKind } from "./object-layout.js";
 import { ProxyLayout } from "./proxy.js";
 
@@ -23,6 +24,7 @@ export const errorRoots = [
 ];
 export const errorPropertyRoots = [
     "rt.Error.__nonaIsRejectionErrorInternal",
+    "rt.Error.__nonaExitInternal",
     ...errorConstructorNames.flatMap((n) =>
         ["name", "message"].map(
             (k) => "rt." + n.toLowerCase() + "Prototype." + k,
@@ -42,6 +44,27 @@ const pointer = (offset: number, target: string): Fixup => ({
 });
 
 export function emitErrorBrand(b: RuntimeBuilder): void {
+    // The exit of an uncaught exception the prelude reported without the
+    // process prelude (#501): exit code 1 after the hooks rt.fail runs.
+    prependFunctionBuiltin(
+        b,
+        "rt.errorExit.fn",
+        "__nonaExitInternal",
+        0,
+        "rt.Error",
+    );
+    b.fn("rt.errorExit.fn.code", 40, (a) => {
+        const exit = a.unique("exit");
+        a.mov("rax", 1);
+        a.atomicExchange({ rip: "rt.fatalActive" }, "rax", 64);
+        a.test("rax", "rax");
+        a.jcc("ne", exit);
+        a.call("rt.runExitHook");
+        a.call("rt.callStatsReport");
+        a.label(exit);
+        a.mov("rcx", 1);
+        a.callImport("ExitProcess");
+    });
     prependFunctionBuiltin(
         b,
         "rt.errorIsNative.fn",
@@ -78,6 +101,219 @@ export function emitErrorBrand(b: RuntimeBuilder): void {
         a.store({ base: "rcx" }, "r10");
         a.store({ base: "rcx", disp: 8 }, "rax");
     });
+}
+type ArgumentRegister = "rcx" | "rdx" | "r8" | "r9";
+/** Like failIf(..., "rt.throwTypeError") for a get or set on an undefined or
+ * null base: on condition c, call rt.throwNullishGet/Set with the base and key
+ * Value pointers held in the given registers.
+ */
+export function failIfNullish(
+    a: Assembler,
+    c: import("../backend/machine/context.js").Condition,
+    mode: "get" | "set",
+    base: ArgumentRegister,
+    key: ArgumentRegister,
+): void {
+    const skip = a.unique("notNullish"),
+        fail = a.unique("nullish");
+    a.jcc(c, fail);
+    a.jmp(skip);
+    a.label(fail);
+    a.mov("r10", key);
+    a.mov("rcx", base);
+    a.mov("rdx", "r10");
+    a.call(mode === "get" ? "rt.throwNullishGet" : "rt.throwNullishSet");
+    a.label(skip);
+}
+// rt.throwNullishGet/Set(RCX base Value*, RDX key Value*): throw the TypeError
+// of Node.js, "Cannot read properties of undefined (reading 'x')". The key part
+// is formatted only for primitives, so that no user code runs; object keys
+// (not yet converted by ToPropertyKey) give the message without it.
+function emitNullishErrors(b: RuntimeBuilder): void {
+    b.bundle.fragments.push(
+        stringLiteral("rt.error.nullish.get", "Cannot read properties of "),
+        stringLiteral("rt.error.nullish.set", "Cannot set properties of "),
+        stringLiteral("rt.error.nullish.undefined", "undefined"),
+        stringLiteral("rt.error.nullish.null", "null"),
+        stringLiteral("rt.error.nullish.reading", " (reading '"),
+        stringLiteral("rt.error.nullish.setting", " (setting '"),
+        stringLiteral("rt.error.nullish.close", "')"),
+    );
+    for (const mode of ["get", "set"] as const)
+        rootedFn(
+            b,
+            mode === "get" ? "rt.throwNullishGet" : "rt.throwNullishSet",
+            136,
+            [
+                { kind: "value", register: "rdx" },
+                { kind: "locals", offset: 64, count: 4 },
+            ],
+            (a) => {
+                const text = (offset: number, name: string) => {
+                    a.mov("rax", 4);
+                    a.store(slot(offset), "rax");
+                    a.lea("rax", { rip: "rt.error.nullish." + name });
+                    a.store(slot(offset + 8), "rax");
+                };
+                const isNull = a.unique("isNull"),
+                    based = a.unique("based"),
+                    convert = a.unique("convert"),
+                    symbol = a.unique("symbol"),
+                    keyed = a.unique("keyed"),
+                    build = a.unique("build");
+                a.load("rax", { base: "rcx" });
+                a.store(slot(40), "rax");
+                a.store(slot(48), "rdx");
+                text(64, mode);
+                a.load("rax", slot(40));
+                a.cmp("rax", 1);
+                a.jcc("e", isNull);
+                text(80, "undefined");
+                a.jmp(based);
+                a.label(isNull);
+                text(80, "null");
+                a.label(based);
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(80));
+                a.call("rt.concat");
+                // The key: a string as is, a symbol as Symbol(description),
+                // other primitives through ToString.
+                a.load("rdx", slot(48));
+                a.load("rax", { base: "rdx" });
+                a.cmp("rax", 4);
+                a.jcc("ne", convert);
+                for (const n of [0, 8]) {
+                    a.load("rax", { base: "rdx", disp: n });
+                    a.store(slot(80 + n), "rax");
+                }
+                a.jmp(keyed);
+                a.label(convert);
+                a.cmp("rax", 6);
+                a.jcc("e", symbol);
+                a.cmp("rax", 5);
+                a.jcc("e", build);
+                a.cmp("rax", 7);
+                a.jcc("a", build);
+                a.lea("rcx", slot(80));
+                a.call("rt.toString");
+                a.jmp(keyed);
+                a.label(symbol);
+                a.lea("rcx", slot(80));
+                a.call("rt.symbolDescriptiveString");
+                a.label(keyed);
+                text(96, mode === "get" ? "reading" : "setting");
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(96));
+                a.call("rt.concat");
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(80));
+                a.call("rt.concat");
+                text(96, "close");
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(96));
+                a.call("rt.concat");
+                a.label(build);
+                a.lea("rcx", slot(112));
+                a.mov("rdx", 1);
+                a.lea("r8", slot(64));
+                a.call("rt.TypeError.code");
+                a.lea("rcx", slot(112));
+                a.call("rt.throw");
+            },
+        );
+}
+// rt.throwNullishDestructure(RCX source Value*, RDX key Value* (a string, read
+// only when R8 is 1), R8 hasKey): throw the TypeError of Node.js for a
+// destructuring pattern applied to undefined or null, "Cannot destructure
+// property 'a' of 'null' as it is null." or, without a key (an empty pattern or
+// a computed first key), "Cannot destructure 'null' as it is null."
+function emitNullishDestructureError(b: RuntimeBuilder): void {
+    b.bundle.fragments.push(
+        stringLiteral(
+            "rt.error.destructure.property",
+            "Cannot destructure property '",
+        ),
+        stringLiteral("rt.error.destructure.plain", "Cannot destructure '"),
+        stringLiteral("rt.error.destructure.of", "' of '"),
+        stringLiteral("rt.error.destructure.as", "' as it is "),
+        stringLiteral("rt.error.destructure.dot", "."),
+    );
+    rootedFn(
+        b,
+        "rt.throwNullishDestructure",
+        136,
+        [
+            { kind: "value", register: "rdx" },
+            { kind: "locals", offset: 64, count: 4 },
+        ],
+        (a) => {
+            const text = (offset: number, name: string) => {
+                a.mov("rax", 4);
+                a.store(slot(offset), "rax");
+                a.lea("rax", { rip: "rt.error.nullish." + name });
+                a.store(slot(offset + 8), "rax");
+            };
+            const destructure = (offset: number, name: string) => {
+                a.mov("rax", 4);
+                a.store(slot(offset), "rax");
+                a.lea("rax", { rip: "rt.error.destructure." + name });
+                a.store(slot(offset + 8), "rax");
+            };
+            const concat = (right: number) => {
+                a.lea("rcx", slot(64));
+                a.lea("rdx", slot(64));
+                a.lea("r8", slot(right));
+                a.call("rt.concat");
+            };
+            const isNull = a.unique("isNull"),
+                based = a.unique("based"),
+                plain = a.unique("plain"),
+                named = a.unique("named");
+            a.load("rax", { base: "rcx" });
+            a.store(slot(40), "rax");
+            a.store(slot(48), "rdx");
+            a.store(slot(56), "r8");
+            for (const n of [0, 8]) {
+                a.load("rax", { base: "rdx", disp: n });
+                a.store(slot(96 + n), "rax");
+            }
+            a.load("rax", slot(40));
+            a.cmp("rax", 1);
+            a.jcc("e", isNull);
+            text(80, "undefined");
+            a.jmp(based);
+            a.label(isNull);
+            text(80, "null");
+            a.label(based);
+            a.load("rax", slot(56));
+            a.cmp("rax", 1);
+            a.jcc("ne", plain);
+            destructure(64, "property");
+            concat(96);
+            destructure(112, "of");
+            concat(112);
+            a.jmp(named);
+            a.label(plain);
+            destructure(64, "plain");
+            a.label(named);
+            concat(80);
+            destructure(112, "as");
+            concat(112);
+            concat(80);
+            destructure(112, "dot");
+            concat(112);
+            a.lea("rcx", slot(112));
+            a.mov("rdx", 1);
+            a.lea("r8", slot(64));
+            a.call("rt.TypeError.code");
+            a.lea("rcx", slot(112));
+            a.call("rt.throw");
+        },
+    );
 }
 export function emitErrors(b: RuntimeBuilder): void {
     b.bundle.fragments.push(
@@ -167,6 +403,8 @@ export function emitErrors(b: RuntimeBuilder): void {
             a.lea("rcx", slot(48));
             a.call("rt.throw");
         });
+    emitNullishErrors(b);
+    emitNullishDestructureError(b);
     b.bundle.fragments.push(
         stringLiteral("rt.error.messageText", "message"),
         stringLiteral("rt.error.separator", ": "),

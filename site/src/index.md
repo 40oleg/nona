@@ -78,7 +78,7 @@ The executable contains the program's machine code and Nona's runtime. It does n
 
 ## Status
 
-The current release is **v0.30.0**; Nona is experimental. It is not a drop-in replacement for Node.js and has not had a security audit.
+The current release is **v0.32.0**; Nona is experimental. It is not a drop-in replacement for Node.js and has not had a security audit.
 
 - **Conformance.** In the last full audit (v0.8.0) the pinned Test262 suite passed 22436/22492 language, 15868/15933 built-in, 268/268 Atomics and 996/1016 Annex B tests on Windows x64. Every remaining failure is classified on the [status page](/guide/status).
 - **Speed.** Startup, executable size and memory are Nona's strengths. Computation inside a program has no JIT: from on par with V8 on simple loops to several times or tens of times slower on calls, allocation and long-running real programs. [Performance](/guide/performance) has the measurements and the known slow spots.

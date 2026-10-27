@@ -387,6 +387,7 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
             case "pushHandler":
             case "popHandler":
             case "immutableWrite":
+            case "nullishDestructure":
             case "generatorInitialSuspend":
             case "isFunctionCode":
                 return true;
@@ -2577,6 +2578,12 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.load("rax", payload(op.slot));
                     a.test("rax", "rax");
                     failIf(a, "e", "rt.throwReferenceError");
+                    break;
+                case "nullishDestructure":
+                    pointer("rcx", op.source);
+                    pointer("rdx", op.key ?? op.source);
+                    a.mov("r8", op.key === undefined ? 0 : 1);
+                    a.call("rt.throwNullishDestructure");
                     break;
                 case "immutableWrite":
                     a.call("rt.throw" + (op.error ?? "TypeError"));

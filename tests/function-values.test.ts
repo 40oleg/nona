@@ -69,5 +69,5 @@ for (const source of ["let f=3;f();", "let a={};a.missing();", "undefined();"])
         const run = runNative(compiled.image);
         assert.equal(run.error, undefined);
         assert.equal(run.status, 1);
-        assert.match(run.stderr.toString(), /Nona runtime error/);
+        assert.match(run.stderr.toString(), /^\w*Error: /m);
     });
