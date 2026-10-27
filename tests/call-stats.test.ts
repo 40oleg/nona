@@ -81,5 +81,5 @@ test("the counts are printed before an uncaught error ends the program", () => {
     const output = lines(counted.stderr);
     assert.match(output.at(-1)!, /Nona runtime error|TypeError/);
     assert.ok(output.slice(0, -1).every((line) => entry.test(line)));
-    assert.ok(output.some((line) => / rt\.throwTypeError$/.test(line)));
+    assert.ok(output.some((line) => / rt\.throwNullishGet$/.test(line)));
 });
