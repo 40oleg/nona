@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Spreading, destructuring or iterating a non-iterable value (including `undefined` and `null`) now throws a `TypeError` saying `Value is not iterable` instead of `Invalid operation` (#510).
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
