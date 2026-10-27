@@ -606,7 +606,7 @@ export function emitJsonStringify(b: RuntimeBuilder): void {
             a.cmp("rax", 7);
             const notBigInt = a.unique("notBigInt");
             a.jcc("ne", notBigInt);
-            a.call("rt.throwTypeError");
+            a.call("rt.throwJsonBigInt");
             a.label(notBigInt);
             a.cmp("rax", 1);
             a.jcc("e", convert);
@@ -684,7 +684,7 @@ export function emitJsonStringify(b: RuntimeBuilder): void {
             a.test("rax", "rax");
             const enter = a.unique("enter");
             a.jcc("e", enter);
-            a.call("rt.throwTypeError");
+            a.call("rt.throwJsonCircular");
             a.label(enter);
             a.load("rax", { base: "r10", disp: O.flags });
             a.or("rax", ObjectFlags.stringifying);
