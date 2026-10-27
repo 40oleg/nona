@@ -48,7 +48,7 @@ v0.8.0 के ऑडिट में सात क्रैश भी मिल�
 
 ## विस्तृत रिपोर्ट
 
-- [0.17–0.20 के लिए ES2020 स्थिति](https://github.com/40oleg/nona/blob/main/docs/status.md) (रूसी में)
+- [0.17–0.20 के लिए ES2020 स्थिति](https://github.com/40oleg/nona/blob/main/docs/history/status.md) (रूसी में)
 - [रिलीज़ इतिहास](/changelog) और [डेवलपमेंट लॉग](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md) (रूसी में)
 - [रोडमैप: V8 से प्रेरित योजना और लक्ष्य आर्किटेक्चर (अंग्रेज़ी में)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [रिलीज़ रोडमैप 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (रूसी में)
