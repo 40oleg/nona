@@ -113,6 +113,7 @@
                 "util-inspect-custom",
                 "util-inspect-promise",
                 "util-inspect-buffers",
+                "util-inspect-getters-numeric-separator",
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
