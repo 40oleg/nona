@@ -6,6 +6,10 @@
 
 - **`Intl.Segmenter` no longer needs the RegExp engine.** It validated the locale with a RegExp literal, so a program that segmented a string and had no RegExp of its own failed with "compiled without the RegExp engine" ([#502](https://github.com/40oleg/nona/issues/502)).
 
+### Documentation
+
+- **`docs/fs.md` no longer says `fs.promises` is missing.** It now has one list of the synchronous, callback and promise functions that matches `src/lib/modules/fs-common.js`, mentions `Dirent`, `Stats` and `constants`, and states that `appendFileSync` takes no options ([#498](https://github.com/40oleg/nona/issues/498)).
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
