@@ -435,8 +435,8 @@ receiver, descriptor, coercion и prototype checks — TypeError; invalid array
 length/radix/argument limits — RangeError. Uncaught throw пока использует
 общий fatal reporter, без stack trace. Runtime message: Invalid operation;
 текст не претендует на совпадение с V8. V8 `Error.captureStackTrace` реализован
-с placeholder-кадрами (prelude `errorStack`); ES2022 cause не входит в
-реализованный ES2020 Error surface.
+с placeholder-кадрами (prelude `errorStack`); ES2022 cause поддерживается (ошибки
+конструируются с опцией `{cause: value}`).
 
 ## Symbol и Iterator GC roots
 

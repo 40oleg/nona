@@ -48,7 +48,7 @@ v0.8.0 নিরীক্ষায় সাতটি ক্র্যাশও �
 
 ## বিস্তারিত রিপোর্ট
 
-- [0.17–0.20-এর ES2020 অবস্থা](https://github.com/40oleg/nona/blob/main/docs/status.md) (রুশ ভাষায়)
+- [0.17–0.20-এর ES2020 অবস্থা](https://github.com/40oleg/nona/blob/main/docs/history/status.md) (রুশ ভাষায়)
 - [রিলিজ ইতিহাস](/changelog) এবং [ডেভেলপমেন্ট লগ](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md) (রুশ ভাষায়)
 - [রোডম্যাপ: V8-অনুপ্রাণিত পরিকল্পনা ও লক্ষ্য আর্কিটেকচার (ইংরেজিতে)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [রিলিজ রোডম্যাপ 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (রুশ ভাষায়)
