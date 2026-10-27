@@ -10,6 +10,7 @@ import {
     streamModuleSource,
     streamPromisesModuleSource,
     streamConsumersModuleSource,
+    streamWebModuleSource,
 } from "./stream-module.js";
 import { stringDecoderModuleSource } from "./string-decoder-module.js";
 import { nativeModuleSource } from "./native-module.js";
@@ -161,6 +162,9 @@ const sources = new Map<string, (target: Target) => string>([
     ...["node:stream/consumers", "nona:stream/consumers"].map(
         (name) =>
             [name, () => streamConsumersModuleSource] as [string, () => string],
+    ),
+    ...["node:stream/web", "nona:stream/web"].map(
+        (name) => [name, () => streamWebModuleSource] as [string, () => string],
     ),
     ["node:process", () => processModuleSource],
     ["node:string_decoder", () => stringDecoderModuleSource],

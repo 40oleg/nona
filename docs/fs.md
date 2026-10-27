@@ -85,7 +85,8 @@ file system work with other code.
 ## TextEncoder and TextDecoder
 
 `TextEncoder` and `TextDecoder` are global and implement UTF-8 as specified
-by the WHATWG Encoding standard: `encode(string)`, `decode(bufferSource)`,
+by the WHATWG Encoding standard: `encode(string)`, `encodeInto(string, uint8array)`
+(writes only whole UTF-8 sequences and returns `{ read, written }`), `decode(bufferSource)`,
 the `fatal` and `ignoreBOM` options, U+FFFD replacement of invalid sequences
 and lone surrogates. Other encodings throw `RangeError`.
 

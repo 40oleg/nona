@@ -6,6 +6,33 @@
 
 - **Uncaught exceptions are reported in every program.** A program that does not use `process` printed only `Nona runtime error` for an uncaught throw, a failing timer or promise job, or an unhandled rejection; it now prints the error (`TypeError: bad thing`) on stderr and exits with code 1, like a program that does ([#501](https://github.com/40oleg/nona/issues/501)).
 
+## v0.31.0 — 2026-10-27
+
+### Features
+
+- **`performance` has `timeOrigin`, `mark` and `measure`.** `performance.timeOrigin`, `mark`, `measure` (names and options forms), `getEntries`, `getEntriesByName`, `getEntriesByType`, `clearMarks`, `clearMeasures` and `toJSON` are available, and `PerformanceEntry`, `PerformanceMark` and `PerformanceMeasure` are globals and exports of `node:perf_hooks`. ([#492](https://github.com/40oleg/nona/issues/492))
+
+### Fixes
+
+- **`util.inspect` honors `getters` and `numericSeparator`.** Both options were accepted but ignored. `getters: true | "get" | "set"` now evaluates accessors like Node.js (`[Getter: 1]`, `[Getter/Setter: 2]`, `[Getter: <Inspection threw ([Error: boom])>]` with the thrown value inspected), prints symbol keys as `Symbol(s)` and brackets errors whose stack has no frames, as Node.js 26 does, and `numericSeparator: true` groups the digits of numbers and bigints (`1_234_567.891`, `123_456_789n`). ([#496](https://github.com/40oleg/nona/issues/496))
+- **`assert.ifError` wraps errors in an `AssertionError`.** An `Error` argument was rethrown as is. `ifError` now always throws an `AssertionError` with `operator: "ifError"`, `actual` set to the value and the Node.js message `ifError got unwanted exception: <message>`. ([#494](https://github.com/40oleg/nona/issues/494))
+- **`util.inspect` shows `ArrayBuffer`, `SharedArrayBuffer` and weak collections.** Buffers printed as `ArrayBuffer {}`; they now show `[Uint8Contents]` (limited by `maxArrayLength`) and `[byteLength]`, and `WeakMap`/`WeakSet` print `<items unknown>`, as in Node.js. ([#497](https://github.com/40oleg/nona/issues/497))
+- **The fatal runtime error message ends with `\n`.** `Nona runtime error` was written with `\r\n` on every target, leaving a stray carriage return on Linux, macOS and BSD. ([#495](https://github.com/40oleg/nona/issues/495))
+- `Date.parse` accepts ISO-like strings with a space instead of `T`, fractions longer than milliseconds (truncated) and `±hhmm` offsets without a colon ([#493](https://github.com/40oleg/nona/issues/493)).
+
+## v0.30.0 — 2026-10-26
+
+### Features
+
+- **`TextEncoder.prototype.encodeInto` exists.** It writes whole UTF-8 sequences into a `Uint8Array`, replaces lone surrogates with U+FFFD and returns `{ read, written }` in UTF-16 code units and bytes. ([#490](https://github.com/40oleg/nona/issues/490))
+- **`structuredClone` global.** `structuredClone(value, { transfer })` deep-copies primitives (including BigInt), plain objects, arrays (holes and extra properties), `Date`, `RegExp`, `Map`, `Set`, boxed primitives, `ArrayBuffer`, typed arrays and `DataView` (views sharing a buffer keep sharing its clone), the standard `Error` types with `message`, `stack` and `cause`, and cycles or shared references. Functions, symbols, `WeakMap`, `WeakSet`, `WeakRef` and promises throw a `DOMException` named `DataCloneError`; class instances clone as plain objects; `transfer` detaches the listed `ArrayBuffer`s. The runtime part is linked only when a program names `structuredClone` ([#489](https://github.com/40oleg/nona/issues/489)).
+
+### Fixes
+
+- **`fs.constants` has the open flags, file type bits and permission bits.** It had only `COPYFILE_EXCL` and the access modes; it now carries Node.js's full set (`S_IF*`, `S_I[RWX]{USR,GRP,OTH}`, `O_*`, `UV_*` and `COPYFILE_*`) with per-platform values for Linux, macOS, FreeBSD, OpenBSD and Windows (the smaller Windows set). The FreeBSD and OpenBSD values come from the platform headers, not from a Node.js dump. ([#487](https://github.com/40oleg/nona/issues/487))
+- **`node:stream/web` exists.** `require("node:stream/web")`, `stream/web` and `nona:stream/web` export `ReadableStream`, `ReadableStreamDefaultReader`, `ReadableStreamBYOBReader`, `WritableStream` and `WritableStreamDefaultWriter`, identical to the globals; classes Nona lacks (such as `TransformStream`) are not exported. It failed with `MODULE_NOT_FOUND`. ([#491](https://github.com/40oleg/nona/issues/491))
+- **`atob` and `btoa` are global functions.** They were only exported from `node:buffer`; they are now writable, configurable, non-enumerable properties of `globalThis`, and naming either links the buffer prelude. Bad input throws a `DOMException` named `InvalidCharacterError` (code 5) instead of a plain `Error`. ([#488](https://github.com/40oleg/nona/issues/488))
+
 ## v0.29.0 — 2026-10-25
 
 ### Features

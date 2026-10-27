@@ -294,6 +294,175 @@ __nonaPromiseDrainJobs = (function (fullDrain) {
         enumerable: true,
         configurable: true,
     });
+    var timeOrigin = Date.now() - now();
+    var entries = [];
+    class PerformanceEntry {
+        constructor(name, entryType, startTime, duration, detail) {
+            defineProperty(this, "name", {
+                value: String(name),
+                enumerable: true,
+                configurable: true,
+            });
+            defineProperty(this, "entryType", {
+                value: entryType,
+                enumerable: true,
+                configurable: true,
+            });
+            defineProperty(this, "startTime", {
+                value: startTime,
+                enumerable: true,
+                configurable: true,
+            });
+            defineProperty(this, "duration", {
+                value: duration,
+                enumerable: true,
+                configurable: true,
+            });
+            defineProperty(this, "detail", {
+                value: detail === undefined ? null : detail,
+                enumerable: true,
+                configurable: true,
+            });
+        }
+        toJSON() {
+            return {
+                name: this.name,
+                entryType: this.entryType,
+                startTime: this.startTime,
+                duration: this.duration,
+                detail: this.detail,
+            };
+        }
+    }
+    class PerformanceMark extends PerformanceEntry {
+        constructor(name, options) {
+            var startTime =
+                options && options.startTime !== undefined
+                    ? toNumber(options.startTime)
+                    : now();
+            super(name, "mark", startTime, 0, options && options.detail);
+        }
+    }
+    class PerformanceMeasure extends PerformanceEntry {}
+    function markTime(name) {
+        for (var i = entries.length - 1; i >= 0; i--) {
+            if (entries[i].entryType === "mark" && entries[i].name === name)
+                return entries[i].startTime;
+        }
+        var error = new SyntaxError(
+            'The "' + name + '" performance mark has not been set',
+        );
+        error.code = "ERR_INVALID_PERFORMANCE_MARK";
+        throw error;
+    }
+    function timeOf(value, fallback) {
+        if (value === undefined) return fallback;
+        if (typeof value === "number") return value;
+        return markTime(String(value));
+    }
+    function mark(name, options) {
+        var entry = new PerformanceMark(name, options);
+        entries.push(entry);
+        return entry;
+    }
+    function measure(name, startOrOptions, endMark) {
+        var start, end, detail;
+        if (startOrOptions !== null && typeof startOrOptions === "object") {
+            var hasStart = startOrOptions.start !== undefined,
+                hasEnd = startOrOptions.end !== undefined,
+                duration = startOrOptions.duration;
+            detail = startOrOptions.detail;
+            if (duration !== undefined && hasStart && hasEnd)
+                throw new TypeError(
+                    'The "options" argument cannot have start, end and duration together',
+                );
+            if (hasStart) {
+                start = timeOf(startOrOptions.start);
+                end = hasEnd
+                    ? timeOf(startOrOptions.end)
+                    : duration !== undefined
+                      ? start + toNumber(duration)
+                      : now();
+            } else if (hasEnd) {
+                end = timeOf(startOrOptions.end);
+                start = duration !== undefined ? end - toNumber(duration) : 0;
+            } else {
+                end = now();
+                start = duration !== undefined ? end - toNumber(duration) : 0;
+            }
+        } else {
+            end = timeOf(endMark, now());
+            start = timeOf(startOrOptions, 0);
+        }
+        var entry = new PerformanceMeasure(
+            name,
+            "measure",
+            start,
+            end - start,
+            detail,
+        );
+        entries.push(entry);
+        return entry;
+    }
+    function getEntries() {
+        return entries.slice().sort(function (a, b) {
+            return a.startTime - b.startTime;
+        });
+    }
+    function clearEntries(type, name) {
+        entries = entries.filter(function (entry) {
+            return !(
+                entry.entryType === type &&
+                (name === undefined || entry.name === String(name))
+            );
+        });
+    }
+    var performanceMethods = {
+        mark: mark,
+        measure: measure,
+        getEntries: getEntries,
+        getEntriesByName: function (name, type) {
+            name = String(name);
+            return getEntries().filter(function (entry) {
+                return (
+                    entry.name === name &&
+                    (type === undefined || entry.entryType === type)
+                );
+            });
+        },
+        getEntriesByType: function (type) {
+            return getEntries().filter(function (entry) {
+                return entry.entryType === type;
+            });
+        },
+        clearMarks: function (name) {
+            clearEntries("mark", name);
+        },
+        clearMeasures: function (name) {
+            clearEntries("measure", name);
+        },
+        toJSON: function () {
+            return {
+                nodeTiming: {},
+                timeOrigin: timeOrigin,
+                eventLoopUtilization: {},
+            };
+        },
+    };
+    for (var methodName in performanceMethods) {
+        defineProperty(performance, methodName, {
+            value: performanceMethods[methodName],
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
+    }
+    defineProperty(performance, "timeOrigin", {
+        value: timeOrigin,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+    });
     function install(name, value) {
         defineProperty(globalThis, name, {
             value: value,
@@ -302,6 +471,9 @@ __nonaPromiseDrainJobs = (function (fullDrain) {
             configurable: true,
         });
     }
+    install("PerformanceEntry", PerformanceEntry);
+    install("PerformanceMark", PerformanceMark);
+    install("PerformanceMeasure", PerformanceMeasure);
     install("setTimeout", setTimeout);
     install("setInterval", setInterval);
     install("clearTimeout", clearTimeout);

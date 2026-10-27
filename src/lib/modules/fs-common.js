@@ -596,13 +596,7 @@ export const promises = {
     copyFile: promiseForm(copyFileSync),
     symlink: promiseForm(symlinkSync),
 };
-export const constants = {
-    COPYFILE_EXCL: 1,
-    F_OK: 0,
-    R_OK: 4,
-    W_OK: 2,
-    X_OK: 1,
-};
+export const constants = fsConstants;
 export default {
     readFileSync,
     writeFileSync,
