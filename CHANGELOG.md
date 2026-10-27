@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **`EventEmitter` "Unhandled error" message inspects the value.** `emit("error", { code: 42 })` without a listener threw `Unhandled error. ([object Object])`; the value is now rendered like `util.inspect` (`({ code: 42 })`, `('str')`), and `undefined` stays `(undefined)`. ([#513](https://github.com/40oleg/nona/issues/513))
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
