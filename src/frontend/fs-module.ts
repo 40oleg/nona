@@ -1,6 +1,7 @@
 import type { Target } from "../target.js";
 import { CompileError } from "../diagnostics.js";
 import { patchSource } from "../source-patch.js";
+import { fsConstants } from "./fs-constants.js";
 import {
     modulesFsCommon,
     modulesFsWin32,
@@ -218,7 +219,19 @@ function bsdSource(target: Target): string {
     return source;
 }
 
+/** The host platform name of a target, as process.platform reports it. */
+function platformName(target: Target): string {
+    return target.slice(0, target.indexOf("-"));
+}
+
 export function fsModuleSource(target: Target): string {
+    return (
+        `const fsConstants = ${JSON.stringify(fsConstants(platformName(target), target.slice(target.indexOf("-") + 1)))};\n` +
+        fsPlatformSource(target)
+    );
+}
+
+function fsPlatformSource(target: Target): string {
     if (
         target.startsWith("darwin-") ||
         target === "freebsd-x64" ||
