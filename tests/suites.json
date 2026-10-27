@@ -103,6 +103,7 @@
                 "assert-deep-equal",
                 "assert-throws",
                 "assert-strict",
+                "assert-iferror",
                 "util-types-brand",
                 "util-inspect-circular",
                 "util-inspect-compact",
