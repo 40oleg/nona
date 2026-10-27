@@ -248,6 +248,10 @@ function transfer(operation: Operation, live: Set<number>): void {
         case "requireObject":
             live.add(operation.source);
             return;
+        case "nullishDestructure":
+            live.add(operation.source);
+            if (operation.key !== undefined) live.add(operation.key);
+            return;
         default:
             unreachable(operation);
     }
