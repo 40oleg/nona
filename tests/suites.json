@@ -219,6 +219,7 @@
                 "call-sites",
                 "call-spread",
                 "call-stats",
+                "uncaught-report",
                 "cli",
                 "closures",
                 "capture-initialization",

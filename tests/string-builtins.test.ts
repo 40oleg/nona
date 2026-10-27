@@ -226,7 +226,7 @@ test("String.includes: truthy Symbol.match throws", () => {
     const source = `var o={};o[Symbol.match]=true;'abc'.includes(o);`;
     const run = runNative(linkHost(generate(compileToIR(source))));
     assert.equal(run.status, 1);
-    assert.match(run.stderr.toString(), /Nona runtime error/);
+    assert.match(run.stderr.toString(), /^\w*Error: /m);
 });
 
 test("String.includes: coercion survives stress GC", () => {

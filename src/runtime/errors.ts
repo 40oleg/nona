@@ -24,6 +24,7 @@ export const errorRoots = [
 ];
 export const errorPropertyRoots = [
     "rt.Error.__nonaIsRejectionErrorInternal",
+    "rt.Error.__nonaExitInternal",
     ...errorConstructorNames.flatMap((n) =>
         ["name", "message"].map(
             (k) => "rt." + n.toLowerCase() + "Prototype." + k,
@@ -43,6 +44,27 @@ const pointer = (offset: number, target: string): Fixup => ({
 });
 
 export function emitErrorBrand(b: RuntimeBuilder): void {
+    // The exit of an uncaught exception the prelude reported without the
+    // process prelude (#501): exit code 1 after the hooks rt.fail runs.
+    prependFunctionBuiltin(
+        b,
+        "rt.errorExit.fn",
+        "__nonaExitInternal",
+        0,
+        "rt.Error",
+    );
+    b.fn("rt.errorExit.fn.code", 40, (a) => {
+        const exit = a.unique("exit");
+        a.mov("rax", 1);
+        a.atomicExchange({ rip: "rt.fatalActive" }, "rax", 64);
+        a.test("rax", "rax");
+        a.jcc("ne", exit);
+        a.call("rt.runExitHook");
+        a.call("rt.callStatsReport");
+        a.label(exit);
+        a.mov("rcx", 1);
+        a.callImport("ExitProcess");
+    });
     prependFunctionBuiltin(
         b,
         "rt.errorIsNative.fn",

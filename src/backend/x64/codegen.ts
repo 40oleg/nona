@@ -889,13 +889,15 @@ function generateImage(
     if (!options.agent) entry.initializeStack();
     if (!options.agent && hostFfi.length)
         captureProcessStartup(entry, currentNativeTarget() ?? "win32-x64");
-    const processBoundary = hasPrelude && linked.includes("process"),
-        entryFrame = processBoundary ? 424 : 72;
-    if (processBoundary) {
+    // The prelude reports uncaught throws: process-exceptions.js when process
+    // is linked, else the fallback of regexp-vm-prelude.js (#501).
+    const uncaughtBoundary = hasPrelude,
+        entryFrame = uncaughtBoundary ? 424 : 72;
+    if (uncaughtBoundary) {
         const bytes = new Uint8Array(16);
         bytes[0] = 4;
         fragments.push({
-            name: "process.dispatchKey",
+            name: "entry.dispatchKey",
             section: ".rdata",
             alignment: 8,
             bytes,
@@ -995,7 +997,7 @@ function generateImage(
         entry.load("rax", stack(96 + H.next));
         entry.store({ rip: "rt.exceptionHandler" }, "rax");
     };
-    if (processBoundary) {
+    if (uncaughtBoundary) {
         entry.mov("rax", 0);
         for (const offset of [64, 72, 80, 88])
             entry.store(stack(offset), "rax");
@@ -1010,17 +1012,17 @@ function generateImage(
         pushEntryHandler();
     }
     entry.call("js.main");
-    if (processBoundary) popEntryHandler();
+    if (uncaughtBoundary) popEntryHandler();
     entry.label(drainStart);
-    if (processBoundary) pushEntryHandler();
+    if (uncaughtBoundary) pushEntryHandler();
     if (hasPrelude) drain();
-    if (processBoundary) {
+    if (uncaughtBoundary) {
         popEntryHandler();
         entry.jmp(drained);
         entry.label(uncaught);
         entry.lea("rcx", stack(64));
         entry.lea("rdx", { rip: "rt.preludeGlobals" });
-        entry.lea("r8", { rip: "process.dispatchKey" });
+        entry.lea("r8", { rip: "entry.dispatchKey" });
         entry.call("rt.getProperty");
         entry.load("rax", stack(64));
         entry.cmp("rax", 5);

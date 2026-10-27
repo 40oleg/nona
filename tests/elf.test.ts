@@ -145,7 +145,7 @@ test("Linux native fatal runtime error ends with LF only", (t) => {
         status: 1,
         stream: "stderr",
     });
-    if (output !== null) assert.equal(output, "Nona runtime error\n");
+    if (output !== null) assert.equal(output, "Error: x\n");
 });
 
 test("Linux native BigInt arithmetic and JSON serialization", (t) => {

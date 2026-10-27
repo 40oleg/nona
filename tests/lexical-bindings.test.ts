@@ -82,7 +82,7 @@ for (const [name, source, stdout] of [
         assert.equal(run.error, undefined);
         assert.equal(run.status, 1);
         assert.equal(run.stdout.toString(), stdout);
-        assert.match(run.stderr.toString(), /Nona runtime error/);
+        assert.match(run.stderr.toString(), /^\w*Error: /m);
     });
 for (const source of [
     "let x;let x;",
