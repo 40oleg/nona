@@ -660,7 +660,7 @@ const server = http.createServer((req, res) => {
     if (req.url === '/pause' && parts.length === 1) { req.pause(); setTimeout(() => req.resume(), 10); }
   });
   if (req.url === '/text') req.setEncoding('utf8');
-  if (req.url === '/late') setTimeout(listen, 20);
+  if (req.url === '/late') setTimeout(() => { listen(); lateListening(); }, 20);
   else listen();
   req.on('end', () => {
     console.log(req.url, parts.length > 0, req.complete, req.readableEnded);
@@ -671,12 +671,16 @@ const text = Buffer.from('\u00e9\u20ac'.repeat(5000));
 const body = Buffer.alloc(30000, 7);
 const post = (path, payload) => Buffer.concat([Buffer.from('POST ' + path + ' HTTP/1.1\r\nHost: x\r\nContent-Length: ' + payload.length + '\r\n\r\n'), payload]);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// /late sends its rest and FIN only once its listener is attached: Node.js
+// aborts a request, without a response, when its socket ends first.
+let lateListening;
+const late = new Promise((resolve) => { lateListening = resolve; });
 server.listen(0, '127.0.0.1', async () => {
   const port = server.address().port;
-  const one = (bytes, parts) => new Promise((resolve) => {
+  const one = (bytes, parts, gap) => new Promise((resolve) => {
     const socket = net.connect(port, '127.0.0.1', async () => {
       // Split inside a multi-byte character, then the rest.
-      if (parts) { socket.write(bytes.subarray(0, 9001)); await wait(20); socket.write(bytes.subarray(9001)); }
+      if (parts) { socket.write(bytes.subarray(0, 9001)); await (gap ?? wait(20)); socket.write(bytes.subarray(9001)); }
       else socket.write(bytes);
       socket.end();
     });
@@ -686,7 +690,7 @@ server.listen(0, '127.0.0.1', async () => {
     socket.on('close', () => { console.log(JSON.stringify(out.replace(/Date: [^\r]*\r\n/g, '').split('\r\n\r\n')[1])); resolve(); });
   });
   await one(post('/text', text), true);
-  await one(post('/late', body), true);
+  await one(post('/late', body), true, late);
   await one(post('/pause', body), true);
   await one(post('/plain', body), true);
   server.close(() => console.log('closed'));

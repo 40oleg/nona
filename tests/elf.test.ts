@@ -45,6 +45,10 @@ function executeLinux(
     image: Uint8Array,
     t: TestContext,
     timeout = 10000,
+    expected: { status: number; stream: "stdout" | "stderr" } = {
+        status: 0,
+        stream: "stdout",
+    },
 ): string | null {
     const directory = mkdtempSync(join(tmpdir(), "nona-linux-"));
     try {
@@ -85,8 +89,8 @@ function executeLinux(
             return null;
         }
         assert.equal(run.error, undefined);
-        assert.equal(run.status, 0, run.stderr);
-        return run.stdout;
+        assert.equal(run.status, expected.status, run.stderr);
+        return run[expected.stream];
     } finally {
         rmSync(directory, { recursive: true, force: true });
     }
@@ -128,6 +132,20 @@ test("Linux native compiler executes a JavaScript program", (t) => {
     if (!result.ok) return;
     const output = executeLinux(result.image, t);
     if (output !== null) assert.equal(output, "hello 42\n");
+});
+
+test("Linux native fatal runtime error ends with LF only", (t) => {
+    const result = compile('throw new Error("x");', {
+        fileName: "fatal.js",
+        target: "linux-x64",
+    });
+    assert.equal(result.ok, true, JSON.stringify(result));
+    if (!result.ok) return;
+    const output = executeLinux(result.image, t, 10000, {
+        status: 1,
+        stream: "stderr",
+    });
+    if (output !== null) assert.equal(output, "Error: x\n");
 });
 
 test("Linux native BigInt arithmetic and JSON serialization", (t) => {

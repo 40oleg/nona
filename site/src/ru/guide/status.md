@@ -2,7 +2,7 @@
 
 ## Текущий релиз
 
-**v0.30.0** — см. [список изменений](/changelog) (на английском). Nona — экспериментальный проект: он не проходил аудит безопасности и не заменяет Node.js.
+**v0.32.0** — см. [список изменений](/changelog) (на английском). Nona — экспериментальный проект: он не проходил аудит безопасности и не заменяет Node.js.
 
 ## Аудит Test262
 
@@ -50,7 +50,7 @@
 
 ## Подробные отчёты
 
-- [Статус ES2020 для 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/status.md)
+- [Статус ES2020 для 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/history/status.md)
 - [История релизов](/changelog) и [журнал разработки](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md)
 - [План развития: идеи из блога V8 и целевые архитектуры](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [План релизов 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md)

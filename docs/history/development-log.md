@@ -1,5 +1,17 @@
 # Журнал разработки Nona
 
+## 2026-10-27 — выпуск v0.32.0
+
+- Версия package.json и package-lock.json обновлена до 0.32.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли исправления: ошибки неперехваченных исключений выводятся в каждой программе (#501), описательные `TypeError` при чтении и записи свойства `undefined`/`null` (#503), `Intl.Segmenter` больше не требует движка RegExp (#502); документация: `Intl.Segmenter` (#499), `fs.promises` (#498), архивация устаревших страниц поддержки языка и уточнение про `cause` у Error (#500).
+- Полный аудит Test262 для v0.32.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
+## 2026-10-27 — выпуск v0.31.0
+
+- Версия package.json и package-lock.json обновлена до 0.31.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли добавления для `performance`: `timeOrigin`, `mark`, `measure`, `getEntries`, `getEntriesByName`, `getEntriesByType`, `clearMarks`, `clearMeasures` и `toJSON` (#492); исправления для `util.inspect`: поддержка `getters` (#496), поддержка `numericSeparator` (#496), отображение `ArrayBuffer`/`SharedArrayBuffer` и слабых коллекций (#497); исправления для `assert.ifError` (#494), исправление вывода ошибки LF (#495) и `Date.parse` с ISO-подобными строками и `±hhmm` (#493).
+- Полный аудит Test262 для v0.31.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-26 — выпуск v0.30.0
 
 - Версия package.json и package-lock.json обновлена до 0.30.0; `src/version.ts`, CLI help и `--version` — тоже.

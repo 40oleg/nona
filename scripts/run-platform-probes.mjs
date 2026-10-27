@@ -74,7 +74,9 @@ for (const probe of manifest.runtime?.[target] ?? []) {
         : process.env;
     const timeout = probe.timeoutMs ?? 15000;
     const extendedArmStream =
-        target.endsWith("-arm64") && probe.file.startsWith(target + "-stream-");
+        target.endsWith("-arm64") &&
+        (probe.file.startsWith(target + "-stream-") ||
+            probe.file.startsWith(target + "-process-builtin-"));
     if (
         !Number.isInteger(timeout) ||
         timeout < 1 ||

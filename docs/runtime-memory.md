@@ -434,9 +434,17 @@ TDZ/missing mutable global/delete super — ReferenceError; const, callable,
 receiver, descriptor, coercion и prototype checks — TypeError; invalid array
 length/radix/argument limits — RangeError. Uncaught throw пока использует
 общий fatal reporter, без stack trace. Runtime message: Invalid operation;
-текст не претендует на совпадение с V8. V8 `Error.captureStackTrace` реализован
-с placeholder-кадрами (prelude `errorStack`); ES2022 cause не входит в
-реализованный ES2020 Error surface.
+текст не претендует на совпадение с V8. Исключение — чтение и запись свойства
+undefined/null (`rt.throwNullishGet`/`rt.throwNullishSet`, #503): сообщение как
+в Node.js, `Cannot read properties of undefined (reading 'x')` и `Cannot set
+properties of null (setting 'x')`; ключ-объект не преобразуется (это мог бы быть
+пользовательский код), и тогда часть с ключом опускается. Деструктуризация
+объектного паттерна от undefined/null (`rt.throwNullishDestructure`, #503):
+`Cannot destructure property 'a' of 'null' as it is null.`, а для пустого
+паттерна или вычисляемого первого ключа `Cannot destructure 'null' as it is
+null.` V8 `Error.captureStackTrace` реализован
+с placeholder-кадрами (prelude `errorStack`); ES2022 cause поддерживается (ошибки
+конструируются с опцией `{cause: value}`).
 
 ## Symbol и Iterator GC roots
 
