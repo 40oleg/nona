@@ -5,6 +5,7 @@
 ### Fixes
 
 - **Reading or writing a property of `undefined` or `null` throws a descriptive `TypeError`.** The message was `Invalid operation`; it is now Node.js's `Cannot read properties of undefined (reading 'x')` or `Cannot set properties of null (setting 'x')`, for `o.x`, `o[k]`, method calls, assignments and compound assignments. String, number, boolean, BigInt and symbol keys are named; an object key is not converted, and the key part is left out. Destructuring an object pattern from them throws `Cannot destructure property 'a' of 'null' as it is null.` (`Cannot destructure 'null' as it is null.` for an empty pattern or a computed first key). Other runtime `TypeError`s keep `Invalid operation`. ([#503](https://github.com/40oleg/nona/issues/503))
+- **Documentation: `Intl.Segmenter` coverage is now correctly documented.** `docs/intl.md` lists `Intl.Segmenter` in the supported API table with `granularity: "grapheme"` only, and `docs/npm.md` describes the full `Intl` coverage (NumberFormat, DateTimeFormat, Collator, PluralRules, grapheme-only Segmenter for en locale and UTC time zone). The contradictory statements that said Segmenter was not implemented or was the only `Intl` feature are reconciled ([#499](https://github.com/40oleg/nona/issues/499)).
 
 ### Documentation
 
