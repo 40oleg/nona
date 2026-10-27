@@ -5,6 +5,7 @@
 ### Fixes
 
 - **RangeErrors from built-in argument checks name the check.** `toFixed`, `toPrecision`, `toExponential`, `Number.prototype.toString` radix, `String.prototype.repeat`, `String.fromCodePoint`, `normalize`, array and typed array lengths, `DataView` offsets and lengths, and `Date.prototype.toISOString` on an invalid date now throw a `RangeError` with a specific message instead of `Invalid operation`. ([#509](https://github.com/40oleg/nona/issues/509))
+- **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
 
 ## v0.32.0 — 2026-10-27
 
