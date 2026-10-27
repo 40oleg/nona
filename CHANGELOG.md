@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
