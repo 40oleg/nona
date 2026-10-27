@@ -33,7 +33,8 @@
         "check:weak-memory": "npm run build && node scripts/check-weak-memory.mjs",
         "site:dev": "npm --prefix site run dev",
         "site:build": "npm --prefix site run build",
-        "snapshot:programs": "npm run build && node scripts/snapshot-program-corpus.mjs"
+        "snapshot:programs": "npm run build && node scripts/snapshot-program-corpus.mjs",
+        "soak:http": "npm run build && node scripts/http-soak.mjs"
     },
     "devDependencies": {
         "@types/node": "^26.6.2",
