@@ -1,0 +1,40 @@
+name: http soak
+
+on:
+    workflow_dispatch:
+        inputs:
+            minutes:
+                description: "Duration in minutes"
+                required: false
+                default: "180"
+            connections:
+                description: "Number of concurrent connections (optional)"
+                required: false
+
+permissions:
+    contents: read
+
+jobs:
+    soak:
+        runs-on: ubuntu-latest
+        timeout-minutes: 210
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - run: node scripts/http-soak.mjs
+              env:
+                  NONA_SOAK_MINUTES: ${{ github.event.inputs.minutes }}
+                  NONA_SOAK_CONNECTIONS: ${{ github.event.inputs.connections }}
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: soak-report
+                  path: soak-report/
+            - run: cat soak-report/http-soak.md >> $GITHUB_STEP_SUMMARY
+              if: always()
+              shell: bash

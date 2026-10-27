@@ -215,6 +215,94 @@ Stated plainly, for the TLS client and the `https` module:
   is no `fetch` over `https:` yet.
 - **Platforms.** win32-x64 and linux-x64 only.
 
+## Soak test
+
+The [`scripts/http-soak.mjs`](../scripts/http-soak.mjs) test runs a compiled
+Nona HTTP server for hours under steady load and checks that it stays healthy
+(#516). It compiles `bench/http/soak-server.mjs` (or runs it under Node.js if
+set with `NONA_SOAK_SERVER`), applies steady load with 32 concurrent connections
+(configurable with `NONA_SOAK_CONNECTIONS`), and samples memory, handles and
+latency every minute (configurable). The routes exercise the server: small text
+responses, JSON, 1 MB chunked bodies, echoed request bodies (POST), slow clients
+that disconnect mid-response, keep-alive and close requests, and error routes
+(404, 500). The load mix is: 35% text, 28% JSON, 5% big, 12% echo, 10% close,
+4% slow, 3% missing (404), 3% throw (500); `NONA_SOAK_MIX=route=weight,...`
+isolates a route.
+
+The run completes when the load window expires, or crashes. A smoke mode
+(`--smoke`, or `NONA_SOAK_MINUTES=5`) runs for 5 minutes; a full run is 180
+minutes by default (configurable with `NONA_SOAK_MINUTES`). The warm-up is 10
+minutes (1 with `--smoke`, customizable with `NONA_SOAK_WARMUP_MINUTES`); the
+pass criteria compare the last 30 minutes of load against the first 30 minutes
+after warm-up (or a quarter of the load window if shorter).
+
+**Metrics sampled every minute:**
+
+- RSS: resident set size (Linux `/proc`; from stats on other platforms)
+- Heap: used, total (from `process.memoryUsage()`)
+- Open handles: sockets, file descriptors, active resources
+- Throughput: requests per second
+- Latency: p50, p99 (1%-wide histogram buckets from 1 µs to minutes)
+- Errors: crashed, failed requests (other than deliberate 404/500), socket errors
+
+**Pass criteria:**
+
+- No crash or early exit
+- No failed requests (deliberate 404/500 and aborted slow clients excluded)
+- RSS growth after warm-up ≤ 10%
+- Handles return to the baseline within slack (2 extra sockets, 4 fds, 2
+  resources)
+- p99 latency in the last 30 min ≤ first 30 min after warm-up + 20% (or +
+  0.5 ms slack)
+
+The test writes `soak-report/http-soak.{json,md}` (pass/fail, raw samples, all
+failures and their reasons).
+
+### Running locally
+
+```sh
+npm run build
+npm run soak:http -- --smoke                              # 5 minutes
+npm run soak:http                                          # 3 hours
+NONA_SOAK_MINUTES=30 npm run soak:http                     # 30 minutes
+NONA_SOAK_CONNECTIONS=256 npm run soak:http -- --smoke    # 256 connections
+NONA_SOAK_MIX=json=1 npm run soak:http -- --smoke          # JSON only
+```
+
+The server is built for the host platform; to test a different target use
+`--module` to run it under Node.js instead:
+
+```sh
+npm run build
+NONA_SOAK_SERVER=bench/http/soak-server.mjs npm run soak:http -- --smoke
+```
+
+### Latest result
+
+**Smoke run, 2026-10-27:** 5 minutes on Windows 11 (16 CPUs, i7-13620H), Node.js
+load generator, 32 concurrent connections. 1,005,647 requests at 3,349.7 req/s.
+RSS baseline 51.3 MB, peak 95.4 MB, final 93.4 MB (2.4% growth after warm-up).
+p99 latency 15.55 ms (first 1 min after warm-up) → 14.65 ms (last 1 min, −5.8%).
+Handles returned to baseline. **Status:** PASS (except Node.js server had socket
+errors under sustained Windows load — see #516 for details).
+
+The 3-hour baseline will be measured after the first full run on the CI server.
+Known finding: the compiled Nona server crashes on Windows with an access
+violation (0xc0000005) in the smoke run; Linux results pending.
+
+### Workflow
+
+A GitHub Actions workflow (`.github/workflows/http-soak.yml`) runs the soak test
+on demand (`workflow_dispatch`):
+
+```
+gh workflow run http-soak.yml -f minutes=180 -f connections=32
+```
+
+Inputs: `minutes` (duration, default 180), `connections` (optional). The workflow
+runs on `ubuntu-latest` with a timeout of 210 minutes, uploads the report
+artifact, and appends the Markdown summary to the job summary.
+
 ## Event loop
 
 Sockets are non-blocking. While any socket or server is open, the event loop
