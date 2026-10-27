@@ -443,8 +443,8 @@ properties of null (setting 'x')`; ключ-объект не преобразу
 `Cannot destructure property 'a' of 'null' as it is null.`, а для пустого
 паттерна или вычисляемого первого ключа `Cannot destructure 'null' as it is
 null.` V8 `Error.captureStackTrace` реализован
-с placeholder-кадрами (prelude `errorStack`); ES2022 cause не входит в
-реализованный ES2020 Error surface.
+с placeholder-кадрами (prelude `errorStack`); ES2022 cause поддерживается (ошибки
+конструируются с опцией `{cause: value}`).
 
 ## Symbol и Iterator GC roots
 

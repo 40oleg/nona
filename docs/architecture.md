@@ -1,6 +1,6 @@
 # Nona architecture
 
-How the compiler and the runtime fit together. The numbers in the layout tables are asserted against the source by `tests/architecture-doc.test.ts`, so this page fails CI when a layout changes and is not updated. Older, per-release descriptions are in [`history/`](history/README.md); the current status is in [`status.md`](status.md) and the plan in [`roadmap.md`](roadmap.md).
+How the compiler and the runtime fit together. The numbers in the layout tables are asserted against the source by `tests/architecture-doc.test.ts`, so this page fails CI when a layout changes and is not updated. Older, per-release descriptions are in [`history/`](history/README.md); the current status is in [`status.md`](history/status.md) and the plan in [`roadmap.md`](roadmap.md).
 
 ## Overview
 
