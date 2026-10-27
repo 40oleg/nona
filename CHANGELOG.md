@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **Uncaught exceptions are reported in every program.** A program that does not use `process` printed only `Nona runtime error` for an uncaught throw, a failing timer or promise job, or an unhandled rejection; it now prints the error (`TypeError: bad thing`) on stderr and exits with code 1, like a program that does ([#501](https://github.com/40oleg/nona/issues/501)).
 - **`Intl.Segmenter` no longer needs the RegExp engine.** It validated the locale with a RegExp literal, so a program that segmented a string and had no RegExp of its own failed with "compiled without the RegExp engine" ([#502](https://github.com/40oleg/nona/issues/502)).
 - **Documentation: `Intl.Segmenter` coverage is now correctly documented.** `docs/intl.md` lists `Intl.Segmenter` in the supported API table with `granularity: "grapheme"` only, and `docs/npm.md` describes the full `Intl` coverage (NumberFormat, DateTimeFormat, Collator, PluralRules, grapheme-only Segmenter for en locale and UTC time zone). The contradictory statements that said Segmenter was not implemented or was the only `Intl` feature are reconciled ([#499](https://github.com/40oleg/nona/issues/499)).
 
