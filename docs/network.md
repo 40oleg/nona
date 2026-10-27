@@ -224,8 +224,9 @@ set with `NONA_SOAK_SERVER`), applies steady load with 32 concurrent connections
 (configurable with `NONA_SOAK_CONNECTIONS`), and samples memory, handles and
 latency every minute (configurable). The routes exercise the server: small text
 responses, JSON, 1 MB chunked bodies, echoed request bodies (POST), slow clients
-that disconnect mid-response, keep-alive and close requests, and error routes
-(404, 500). The load mix is: 35% text, 28% JSON, 5% big, 12% echo, 10% close,
+that disconnect mid-response, keep-alive and close requests, and error routes:
+a 404, and `/throw`, which throws from a queued microtask so that the process
+`uncaughtException` listener answers with a 500. The load mix is: 35% text, 28% JSON, 5% big, 12% echo, 10% close,
 4% slow, 3% missing (404), 3% throw (500); `NONA_SOAK_MIX=route=weight,...`
 isolates a route.
 
@@ -238,8 +239,11 @@ after warm-up (or a quarter of the load window if shorter).
 
 **Metrics sampled every minute:**
 
-- RSS: resident set size (Linux `/proc`; from stats on other platforms)
-- Heap: used, total (from `process.memoryUsage()`)
+- RSS: resident set size (Linux `/proc`; from stats on other platforms) and
+  the peak RSS from `process.resourceUsage()`
+- Heap: used, total, external (from `process.memoryUsage()`). There are no GC
+  statistics: Nona has no `node:v8` module and its `PerformanceObserver`
+  records no `gc` entries, so collections are not counted.
 - Open handles: sockets, file descriptors, active resources
 - Throughput: requests per second
 - Latency: p50, p99 (1%-wide histogram buckets from 1 µs to minutes)
@@ -256,7 +260,10 @@ after warm-up (or a quarter of the load window if shorter).
   0.5 ms slack)
 
 The test writes `soak-report/http-soak.{json,md}` (pass/fail, raw samples, all
-failures and their reasons).
+failures and their reasons); the server executable is built into
+`bench/results/`. When the server crashes, failed requests of the last 2
+seconds before its exit are listed separately as consequences of the crash and
+do not count as failed requests.
 
 ### Running locally
 
@@ -269,26 +276,45 @@ NONA_SOAK_CONNECTIONS=256 npm run soak:http -- --smoke    # 256 connections
 NONA_SOAK_MIX=json=1 npm run soak:http -- --smoke          # JSON only
 ```
 
-The server is built for the host platform; to test a different target use
-`--module` to run it under Node.js instead:
+The server is built for the host platform (win32-x64 or linux-x64).
+`NONA_SOAK_SERVER` selects another server instead: a prebuilt executable, or a
+`.mjs` file, which runs under Node.js as the reference (oracle) for the
+figures:
 
 ```sh
-npm run build
 NONA_SOAK_SERVER=bench/http/soak-server.mjs npm run soak:http -- --smoke
 ```
 
 ### Latest result
 
-**Smoke run, 2026-10-27:** 5 minutes on Windows 11 (16 CPUs, i7-13620H), Node.js
-load generator, 32 concurrent connections. 1,005,647 requests at 3,349.7 req/s.
-RSS baseline 51.3 MB, peak 95.4 MB, final 93.4 MB (2.4% growth after warm-up).
-p99 latency 15.55 ms (first 1 min after warm-up) → 14.65 ms (last 1 min, −5.8%).
-Handles returned to baseline. **Status:** PASS (except Node.js server had socket
-errors under sustained Windows load — see #516 for details).
+**The compiled Nona server has not passed the smoke run yet.** On win32-x64
+(Windows 11, i7-13620H, commit 4d75a9d9, 2026-10-27) the test finds two
+defects, both in the 1 MiB chunked `/big` route:
 
-The 3-hour baseline will be measured after the first full run on the CI server.
-Known finding: the compiled Nona server crashes on Windows with an access
-violation (0xc0000005) in the smoke run; Linux results pending.
+- [#601](https://github.com/40oleg/nona/issues/601): after a chunked response
+  larger than about 320 KiB, the next request on the same keep-alive connection
+  is never answered. With the default mix all 32 load connections stall within
+  seconds and every later request on them times out.
+- [#602](https://github.com/40oleg/nona/issues/602): with 32 connections on
+  `/big` (`NONA_SOAK_MIX=big=1`) the server exits with an access violation
+  (`0xc0000005`) about 5 seconds into the load.
+
+Without `/big`
+(`NONA_SOAK_MIX=text=1,json=1,echo=1,close=1,missing=1,throw=1`, and
+separately `slow=1,text=3`) short runs with 32 connections have no crash, no
+failed requests, and sockets back to the baseline; the first mix ran at about
+11,000 req/s with a p99 of 7 ms and an RSS of 23 MB. These runs were 30
+seconds long, so they say nothing yet about leaks or slowdown over hours.
+
+Linux has not been run yet; the first full 3-hour run is planned in the
+`http-soak` workflow once #601 and #602 are fixed.
+
+**Oracle baseline (Node.js server, not Nona):** a 5-minute smoke run of
+`NONA_SOAK_SERVER=bench/http/soak-server.mjs` on the same machine, 32
+connections: 1,005,647 requests at 3,349.7 req/s, RSS 51.3 MB at the baseline
+and 93.4 MB at the end (2.4% growth after warm-up), p99 latency 15.55 ms in the
+first minute after warm-up and 14.65 ms in the last minute, handles back to the
+baseline. All criteria passed.
 
 ### Workflow
 
@@ -300,8 +326,10 @@ gh workflow run http-soak.yml -f minutes=180 -f connections=32
 ```
 
 Inputs: `minutes` (duration, default 180), `connections` (optional). The workflow
-runs on `ubuntu-latest` with a timeout of 210 minutes, uploads the report
-artifact, and appends the Markdown summary to the job summary.
+runs on `ubuntu-latest` with a job timeout of `minutes` + 30 (210 minutes by
+default; GitHub-hosted runners stop any job at 360 minutes, so `minutes` can be
+at most 330), uploads the report artifact (the two report files), and appends
+the Markdown summary to the job summary.
 
 ## Event loop
 

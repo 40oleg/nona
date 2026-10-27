@@ -14,7 +14,7 @@
 // NONA_SOAK_PAUSE_MS (pause of every worker between requests, 0),
 // NONA_SOAK_MIX (route weights, e.g. text=1,json=1), NONA_SOAK_SERVER (a
 // prebuilt server executable, or bench/http/soak-server.mjs to run it under
-// Node.js; skips the build).
+// Node.js; skips the build). The executable is built into bench/results/.
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
@@ -188,8 +188,10 @@ mkdirSync(outDir, { recursive: true });
 const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
 let serverPath = process.env.NONA_SOAK_SERVER;
 if (!serverPath) {
+    const buildDir = join(root, "bench", "results");
+    mkdirSync(buildDir, { recursive: true });
     serverPath = join(
-        outDir,
+        buildDir,
         process.platform === "win32" ? "soak-server.exe" : "soak-server",
     );
     console.log(`building the soak server for ${target}`);
@@ -230,6 +232,7 @@ const childExited = new Promise((r) => child.on("exit", r));
 child.on("exit", (code, signal) => {
     if (!stopping) {
         crash = { code, signal, atSeconds: Math.round(elapsedSeconds()) };
+        if (loadStart) discardNearCrash();
         // Windows exceptions, e.g. 0xc0000005 for an access violation.
         if (code > 255) crash.hex = "0x" + code.toString(16);
         console.error(
@@ -285,6 +288,8 @@ const counters = {
     deliberate: { missing: 0, throw: 0, slowAborted: 0 },
     failed: 0,
     failures: {},
+    // Failures in the NEAR_CRASH_MS before a crash: its consequences.
+    nearCrash: {},
 };
 const failureExamples = [];
 let interval = { requests: 0, deliberate: 0, failed: 0, hist: newHistogram() };
@@ -295,15 +300,38 @@ function elapsedSeconds() {
     return loadStart ? (performance.now() - loadStart) / 1000 : 0;
 }
 
+// Failures of the last NEAR_CRASH_MS, so that the ones a crash causes before
+// its exit event arrives (ECONNRESET, ECONNREFUSED) can be taken back.
+const NEAR_CRASH_MS = 2000;
+let recentFailures = [];
+
 function fail(route, reason) {
     // Requests that fail after a crash are its consequence, not new failures.
     if (crash !== null) return;
+    const now = performance.now();
     counters.failed++;
     interval.failed++;
     const key = `${route}: ${reason}`;
     counters.failures[key] = (counters.failures[key] || 0) + 1;
-    if (failureExamples.length < 20)
-        failureExamples.push({ atSeconds: elapsedSeconds(), route, reason });
+    const example = { atSeconds: elapsedSeconds(), route, reason };
+    if (failureExamples.length < 20) failureExamples.push(example);
+    recentFailures = recentFailures.filter((f) => now - f.at <= NEAR_CRASH_MS);
+    recentFailures.push({ at: now, key, example });
+}
+
+// Moves the failures recorded just before a crash to counters.nearCrash.
+function discardNearCrash() {
+    const now = performance.now();
+    for (const f of recentFailures) {
+        if (now - f.at > NEAR_CRASH_MS) continue;
+        counters.failed--;
+        interval.failed = Math.max(0, interval.failed - 1);
+        if (--counters.failures[f.key] === 0) delete counters.failures[f.key];
+        counters.nearCrash[f.key] = (counters.nearCrash[f.key] || 0) + 1;
+        const i = failureExamples.indexOf(f.example);
+        if (i >= 0) failureExamples.splice(i, 1);
+    }
+    recentFailures = [];
 }
 
 function checkResponse(route, res, body) {
@@ -521,6 +549,7 @@ async function sample(phase) {
         t: Math.round(elapsedSeconds()),
         rss: rssProc ?? stats?.memory?.rss ?? null,
         rssStats: stats?.memory?.rss ?? null,
+        maxRss: stats?.maxRss ?? null,
         heapUsed: stats?.memory?.heapUsed ?? null,
         heapTotal: stats?.memory?.heapTotal ?? null,
         external: stats?.memory?.external ?? null,
@@ -529,6 +558,7 @@ async function sample(phase) {
         activeResources: stats?.activeResources ?? null,
         serverRequests: stats?.requests ?? null,
         serverErrors: stats?.errors ?? null,
+        uncaught: stats?.uncaught ?? null,
         requests: current.requests,
         rps:
             seconds > 0
@@ -669,7 +699,7 @@ criterion(
     p99Growth === null
         ? missing
         : `${p99Head.toFixed(2)} → ${p99Tail.toFixed(2)} ms (${p99Growth >= 0 ? "+" : ""}${(p99Growth * 100).toFixed(1)}%)`,
-    `last ${config.windowMinutes} min ≤ first ${config.windowMinutes} min after warm-up + ${config.limits.p99Growth * 100}% (or + ${config.limits.p99SlackMs} ms)`,
+    `last ${+config.windowMinutes.toFixed(2)} min ≤ first ${+config.windowMinutes.toFixed(2)} min after warm-up + ${config.limits.p99Growth * 100}% (or + ${config.limits.p99SlackMs} ms)`,
 );
 
 const pass = criteria.every((c) => c.pass);
@@ -687,6 +717,7 @@ const summary = {
     deliberate: counters.deliberate,
     failed: counters.failed,
     failures: counters.failures,
+    failuresNearCrash: counters.nearCrash,
     failureExamples,
     averageRps:
         Math.round((totalRequests / Math.max(1, loadSeconds)) * 10) / 10,
@@ -761,13 +792,22 @@ if (counters.failed > 0) {
         md.push(`- ${key}: ${n}`);
     md.push("");
 }
+if (Object.keys(counters.nearCrash).length > 0) {
+    md.push(
+        `Not counted: failures in the ${NEAR_CRASH_MS / 1000} s before the crash (its consequences):`,
+        "",
+    );
+    for (const [key, n] of Object.entries(counters.nearCrash))
+        md.push(`- ${key}: ${n}`);
+    md.push("");
+}
 md.push(
-    "| Phase | Min | RSS MB | heapUsed MB | heapTotal MB | external MB | fds | sockets | resources | req/s | p50 ms | p99 ms | deliberate | failed |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Phase | Min | RSS MB | max RSS MB | heapUsed MB | heapTotal MB | external MB | fds | sockets | resources | req/s | p50 ms | p99 ms | deliberate | failed |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
 );
 for (const s of samples)
     md.push(
-        `| ${s.phase} | ${(s.t / 60).toFixed(1)} | ${mb(s.rss)} | ${mb(s.heapUsed)} | ${mb(s.heapTotal)} | ${mb(s.external)} | ` +
+        `| ${s.phase} | ${(s.t / 60).toFixed(1)} | ${mb(s.rss)} | ${mb(s.maxRss)} | ${mb(s.heapUsed)} | ${mb(s.heapTotal)} | ${mb(s.external)} | ` +
             `${s.fds ?? "-"} | ${s.openSockets ?? "-"} | ${s.activeResources ?? "-"} | ${s.rps} | ${s.p50 ?? "-"} | ${s.p99 ?? "-"} | ${s.deliberate} | ${s.failed} |`,
     );
 md.push("");

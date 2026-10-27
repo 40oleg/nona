@@ -14,15 +14,34 @@ on:
 permissions:
     contents: read
 
+env:
+    NODE_VERSION: "26.9.0"
+
 jobs:
-    soak:
+    # The job timeout follows the minutes input: the run plus 30 minutes for
+    # the build, the settle time and the report (expressions cannot add).
+    plan:
         runs-on: ubuntu-latest
-        timeout-minutes: 210
+        outputs:
+            timeout: ${{ steps.timeout.outputs.minutes }}
+        steps:
+            - id: timeout
+              shell: bash
+              env:
+                  MINUTES: ${{ inputs.minutes || '180' }}
+              run: |
+                  minutes=$(awk -v m="$MINUTES" 'BEGIN { printf "%d", (m == int(m) ? m : int(m) + 1) + 30 }')
+                  echo "minutes=$minutes" >> "$GITHUB_OUTPUT"
+
+    soak:
+        needs: plan
+        runs-on: ubuntu-latest
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.timeout) }}
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: "26.9.0"
+                  node-version: ${{ env.NODE_VERSION }}
                   cache: npm
             - run: npm ci
             - run: npm run build

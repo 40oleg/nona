@@ -36,8 +36,17 @@ function stats() {
         typeof process.getActiveResourcesInfo === "function"
             ? process.getActiveResourcesInfo().length
             : null;
+    // Neither Nona nor this server exposes GC counters (no node:v8, and
+    // PerformanceObserver records no "gc" entries); the peak RSS from
+    // resourceUsage() is the closest extra signal.
+    const usage =
+        typeof process.resourceUsage === "function"
+            ? process.resourceUsage()
+            : null;
     return JSON.stringify({
         memory: process.memoryUsage(),
+        maxRss: usage ? usage.maxRSS * 1024 : null,
+        uncaught,
         uptime: process.uptime(),
         requests,
         openSockets,
@@ -47,9 +56,21 @@ function stats() {
     });
 }
 
-function fail(message) {
-    throw new Error(message);
-}
+// /throw raises an exception outside the request handler's call stack; the
+// process "uncaughtException" listener answers it with a 500, so the route
+// exercises the runtime's uncaught-exception path under load.
+let uncaught = 0;
+process.on("uncaughtException", (error) => {
+    uncaught++;
+    const res = error && error.res;
+    if (!res) {
+        console.log("uncaught " + (error && error.stack));
+        return;
+    }
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "text/plain");
+    res.end("error: " + error.message);
+});
 
 const server = http.createServer((req, res) => {
     requests++;
@@ -90,13 +111,11 @@ const server = http.createServer((req, res) => {
         }, slowInterval);
         res.on("close", () => clearInterval(timer));
     } else if (url === "/throw") {
-        try {
-            fail("deliberate failure");
-        } catch (error) {
-            res.statusCode = 500;
-            res.setHeader("Content-Type", "text/plain");
-            res.end("error: " + error.message);
-        }
+        queueMicrotask(() => {
+            const error = new Error("deliberate failure");
+            error.res = res;
+            throw error;
+        });
     } else if (url === "/__stats") {
         res.setHeader("Content-Type", "application/json");
         res.end(stats());
