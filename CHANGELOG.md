@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.31.0 — 2026-10-27
+
 ### Features
 
 - **`performance` has `timeOrigin`, `mark` and `measure`.** `performance.timeOrigin`, `mark`, `measure` (names and options forms), `getEntries`, `getEntriesByName`, `getEntriesByType`, `clearMarks`, `clearMeasures` and `toJSON` are available, and `PerformanceEntry`, `PerformanceMark` and `PerformanceMeasure` are globals and exports of `node:perf_hooks`. ([#492](https://github.com/40oleg/nona/issues/492))
