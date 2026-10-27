@@ -28,7 +28,7 @@ Node.js के `fs` मॉड्यूल का एक सिंक्रोन
 
 ## कॉलबैक और प्रॉमिस
 
-`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (`realpath.native` सहित), `readdir`, `mkdir`, `rm`, `rmdir`, `unlink`, `rename`, `copyFile` और `exists` Node.js शैली का कॉलबैक लेते हैं (`(error, result)`; `exists` केवल एक बूलियन देता है)। `exists` के बिना यही फ़ंक्शन `fs.promises` से और `node:fs/promises` मॉड्यूल (`fs/promises`, `nona:fs/promises`) से प्रॉमिस लौटाते हैं, जो `fs.promises` का ही ऑब्जेक्ट है। दोनों रूप कॉल होते ही सिंक्रोनस ऑपरेशन चलाते हैं और केवल कॉलबैक को अगले टिक तक टालते हैं या प्रॉमिस को सेटल करते हैं: वे फ़ाइल सिस्टम के काम को अन्य कोड के साथ ओवरलैप नहीं करते।
+`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (`realpath.native` सहित), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`, `unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` और `exists` Node.js शैली का कॉलबैक लेते हैं (`(error, result)`; `exists` केवल एक बूलियन देता है)। `exists` के बिना यही फ़ंक्शन `fs.promises` से और `node:fs/promises` मॉड्यूल (`fs/promises`, `nona:fs/promises`) से प्रॉमिस लौटाते हैं, जो `fs.promises` का ही ऑब्जेक्ट है। दोनों रूप कॉल होते ही सिंक्रोनस ऑपरेशन चलाते हैं और केवल कॉलबैक को अगले टिक तक टालते हैं या प्रॉमिस को सेटल करते हैं: वे फ़ाइल सिस्टम के काम को अन्य कोड के साथ ओवरलैप नहीं करते।
 
 ## TextEncoder और TextDecoder {#textencoder-and-textdecoder}
 
