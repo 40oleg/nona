@@ -92,6 +92,12 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
   timers and no referenced sockets or servers remain.
 - `performance.now()` uses the monotonic clock (`QueryPerformanceCounter`,
   `clock_gettime(CLOCK_MONOTONIC)`) and counts milliseconds from program start.
+  `performance.timeOrigin` is the wall-clock time of program start in
+  milliseconds since the epoch. `performance.mark`/`measure` store
+  `PerformanceMark`/`PerformanceMeasure` entries that `getEntries`,
+  `getEntriesByName`, `getEntriesByType`, `clearMarks` and `clearMeasures`
+  query; a `measure` naming a missing mark throws a `SyntaxError` with code
+  `ERR_INVALID_PERFORMANCE_MARK`.
 - An uncaught exception in a timer callback terminates the process with exit
   code 1, like an uncaught exception in the top-level program.
 - Realms created by the Test262 host do not install their own timers.
@@ -140,6 +146,12 @@ The default export and named `EventEmitter` export are the same constructor.
 `addEventListener` and `removeEventListener`. `addAbortListener` returns a
 subscription disposable under `Symbol.dispose`. The `Symbol.dispose` and
 `Symbol.asyncDispose` globals use the distinct symbol identities from Node.js 26.
+
+`structuredClone(value, { transfer })` is a global linked when a program names it.
+It follows the HTML structured clone algorithm on one thread: cycles and shared
+references are kept, class instances become plain objects, functions, symbols and
+weak collections throw a `DOMException` named `DataCloneError`, and `transfer`
+detaches the listed `ArrayBuffer`s.
 
 Nona supplies `Event`, `CustomEvent`, `EventTarget`, `AbortController`,
 `AbortSignal` and `DOMException` globals. Event targets support listener objects,
@@ -200,6 +212,8 @@ Supported encodings are UTF-8 (`utf8`, `utf-8`), UTF-16 little endian (`utf16le`
 
 The API includes `alloc`, `allocUnsafe`, `allocUnsafeSlow`, `byteLength`, `isBuffer`, `isEncoding`, `compare`, `concat`, `copyBytesFrom`, `poolSize`; instance conversion, JSON, inspection, equality, comparison, overlapping copy, fill, write, shared slices, swap16/32/64, includes/indexOf/lastIndexOf; signed/unsigned integer reads and writes in both byte orders (fixed widths and one through six bytes), float/double access, 64-bit BigInt access, and Uint spelling aliases. Searches accept the Node 26 exclusive `end` bound. Aligned unsafe allocations accept powers of two through 2 ** 30 and align the actual native backing address.
 
+`atob` and `btoa` are also globals (writable, configurable, non-enumerable). Invalid input throws a `DOMException` named `InvalidCharacterError`.
+
 The module also exports `isAscii`, `isUtf8`, `atob`, `btoa`, `transcode` (UTF-8, UTF-16LE, ASCII and Latin-1), `INSPECT_MAX_BYTES`, `kMaxLength`, `kStringMaxLength` and `constants`. `SlowBuffer` is retained as a legacy compatibility export. The default export is the shared module API object.
 
 Global and module `Blob` and `File` constructors provide immutable copied data, `size`, `type`, `slice`, Promise-returning `text`/`arrayBuffer`/`bytes`, and File `name`/`lastModified` metadata. Blob string parts normalize unpaired surrogates; `endings: 'native'` uses CRLF on Windows and LF elsewhere. Returned bytes and ArrayBuffers are independent copies.
@@ -244,6 +258,11 @@ writeFileSync(
 Readable, Writable, Duplex, Transform and PassThrough constructors on every
 native target. They inherit the canonical EventEmitter used by process.
 `node:stream/promises` and `node:stream/consumers` also have bare and nona aliases.
+`node:stream/web` (with `stream/web` and `nona:stream/web`) exports the Web stream
+classes Nona has, identical to the globals: `ReadableStream`,
+`ReadableStreamDefaultReader`, `ReadableStreamBYOBReader`, `WritableStream` and
+`WritableStreamDefaultWriter`. `TransformStream` and the other classes Nona lacks
+are not exported.
 No Node.js source, external interpreter or third-party polyfill is bundled.
 
 Readable queues implement demand, push/unshift/read, object and byte modes,
@@ -377,7 +396,7 @@ startup. Each is available as `node:<name>` and `<name>`.
   detection.
 - `node:util`: `format` and `formatWithOptions` (`%s %d %i %f %j %o %O %c
 %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
-  `compact`, `maxArrayLength`, `maxStringLength`, `customInspect`), `inherits`, `promisify` (with
+  `compact`, `maxArrayLength`, `maxStringLength`, `getters`, `numericSeparator`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
   `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
   `parseArgs` (all options, `tokens` and Node.js's `ERR_PARSE_ARGS_*` errors;
@@ -413,7 +432,11 @@ startup. Each is available as `node:<name>` and `<name>`.
 - `node:timers`: the global timer functions. `node:timers/promises`:
   `setTimeout`, `setImmediate` (both with an `AbortSignal`), `setInterval` as
   an async iterator, and `scheduler.wait`/`yield`.
-- `node:perf_hooks`: `performance`; `PerformanceObserver` and
+- `node:perf_hooks`: `performance` (`now()`, `timeOrigin`, `mark`, `measure`
+  in the names and options forms, `getEntries`, `getEntriesByName`,
+  `getEntriesByType`, `clearMarks`, `clearMeasures`, `toJSON`);
+  `PerformanceEntry`, `PerformanceMark` and `PerformanceMeasure` (also
+  globals); `PerformanceObserver` and
   `monitorEventLoopDelay` observe nothing.
 - `node:module`: `builtinModules` and `isBuiltin`. `createRequire(filename)`
   returns a `require` that resolves only the modules the program contains when
