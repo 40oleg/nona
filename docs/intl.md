@@ -24,8 +24,10 @@ the executable only when the program needs it.
   `localeCompare`.
 - Only the Gregorian calendar and the `latn` numbering system exist.
 - **Linking.** The prelude is linked when the source names `Intl`,
-  `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` or
-  `localeCompare` (`src/link.ts`, part `intl`); other programs do not pay for it
+  `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString`, `localeCompare` or
+  `Segmenter` (`src/link.ts`, part `intl`); the segmenter lives in
+  `src/lib/runtime/intl-segmenter.js` and is bundled with the `Intl` prelude
+  (`src/runtime/intl-source.ts`). Other programs do not pay for it
   (`--print-link` shows the reason). Like the other preludes it adds no
   top-level bindings.
 
@@ -37,12 +39,13 @@ the executable only when the program needs it.
 | `Intl.DateTimeFormat`                                                                | `dateStyle`, `timeStyle`, `weekday`, `era`, `year`, `month`, `day`, `dayPeriod`, `hour`, `minute`, `second`, `fractionalSecondDigits`, `timeZoneName`, `hour12`, `hourCycle`, `timeZone` (UTC and fixed offsets), `calendar: "gregory"`; `format`, `formatToParts`, `formatRange`, `formatRangeToParts`, `resolvedOptions`                                                                                                                                                                               |
 | `Intl.Collator`                                                                      | `usage`, `sensitivity`, `ignorePunctuation`, `numeric`, `caseFirst`, `collation` `default`; `compare`, `resolvedOptions`                                                                                                                                                                                                                                                                                                                                                                                 |
 | `Intl.PluralRules`                                                                   | `type` `cardinal`, `ordinal` (English rules), `notation`, `compactDisplay`; `select`, `resolvedOptions`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `Intl.Segmenter`                                                                     | `granularity: "grapheme"` only (UAX #29 extended grapheme clusters); `segment`, `resolvedOptions`, `supportedLocalesOf` (`granularity: "word"` and `"sentence"` throw `RangeError`)                                                                                                                                                                                                                                                                                                                      |
 | `Intl.getCanonicalLocales`, `Intl.supportedValuesOf`                                 | structurally valid BCP 47 tags are canonicalized; `supportedValuesOf` knows `calendar`, `collation`, `currency`, `numberingSystem`, `timeZone`, `unit`                                                                                                                                                                                                                                                                                                                                                   |
 | `Intl.*.supportedLocalesOf`                                                          | on every constructor                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `Number`/`BigInt`/`Date.prototype.toLocale*String`, `String.prototype.localeCompare` | delegate to the constructors above                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 Not implemented: `Intl.RelativeTimeFormat`, `ListFormat`, `DisplayNames`,
-`Segmenter`, `Locale`, `DurationFormat`; `NumberFormat` `style: "unit"` and
+`Locale`, `DurationFormat`; `Segmenter` granularities `"word"` and `"sentence"`; `NumberFormat` `style: "unit"` and
 `formatRange`; non-Latin numbering systems; non-Gregorian calendars; named time
 zones; data for any locale other than `en`.
 
