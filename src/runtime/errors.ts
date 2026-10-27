@@ -17,6 +17,17 @@ import { ProxyKind } from "./object-layout.js";
 import { ProxyLayout } from "./proxy.js";
 
 export const ErrorKind = 5;
+/** Reasons of a failed strict [[Set]] that rt.throwSetFailure reports (#511):
+ * "length" is a read-only array length met by an index write, "primitive" a
+ * primitive base whose wrapper has no setter for the key. */
+export const setFailureReasons = [
+    "readonly",
+    "getter",
+    "extensible",
+    "length",
+    "primitive",
+] as const;
+export type SetFailureReason = (typeof setFailureReasons)[number];
 export const errorRoots = [
     ...errorConstructorNames.map((n) => "rt." + n.toLowerCase() + "Prototype"),
     "rt.errorToString",
@@ -178,6 +189,51 @@ export function emitErrors(b: RuntimeBuilder): void {
         a.call("rt.TypeError.code");
         a.lea("rcx", slot(48));
         a.call("rt.throw");
+    });
+    // A failed strict [[Set]] (#511). RCX the reason literal (setFailureReasons),
+    // RDX the base Value*, R8 the key Value*. __nonaRegexpVm.setFailure throws
+    // the TypeError; without the prelude this throws the generic one.
+    for (const reason of setFailureReasons)
+        b.bundle.fragments.push(
+            stringLiteral("rt.str.setFailure." + reason, reason),
+        );
+    rootedFn(
+        b,
+        "rt.throwSetFailure",
+        120,
+        [{ kind: "locals", offset: 48, count: 4 }],
+        (a) => {
+            a.mov("r10", 4);
+            a.store(slot(48), "r10");
+            a.store(slot(56), "rcx");
+            for (const [source, target] of [
+                ["rdx", 64],
+                ["r8", 80],
+            ] as const)
+                for (const part of [0, 8]) {
+                    a.load("r10", { base: source, disp: part });
+                    a.store(slot(target + part), "r10");
+                }
+            a.lea("rcx", slot(96));
+            a.mov("rdx", 3);
+            a.lea("r8", slot(48));
+            a.call("rt.prelude.setFailure");
+            a.call("rt.throwTypeError");
+        },
+    );
+    // RCX the name literal of a non-writable global property alias (NaN = 1).
+    b.fn("rt.throwReadonlyGlobal", 72, (a) => {
+        a.mov("r10", 5);
+        a.store(slot(32), "r10");
+        a.lea("r10", { rip: "rt.globalObject" });
+        a.store(slot(40), "r10");
+        a.mov("r10", 4);
+        a.store(slot(48), "r10");
+        a.store(slot(56), "rcx");
+        a.lea("rcx", { rip: "rt.str.setFailure.readonly" });
+        a.lea("rdx", slot(32));
+        a.lea("r8", slot(48));
+        a.call("rt.throwSetFailure");
     });
     for (const [key, text] of [
         ["cyclicPrototype", "Cyclic __proto__ value"],

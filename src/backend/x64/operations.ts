@@ -2639,8 +2639,15 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         });
                         a.and("rax", 1);
                         a.test("rax", "rax");
-                        if (op.strict) failIf(a, "e", "rt.throwTypeError");
-                        else a.jcc("e", done);
+                        if (op.strict) {
+                            const writable = a.unique("globalWritable");
+                            a.jcc("ne", writable);
+                            a.lea("rcx", {
+                                rip: literal(globalProperties[alias]!.name),
+                            });
+                            a.call("rt.throwReadonlyGlobal");
+                            a.label(writable);
+                        } else a.jcc("e", done);
                     }
                     copy(
                         { rip: "js.globals", addend: 16 * op.index },

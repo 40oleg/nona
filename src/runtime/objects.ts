@@ -22,6 +22,7 @@ import { ProxyKind } from "./proxy.js";
 import { ElementsLayout as E, HoleTag } from "./array-elements.js";
 import type { Assembler, Mem } from "../backend/machine/context.js";
 import { emitViewCheck } from "./view-bounds.js";
+import type { SetFailureReason } from "./errors.js";
 
 function copyValue(a: Assembler, to: Mem, from: Mem): void {
     const plus = (m: Mem): Mem =>
@@ -1456,7 +1457,13 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.store(slot(88), "r9");
             a.and("r9", 1);
             a.store(slot(64), "r9");
+            // A failure jumps to the label of its reason (#511); rejected is "readonly".
             const rejected = a.unique("rejected"),
+                rejectedGetter = a.unique("rejectedGetter"),
+                rejectedExtensible = a.unique("rejectedExtensible"),
+                rejectedLength = a.unique("rejectedLength"),
+                rejectedPrimitive = a.unique("rejectedPrimitive"),
+                rejectedReason = a.unique("rejectedReason"),
                 finish = a.unique("finish"),
                 done = a.unique("done"),
                 normal = a.unique("normal"),
@@ -1852,7 +1859,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.load("rax", { base: "r10", disp: O.flags });
             a.and("rax", 1);
             a.test("rax", "rax");
-            a.jcc("ne", rejected);
+            a.jcc("ne", rejectedExtensible);
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", 1);
             a.jcc("ne", extensible);
@@ -1868,7 +1875,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.load("r10", { base: "r10", disp: O.flags });
             a.and("r10", 2);
             a.test("r10", "r10");
-            a.jcc("ne", rejected);
+            a.jcc("ne", rejectedLength);
             a.label(extensible);
             a.load("r10", slot(72));
             bumpEpochIfPrototype(a, "r10");
@@ -2002,13 +2009,13 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.load("rdx", { base: "rdx", disp: 8 });
             a.call("rt.lookupProperty");
             a.cmp("rax", 5);
-            a.jcc("be", rejected);
+            a.jcc("be", rejectedPrimitive);
             a.cmp("rax", 7);
-            a.jcc("e", rejected);
+            a.jcc("e", rejectedPrimitive);
             a.load("r10", { base: "rax", disp: P.attributes });
             a.and("r10", A.accessor);
             a.test("r10", "r10");
-            a.jcc("e", rejected);
+            a.jcc("e", rejectedPrimitive);
             a.label(setter);
             a.load("r10", slot(64));
             a.test("r10", "r10");
@@ -2036,7 +2043,7 @@ export function emitObjects(b: RuntimeBuilder): void {
             copyValue(a, slot(112), { base: "r10", disp: P.setter });
             a.load("rax", slot(112));
             a.test("rax", "rax");
-            a.jcc("e", rejected);
+            a.jcc("e", rejectedGetter);
             a.load("rdx", slot(40));
             copyValue(a, slot(128), { base: "rdx" });
             a.load("rdx", slot(56));
@@ -2051,11 +2058,31 @@ export function emitObjects(b: RuntimeBuilder): void {
             a.label(done);
             a.mov("rax", 1);
             a.jmp(finish);
-            a.label(rejected);
+            for (const [label, reason] of [
+                [rejectedGetter, "getter"],
+                [rejectedExtensible, "extensible"],
+                [rejectedLength, "length"],
+                [rejectedPrimitive, "primitive"],
+                [rejected, "readonly"],
+            ] as const satisfies readonly (readonly [
+                string,
+                SetFailureReason,
+            ])[]) {
+                a.label(label);
+                a.lea("r11", { rip: "rt.str.setFailure." + reason });
+                a.jmp(rejectedReason);
+            }
+            a.label(rejectedReason);
             a.load("rax", slot(88));
             a.and("rax", 2);
             a.test("rax", "rax");
-            failIf(a, "ne", "rt.throwTypeError");
+            const silent = a.unique("silent");
+            a.jcc("e", silent);
+            a.mov("rcx", "r11");
+            a.load("rdx", slot(40));
+            a.load("r8", slot(48));
+            a.call("rt.throwSetFailure");
+            a.label(silent);
             a.mov("rax", 0);
             a.label(finish);
         },
