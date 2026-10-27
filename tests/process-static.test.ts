@@ -1768,7 +1768,7 @@ test("native process entry retains thrown Values and restores the existing handl
             5,
     );
     const key = program.fragments.find(
-        (fragment) => fragment.name === "process.dispatchKey",
+        (fragment) => fragment.name === "entry.dispatchKey",
     )!;
     assert.equal(key.bytes[0], 4);
     assert.equal(key.fixups[0]!.offset, 8);
