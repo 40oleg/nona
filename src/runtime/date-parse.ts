@@ -124,7 +124,17 @@ export function emitDateParse(b: RuntimeBuilder): void {
         a.cmp("rax", 31);
         a.jcc("a", invalid);
         maybeEnd(finish);
-        consume(84);
+        // The date and time are separated by "T" or a space.
+        const timeSeparated = a.unique("timeSeparated");
+        peek();
+        a.cmp("r11", 32);
+        a.jcc("e", timeSeparated);
+        a.cmp("r11", 84);
+        a.jcc("ne", invalid);
+        a.label(timeSeparated);
+        a.load("r10", slot(56));
+        a.add("r10", 1);
+        a.store(slot(56), "r10");
         digits(2, 104);
         consume(58);
         digits(2, 112);
@@ -180,6 +190,19 @@ export function emitDateParse(b: RuntimeBuilder): void {
         a.load("r11", slot(128));
         a.add("rax", "r11");
         a.store(slot(128), "rax");
+        // Digits beyond milliseconds are truncated.
+        const extraDigit = a.unique("extraDigit");
+        a.label(extraDigit);
+        maybeEnd(finish);
+        peek();
+        a.cmp("r11", 48);
+        a.jcc("b", fractionDone);
+        a.cmp("r11", 57);
+        a.jcc("a", fractionDone);
+        a.load("r10", slot(56));
+        a.add("r10", 1);
+        a.store(slot(56), "r10");
+        a.jmp(extraDigit);
         a.label(fractionDone);
         a.label(afterSeconds);
         // A UTC marker or a signed HH:mm offset may follow the time.
@@ -208,7 +231,13 @@ export function emitDateParse(b: RuntimeBuilder): void {
         a.add("r10", 1);
         a.store(slot(56), "r10");
         digits(2, 160);
+        // The colon between the offset hours and minutes is optional.
+        const zoneMinutes = a.unique("zoneMinutes");
+        peek();
+        a.cmp("r11", 58);
+        a.jcc("ne", zoneMinutes);
         consume(58);
+        a.label(zoneMinutes);
         digits(2, 168);
         a.load("rax", slot(160));
         a.cmp("rax", 23);

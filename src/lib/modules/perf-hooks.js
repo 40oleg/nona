@@ -1,4 +1,7 @@
 export const performance = globalThis.performance;
+export const PerformanceEntry = globalThis.PerformanceEntry;
+export const PerformanceMark = globalThis.PerformanceMark;
+export const PerformanceMeasure = globalThis.PerformanceMeasure;
 export const constants = {};
 export function monitorEventLoopDelay() {
     return {
@@ -23,6 +26,9 @@ export class PerformanceObserver {
 }
 export default {
     performance,
+    PerformanceEntry,
+    PerformanceMark,
+    PerformanceMeasure,
     constants,
     monitorEventLoopDelay,
     PerformanceObserver,

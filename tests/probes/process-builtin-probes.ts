@@ -172,7 +172,7 @@ export function processBuiltinProbes(target: Target): {
             image,
             expected: probe.expected,
             minimalEnvironment: true,
-            timeoutMs: 60000,
+            timeoutMs: target.endsWith("-arm64") ? 180000 : 60000,
         };
     });
 }
