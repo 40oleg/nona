@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot } from "./abi.js";
 import { DateLayout } from "./date-layout.js";
 
@@ -26,7 +27,7 @@ export function emitDateIso(b: RuntimeBuilder): void {
         a.test("rax", "rax");
         const valid = a.unique("valid");
         a.jcc("ne", valid);
-        a.call("rt.throwRangeError");
+        a.call(rangeErrorThrower(b, "Invalid time value"));
         a.label(valid);
         a.load("rdx", slot(208));
         a.load("r10", { base: "rdx", disp: 8 });

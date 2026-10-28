@@ -97,7 +97,9 @@ only marks their keys.
   root and sets its prototype from the node without a lookup; `prototype` is
   never configurable, and the constructor is flagged so that redefining it
   advances the epoch. `%Promise%` is never remembered (its executor is
-  checked first).
+  checked first). The record also names the TypeError message of a callee
+  that is not a constructor (`f is not a constructor`, #504), thrown on a
+  miss.
 - A shape has at most 128 properties; a program has at most 2^20 shapes.
 
 ## Leaving shaped mode

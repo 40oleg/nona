@@ -99,7 +99,9 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
   query; a `measure` naming a missing mark throws a `SyntaxError` with code
   `ERR_INVALID_PERFORMANCE_MARK`.
 - An uncaught exception in a timer callback terminates the process with exit
-  code 1, like an uncaught exception in the top-level program.
+  code 1, like an uncaught exception in the top-level program. The error's
+  `stack` (or `String(value)`) is printed on stderr first, whether or not the
+  program uses `process` (#501).
 - Realms created by the Test262 host do not install their own timers.
 
 ## Long-running programs
@@ -395,7 +397,7 @@ startup. Each is available as `node:<name>` and `<name>`.
 %%`), `inspect` (with `inspect.custom`, `depth`, `breakLength`,
   `compact`, `maxArrayLength`, `maxStringLength`, `getters`, `numericSeparator`, `customInspect`), `inherits`, `promisify` (with
   `promisify.custom`), `callbackify`, `deprecate` (warns once per code),
-  `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `types`, `styleText`,
+  `debuglog` (`NODE_DEBUG`), `isDeepStrictEqual`, `getSystemErrorName`, `types`, `styleText`,
   `parseArgs` (all options, `tokens` and Node.js's `ERR_PARSE_ARGS_*` errors;
   `args` defaults to `process.argv.slice(1)`, because Nona's `argv` has no
   script path),

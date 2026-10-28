@@ -126,5 +126,5 @@ for (const source of [
         const run = runNative(result.image);
         assert.equal(run.error, undefined);
         assert.equal(run.status, 1);
-        assert.match(run.stderr.toString(), /Nona runtime error/);
+        assert.match(run.stderr.toString(), /^\w*Error: /m);
     });

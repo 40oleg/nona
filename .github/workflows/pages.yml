@@ -64,12 +64,13 @@ jobs:
               uses: lycheeverse/lychee-action@v2
               with:
                   args: >-
-                      --no-progress --accept 200..=299,429
+                      --no-progress --accept 200..=299,429 --max-retries 5 --retry-wait-time 10
                       --base-url https://40oleg.github.io/
                       --exclude '^https://github\.com/40oleg/nona/(blob|tree|edit)/'
                       --exclude '^https?://localhost'
                       --exclude '^https://40oleg\.github\.io/'
                       --exclude '^https://nodejs\.org/(api|docs)/'
+                      --exclude '^https://blog\.platformatic\.dev/'
                       'site/.vitepress/dist/**/*.html'
                   fail: true
             - uses: actions/configure-pages@v5

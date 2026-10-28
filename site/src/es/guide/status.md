@@ -2,7 +2,7 @@
 
 ## Versión actual
 
-**v0.31.0**: consulta el [registro de cambios](/changelog) (en inglés). Nona es experimental: no ha pasado una auditoría de seguridad y no sustituye directamente a Node.js.
+**v0.32.0**: consulta el [registro de cambios](/changelog) (en inglés). Nona es experimental: no ha pasado una auditoría de seguridad y no sustituye directamente a Node.js.
 
 ## Auditoría de Test262
 
@@ -48,7 +48,7 @@ La lista completa está en [GitHub](https://github.com/40oleg/nona/issues).
 
 ## Informes detallados
 
-- [Estado de ES2020 para 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/status.md) (en ruso)
+- [Estado de ES2020 para 0.17–0.20](https://github.com/40oleg/nona/blob/main/docs/history/status.md) (en ruso)
 - [Historial de versiones](/changelog) y el [registro de desarrollo](https://github.com/40oleg/nona/blob/main/docs/history/development-log.md) (en ruso)
 - [Hoja de ruta: plan inspirado en V8 y arquitecturas objetivo (en inglés)](https://github.com/40oleg/nona/blob/main/docs/roadmap.md)
 - [Hoja de ruta de versiones 0.4–0.20](https://github.com/40oleg/nona/blob/main/docs/history/release-roadmap-0.4-0.20.md) (en ruso)

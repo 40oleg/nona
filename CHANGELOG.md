@@ -2,9 +2,32 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Calls of non-callable values throw TypeErrors that say what went wrong.** They all threw `TypeError: Invalid operation`. Calling a value that is not a function now throws `<callee> is not a function` and `new` on a non-constructor (an arrow function, a method, an async function or generator, a non-constructable Proxy) `<callee> is not a constructor`, with the callee as written when it is an identifier, `this` or a chain of `.name` accesses (`o.foo is not a function`, `f is not a constructor`, as in Node.js) and `value` otherwise (other expressions, calls with spread arguments, tail calls and calls made by builtins), and calling a class without `new` throws `Class constructor A cannot be invoked without 'new'`, named after the class's own `name` data property, in the class's realm. ([#504](https://github.com/40oleg/nona/issues/504))
+- **RangeErrors from built-in argument checks name the check.** `toFixed`, `toPrecision`, `toExponential`, `Number.prototype.toString` radix, `String.prototype.repeat`, `String.fromCodePoint`, `normalize`, array and typed array lengths, `DataView` offsets and lengths, and `Date.prototype.toISOString` on an invalid date now throw a `RangeError` with a specific message instead of `Invalid operation`. ([#509](https://github.com/40oleg/nona/issues/509))
+- **`ReferenceError` messages name the variable.** Reading an undeclared global (or assigning to one in strict code) now throws `x is not defined`, and reading a `let`/`const`/class binding or a parameter in its temporal dead zone throws `Cannot access 'x' before initialization`, also from closures. Both threw `Invalid operation`. ([#505](https://github.com/40oleg/nona/issues/505))
+- **`util.getSystemErrorName` maps libuv error numbers to names.** `-2` gives `ENOENT`, `-13` gives `EACCES` and so on (the Linux values, the Windows values that `fs` reports, `EOF`, `UNKNOWN` and `ENOTFOUND`); other negative integers give `Unknown system error N`, and a non-negative or non-integer number throws `ERR_OUT_OF_RANGE`. ([#506](https://github.com/40oleg/nona/issues/506))
+- **`Date.parse` and `new Date(string)` accept the common non-ISO date strings.** Strings outside the ISO format go to a token-based parser that matches V8: month and weekday names in any case and spelled out (`June 15, 2021`, `15 Jun 2021`, `Tuesday, June 15, 2021`, `toDateString()` output), slash dates (`2021/06/15`, `6/15/2021`, two-digit years as 1950–2049), an optional `H:MM[:SS[.fff]]` time with `AM`/`PM`, `GMT`/`UTC`/`UT`/`Z` with an optional `±hhmm`, `±hh:mm` or `±h` offset, and parenthesized comments. Invalid fields still give `NaN`. These strings returned `NaN`. ([#507](https://github.com/40oleg/nona/issues/507))
+- **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
+
 ### Docs
 
 - **`docs/host-apis.md` removes stale limits and updates the zlib, TLS and https paragraph.** The documentation claimed property, element and Map storage is linear (#36) and every heap block is a separate mapping on Linux (#37); both are fixed. The paragraph about `node:tls`, `node:http2` and `node:zlib` throwing `ERR_NONA_UNSUPPORTED` is replaced with the current state: zlib compresses and decompresses, TLS and https are clients only, and http2 is constants-only. ([#515](https://github.com/40oleg/nona/issues/515))
+
+## v0.32.0 — 2026-10-27
+
+### Fixes
+
+- **Uncaught exceptions are reported in every program.** A program that does not use `process` printed only `Nona runtime error` for an uncaught throw, a failing timer or promise job, or an unhandled rejection; it now prints the error (`TypeError: bad thing`) on stderr and exits with code 1, like a program that does ([#501](https://github.com/40oleg/nona/issues/501)).
+- **Reading or writing a property of `undefined` or `null` throws a descriptive `TypeError`.** The message was `Invalid operation`; it is now Node.js's `Cannot read properties of undefined (reading 'x')` or `Cannot set properties of null (setting 'x')`, for `o.x`, `o[k]`, method calls, assignments and compound assignments. String, number, boolean, BigInt and symbol keys are named; an object key is not converted, and the key part is left out. Destructuring an object pattern from them throws `Cannot destructure property 'a' of 'null' as it is null.` (`Cannot destructure 'null' as it is null.` for an empty pattern or a computed first key). Other runtime `TypeError`s keep `Invalid operation`. ([#503](https://github.com/40oleg/nona/issues/503))
+- **`Intl.Segmenter` no longer needs the RegExp engine.** It validated the locale with a RegExp literal, so a program that segmented a string and had no RegExp of its own failed with "compiled without the RegExp engine" ([#502](https://github.com/40oleg/nona/issues/502)).
+- **Documentation: `Intl.Segmenter` coverage is now correctly documented.** `docs/intl.md` lists `Intl.Segmenter` in the supported API table with `granularity: "grapheme"` only, and `docs/npm.md` describes the full `Intl` coverage (NumberFormat, DateTimeFormat, Collator, PluralRules, grapheme-only Segmenter for en locale and UTC time zone). The contradictory statements that said Segmenter was not implemented or was the only `Intl` feature are reconciled ([#499](https://github.com/40oleg/nona/issues/499)).
+
+### Documentation
+
+- **`docs/fs.md` no longer says `fs.promises` is missing.** It now has one list of the synchronous, callback and promise functions that matches `src/lib/modules/fs-common.js`, mentions `Dirent`, `Stats` and `constants`, and states that `appendFileSync` takes no options ([#498](https://github.com/40oleg/nona/issues/498)).
+- **Documentation.** Archived stale language support pages (`docs/language-support.md` for Nona 0.5.0 and `docs/status.md` for 0.17–0.20) to `docs/history/` with historical notes; README links now point to the current [site Language support page](https://40oleg.github.io/nona/guide/language-support). Corrected outdated claims about Error `cause` support in documentation ([#500](https://github.com/40oleg/nona/issues/500)).
 
 ## v0.31.0 — 2026-10-27
 
@@ -631,9 +654,9 @@ Highlights since v0.7.0:
 - Deep recursion throws `RangeError` ("Maximum call stack size exceeded") instead of terminating the process.
 - Objects with long property lists get a hash index; Linux heap allocations use a size-class allocator instead of one `mmap` per object.
 - Annex B call-expression assignment targets and RegExp `\c` escapes; TypedArray element writes and descriptors on detached or invalid targets follow the pinned Test262.
-- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/status.md).
+- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/history/status.md).
 
-This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions: `eval` and `Function` with source text computed at run time, other realms for a few constructors, and post-ES2020 semantics. Full pinned Test262 on Windows x64: language 17298/17337, built-ins 15491/15559, Atomics 268/268, Annex B 996/1016. See [0.17–0.20 status](docs/status.md).
+This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions: `eval` and `Function` with source text computed at run time, other realms for a few constructors, and post-ES2020 semantics. Full pinned Test262 on Windows x64: language 17298/17337, built-ins 15491/15559, Atomics 268/268, Annex B 996/1016. See [0.17–0.20 status](docs/history/status.md).
 
 ## v0.6.0 — 2026-09-30
 
@@ -683,4 +706,4 @@ Initial public development release.
 - Supports functions, closures, objects, arrays, descriptors, strict mode, exceptions, exponentiation, nullish coalescing, and optional chaining within the documented limits.
 - Includes a command-line compiler, examples, compatibility programs, and native execution tests.
 
-This release is experimental and does not implement complete ECMAScript or Node.js compatibility. See the [language support matrix](docs/language-support.md) for exact coverage.
+This release is experimental and does not implement complete ECMAScript or Node.js compatibility. See the [language support matrix](docs/history/language-support.md) for exact coverage.

@@ -2,7 +2,7 @@
 
 **Nona is an ahead-of-time compiler that turns JavaScript (ES2020, with documented exceptions) into small standalone native executables for Windows, Linux, macOS, FreeBSD and OpenBSD.**
 
-[Documentation](https://40oleg.github.io/nona/) · [Playground](https://40oleg.github.io/nona/playground) · [Releases](https://github.com/40oleg/nona/releases) · [Русская версия](README.ru.md) · [Language support](docs/language-support.md) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md) · [All docs](docs/README.md)
+[Documentation](https://40oleg.github.io/nona/) · [Playground](https://40oleg.github.io/nona/playground) · [Releases](https://github.com/40oleg/nona/releases) · [Русская версия](README.ru.md) · [Language support](https://40oleg.github.io/nona/guide/language-support) · [Performance](PERFORMANCE.md) · [Changelog](CHANGELOG.md) · [All docs](docs/README.md)
 
 ```sh
 $ nona build hello.js -o hello
@@ -12,7 +12,7 @@ Hello, from Nona!
 
 The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-> **Status of this checkout:** package version `0.31.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status of this checkout:** package version `0.32.0`, experimental. In the Test262 audit of v0.8.0 the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## Why Nona
 
@@ -125,7 +125,7 @@ nona --help | --version
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
-The [language support matrix](docs/language-support.md) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
+The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 
 ## Performance
 

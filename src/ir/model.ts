@@ -134,6 +134,8 @@ export type Operation =
            * read inline (#425, string-index-site.ts).
            */
           stringIndex?: "charCodeAt" | "charAt";
+          /** The TypeError message when the callee is not callable, from its source text (`o.foo is not a function`, #504); not set on construct or tail calls. */
+          notCallableMessage?: string;
       }
     | {
           kind: "invokeArray";
@@ -169,6 +171,8 @@ export type Operation =
           callee: number;
           firstArgument?: number;
           argumentArray?: number;
+          /** The TypeError message when the callee is not a constructor (`f is not a constructor`, #504); not set with argumentArray. */
+          notConstructorMessage?: string;
       }
     | {
           kind: "constructorResult";
@@ -248,9 +252,10 @@ export type Operation =
       }
     | { kind: "setPrototype"; object: number; prototype: number }
     | { kind: "uninitialized"; dest: number }
-    | { kind: "checkInitialized"; slot: number }
-    | { kind: "checkResolvable"; slot: number }
+    | { kind: "checkInitialized"; slot: number; name?: string }
+    | { kind: "checkResolvable"; slot: number; name?: string }
     | { kind: "immutableWrite"; error?: "ReferenceError" }
+    | { kind: "nullishDestructure"; source: number; key?: number }
     | { kind: "constant"; dest: number; value: Constant }
     | { kind: "copy"; dest: number; source: number }
     | { kind: "loadGlobal"; dest: number; index: number; prelude?: boolean }
