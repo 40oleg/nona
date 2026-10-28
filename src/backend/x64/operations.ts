@@ -89,8 +89,7 @@ import { HasCacheLayout } from "../../runtime/has-cache.js";
 import {
     ClosureDescriptor as CD,
     ClosureFlags as CF,
-    CallSiteDescriptor as SD,
-    SiteNone,
+    callSiteDescriptor,
     callSiteStub,
     closureStub,
     writeSiteEntry,
@@ -2015,7 +2014,19 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             section: ".data",
                             alignment: 8,
                             bytes: new Uint8Array(NewCacheLayout.size),
-                            fixups: [],
+                            fixups:
+                                op.notConstructorMessage === undefined
+                                    ? []
+                                    : [
+                                          {
+                                              offset: NewCacheLayout.message,
+                                              kind: "va64",
+                                              target: constantValue(
+                                                  op.notConstructorMessage,
+                                              ),
+                                              addend: 0,
+                                          },
+                                      ],
                             symbols: {},
                         });
                         pointer("rcx", op.dest);
@@ -2114,43 +2125,30 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     ) => {
                         // rt.invoke and rt.prepareTailCall take no new.target; a construct
                         // site ends with its new.target entry (SiteNone: the callee).
+                        // Only an invoke site names the message of a callee that is not callable.
                         const construct = !!op.construct && !op.tail;
-                        const operands = [
+                        const message =
+                            op.notCallableMessage !== undefined &&
+                            !op.construct &&
+                            !op.tail
+                                ? op.notCallableMessage
+                                : undefined;
+                        const { bytes, fixups } = callSiteDescriptor(
+                            argsBase - frameBias,
                             value(op.callee),
                             op.receiver === undefined
                                 ? { rip: "rt.undefinedValue" }
                                 : value(op.receiver),
-                            ...op.arguments.map((n) => value(n)),
-                        ];
-                        const bytes = new Uint8Array(
-                                SD.callee +
-                                    4 * operands.length +
-                                    (construct ? 4 : 0),
-                            ),
-                            view = new DataView(bytes.buffer),
-                            fixups: NamedFragment["fixups"] = [];
-                        view.setUint32(SD.argc, op.arguments.length, true);
-                        view.setInt32(SD.area, argsBase - frameBias, true);
-                        operands.forEach((mem, i) =>
-                            writeSiteEntry(
-                                view,
-                                fixups,
-                                SD.callee + 4 * i,
-                                mem,
-                            ),
+                            message === undefined
+                                ? undefined
+                                : { rip: constantValue(message) },
+                            op.arguments.map((n) => value(n)),
+                            !construct
+                                ? undefined
+                                : op.newTarget === undefined
+                                  ? null
+                                  : value(op.newTarget),
                         );
-                        if (construct) {
-                            const at = SD.callee + 4 * operands.length;
-                            if (op.newTarget === undefined)
-                                view.setInt32(at, SiteNone, true);
-                            else
-                                writeSiteEntry(
-                                    view,
-                                    fixups,
-                                    at,
-                                    value(op.newTarget),
-                                );
-                        }
                         const site = "site." + fragments.length;
                         fragments.push({
                             name: site,

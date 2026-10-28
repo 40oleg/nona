@@ -57,6 +57,8 @@ export abstract class LowererBase {
         hasOwn?: "method" | "call",
         intrinsic?: "imul",
         stringIndex?: "charCodeAt" | "charAt",
+        /** The callee expression, for the TypeError message of a callee that is not callable. */
+        calleeNode?: A.Expression,
     ): void;
     protected abstract preludeCall(name: string, args: number[]): number;
     protected blocks: BlockIR[] = [];

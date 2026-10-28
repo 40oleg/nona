@@ -479,6 +479,100 @@ export function emitErrors(b: RuntimeBuilder): void {
             a.lea("rcx", slot(48));
             a.call("rt.throw");
         });
+    // Callability errors (#504). The *Message helpers take RCX = message Value*
+    // (a static string, so building the error has no safepoint before the
+    // throw); for rt.throwNotCallableMessage and rt.throwNotConstructorMessage
+    // RCX = 0 selects the generic text.
+    for (const [key, text] of [
+        ["notCallable", "value is not a function"],
+        ["notConstructor", "value is not a constructor"],
+        ["classCallPrefix", "Class constructor "],
+        ["classCallSuffix", " cannot be invoked without 'new'"],
+    ] as const) {
+        b.bundle.fragments.push(stringLiteral("rt.error." + key, text));
+        const message = new Uint8Array(16);
+        message[0] = 4;
+        b.bundle.fragments.push({
+            name: "rt.error." + key + "Value",
+            section: ".rdata",
+            alignment: 8,
+            bytes: message,
+            symbols: {},
+            fixups: [pointer(8, "rt.error." + key)],
+        });
+    }
+    b.fn("rt.throwTypeErrorMessage", 72, (a) => {
+        a.mov("r8", "rcx");
+        a.lea("rcx", slot(48));
+        a.mov("rdx", 1);
+        a.call("rt.TypeError.code");
+        a.lea("rcx", slot(48));
+        a.call("rt.throw");
+    });
+    for (const key of ["notCallable", "notConstructor"]) {
+        const name =
+            "rt.throw" + key[0]!.toUpperCase() + key.slice(1) + "Message";
+        b.fn(name, 40, (a) => {
+            const ready = a.unique("ready");
+            a.test("rcx", "rcx");
+            a.jcc("ne", ready);
+            a.lea("rcx", { rip: "rt.error." + key + "Value" });
+            a.label(ready);
+            a.call("rt.throwTypeErrorMessage");
+        });
+        b.fn(name.slice(0, -"Message".length), 40, (a) => {
+            a.lea("rcx", { rip: "rt.error." + key + "Value" });
+            a.call("rt.throwTypeErrorMessage");
+        });
+    }
+    // RCX: Value* of a class constructor called without new. The message names
+    // it by its own `name` data property when that is a string (no getter runs),
+    // else by the empty string, as V8 does. Reached through the realm table of
+    // the callee, so the TypeError belongs to the callee's realm.
+    rootedFn(
+        b,
+        "rt.throwClassConstructorCall",
+        104,
+        [{ kind: "locals", offset: 48, count: 3 }],
+        (a) => {
+            for (const offset of [0, 8]) {
+                a.load("rax", { rip: "rt.error.key.empty", addend: offset });
+                a.store(slot(48 + offset), "rax");
+            }
+            const ready = a.unique("ready");
+            a.load("rcx", { base: "rcx", disp: 8 });
+            a.lea("rdx", { rip: "rt.str.name" });
+            a.call("rt.findOwnProperty");
+            a.test("rax", "rax");
+            a.jcc("e", ready);
+            a.load("r10", { base: "rax", disp: P.attributes });
+            a.and("r10", A.accessor);
+            a.test("r10", "r10");
+            a.jcc("ne", ready);
+            a.load("r10", { base: "rax", disp: P.value });
+            a.cmp("r10", 4);
+            a.jcc("ne", ready);
+            for (const offset of [0, 8]) {
+                a.load("r10", { base: "rax", disp: P.value + offset });
+                a.store(slot(48 + offset), "r10");
+            }
+            a.label(ready);
+            a.lea("rcx", slot(64));
+            a.lea("rdx", { rip: "rt.error.classCallPrefixValue" });
+            a.lea("r8", slot(48));
+            a.call("rt.concat");
+            a.lea("rcx", slot(80));
+            a.lea("rdx", slot(64));
+            a.lea("r8", { rip: "rt.error.classCallSuffixValue" });
+            a.call("rt.concat");
+            a.lea("rcx", slot(64));
+            a.mov("rdx", 1);
+            a.lea("r8", slot(80));
+            a.call("rt.TypeError.code");
+            a.lea("rcx", slot(64));
+            a.call("rt.throw");
+        },
+    );
     emitNullishErrors(b);
     emitNullishDestructureError(b);
     b.bundle.fragments.push(
