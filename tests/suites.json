@@ -221,6 +221,7 @@
                 "call-spread",
                 "call-stats",
                 "uncaught-report",
+                "reference-error-names",
                 "cli",
                 "closures",
                 "capture-initialization",
