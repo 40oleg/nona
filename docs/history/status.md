@@ -73,7 +73,7 @@ Windows x64 (Node 22, PE), полный закреплённый Test262 на `6
 RegExp duplicate named groups (ES2025, #319) are no longer excluded by tag:
 16 of the 19 `regexp-duplicate-named-groups` tests pass. The three that also
 need match indices (`regexp-match-indices`) stay `post` with that tag; they
-are listed in [test262.md](test262.md#semantics-newer-than-es2020-in-the-pinned-test262).
+are listed in [test262.md](../test262.md#semantics-newer-than-es2020-in-the-pinned-test262).
 The table above is the last full run and was not re-run for this change.
 
 Сравнение с предыдущим полным прогоном Windows (`71486fb`, который в свою
@@ -105,7 +105,7 @@ eval-коде и другой realm), `annexB/language/eval-code` 468/469
 `TEST262_EXCLUDE_FEATURES=post-es2020`: `this-val-regexp.js` использует флаг `v`
 (ES2024), два теста `named-groups/duplicate-names-match-indices.js` и
 `prototype/exec/duplicate-named-indices-groups-properties.js` — повторяющиеся
-имена групп (ES2025). Подробности — в [test262.md](test262.md).
+имена групп (ES2025). Подробности — в [test262.md](../test262.md).
 
 ## Оставшиеся отказы
 
