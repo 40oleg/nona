@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import {
     selectNativeConstructPrototype,
@@ -1726,11 +1727,19 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                     a.mov("rax", -1);
                     a.cvtsi2sd("xmm1", "rax");
                     a.ucomisd("xmm0", "xmm1");
-                    failIf(a, "be", "rt.throwRangeError");
+                    failIf(
+                        a,
+                        "be",
+                        rangeErrorThrower(b, "Invalid typed array length"),
+                    );
                     a.mov("rax", Math.floor(0x7fffffff / width));
                     a.cvtsi2sd("xmm1", "rax");
                     a.ucomisd("xmm0", "xmm1");
-                    failIf(a, "a", "rt.throwRangeError");
+                    failIf(
+                        a,
+                        "a",
+                        rangeErrorThrower(b, "Invalid typed array length"),
+                    );
                     a.cvttsd2si("rax", "xmm0");
                     if (width > 1)
                         a.shl("rax", width === 8 ? 3 : width === 4 ? 2 : 1);
@@ -1815,11 +1824,25 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.mov("rax", -1);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "be", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "be",
+                    rangeErrorThrower(
+                        b,
+                        "Start offset is outside the bounds of the buffer",
+                    ),
+                );
                 a.mov("rax", 0x7fffffff);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Start offset is outside the bounds of the buffer",
+                    ),
+                );
                 a.cvttsd2si("rax", "xmm0");
                 a.store(slot(64), "rax");
                 a.label(offsetReady);
@@ -1827,7 +1850,14 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                     a.load("rax", slot(64));
                     a.and("rax", width - 1);
                     a.test("rax", "rax");
-                    failIf(a, "ne", "rt.throwRangeError");
+                    failIf(
+                        a,
+                        "ne",
+                        rangeErrorThrower(
+                            b,
+                            "Start offset must be a multiple of the element size",
+                        ),
+                    );
                 }
                 a.load("rax", slot(48));
                 a.cmp("rax", 3);
@@ -1852,11 +1882,19 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.mov("rax", -1);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "be", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "be",
+                    rangeErrorThrower(b, "Invalid typed array length"),
+                );
                 a.mov("rax", 0x7fffffff);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(b, "Invalid typed array length"),
+                );
                 a.cvttsd2si("rax", "xmm0");
                 a.store(slot(312), "rax");
                 a.mov("rax", 1);
@@ -1885,7 +1923,14 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.test("r11", "r11");
                 a.jcc("s", fixedBuffer);
                 a.cmp("r10", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Start offset is outside the bounds of the buffer",
+                    ),
+                );
                 a.sub("rax", "r10");
                 if (shift) a.shr("rax", shift);
                 a.store(slot(72), "rax");
@@ -1899,10 +1944,24 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                     a.mov("r11", "rax");
                     a.and("r11", width - 1);
                     a.test("r11", "r11");
-                    failIf(a, "ne", "rt.throwRangeError");
+                    failIf(
+                        a,
+                        "ne",
+                        rangeErrorThrower(
+                            b,
+                            "Byte length must be a multiple of the element size",
+                        ),
+                    );
                 }
                 a.cmp("r10", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Start offset is outside the bounds of the buffer",
+                    ),
+                );
                 a.sub("rax", "r10");
                 a.store(slot(296), "rax");
                 if (shift) a.shr("rax", shift);
@@ -1915,7 +1974,11 @@ export function emitTypedArray(b: RuntimeBuilder): void {
                 a.store(slot(296), "r11");
                 a.add("r11", "r10");
                 a.cmp("r11", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(b, "Invalid typed array length"),
+                );
                 a.label(ready);
                 a.load("r10", slot(80));
                 a.load("r10", {
