@@ -102,6 +102,7 @@ export function emitErrorBrand(b: RuntimeBuilder): void {
         a.store({ base: "rcx", disp: 8 }, "rax");
     });
 }
+
 type ArgumentRegister = "rcx" | "rdx" | "r8" | "r9";
 /** Like failIf(..., "rt.throwTypeError") for a get or set on an undefined or
  * null base: on condition c, call rt.throwNullishGet/Set with the base and key

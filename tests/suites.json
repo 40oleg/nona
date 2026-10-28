@@ -126,6 +126,7 @@
                 "typedarray-sort-large",
                 "float16",
                 "string-builtins",
+                "range-error-messages",
                 "text-encoder-encode-into",
                 "string-index-inline",
                 "intl",

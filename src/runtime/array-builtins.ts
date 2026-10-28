@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { realmTable } from "./constructor-prototype.js";
 import { FunctionKind } from "./functions.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
@@ -457,7 +458,7 @@ export function emitArrayBuiltins(b: RuntimeBuilder): void {
             a.load("rax", slot(64));
             a.mov("r10", 0xffffffff);
             a.cmp("rax", "r10");
-            failIf(a, "a", "rt.throwRangeError");
+            failIf(a, "a", rangeErrorThrower(b, "Invalid array length"));
             a.load("rcx", slot(48));
             a.mov("rdx", 1);
             a.load("r8", slot(64));
