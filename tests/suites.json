@@ -220,6 +220,7 @@
                 "call-sites",
                 "call-spread",
                 "call-stats",
+                "callable-errors",
                 "uncaught-report",
                 "reference-error-names",
                 "cli",

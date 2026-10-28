@@ -153,6 +153,40 @@ export function writeSiteEntry(
 }
 
 /**
+ * The descriptor of a general call site: `area` is the argument area's
+ * displacement; `message` is absent for the generic not-callable text and
+ * `newTarget` is undefined for a site without one, null when it is the callee.
+ */
+export function callSiteDescriptor(
+    area: number,
+    callee: Mem,
+    receiver: Mem,
+    message: Mem | undefined,
+    args: Mem[],
+    newTarget?: Mem | null,
+): { bytes: Uint8Array; fixups: Fixup[] } {
+    const D = CallSiteDescriptor,
+        construct = newTarget !== undefined,
+        bytes = new Uint8Array(
+            D.entries + 4 * args.length + (construct ? 4 : 0),
+        ),
+        view = new DataView(bytes.buffer),
+        fixups: Fixup[] = [],
+        entry = (offset: number, mem: Mem | null | undefined) =>
+            mem
+                ? writeSiteEntry(view, fixups, offset, mem)
+                : view.setInt32(offset, SiteNone, true);
+    view.setUint32(D.argc, args.length, true);
+    view.setInt32(D.area, area, true);
+    entry(D.callee, callee);
+    entry(D.receiver, receiver);
+    entry(D.message, message);
+    args.forEach((mem, i) => entry(D.entries + 4 * i, mem));
+    if (construct) entry(D.entries + 4 * args.length, newTarget);
+    return { bytes, fixups };
+}
+
+/**
  * Operand decoding for a stub. `one` holds 1 whenever resolve runs; the
  * constant case is out of line, after the stub's main path (`finish`).
  */

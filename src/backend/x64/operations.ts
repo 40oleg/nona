@@ -89,8 +89,7 @@ import { HasCacheLayout } from "../../runtime/has-cache.js";
 import {
     ClosureDescriptor as CD,
     ClosureFlags as CF,
-    CallSiteDescriptor as SD,
-    SiteNone,
+    callSiteDescriptor,
     callSiteStub,
     closureStub,
     writeSiteEntry,
@@ -2134,55 +2133,22 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             !op.tail
                                 ? op.notCallableMessage
                                 : undefined;
-                        const bytes = new Uint8Array(
-                                SD.entries +
-                                    4 * op.arguments.length +
-                                    (construct ? 4 : 0),
-                            ),
-                            view = new DataView(bytes.buffer),
-                            fixups: NamedFragment["fixups"] = [];
-                        view.setUint32(SD.argc, op.arguments.length, true);
-                        view.setInt32(SD.area, argsBase - frameBias, true);
-                        writeSiteEntry(
-                            view,
-                            fixups,
-                            SD.callee,
+                        const { bytes, fixups } = callSiteDescriptor(
+                            argsBase - frameBias,
                             value(op.callee),
-                        );
-                        writeSiteEntry(
-                            view,
-                            fixups,
-                            SD.receiver,
                             op.receiver === undefined
                                 ? { rip: "rt.undefinedValue" }
                                 : value(op.receiver),
+                            message === undefined
+                                ? undefined
+                                : { rip: constantValue(message) },
+                            op.arguments.map((n) => value(n)),
+                            !construct
+                                ? undefined
+                                : op.newTarget === undefined
+                                  ? null
+                                  : value(op.newTarget),
                         );
-                        if (message === undefined)
-                            view.setInt32(SD.message, SiteNone, true);
-                        else
-                            writeSiteEntry(view, fixups, SD.message, {
-                                rip: constantValue(message),
-                            });
-                        op.arguments.forEach((n, i) =>
-                            writeSiteEntry(
-                                view,
-                                fixups,
-                                SD.entries + 4 * i,
-                                value(n),
-                            ),
-                        );
-                        if (construct) {
-                            const at = SD.entries + 4 * op.arguments.length;
-                            if (op.newTarget === undefined)
-                                view.setInt32(at, SiteNone, true);
-                            else
-                                writeSiteEntry(
-                                    view,
-                                    fixups,
-                                    at,
-                                    value(op.newTarget),
-                                );
-                        }
                         const site = "site." + fragments.length;
                         fragments.push({
                             name: site,
