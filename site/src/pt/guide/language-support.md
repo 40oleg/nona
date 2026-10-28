@@ -1,6 +1,6 @@
 # Suporte à linguagem
 
-O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.32.0**. Os números do Test262 vêm da última auditoria completa (v0.8.0) da revisão fixada descrita na página [Test262](/pt/reference/test262).
+O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.33.0**. Os números do Test262 vêm da última auditoria completa (v0.8.0) da revisão fixada descrita na página [Test262](/pt/reference/test262).
 
 **Suportado** significa implementado e coberto por testes unitários e pelo Test262 dentro dos limites indicados na coluna Observações. Uma matriz antiga por recurso, com os nomes dos testes e verificada pela última vez na v0.5.0, está arquivada em [`docs/history/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/history/language-support.md) (em russo).
 

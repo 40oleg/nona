@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.33.0 — 2026-10-28
+
 ### Fixes
 
 - **Calls of non-callable values throw TypeErrors that say what went wrong.** They all threw `TypeError: Invalid operation`. Calling a value that is not a function now throws `<callee> is not a function` and `new` on a non-constructor (an arrow function, a method, an async function or generator, a non-constructable Proxy) `<callee> is not a constructor`, with the callee as written when it is an identifier, `this` or a chain of `.name` accesses (`o.foo is not a function`, `f is not a constructor`, as in Node.js) and `value` otherwise (other expressions, calls with spread arguments, tail calls and calls made by builtins), and calling a class without `new` throws `Class constructor A cannot be invoked without 'new'`, named after the class's own `name` data property, in the class's realm. ([#504](https://github.com/40oleg/nona/issues/504))
