@@ -14,6 +14,7 @@
 ### Documentation
 
 - **Documentation review for v0.32.1.** `README.md` and `README.ru.md` were checked against the code and say the same; `docs/host-apis.md` and `docs/npm.md` no longer list limits that were lifted ([#515](https://github.com/40oleg/nona/issues/515)); stale links to the archived status pages were fixed; broken anchors in the site pages and in `PERFORMANCE.md` were repaired, and `node scripts/check-doc-links.mjs` (`npm run check:doc-links`) checks relative links and anchors in the Markdown documents and the site pages. The `v0.13.0` changelog section, which the v0.14.0 release had renamed, is restored, and a duplicate section of v0.16.0 and a misplaced entry of v0.32.0 are merged. ([#606](https://github.com/40oleg/nona/issues/606))
+- **`docs/host-apis.md` removes stale limits and updates the zlib, TLS and https paragraph.** The documentation claimed property, element and Map storage is linear (#36) and every heap block is a separate mapping on Linux (#37); both are fixed. The paragraph about `node:tls`, `node:http2` and `node:zlib` throwing `ERR_NONA_UNSUPPORTED` is replaced with the current state: zlib compresses and decompresses, TLS and https are clients only, and http2 is constants-only. ([#515](https://github.com/40oleg/nona/issues/515))
 
 ## v0.32.0 — 2026-10-27
 
