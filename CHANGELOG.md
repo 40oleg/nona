@@ -11,6 +11,10 @@
 - **`Date.parse` and `new Date(string)` accept the common non-ISO date strings.** Strings outside the ISO format go to a token-based parser that matches V8: month and weekday names in any case and spelled out (`June 15, 2021`, `15 Jun 2021`, `Tuesday, June 15, 2021`, `toDateString()` output), slash dates (`2021/06/15`, `6/15/2021`, two-digit years as 1950–2049), an optional `H:MM[:SS[.fff]]` time with `AM`/`PM`, `GMT`/`UTC`/`UT`/`Z` with an optional `±hhmm`, `±hh:mm` or `±h` offset, and parenthesized comments. Invalid fields still give `NaN`. These strings returned `NaN`. ([#507](https://github.com/40oleg/nona/issues/507))
 - **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
 
+### Docs
+
+- **`docs/host-apis.md` removes stale limits and updates the zlib, TLS and https paragraph.** The documentation claimed property, element and Map storage is linear (#36) and every heap block is a separate mapping on Linux (#37); both are fixed. The paragraph about `node:tls`, `node:http2` and `node:zlib` throwing `ERR_NONA_UNSUPPORTED` is replaced with the current state: zlib compresses and decompresses, TLS and https are clients only, and http2 is constants-only. ([#515](https://github.com/40oleg/nona/issues/515))
+
 ## v0.32.0 — 2026-10-27
 
 ### Fixes
