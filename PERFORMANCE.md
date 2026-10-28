@@ -624,7 +624,7 @@ runs, ms (libraries from `node bench/real/fetch.mjs`).
 
 ## The 2026-10-14 comparison (v0.12.0, superseded)
 
-_Superseded by [the v0.13.0 section](#current-release-v0130-against-nodejs-deno-and-bun), which reuses these figures (see there why)._
+_Superseded by [the v0.13.0 section](#current-release-v0130-against-nodejs-deno-and-bun-superseded), which reuses these figures (see there why)._
 
 Measured on 2026-10-14 at `main` b58f0bc (v0.12.0 plus the merged #253–#281
 work) on a Linux x86-64 cloud VM (Intel Xeon 2.10 GHz, 2 vCPU, 7 GB RAM) with
