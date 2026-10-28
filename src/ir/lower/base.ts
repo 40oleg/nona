@@ -484,7 +484,7 @@ export abstract class LowererBase {
                         (p) => p.kind !== "Identifier",
                     )))
         )
-            this.emit({ kind: "checkInitialized", slot: dest });
+            this.emit({ kind: "checkInitialized", slot: dest, name: id.name });
         return dest;
     }
     protected write(
@@ -752,10 +752,12 @@ export abstract class LowererBase {
                     this.emit({
                         kind: "checkResolvable",
                         slot: ref.resolvable,
+                        name: ref.id.name,
                     });
                 this.emit({
                     kind: "checkResolvable",
                     slot: this.globalExists(binding.name),
+                    name: binding.name,
                 });
             }
             // The reference was already resolved (with objects included) by reference().
