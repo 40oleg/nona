@@ -114,9 +114,9 @@ Globals: `setTimeout(callback, delay, ...args)`, `setInterval`, `clearTimeout`,
   promise jobs and garbage in every tick) do not raise peak memory, that
   thousands of abandoned coroutines are released, and that a program waiting
   for a two-second timer uses almost no CPU.
-- Known limits: property, element and Map storage is linear (#36), so programs
-  with hundreds of live timers or large objects slow down; on Linux every heap
-  block is a separate memory mapping (#37).
+- Property, element and Map storage is hash-indexed and the heap uses a
+  size-class allocator, so programs with many live timers or large objects do
+  not slow down with their size.
 
 ## Events
 
@@ -450,12 +450,13 @@ startup. Each is available as `node:<name>` and `<name>`.
   `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` and
   `ChildProcess`; `fork` throws `ERR_NONA_UNSUPPORTED`. Details in
   [Child processes](#child-processes) below.
-- `node:tls`, `node:http2` and `node:zlib` exist for the same reason: they
-  have the Node.js constants (`zlib.constants`, `zlib.codes`,
-  `http2.constants`, `tls.DEFAULT_MIN_VERSION`, …), and their functions and
-  classes throw `ERR_NONA_UNSUPPORTED`. `node:https` (Linux and Windows) has
-  `Agent` and `globalAgent`; its requests throw (see
-  [networking](network.md)).
+- `node:zlib` compresses and decompresses (deflate, zlib, gzip; sync,
+  callback and stream forms); Brotli throws `ERR_NONA_UNSUPPORTED` (see
+  [zlib](#zlib)). `node:tls` is a TLS 1.3 client and `node:https` an HTTPS
+  client (Linux x64 and Windows x64); servers are not implemented (see
+  [networking](network.md)). `node:http2` has only the Node.js constants
+  (`http2.constants`, …); its functions and classes throw
+  `ERR_NONA_UNSUPPORTED`.
 - `Object.prototype.toString.call(process)` is `[object process]`, as in
   Node.js; libraries use it to detect Node.js.
 
