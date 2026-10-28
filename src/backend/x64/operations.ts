@@ -32,6 +32,7 @@ import {
 } from "./integer-ops.js";
 import { emitSwitchTable } from "./switch-table.js";
 import { emitFastSite, type SiteFrame } from "./method-sites.js";
+import { emitNameCheck } from "./name-checks.js";
 import { emitStringIndexSite } from "./string-index-site.js";
 import type { Assembler, Mem, Condition, Reg, Xmm } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
@@ -2570,14 +2571,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.store(payload(op.dest), "rax");
                     break;
                 case "checkInitialized":
-                    a.load("rax", value(op.slot));
-                    a.cmp("rax", 255);
-                    failIf(a, "e", "rt.throwReferenceError");
-                    break;
                 case "checkResolvable":
-                    a.load("rax", payload(op.slot));
-                    a.test("rax", "rax");
-                    failIf(a, "e", "rt.throwReferenceError");
+                    emitNameCheck(a, op, literal, value, payload);
                     break;
                 case "nullishDestructure":
                     pointer("rcx", op.source);

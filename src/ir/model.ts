@@ -248,8 +248,8 @@ export type Operation =
       }
     | { kind: "setPrototype"; object: number; prototype: number }
     | { kind: "uninitialized"; dest: number }
-    | { kind: "checkInitialized"; slot: number }
-    | { kind: "checkResolvable"; slot: number }
+    | { kind: "checkInitialized"; slot: number; name?: string }
+    | { kind: "checkResolvable"; slot: number; name?: string }
     | { kind: "immutableWrite"; error?: "ReferenceError" }
     | { kind: "nullishDestructure"; source: number; key?: number }
     | { kind: "constant"; dest: number; value: Constant }
