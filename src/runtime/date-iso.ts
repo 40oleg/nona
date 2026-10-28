@@ -1,4 +1,4 @@
-import { rangeErrorThrower } from "./errors.js";
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot } from "./abi.js";
 import { DateLayout } from "./date-layout.js";
 

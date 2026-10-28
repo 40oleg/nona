@@ -1,4 +1,4 @@
-import { rangeErrorThrower } from "./errors.js";
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { realmTable } from "./constructor-prototype.js";
 import { FunctionKind } from "./functions.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";

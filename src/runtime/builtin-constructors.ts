@@ -1,4 +1,4 @@
-import { rangeErrorThrower } from "./errors.js";
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { selectNativeConstructPrototype } from "./constructor-prototype.js";
 import { HeapLayout as H, HeapKind } from "./heap-layout.js";
