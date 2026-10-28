@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`util.getSystemErrorName` maps libuv error numbers to names.** `-2` gives `ENOENT`, `-13` gives `EACCES` and so on (the Linux values, the Windows values that `fs` reports, `EOF`, `UNKNOWN` and `ENOTFOUND`); other negative integers give `Unknown system error N`, and a non-negative or non-integer number throws `ERR_OUT_OF_RANGE`. ([#506](https://github.com/40oleg/nona/issues/506))
 - **`Date.parse` and `new Date(string)` accept the common non-ISO date strings.** Strings outside the ISO format go to a token-based parser that matches V8: month and weekday names in any case and spelled out (`June 15, 2021`, `15 Jun 2021`, `Tuesday, June 15, 2021`, `toDateString()` output), slash dates (`2021/06/15`, `6/15/2021`, two-digit years as 1950–2049), an optional `H:MM[:SS[.fff]]` time with `AM`/`PM`, `GMT`/`UTC`/`UT`/`Z` with an optional `±hhmm`, `±hh:mm` or `±h` offset, and parenthesized comments. Invalid fields still give `NaN`. These strings returned `NaN`. ([#507](https://github.com/40oleg/nona/issues/507))
 - **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
 
