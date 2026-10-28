@@ -109,6 +109,7 @@
                 "util-inspect-compact",
                 "util-format",
                 "util-parse-args",
+                "util-get-system-error-name",
                 "util-inspect-max-string-length",
                 "util-inspect-custom",
                 "util-inspect-promise",
