@@ -103,6 +103,7 @@
                 "date",
                 "assert-deep-equal",
                 "assert-throws",
+                "assert-throws-message",
                 "assert-strict",
                 "assert-iferror",
                 "util-types-brand",
