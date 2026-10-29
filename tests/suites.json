@@ -16,6 +16,7 @@
                 "tail-calls",
                 "dynamic-functions",
                 "language-audit",
+                "failed-assignment-messages",
                 "annexb-builtins",
                 "eval-exception",
                 "eval-aot",
