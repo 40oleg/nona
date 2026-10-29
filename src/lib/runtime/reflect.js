@@ -32,6 +32,12 @@
         value: "Reflect",
         configurable: true,
     });
+    // Node.js: Object.prototype.toString.call(globalThis) is "[object global]".
+    // This prelude is always linked, unlike process.js.
+    Object.defineProperty(globalThis, Symbol.toStringTag, {
+        value: "global",
+        configurable: true,
+    });
     function method(name, length, fn) {
         Object.defineProperty(reflect, name, {
             value: fn,
