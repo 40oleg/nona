@@ -34,6 +34,10 @@ The fixes and documentation changes of v0.32.1 (below) are included; this releas
 - **`docs/fs.md` no longer says `fs.promises` is missing.** It now has one list of the synchronous, callback and promise functions that matches `src/lib/modules/fs-common.js`, mentions `Dirent`, `Stats` and `constants`, and states that `appendFileSync` takes no options ([#498](https://github.com/40oleg/nona/issues/498)).
 - **Documentation.** Archived stale language support pages (`docs/language-support.md` for Nona 0.5.0 and `docs/status.md` for 0.17–0.20) to `docs/history/` with historical notes; README links now point to the current [site Language support page](https://40oleg.github.io/nona/guide/language-support). Corrected outdated claims about Error `cause` support in documentation ([#500](https://github.com/40oleg/nona/issues/500)).
 
+### Fixes
+
+- **`assert.throws` and `assert.rejects` keep the `Missing expected exception` prefix.** A string message replaced the whole text when the function did not throw. The error message is now `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#512](https://github.com/40oleg/nona/issues/512))
+
 ## v0.31.0 — 2026-10-27
 
 ### Features
