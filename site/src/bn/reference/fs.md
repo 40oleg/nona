@@ -28,7 +28,7 @@ Node.js-এর `fs` মডিউলের একটি সিঙ্ক্রো�
 
 ## কলব্যাক ও প্রমিস
 
-`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (`realpath.native`-সহ), `readdir`, `mkdir`, `rm`, `rmdir`, `unlink`, `rename`, `copyFile` ও `exists` Node.js-স্টাইলের কলব্যাক নেয় (`(error, result)`; `exists` কেবল একটি বুলিয়ান পাঠায়)। `exists` ছাড়া একই ফাংশনগুলো `fs.promises` থেকে এবং `node:fs/promises` মডিউল (`fs/promises`, `nona:fs/promises`) থেকে প্রমিস ফেরত দেয়; এটি `fs.promises`-এর সঙ্গে একই অবজেক্ট। দুই রূপই কল করার সময়ই সিঙ্ক্রোনাস অপারেশন চালায় এবং কেবল কলব্যাক পরবর্তী টিকে পিছিয়ে দেয় বা প্রমিস সেটল করে: ফাইল সিস্টেমের কাজ অন্য কোডের সঙ্গে ওভারল্যাপ করে না।
+`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (`realpath.native`-সহ), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`, `unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` ও `exists` Node.js-স্টাইলের কলব্যাক নেয় (`(error, result)`; `exists` কেবল একটি বুলিয়ান পাঠায়)। `exists` ছাড়া একই ফাংশনগুলো `fs.promises` থেকে এবং `node:fs/promises` মডিউল (`fs/promises`, `nona:fs/promises`) থেকে প্রমিস ফেরত দেয়; এটি `fs.promises`-এর সঙ্গে একই অবজেক্ট। দুই রূপই কল করার সময়ই সিঙ্ক্রোনাস অপারেশন চালায় এবং কেবল কলব্যাক পরবর্তী টিকে পিছিয়ে দেয় বা প্রমিস সেটল করে: ফাইল সিস্টেমের কাজ অন্য কোডের সঙ্গে ওভারল্যাপ করে না।
 
 ## TextEncoder ও TextDecoder {#textencoder-and-textdecoder}
 

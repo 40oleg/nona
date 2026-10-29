@@ -38,7 +38,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## प्रोफ़ाइलिंग और बेंचमार्क
 
-`node bench/run.mjs` वे बेंचमार्क चलाता है जिन पर [प्रदर्शन](/hi/guide/performance) पेज आधारित है। `scripts/profile-runtime.mjs` गिनता है कि हर रनटाइम रूटीन कितने इंस्ट्रक्शन चलाता है (QEMU ट्रेस), और [कमांड लाइन](/hi/reference/cli#options) पर `--call-stats` गिनता है कि प्रोग्राम कितनी कॉल करता है।
+`node bench/run.mjs` वे बेंचमार्क चलाता है जिन पर [प्रदर्शन](/hi/guide/performance) पेज आधारित है। `scripts/profile-runtime.mjs` गिनता है कि हर रनटाइम रूटीन कितने इंस्ट्रक्शन चलाता है (QEMU ट्रेस), और [कमांड लाइन](/hi/reference/cli) पर `--call-stats` गिनता है कि प्रोग्राम कितनी कॉल करता है।
 
 ## दस्तावेज़
 

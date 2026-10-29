@@ -28,7 +28,7 @@
 
 ## 回调与 Promise
 
-`readFile`、`writeFile`、`appendFile`、`access`、`stat`、`lstat`、`readlink`、`realpath`（含 `realpath.native`）、`readdir`、`mkdir`、`rm`、`rmdir`、`unlink`、`rename`、`copyFile` 和 `exists` 接受 Node.js 风格的回调（`(error, result)`；`exists` 只传一个布尔值）。去掉 `exists` 后的同一组函数会返回来自 `fs.promises` 以及 `node:fs/promises` 模块（`fs/promises`、`nona:fs/promises`）的 Promise，该模块与 `fs.promises` 是同一个对象。两种形式都在调用时执行同步操作，只是把回调推迟到之后的 tick 或让 Promise 完成：它们不会让文件系统操作与其他代码重叠执行。
+`readFile`、`writeFile`、`appendFile`、`access`、`stat`、`lstat`、`readlink`、`realpath`（含 `realpath.native`）、`readdir`、`mkdir`, `mkdtemp`、`rm`、`rmdir`、`unlink`、`rename`, `truncate`、`copyFile`, `symlink`, `chmod`, `utimes` 和 `exists` 接受 Node.js 风格的回调（`(error, result)`；`exists` 只传一个布尔值）。去掉 `exists` 后的同一组函数会返回来自 `fs.promises` 以及 `node:fs/promises` 模块（`fs/promises`、`nona:fs/promises`）的 Promise，该模块与 `fs.promises` 是同一个对象。两种形式都在调用时执行同步操作，只是把回调推迟到之后的 tick 或让 Promise 完成：它们不会让文件系统操作与其他代码重叠执行。
 
 ## TextEncoder 与 TextDecoder {#textencoder-and-textdecoder}
 

@@ -28,6 +28,32 @@ delete globalThis.__nonaRegexpScan;
 __nonaRegexpVm.safeCall=Function.prototype.call.bind(Function.prototype.call);
 __nonaRegexpVm.isRejectionError=Error.__nonaIsRejectionErrorInternal;
 delete Error.__nonaIsRejectionErrorInternal;
+// Uncaught exceptions of a program without the process prelude (#501), which
+// replaces both functions (process-exceptions.js): the diagnostic on stderr
+// and exit code 1. console.error is still the native one here.
+(function(exit,write,isRejectionError){
+  if(typeof exit!=='function')return;
+  __nonaRegexpVm.dispatchUncaught=function(error){
+    var diagnostic;
+    try{diagnostic=String((error&&error.stack)||error)}catch(ignored){diagnostic='Uncaught exception'}
+    try{write(diagnostic)}catch(ignored){}
+    exit()
+  };
+  __nonaRegexpVm.reportUnhandledRejection=function(reason,promise,fail){
+    if(!fail)return;
+    var branded;
+    try{branded=isRejectionError(reason)}catch(error){__nonaRegexpVm.dispatchUncaught(error);return}
+    if(!branded){
+      var description=reason!==null&&(typeof reason==='object'||typeof reason==='function')?'[object '+(typeof reason==='function'?'Function':'Object')+']':String(reason);
+      var error=new Error('The promise rejected with the reason "'+description+'".');
+      error.name='UnhandledPromiseRejection';
+      error.code='ERR_UNHANDLED_REJECTION';
+      reason=error
+    }
+    __nonaRegexpVm.dispatchUncaught(reason)
+  }
+})(Error.__nonaExitInternal,console.error,__nonaRegexpVm.isRejectionError);
+delete Error.__nonaExitInternal;
 __nonaRegexpVm.append=Array.__nonaAppendInternal;
 delete Array.__nonaAppendInternal;
 __nonaRegexpVm.typedArrayConstructor=Object.getPrototypeOf(Uint8Array);

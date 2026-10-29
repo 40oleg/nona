@@ -1,6 +1,6 @@
 {
     "name": "nona",
-    "version": "0.31.0",
+    "version": "0.33.0",
     "description": "Experimental JavaScript subset AOT compiler for native Windows, Linux, macOS and BSD executables",
     "private": true,
     "license": "MIT",
@@ -27,6 +27,7 @@
         "format:check": "prettier --check .",
         "check:proofs": "lake -d verification build",
         "check:programs": "npm run build && node --test --test-concurrency=4 dist/tests/program-corpus*.test.js",
+        "check:doc-links": "node scripts/check-doc-links.mjs",
         "compare": "npm run build && node scripts/compare.mjs",
         "compare:linux": "npm run build && node scripts/compare.mjs --linux",
         "test262:smoke": "npm run build && node scripts/test262-smoke.mjs",

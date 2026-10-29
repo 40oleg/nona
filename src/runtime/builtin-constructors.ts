@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { selectNativeConstructPrototype } from "./constructor-prototype.js";
 import { HeapLayout as H, HeapKind } from "./heap-layout.js";
@@ -578,7 +579,7 @@ export function emitBuiltinConstructors(b: RuntimeBuilder): void {
                 a.load("rax", slot(48));
                 a.mov("r10", 0xffffffff);
                 a.cmp("rax", "r10");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(a, "a", rangeErrorThrower(b, "Invalid array length"));
                 a.mov("rax", 0);
                 a.store(slot(64), "rax");
                 a.label(loop);

@@ -57,6 +57,8 @@ export abstract class LowererBase {
         hasOwn?: "method" | "call",
         intrinsic?: "imul",
         stringIndex?: "charCodeAt" | "charAt",
+        /** The callee expression, for the TypeError message of a callee that is not callable. */
+        calleeNode?: A.Expression,
     ): void;
     protected abstract preludeCall(name: string, args: number[]): number;
     protected blocks: BlockIR[] = [];
@@ -484,7 +486,7 @@ export abstract class LowererBase {
                         (p) => p.kind !== "Identifier",
                     )))
         )
-            this.emit({ kind: "checkInitialized", slot: dest });
+            this.emit({ kind: "checkInitialized", slot: dest, name: id.name });
         return dest;
     }
     protected write(
@@ -665,6 +667,16 @@ export abstract class LowererBase {
             no: ok.id,
         });
         this.select(fail);
+        // The read throws the TypeError that names the base and the key; the
+        // runtime checks the base before it converts the key, so no user code runs.
+        this.emit({
+            kind: "property",
+            operation: "get",
+            dest: this.slot(),
+            object: ref.object,
+            key: ref.key,
+            ...(ref.keyName !== undefined ? { keyName: ref.keyName } : {}),
+        });
         this.emit({ kind: "immutableWrite" });
         this.end({ kind: "jump", target: ok.id });
         this.select(ok);
@@ -749,10 +761,12 @@ export abstract class LowererBase {
                     this.emit({
                         kind: "checkResolvable",
                         slot: ref.resolvable,
+                        name: ref.id.name,
                     });
                 this.emit({
                     kind: "checkResolvable",
                     slot: this.globalExists(binding.name),
+                    name: binding.name,
                 });
             }
             // The reference was already resolved (with objects included) by reference().

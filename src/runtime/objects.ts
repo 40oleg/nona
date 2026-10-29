@@ -3,6 +3,7 @@ import { ShapeLayout, emitSlotAddress } from "./shapes.js";
 import { emitShapeGuard } from "./shapes.js";
 import { bumpEpochIfPrototype } from "./property-cache.js";
 import { rootedFn } from "./root-scope.js";
+import { failIfNullish } from "./errors.js";
 import { propertyIndexThreshold } from "./property-index.js";
 import { stringLiteral } from "./value.js";
 import {
@@ -1020,7 +1021,8 @@ export function emitObjects(b: RuntimeBuilder): void {
                 if (mode === "get") copyValue(a, slot(128), { base: "r9" });
                 a.load("rax", { base: "rdx" });
                 a.cmp("rax", mode === "has" ? 5 : 1);
-                failIf(a, mode === "has" ? "ne" : "be", "rt.throwTypeError");
+                if (mode === "has") failIf(a, "ne", "rt.throwTypeError");
+                else failIfNullish(a, "be", "get", "rdx", "r8");
                 if (mode === "has") {
                     const slowHas = a.unique("slowHas");
                     a.lea("rcx", slot(80));
@@ -1473,7 +1475,7 @@ export function emitObjects(b: RuntimeBuilder): void {
                 primitive = a.unique("primitive");
             a.load("rax", { base: "rcx" });
             a.cmp("rax", 1);
-            failIf(a, "be", "rt.throwTypeError");
+            failIfNullish(a, "be", "set", "rcx", "rdx");
             a.cmp("rax", 5);
             a.jcc("ne", primitive);
             const ordinarySet = a.unique("ordinarySet");
