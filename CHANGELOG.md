@@ -2,9 +2,16 @@
 
 ## Unreleased
 
+## v0.34.0 — 2026-10-29
+
 ### Fixes
 
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
+- **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))
+- **`assert.throws` and `assert.rejects` keep the message prefix.** A string message used to replace the whole error text when the function did not throw; now it becomes `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#594](https://github.com/40oleg/nona/issues/594))
+- **Object.prototype.toString behavior is more complete.** `Object.prototype.toString.call(globalThis)` is `[object global]` instead of `[object Object]`, and other [[Class]] symbols are used correctly in built-in methods. ([#596](https://github.com/40oleg/nona/issues/596))
+- **`EventEmitter` "Unhandled error" message inspects the value.** `emit("error", { code: 42 })` without a listener now shows the error like `util.inspect`, not as `[object Object]`. ([#597](https://github.com/40oleg/nona/issues/597))
+- **Failed assignments in strict code have Node.js messages.** Assignment to a `const`, read-only property, getter-only accessor, non-extensible object and other failures no longer say `Invalid operation`, but give specific messages like Node.js. ([#598](https://github.com/40oleg/nona/issues/598))
 
 ## v0.33.0 — 2026-10-28
 
