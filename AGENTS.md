@@ -72,6 +72,9 @@ exactly.
   generated files). CI fails when `npm run format:check` does.
 - `npm run check` (build + full test suite). The CI runs it on Windows with
   Node.js 26; native PE tests only run on Windows, ELF tests on Linux.
+- A pull request that changes only Markdown files (`**/*.md`) runs no CI:
+  every workflow ignores it, and `main` checks it after the merge. Merge it
+  once the text is reviewed; do not wait for checks that will not start.
 - CI on a pull request runs `check`, `program corpus`, `formal-verification`
   and `pages`. The platform suites (`native-platforms`: arm64, macOS, Linux
   distributions, BSD; `self-hosting`) run on `main` after the merge, on the
@@ -109,6 +112,11 @@ exactly.
 
 - A release bumps the version in `package.json`, moves the `## Unreleased`
   entries of `CHANGELOG.md` under the new version and tags `vX.Y.Z`.
+- The release commit (version bump and changelog) ends its subject with
+  `[skip ci]`, so its pull request starts no workflow; `main` runs the full
+  CI on the merge commit, and the tag goes on that commit once it is green.
+  Keep `[skip ci]` out of the pull request title: the merge commit message
+  contains the title.
 - **Refresh `PERFORMANCE.md` for every release.** Re-run the benchmarks
   (`node bench/run.mjs`, protocol in `bench/README.md`) against the current
   Node.js, Deno and Bun on one machine, add a dated section for the new

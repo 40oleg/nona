@@ -263,6 +263,10 @@ Highlights: ES2023 TypedArray methods, ES2024 RegExp v flag, development improve
 - CI runs the Windows tests of `check` in four parallel shards balanced by `tests/timings.json`, without the program corpus (the `program corpus` workflow runs it), and builds once per job. ([#370](https://github.com/40oleg/nona/issues/370))
 - CI cancels the unfinished runs of a pull request when it is merged or closed. ([#373](https://github.com/40oleg/nona/issues/373))
 
+### Internals
+
+- Pull requests that change only Markdown files start no workflow (`paths-ignore: ["**/*.md"]`, and a negated pattern in `pages`), and the release commit carries `[skip ci]`, so a release pull request starts none either; `main` checks both after the merge ([#368](https://github.com/40oleg/nona/issues/368)).
+
 ## v0.16.0 — 2026-10-17
 
 Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `FinalizationRegistry`, RegExp match indices, ES2023 change-by-copy array methods.

@@ -10,6 +10,9 @@ on:
     # label is added.
     pull_request:
         types: [opened, synchronize, reopened, labeled]
+        # Pull requests that change only Markdown run no CI; main checks them
+        # after the merge.
+        paths-ignore: ["**/*.md"]
 permissions:
     contents: read
 concurrency:

@@ -9,6 +9,9 @@ on:
     push:
         branches: [main]
     pull_request:
+        # Pull requests that change only Markdown run no CI; main checks them
+        # after the merge.
+        paths-ignore: ["**/*.md"]
 concurrency:
     # A pull request has one group (head_ref): a newer push cancels the older
     # run. A push to main has one group per commit (sha), so the next merge
