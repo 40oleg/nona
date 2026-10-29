@@ -39,8 +39,19 @@ export const FunctionLayout = {
     size: O.size + 128,
 } as const;
 export const FunctionKind = 2;
-/** Record of a `new C(...)` site (rt.newInstanceCached): the function, its `prototype` property node and the shape epoch they were seen at. */
-export const NewCacheLayout = { fn: 0, node: 8, epoch: 16, size: 24 } as const;
+/**
+ * Record of a `new C(...)` site (rt.newInstanceCached): the function, its
+ * `prototype` property node and the shape epoch they were seen at, and the
+ * TypeError message Value of a callee that is not a constructor
+ * (`f is not a constructor`, #504) or 0 for the generic text.
+ */
+export const NewCacheLayout = {
+    fn: 0,
+    node: 8,
+    epoch: 16,
+    message: 24,
+    size: 32,
+} as const;
 
 export function emitFunctions(b: RuntimeBuilder): void {
     b.bundle.fragments.push(stringLiteral("rt.str.function", "function"));
@@ -362,76 +373,100 @@ export function emitFunctions(b: RuntimeBuilder): void {
     // object of its realm. Everything else (proxies, bound functions,
     // generators, class constructors, primitive receivers of sloppy code,
     // non-callables) leaves the frame again and takes rt.invokeGeneral with the
-    // same arguments.
-    b.fn("rt.invoke", 56, (a) => {
-        const general = a.unique("general"),
-            arrow = a.unique("arrow"),
-            ready = a.unique("thisReady"),
-            call = a.unique("call"),
-            done = a.unique("done");
-        a.load("rax", { base: "rdx" });
-        a.cmp("rax", 5);
-        a.jcc("ne", general);
-        a.load("r10", { base: "rdx", disp: 8 });
-        a.load("rax", { base: "r10", disp: O.kind });
-        a.cmp("rax", FunctionKind);
-        a.jcc("ne", general);
-        for (const field of [FunctionLayout.bound, FunctionLayout.generator]) {
-            a.load("rax", { base: "r10", disp: field });
+    // same arguments. rt.invokeFromSite, the entry of the general call sites
+    // (call-sites.ts), also takes R11 = the site's descriptor: a callee that is
+    // neither a function nor a callable proxy throws the TypeError the site
+    // names (`o.foo is not a function`, #504) there.
+    for (const fromSite of [false, true])
+        b.fn(fromSite ? "rt.invokeFromSite" : "rt.invoke", 56, (a) => {
+            const general = a.unique("general"),
+                arrow = a.unique("arrow"),
+                ready = a.unique("thisReady"),
+                call = a.unique("call"),
+                done = a.unique("done"),
+                notFunction = fromSite ? a.unique("notFunction") : general,
+                notCallable = fromSite ? a.unique("notCallable") : general;
+            a.load("rax", { base: "rdx" });
+            a.cmp("rax", 5);
+            a.jcc("ne", notCallable);
+            a.load("r10", { base: "rdx", disp: 8 });
+            a.load("rax", { base: "r10", disp: O.kind });
+            a.cmp("rax", FunctionKind);
+            a.jcc("ne", notFunction);
+            for (const field of [
+                FunctionLayout.bound,
+                FunctionLayout.generator,
+            ]) {
+                a.load("rax", { base: "r10", disp: field });
+                a.test("rax", "rax");
+                a.jcc("ne", general);
+            }
+            a.load("rax", { base: "r10", disp: FunctionLayout.constructable });
+            a.cmp("rax", 2);
+            a.jcc("e", general);
+            a.load("rax", { base: "r10", disp: FunctionLayout.arrow });
             a.test("rax", "rax");
-            a.jcc("ne", general);
-        }
-        a.load("rax", { base: "r10", disp: FunctionLayout.constructable });
-        a.cmp("rax", 2);
-        a.jcc("e", general);
-        a.load("rax", { base: "r10", disp: FunctionLayout.arrow });
-        a.test("rax", "rax");
-        a.jcc("ne", arrow);
-        // The receiver is the caller's fifth argument, above this frame.
-        a.load("r11", slot(56 + 40));
-        a.load("rax", { base: "r10", disp: FunctionLayout.rawThis });
-        a.test("rax", "rax");
-        a.jcc("ne", ready);
-        a.load("rax", { base: "r11" });
-        a.cmp("rax", 5);
-        a.jcc("e", ready);
-        a.cmp("rax", 1);
-        a.jcc("a", general);
-        a.load("rax", { base: "r10", disp: FunctionLayout.realm });
-        a.and("rax", 255);
-        a.shl("rax", 3);
-        a.lea("r11", { rip: realmTable("rt.globalValue") });
-        a.add("r11", "rax");
-        a.load("r11", { base: "r11" });
-        a.label(ready);
-        a.store(slot(32), "r11");
-        a.lea("rax", { rip: "rt.undefinedValue" });
-        a.store(slot(40), "rax");
-        a.label(call);
-        a.store(slot(48), "rcx");
-        a.mov("rdx", "r8");
-        a.mov("r8", "r9");
-        a.mov("r9", "r10");
-        a.load("rax", { base: "r10", disp: FunctionLayout.code });
-        a.callRegister("rax");
-        // A tail call made by the callee comes back as a marker.
-        a.load("rcx", slot(48));
-        a.load("rax", { base: "rcx" });
-        a.cmp("rax", TailCallTag);
-        a.jcc("ne", done);
-        a.call("rt.tailDispatch");
-        a.jmp(done);
-        a.label(arrow);
-        a.lea("rax", { base: "r10", disp: FunctionLayout.lexicalThis });
-        a.store(slot(32), "rax");
-        a.lea("rax", { base: "r10", disp: FunctionLayout.lexicalNewTarget });
-        a.store(slot(40), "rax");
-        a.jmp(call);
-        a.label(general);
-        a.add("rsp", 56);
-        a.tailJump("rt.invokeGeneral");
-        a.label(done);
-    });
+            a.jcc("ne", arrow);
+            // The receiver is the caller's fifth argument, above this frame.
+            a.load("r11", slot(56 + 40));
+            a.load("rax", { base: "r10", disp: FunctionLayout.rawThis });
+            a.test("rax", "rax");
+            a.jcc("ne", ready);
+            a.load("rax", { base: "r11" });
+            a.cmp("rax", 5);
+            a.jcc("e", ready);
+            a.cmp("rax", 1);
+            a.jcc("a", general);
+            a.load("rax", { base: "r10", disp: FunctionLayout.realm });
+            a.and("rax", 255);
+            a.shl("rax", 3);
+            a.lea("r11", { rip: realmTable("rt.globalValue") });
+            a.add("r11", "rax");
+            a.load("r11", { base: "r11" });
+            a.label(ready);
+            a.store(slot(32), "r11");
+            a.lea("rax", { rip: "rt.undefinedValue" });
+            a.store(slot(40), "rax");
+            a.label(call);
+            a.store(slot(48), "rcx");
+            a.mov("rdx", "r8");
+            a.mov("r8", "r9");
+            a.mov("r9", "r10");
+            a.load("rax", { base: "r10", disp: FunctionLayout.code });
+            a.callRegister("rax");
+            // A tail call made by the callee comes back as a marker.
+            a.load("rcx", slot(48));
+            a.load("rax", { base: "rcx" });
+            a.cmp("rax", TailCallTag);
+            a.jcc("ne", done);
+            a.call("rt.tailDispatch");
+            a.jmp(done);
+            a.label(arrow);
+            a.lea("rax", { base: "r10", disp: FunctionLayout.lexicalThis });
+            a.store(slot(32), "rax");
+            a.lea("rax", {
+                base: "r10",
+                disp: FunctionLayout.lexicalNewTarget,
+            });
+            a.store(slot(40), "rax");
+            a.jmp(call);
+            if (fromSite) {
+                a.label(notFunction);
+                a.cmp("rax", ProxyKind);
+                a.jcc("ne", notCallable);
+                a.load("rax", { base: "r10", disp: O.flags });
+                a.and("rax", ProxyCallable);
+                a.test("rax", "rax");
+                a.jcc("ne", general);
+                a.label(notCallable);
+                a.mov("rcx", "r11");
+                a.call("rt.throwSiteNotCallable");
+            }
+            a.label(general);
+            a.add("rsp", 56);
+            a.tailJump("rt.invokeGeneral");
+            a.label(done);
+        });
     for (const [name, construct, tailTarget] of [
         ["rt.invokeGeneral", false, false],
         ["rt.invokeTailTarget", false, true],
@@ -446,7 +481,7 @@ export function emitFunctions(b: RuntimeBuilder): void {
             a.store(slot(72), "r10");
             a.load("rax", { base: "rdx" });
             a.cmp("rax", 5);
-            failIf(a, "ne", "rt.throwTypeError");
+            failIf(a, "ne", "rt.throwNotCallable");
             a.load("rax", { base: "rdx", disp: 8 });
             a.load("r10", { base: "rax", disp: O.kind });
             const ready = a.unique("ready"),
@@ -460,7 +495,7 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.load("r10", { base: "rax", disp: O.flags });
                 a.and("r10", ProxyCallable);
                 a.test("r10", "r10");
-                failIf(a, "e", "rt.throwTypeError");
+                failIf(a, "e", "rt.throwNotCallable");
                 a.load("rax", slot(72));
                 a.store(slot(32), "rax");
                 a.load("rcx", slot(40));
@@ -471,10 +506,10 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.jmp(done);
                 a.label(ordinaryCallee);
                 a.cmp("r10", FunctionKind);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotCallable");
             } else {
                 a.cmp("r10", FunctionKind);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotCallable");
             }
             a.load("r10", { base: "rax", disp: FunctionLayout.bound });
             a.test("r10", "r10");
@@ -497,9 +532,12 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.load("r10", { base: "rax", disp: FunctionLayout.realm });
                 a.and("r10", 255);
                 a.shl("r10", 3);
-                a.lea("r11", { rip: realmTable("rt.throwTypeError") });
+                a.lea("r11", {
+                    rip: realmTable("rt.throwClassConstructorCall"),
+                });
                 a.add("r11", "r10");
                 a.load("r11", { base: "r11" });
+                a.load("rcx", slot(48));
                 a.callRegister("r11");
                 a.label(callable);
             }
@@ -670,27 +708,27 @@ export function emitFunctions(b: RuntimeBuilder): void {
                 a.label(unwrap);
                 a.load("rax", { base: "rdx" });
                 a.cmp("rax", 5);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotConstructor");
                 a.load("rax", { base: "rdx", disp: 8 });
                 a.load("r10", { base: "rax", disp: O.kind });
                 const proxyInstance = a.unique("proxyInstance");
                 a.cmp("r10", ProxyKind);
                 a.jcc("e", proxyInstance);
                 a.cmp("r10", FunctionKind);
-                failIf(a, "ne", "rt.throwTypeError");
+                failIf(a, "ne", "rt.throwNotConstructor");
                 a.load("r10", {
                     base: "rax",
                     disp: FunctionLayout.constructable,
                 });
                 a.test("r10", "r10");
-                failIf(a, "e", "rt.throwTypeError");
+                failIf(a, "e", "rt.throwNotConstructor");
                 const validInstance = a.unique("validInstance");
                 a.jmp(validInstance);
                 a.label(proxyInstance);
                 a.load("r10", { base: "rax", disp: O.flags });
                 a.and("r10", ProxyConstructable);
                 a.test("r10", "r10");
-                failIf(a, "e", "rt.throwTypeError");
+                failIf(a, "e", "rt.throwNotConstructor");
                 if (!raw) {
                     a.load("rcx", slot(40));
                     a.lea("r10", { rip: "rt.undefinedValue" });
@@ -826,6 +864,36 @@ export function emitFunctions(b: RuntimeBuilder): void {
         a.store({ base: "rax", disp: O.prototype }, "r11");
         a.jmp(done);
         a.label(miss);
+        {
+            // A callee that is not a constructor throws the site's TypeError.
+            const notConstructor = a.unique("notConstructor"),
+                proxy = a.unique("proxy"),
+                valid = a.unique("validConstructor");
+            a.load("rdx", slot(48));
+            a.load("rax", { base: "rdx" });
+            a.cmp("rax", 5);
+            a.jcc("ne", notConstructor);
+            a.load("r10", { base: "rdx", disp: 8 });
+            a.load("rax", { base: "r10", disp: O.kind });
+            a.cmp("rax", ProxyKind);
+            a.jcc("e", proxy);
+            a.cmp("rax", FunctionKind);
+            a.jcc("ne", notConstructor);
+            a.load("rax", { base: "r10", disp: FunctionLayout.constructable });
+            a.test("rax", "rax");
+            a.jcc("ne", valid);
+            a.jmp(notConstructor);
+            a.label(proxy);
+            a.load("rax", { base: "r10", disp: O.flags });
+            a.and("rax", ProxyConstructable);
+            a.test("rax", "rax");
+            a.jcc("ne", valid);
+            a.label(notConstructor);
+            a.load("rcx", slot(56));
+            a.load("rcx", { base: "rcx", disp: N.message });
+            a.call("rt.throwNotConstructorMessage");
+            a.label(valid);
+        }
         {
             const executor = a.unique("executor");
             a.load("rdx", slot(64));

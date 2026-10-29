@@ -28,7 +28,7 @@ Implementação: no Windows, o módulo chama o KERNEL32 (`CreateFileW`, `ReadFil
 
 ## Callbacks e promessas
 
-`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (com `realpath.native`), `readdir`, `mkdir`, `rm`, `rmdir`, `unlink`, `rename`, `copyFile` e `exists` aceitam um callback no estilo do Node.js (`(error, result)`; `exists` passa apenas um booleano). As mesmas funções sem `exists` retornam promessas de `fs.promises` e do módulo `node:fs/promises` (`fs/promises`, `nona:fs/promises`), que é o mesmo objeto que `fs.promises`. Ambas as formas executam a operação síncrona na chamada e apenas adiam o callback para um tick posterior ou resolvem a promessa: não sobrepõem o trabalho no sistema de arquivos a outro código.
+`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (com `realpath.native`), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`, `unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` e `exists` aceitam um callback no estilo do Node.js (`(error, result)`; `exists` passa apenas um booleano). As mesmas funções sem `exists` retornam promessas de `fs.promises` e do módulo `node:fs/promises` (`fs/promises`, `nona:fs/promises`), que é o mesmo objeto que `fs.promises`. Ambas as formas executam a operação síncrona na chamada e apenas adiam o callback para um tick posterior ou resolvem a promessa: não sobrepõem o trabalho no sistema de arquivos a outro código.
 
 ## TextEncoder e TextDecoder {#textencoder-and-textdecoder}
 

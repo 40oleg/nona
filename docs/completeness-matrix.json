@@ -961,15 +961,6 @@
             "url": "https://github.com/40oleg/nona/blob/453418c167b9b34cd5ff7c0f748674e79222e1cc/docs/es2020-contract.md",
             "execution": "not-applicable"
         },
-        "docs/language-support.md": {
-            "kind": "documentation",
-            "path": "docs/language-support.md",
-            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
-            "blob": "44f4d443c79180ac06259fe498a60b0c9810256c",
-            "releaseBlob": "8fa833cc6a48265190d51fe6411ff72a5968ceb5",
-            "url": "https://github.com/40oleg/nona/blob/453418c167b9b34cd5ff7c0f748674e79222e1cc/docs/language-support.md",
-            "execution": "not-applicable"
-        },
         "site/src/guide/language-support.md": {
             "kind": "documentation",
             "path": "site/src/guide/language-support.md",
@@ -1284,15 +1275,6 @@
             "releaseBlob": "55889a60825df4bae57293e59fca0caf0b64ef75",
             "url": "https://github.com/40oleg/nona/blob/453418c167b9b34cd5ff7c0f748674e79222e1cc/tests/eval-exception.test.ts",
             "execution": "not-run"
-        },
-        "docs/status.md": {
-            "kind": "documentation",
-            "path": "docs/status.md",
-            "commit": "453418c167b9b34cd5ff7c0f748674e79222e1cc",
-            "blob": "e03fe1109d1610e1af6bb61594e95e10d414820b",
-            "releaseBlob": "e03fe1109d1610e1af6bb61594e95e10d414820b",
-            "url": "https://github.com/40oleg/nona/blob/453418c167b9b34cd5ff7c0f748674e79222e1cc/docs/status.md",
-            "execution": "not-applicable"
         },
         "src/runtime/function-builtin.ts": {
             "kind": "implementation",
@@ -4931,7 +4913,6 @@
                 ],
                 "documentation": [
                     "docs/es2020-contract.md",
-                    "docs/language-support.md",
                     "site/src/guide/language-support.md"
                 ],
                 "links": []
@@ -4982,7 +4963,6 @@
                 ],
                 "documentation": [
                     "docs/es2020-contract.md",
-                    "docs/language-support.md",
                     "site/src/guide/language-support.md"
                 ],
                 "links": []
@@ -5030,7 +5010,6 @@
                 ],
                 "documentation": [
                     "docs/es2020-contract.md",
-                    "docs/language-support.md",
                     "site/src/guide/language-support.md"
                 ],
                 "links": []
@@ -5078,7 +5057,6 @@
                 ],
                 "documentation": [
                     "docs/es2020-contract.md",
-                    "docs/language-support.md",
                     "site/src/guide/language-support.md"
                 ],
                 "links": []
@@ -5126,7 +5104,6 @@
                 ],
                 "documentation": [
                     "docs/es2020-contract.md",
-                    "docs/language-support.md",
                     "site/src/guide/language-support.md"
                 ],
                 "links": []
@@ -5169,7 +5146,6 @@
                 "tests": ["tests/tail-calls.test.ts"],
                 "documentation": [
                     "docs/es2020-contract.md",
-                    "docs/language-support.md",
                     "site/src/guide/language-support.md"
                 ],
                 "links": []
@@ -5221,7 +5197,7 @@
                     "tests/dynamic-functions.test.ts",
                     "tests/eval-exception.test.ts"
                 ],
-                "documentation": ["docs/es2020-contract.md", "docs/status.md"],
+                "documentation": ["docs/es2020-contract.md"],
                 "links": ["https://github.com/40oleg/nona/issues/11"]
             },
             "release": {
@@ -5264,7 +5240,7 @@
                     "tests/eval-exception.test.ts",
                     "tests/dynamic-functions.test.ts"
                 ],
-                "documentation": ["docs/es2020-contract.md", "docs/status.md"],
+                "documentation": ["docs/es2020-contract.md"],
                 "links": ["https://github.com/40oleg/nona/issues/11"]
             },
             "release": {
@@ -10597,7 +10573,6 @@
                 "tests": ["tests/conformance.test.ts"],
                 "documentation": [
                     "docs/test262.md",
-                    "docs/status.md",
                     "README.md",
                     "README.ru.md"
                 ],
@@ -10688,7 +10663,6 @@
                 ],
                 "documentation": [
                     "docs/test262.md",
-                    "docs/status.md",
                     "README.md",
                     "README.ru.md"
                 ],
@@ -10736,7 +10710,6 @@
                 ],
                 "documentation": [
                     "docs/test262.md",
-                    "docs/status.md",
                     "README.md",
                     "README.ru.md"
                 ],
@@ -10782,7 +10755,6 @@
                 "tests": ["tests/ir-move-rules.test.ts"],
                 "documentation": [
                     "docs/test262.md",
-                    "docs/status.md",
                     "README.md",
                     "README.ru.md"
                 ],
@@ -10830,7 +10802,6 @@
                 "tests": ["tests/ci-changes.test.ts", "tests/suites.test.ts"],
                 "documentation": [
                     "docs/test262.md",
-                    "docs/status.md",
                     "README.md",
                     "README.ru.md"
                 ],
@@ -10884,7 +10855,6 @@
                 "tests": [],
                 "documentation": [
                     "docs/test262.md",
-                    "docs/status.md",
                     "README.md",
                     "README.ru.md"
                 ],

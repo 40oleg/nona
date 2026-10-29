@@ -183,17 +183,21 @@ Function` or `eval` from strings built at run time fail when they do so:
   sites passed to `prepareStackTrace` are placeholders with unknown file,
   line and function (`depd` and similar packages load, and report no real
   locations), and `Error` instances have no `stack` property.
-- **`Intl`** has only `Intl.Segmenter` (grapheme clusters, which `string-width`
-  and `cliui` use for terminal columns). Packages that format dates or numbers
-  with the other `Intl` services (`luxon`, `Intl`-based `date-fns-tz`) fail when
-  they use them.
+- **`Intl`** provides `NumberFormat`, `DateTimeFormat`, `Collator`, `PluralRules`
+  and `Segmenter` for the `en` locale only, with UTC time zone; see
+  [`intl.md`](intl.md). Nona's grapheme-only `Segmenter` (UAX #29 extended
+  grapheme clusters) is used by `string-width` and `cliui` for terminal columns.
+  Packages that need other locales, named time zones, `RelativeTimeFormat`,
+  `ListFormat`, `DisplayNames`, or word/sentence segmentation (`luxon` with named
+  zones, `Intl`-based `date-fns-tz`) fail when they use those features.
 - **Version checks.** `process.version` is Nona's version and Nona does not
   report a Node.js version (see [process](process.md)). Packages that refuse
   to run below a Node.js version (`yargs-parser` 22) stop with their own error,
   unless they have a way to turn the check off (see [yargs](#tested-packages)).
-- **Brotli and TLS servers.** Responses with `Content-Encoding: br`, and
-  `https.createServer` or `tls.createServer`, fail with
-  `ERR_NONA_UNSUPPORTED`; the TLS client is TLS 1.3 only.
+- **Brotli and TLS servers.** The Brotli functions of `node:zlib` throw
+  `ERR_NONA_UNSUPPORTED`; `tls.createServer` throws `ERR_METHOD_NOT_IMPLEMENTED`
+  and `https.createServer` `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`; the TLS
+  client is TLS 1.3 only.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
   file also requires with a literal string; `require.extensions` and

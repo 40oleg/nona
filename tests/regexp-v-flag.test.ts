@@ -95,18 +95,36 @@ console.log("a1b2".replace(/\p{Nd}/gv, "#"));
         false,
     ));
 
-test("v-mode classes nest and support union, intersection and subtraction", () =>
-    sameAsNode(String.raw`
+// Split into three programs: under gcStress the single program took just over
+// the 180 s timeout on darwin-arm64.
+test("v-mode classes nest and support union, intersection and subtraction", () => {
+    const show = String.raw`
 const show = (re, input) => { const m = re.exec(input); return m === null ? "null" : m[0] + "@" + m.index; };
+`;
+    sameAsNode(
+        show +
+            String.raw`
 console.log(show(/[[a-z]--[aeiou]]+/v, "queue strength"), show(/[[a-z]&&[^aeiou]]+/v, "aeiubcd"));
 console.log(show(/[a--b--c]/v, "cba"), show(/[\d--3]+/v, "3456"), show(/[a&&a&&a]/v, "a"));
 console.log(show(/[[a-f]&&[d-z]&&[^e]]+/v, "abcdefg"), show(/[[a-z]--[b-y]--a]+/v, "abz"));
+`,
+    );
+    sameAsNode(
+        show +
+            String.raw`
 console.log(show(/[[[a-c]--b][x-z]]+/v, "abcxyz"), show(/[\w--\d--_]+/v, "_9ab_"));
 console.log(show(/[]/v, "a"), show(/[^]/v, "a"), show(/[[]]/v, "a"), show(/[^[]]/v, "a"), show(/[^[^a]]/v, "ba"));
 console.log(show(/[a&b]+/v, "x&ab&"), show(/[\-\&\!\#\%\,\:\;\<\=\>\@\~]+/v, "a-&!#%,:;<=>@~"));
+`,
+    );
+    sameAsNode(
+        show +
+            String.raw`
 console.log(show(/[\s--\n]+/v, "a\n \t"), show(/[\b]/v, "a\b"), show(/[^\d\s]+/v, "12 ab3"));
 console.log("a1b2c3".replace(/[\w--\d]/gv, "*"), /^[[\x00-\u{10FFFF}]--\x01]$/v.test("\x01"));
-`));
+`,
+    );
+});
 
 test("\\q{} string disjunctions match the longest string first", () =>
     sameAsNode(String.raw`

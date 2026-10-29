@@ -436,7 +436,7 @@ test("binary data methods and the RegExp protocol are linked only when reachable
             {},
             target,
         ).length;
-        assert.ok(hello < 1_300_000, `${target}: ${hello} bytes`);
+        assert.ok(hello < 1_320_000, `${target}: ${hello} bytes`);
         assert.ok(binary - hello > 150_000, `${target}: ${binary} vs ${hello}`);
         assert.ok(
             protocol - hello > 80_000,
@@ -499,8 +499,9 @@ test("syntax helpers are linked by the calls of the lowered program", () => {
         // The inline method, call/apply and direct-call sites of the preludes
         // (#47) take about 42 KB; the Eisel-Lemire string-to-number path
         // (#466) adds about 6 KB, and the shortest-digits number formatting
-        // (#467) is part of every image.
-        assert.ok(hello < 1_300_000, `${target}: ${hello} bytes`);
+        // (#467) is part of every image; the callable-error
+        // messages of calls and `new` (#504) add about 3 KB.
+        assert.ok(hello < 1_320_000, `${target}: ${hello} bytes`);
         assert.ok(fields - hello > 8_000, `${target}: ${fields} vs ${hello}`);
     }
 });

@@ -73,3 +73,45 @@ run({ok:1});
 `,
         false,
     ));
+
+test("JSON.stringify and stringifyToBuffer give distinct cycle and BigInt messages (#508)", () => {
+    const { native, oracle: expected } = runModulesOnHost(
+        {
+            "main.mjs":
+                nona +
+                `
+const msg=(f)=>{try{f();return 'no error'}catch(e){return e.name+': '+(e.message.startsWith('Converting circular structure to JSON')?'circular':e.message)}};
+const o={};o.self=o;
+const a=[];a.push({x:a});
+for(const f of [JSON.stringify,toBytes]){
+    console.log(msg(()=>f(o)));
+    console.log(msg(()=>f(a)));
+    console.log(msg(()=>f({n:1n})));
+    console.log(msg(()=>f([Object(2n)])));
+}
+`,
+        },
+        "main.mjs",
+        {
+            gcStress: true,
+            oracleSource: `import {Buffer} from 'node:buffer';\n${oracle}
+const msg=(f)=>{try{f();return 'no error'}catch(e){return e.name+': '+(e.message.startsWith('Converting circular structure to JSON')?'circular':e.message)}};
+const o={};o.self=o;
+const a=[];a.push({x:a});
+for(const f of [JSON.stringify,toBytes]){
+    console.log(msg(()=>f(o)));
+    console.log(msg(()=>f(a)));
+    console.log(msg(()=>f({n:1n})));
+    console.log(msg(()=>f([Object(2n)])));
+}
+`,
+        },
+    );
+    assert.equal(native.error, undefined);
+    assert.equal(native.status, 0, native.stderr);
+    assert.match(
+        expected,
+        /^TypeError: circular\nTypeError: circular\nTypeError: Do not know how to serialize a BigInt\n/,
+    );
+    assert.equal(native.stdout, expected);
+});
