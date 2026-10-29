@@ -81,6 +81,7 @@ const allowed = new Set<Operation["kind"]>([
     "checkInitialized",
     "checkResolvable",
     "immutableWrite",
+    "nullishDestructure",
     "newObject",
     "requireObject",
     "requireIterable",
@@ -198,6 +199,12 @@ function remap(op: Operation, f: Frame): Operation | undefined {
         case "storeGlobal":
         case "requireObject":
             return { ...op, source: s(op.source) };
+        case "nullishDestructure":
+            return {
+                ...op,
+                source: s(op.source),
+                key: op.key === undefined ? undefined : s(op.key),
+            };
         case "currentThis":
             return f.strict
                 ? { kind: "constant", dest: s(op.dest), value: undefined }

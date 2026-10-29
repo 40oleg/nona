@@ -29,7 +29,7 @@
 
 ## Обратные вызовы и промисы
 
-`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (с `realpath.native`), `readdir`, `mkdir`, `rm`, `rmdir`, `unlink`, `rename`, `truncate`, `copyFile` и `exists` принимают обратный вызов в стиле Node.js (`(error, result)`; `exists` передаёт только булево значение). Те же функции без `exists` возвращают промисы из `fs.promises` и из модуля `node:fs/promises` (`fs/promises`, `nona:fs/promises`), который является тем же объектом, что и `fs.promises`. Обе формы выполняют синхронную операцию в момент вызова и лишь откладывают обратный вызов на следующий такт или завершают промис: работа с файловой системой не перекрывается с другим кодом.
+`readFile`, `writeFile`, `appendFile`, `access`, `stat`, `lstat`, `readlink`, `realpath` (с `realpath.native`), `readdir`, `mkdir`, `mkdtemp`, `rm`, `rmdir`, `unlink`, `rename`, `truncate`, `copyFile`, `symlink`, `chmod`, `utimes` и `exists` принимают обратный вызов в стиле Node.js (`(error, result)`; `exists` передаёт только булево значение). Те же функции без `exists` возвращают промисы из `fs.promises` и из модуля `node:fs/promises` (`fs/promises`, `nona:fs/promises`), который является тем же объектом, что и `fs.promises`. Обе формы выполняют синхронную операцию в момент вызова и лишь откладывают обратный вызов на следующий такт или завершают промис: работа с файловой системой не перекрывается с другим кодом.
 
 ## TextEncoder и TextDecoder {#textencoder-and-textdecoder}
 

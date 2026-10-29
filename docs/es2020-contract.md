@@ -6,7 +6,7 @@ targets exist for the supported subset; semantic tests must not depend on PE,
 KERNEL32, or the Windows calling convention.
 
 This is **not** a claim that Nona currently conforms. The current implementation
-is documented in [language-support.md](language-support.md). This contract is the
+is documented on the [site's Language support page](https://40oleg.github.io/nona/guide/language-support). This contract is the
 completion checklist and must be reviewed whenever a feature is added.
 The concrete conformance gaps after the merged PR #5 are tracked in
 [pr5-es2020-remaining-work.md](history/pr5-es2020-remaining-work.md).
@@ -116,7 +116,7 @@ return a + b;
 
 ## Completion inventory
 
-Status is sourced from [language-support.md](language-support.md). “Partial”
+Status is sourced from the [site's Language support page](https://40oleg.github.io/nona/guide/language-support). “Partial”
 means the currently documented subset works, not that the entire standard
 chapter works. A row closes only with runnable conformance evidence.
 

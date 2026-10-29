@@ -1,6 +1,38 @@
 # Changelog
 
-## Unreleased
+## v0.33.0 — 2026-10-28
+
+The fixes and documentation changes of v0.32.1 (below) are included; this release carries no further changes beyond the version bump.
+
+## v0.32.1 — 2026-10-29
+
+### Fixes
+
+- **Calls of non-callable values throw TypeErrors that say what went wrong.** They all threw `TypeError: Invalid operation`. Calling a value that is not a function now throws `<callee> is not a function` and `new` on a non-constructor (an arrow function, a method, an async function or generator, a non-constructable Proxy) `<callee> is not a constructor`, with the callee as written when it is an identifier, `this` or a chain of `.name` accesses (`o.foo is not a function`, `f is not a constructor`, as in Node.js) and `value` otherwise (other expressions, calls with spread arguments, tail calls and calls made by builtins), and calling a class without `new` throws `Class constructor A cannot be invoked without 'new'`, named after the class's own `name` data property, in the class's realm. ([#504](https://github.com/40oleg/nona/issues/504))
+- **RangeErrors from built-in argument checks name the check.** `toFixed`, `toPrecision`, `toExponential`, `Number.prototype.toString` radix, `String.prototype.repeat`, `String.fromCodePoint`, `normalize`, array and typed array lengths, `DataView` offsets and lengths, and `Date.prototype.toISOString` on an invalid date now throw a `RangeError` with a specific message instead of `Invalid operation`. ([#509](https://github.com/40oleg/nona/issues/509))
+- **`ReferenceError` messages name the variable.** Reading an undeclared global (or assigning to one in strict code) now throws `x is not defined`, and reading a `let`/`const`/class binding or a parameter in its temporal dead zone throws `Cannot access 'x' before initialization`, also from closures. Both threw `Invalid operation`. ([#505](https://github.com/40oleg/nona/issues/505))
+- **`util.getSystemErrorName` maps libuv error numbers to names.** `-2` gives `ENOENT`, `-13` gives `EACCES` and so on (the Linux values, the Windows values that `fs` reports, `EOF`, `UNKNOWN` and `ENOTFOUND`); other negative integers give `Unknown system error N`, and a non-negative or non-integer number throws `ERR_OUT_OF_RANGE`. ([#506](https://github.com/40oleg/nona/issues/506))
+- **`Date.parse` and `new Date(string)` accept the common non-ISO date strings.** Strings outside the ISO format go to a token-based parser that matches V8: month and weekday names in any case and spelled out (`June 15, 2021`, `15 Jun 2021`, `Tuesday, June 15, 2021`, `toDateString()` output), slash dates (`2021/06/15`, `6/15/2021`, two-digit years as 1950–2049), an optional `H:MM[:SS[.fff]]` time with `AM`/`PM`, `GMT`/`UTC`/`UT`/`Z` with an optional `±hhmm`, `±hh:mm` or `±h` offset, and parenthesized comments. Invalid fields still give `NaN`. These strings returned `NaN`. ([#507](https://github.com/40oleg/nona/issues/507))
+- **`JSON.stringify` reports circular structures and BigInt values separately.** Both threw `TypeError: Invalid operation`; a cycle now throws `Converting circular structure to JSON` and a BigInt `Do not know how to serialize a BigInt`, also in `stringifyToBuffer` from `nona:json`. ([#508](https://github.com/40oleg/nona/issues/508))
+
+### Documentation
+
+- **Documentation review for v0.32.1.** `README.md` and `README.ru.md` were checked against the code and say the same; `docs/host-apis.md` and `docs/npm.md` no longer list limits that were lifted ([#515](https://github.com/40oleg/nona/issues/515)); stale links to the archived status pages were fixed; broken anchors in the site pages and in `PERFORMANCE.md` were repaired, and `node scripts/check-doc-links.mjs` (`npm run check:doc-links`) checks relative links and anchors in the Markdown documents and the site pages. The `v0.13.0` changelog section, which the v0.14.0 release had renamed, is restored, and a duplicate section of v0.16.0 and a misplaced entry of v0.32.0 are merged. ([#606](https://github.com/40oleg/nona/issues/606))
+- **`docs/host-apis.md` removes stale limits and updates the zlib, TLS and https paragraph.** The documentation claimed property, element and Map storage is linear (#36) and every heap block is a separate mapping on Linux (#37); both are fixed. The paragraph about `node:tls`, `node:http2` and `node:zlib` throwing `ERR_NONA_UNSUPPORTED` is replaced with the current state: zlib compresses and decompresses, TLS and https are clients only, and http2 is constants-only. ([#515](https://github.com/40oleg/nona/issues/515))
+
+## v0.32.0 — 2026-10-27
+
+### Fixes
+
+- **Uncaught exceptions are reported in every program.** A program that does not use `process` printed only `Nona runtime error` for an uncaught throw, a failing timer or promise job, or an unhandled rejection; it now prints the error (`TypeError: bad thing`) on stderr and exits with code 1, like a program that does ([#501](https://github.com/40oleg/nona/issues/501)).
+- **Reading or writing a property of `undefined` or `null` throws a descriptive `TypeError`.** The message was `Invalid operation`; it is now Node.js's `Cannot read properties of undefined (reading 'x')` or `Cannot set properties of null (setting 'x')`, for `o.x`, `o[k]`, method calls, assignments and compound assignments. String, number, boolean, BigInt and symbol keys are named; an object key is not converted, and the key part is left out. Destructuring an object pattern from them throws `Cannot destructure property 'a' of 'null' as it is null.` (`Cannot destructure 'null' as it is null.` for an empty pattern or a computed first key). Other runtime `TypeError`s keep `Invalid operation`. ([#503](https://github.com/40oleg/nona/issues/503))
+- **`Intl.Segmenter` no longer needs the RegExp engine.** It validated the locale with a RegExp literal, so a program that segmented a string and had no RegExp of its own failed with "compiled without the RegExp engine" ([#502](https://github.com/40oleg/nona/issues/502)).
+
+### Documentation
+
+- **`Intl.Segmenter` coverage is documented correctly.** `docs/intl.md` lists `Intl.Segmenter` in the supported API table with `granularity: "grapheme"` only, and `docs/npm.md` describes the full `Intl` coverage (NumberFormat, DateTimeFormat, Collator, PluralRules, grapheme-only Segmenter for en locale and UTC time zone). The contradictory statements that said Segmenter was not implemented or was the only `Intl` feature are reconciled ([#499](https://github.com/40oleg/nona/issues/499)).
+- **`docs/fs.md` no longer says `fs.promises` is missing.** It now has one list of the synchronous, callback and promise functions that matches `src/lib/modules/fs-common.js`, mentions `Dirent`, `Stats` and `constants`, and states that `appendFileSync` takes no options ([#498](https://github.com/40oleg/nona/issues/498)).
+- **Documentation.** Archived stale language support pages (`docs/language-support.md` for Nona 0.5.0 and `docs/status.md` for 0.17–0.20) to `docs/history/` with historical notes; README links now point to the current [site Language support page](https://40oleg.github.io/nona/guide/language-support). Corrected outdated claims about Error `cause` support in documentation ([#500](https://github.com/40oleg/nona/issues/500)).
 
 ### Fixes
 
@@ -242,6 +274,7 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 ### Language
 
 - **ES2023 change-by-copy methods.** `Array.prototype.toSorted`, `toReversed`, `toSpliced` and `with` return a new array and leave the receiver unchanged; `toSorted` sorts with the built-in stable `sort`. Their `Symbol.unscopables` entries are added too. The methods are a prelude part linked only when a source names one of them. The Test262 directories `built-ins/Array/prototype/{toSorted,toReversed,toSpliced,with}` and `Symbol.unscopables/change-array-by-copy.js` pass (94/94). ([#308](https://github.com/40oleg/nona/issues/308))
+- **Top-level `await` in ES modules (ES2022).** A module with `await` at its top level is evaluated as an async module (`[[AsyncEvaluation]]`, order of its dependents, cycles, rejection propagation), `import()` waits for it, and an entry that never settles exits with code 13. Scripts and CommonJS files still reject it; `require()` of a graph with top-level `await` throws `ERR_REQUIRE_ASYNC_MODULE`. The runtime part is linked only into programs that use it. Test262 `language/module-code/top-level-await` passes 244 of 251; the remaining failures need `Promise.withResolvers` (ES2024) or are runtime-negative tests. ([#306](https://github.com/40oleg/nona/issues/306))
 
 ### Runtime
 
@@ -250,10 +283,6 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 - `WeakRef` with `deref()` ([#304](https://github.com/40oleg/nona/issues/304)). A target reachable only through WeakRefs is collected; `deref()` and the constructor keep the target alive until the end of the current job (KeepDuringJob, cleared around every microtask checkpoint). The runtime part is linked only when a program names `WeakRef`, so other programs do not grow. `built-ins/WeakRef` passes 26/26 in Test262; `FinalizationRegistry` is still not supported. Symbols are rejected as targets.
 - `FinalizationRegistry` with `register`/`unregister` ([#305](https://github.com/40oleg/nona/issues/305)). Cleanup callbacks run as a host job from the event loop after a collection is seen at a checkpoint, never inside the collector, and pending cleanup does not keep the process alive. The runtime part is linked only when a program names `FinalizationRegistry`. `built-ins/FinalizationRegistry` passes 45/47 in Test262; the two failures need symbols as targets or tokens, which are rejected.
 - RegExp match indices (ES2022): the `d` flag in literals and the `RegExp` constructor, `RegExp.prototype.hasIndices`, and the `indices` array (with `groups`) of `exec`, `match` and `matchAll` results. A `d` regexp runs in the RegExp VM. Test262 `built-ins/RegExp/match-indices` and `built-ins/RegExp/prototype/hasIndices` pass completely. ([#307](https://github.com/40oleg/nona/issues/307))
-
-### Language
-
-- **Top-level `await` in ES modules (ES2022).** A module with `await` at its top level is evaluated as an async module (`[[AsyncEvaluation]]`, order of its dependents, cycles, rejection propagation), `import()` waits for it, and an entry that never settles exits with code 13. Scripts and CommonJS files still reject it; `require()` of a graph with top-level `await` throws `ERR_REQUIRE_ASYNC_MODULE`. The runtime part is linked only into programs that use it. Test262 `language/module-code/top-level-await` passes 244 of 251; the remaining failures need `Promise.withResolvers` (ES2024) or are runtime-negative tests. ([#306](https://github.com/40oleg/nona/issues/306))
 
 ### Host APIs
 
@@ -278,18 +307,11 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 
 - `node:fs` gains `lstatSync`, `readlinkSync` (symbolic links, and junctions on Windows), `realpathSync.native`, `accessSync`, `rmSync`, a full `fs.Dirent` (all `is*()` methods, `parentPath`, `path`) for `readdirSync(path, {withFileTypes: true})`, the `Stats` device/FIFO/socket tests, Node.js callback forms of the common functions and `fs.promises`, also as the new `node:fs/promises` module (`fs/promises`, `nona:fs/promises`). Packages such as glob's path-scurry now compile. ([#297](https://github.com/40oleg/nona/issues/297))
 - `EventEmitter.prototype.once` and `prependOnceListener` register their wrapper through `this.on` and `this.prependListener`, as in Node.js, so a subclass that overrides `on` (minipass starts data flow there) sees `once('data')` listeners. `for await` over a minipass stream and glob's `Glob` iterators and streams no longer hang. ([#297](https://github.com/40oleg/nona/issues/297))
-- **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
-- Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
-- **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
-- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
-
 - **ES2025 Set methods.** `Set.prototype.union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf` and `isDisjointFrom` accept set-like arguments (`size`, `has`, `keys`) as ES2025 defines them. The methods are a prelude part linked only when a program names one of them. ([#316](https://github.com/40oleg/nona/issues/316))
-
 - `crypto.hkdf` and `crypto.hkdfSync` (HKDF, RFC 5869, with Node's argument checks and an `ArrayBuffer` result), and the internal module `nona:internal/tls-crypto` with the primitives of the coming TLS client: TLS 1.3 HKDF-Expand-Label, AES-128/256-GCM, ChaCha20-Poly1305, X25519, P-256/P-384 ECDH, ECDSA and RSA (PKCS#1 v1.5, PSS) signature verification and a DER reader, in JavaScript without external code. ([#301](https://github.com/40oleg/nona/issues/301))
 - `node:tls` (also `tls`, `nona:tls`) on win32-x64 and linux-x64: a TLS 1.3 client (`tls.connect`, `TLSSocket`) with SNI, ALPN, HelloRetryRequest, KeyUpdate, the three TLS 1.3 cipher suites and ECDSA/RSA-PSS certificates, checked against the RFC 8448 handshake trace and Node.js servers. TLS 1.2 is not implemented (`ERR_SSL_UNSUPPORTED_PROTOCOL`). ([#301](https://github.com/40oleg/nona/issues/301))
 - TLS certificate verification: X.509 chains are built and checked like Node.js/OpenSSL do (out-of-order chains, CA flags and path lengths, `serverAuth`, key usage, critical extensions, name constraints, RSA PKCS#1/PSS and ECDSA signatures, validity periods), with Node's error codes; host names per RFC 6125 (`tls.checkServerIdentity`); trust anchors from the `ca` option or the operating system's store (a PEM bundle on Linux, the ROOT/CA system stores on Windows), also listed by `tls.rootCertificates`. No revocation checks. ([#301](https://github.com/40oleg/nona/issues/301))
 - `node:https` (also `https`, `nona:https`) on win32-x64 and linux-x64: `https.request`, `https.get`, `https.Agent` and `globalAgent` with keep-alive pooling keyed by the TLS options, over `node:tls`. The https client is client-only and TLS 1.3-only; there is no global `fetch` yet. Limitations are listed in [networking](docs/network.md#security-limitations). ([#301](https://github.com/40oleg/nona/issues/301))
-- **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 - **npm: `module.createRequire` and CommonJS requires.** `createRequire(filename)` from `node:module` returns a working `require` for the modules the program contains at compile time (the literal requires of the calling file, the program's CommonJS files and modules other files require); other ids throw `MODULE_NOT_FOUND`. CommonJS files get the literal requires made through `createRequire`, `require()` of an ES module returns its namespace, and `createRequire` is resolved through destructuring and `module.createRequire` too. ([#299](https://github.com/40oleg/nona/issues/299))
 - **`node:fs` callbacks.** `readFile`, `writeFile`, `appendFile`, `stat`, `realpath`, `readdir`, `mkdir`, `rmdir`, `unlink`, `rename`, `copyFile` and `exists` run their synchronous function and call back on a later turn. ([#299](https://github.com/40oleg/nona/issues/299))
 - **`Intl.Segmenter`** splits grapheme clusters (UAX #29), which `string-width` and `cliui` use for terminal columns; the other `Intl` services are still not available. ([#299](https://github.com/40oleg/nona/issues/299))
@@ -297,6 +319,16 @@ Highlights: FFI to shared libraries on Linux and macOS, `WeakRef` and `Finalizat
 - **Symbols as weak keys (ES2023).** `WeakMap` keys and `WeakSet` values may be non-registered symbols, well-known ones included; `Symbol.for` symbols are rejected with a TypeError by `set`/`add`, as other values that cannot be held weakly are, and `get`/`has`/`delete` report them as absent. The collector holds such keys weakly. Test262 `built-ins/WeakMap` passes 102/102 and `built-ins/WeakSet` 85/85 with post-ES2020 features excluded. ([#310](https://github.com/40oleg/nona/issues/310))
 - `String.prototype.isWellFormed` and `toWellFormed` (ES2024), linked only when used ([#313](https://github.com/40oleg/nona/issues/313))
 - **Duplicate named capture groups (ES2025).** The same group name may appear in different alternatives of a RegExp (`/(?<y>\d{4})-|(?<y>\w+)/`). `groups` and replacement `$<name>` take the group that participated, and `\k<name>` matches it. ([#319](https://github.com/40oleg/nona/issues/319))
+
+## v0.13.0 — 2026-10-16
+
+### Runtime
+
+- **`Promise.withResolvers`** (ES2024) returns `{ promise, resolve, reject }` for `this` as the constructor, so subclasses work. ([#312](https://github.com/40oleg/nona/issues/312))
+- Helpers that only some syntax needs (`with`, literal `eval`, class fields and private names, ES module records and `import()`) are separate prelude parts, linked when the compiled program calls them. An empty program on linux-x64 shrinks to 1.11 MB. ([#278](https://github.com/40oleg/nona/issues/278))
+- **Smaller executables.** The runtime no longer links code a program cannot use: the `ArrayBuffer`/`TypedArray`/`DataView` JavaScript methods (`binaryData`) and the RegExp/String protocol methods (`regexpProtocol`) are separate prelude parts chosen by the source scan, and prelude functions no longer embed their source text (they print as `[native code]`). An empty program on linux-x64 shrinks from 1.72 MB to 1.20 MB. ([#265](https://github.com/40oleg/nona/issues/265))
+- **axios runs.** `node:https` (`Agent` and `globalAgent`; requests throw `ERR_NONA_UNSUPPORTED`), `node:tls`, `node:http2` and `node:zlib` exist with the Node.js constants so that HTTP clients load; `process` has `Symbol.toStringTag` `'process'`; and a socket inactivity timeout fires after a timer with the same delay set before it, as in Node.js (axios reported `socket hang up` instead of its timeout error). ([#292](https://github.com/40oleg/nona/issues/292))
+- **Global `crypto`.** The Web Crypto global (`crypto.getRandomValues`, `crypto.randomUUID`) is `node:crypto`'s `webcrypto`, linked when a program names `crypto`; packages such as `uuid` use it without importing `node:crypto`. ([#296](https://github.com/40oleg/nona/issues/296))
 - **RegExp pattern modifiers (ES2025).** `(?i:…)`, `(?-i:…)` and `(?ims-ims:…)` change the `i`, `m` and `s` flags for the atoms inside the group; the spec's early errors (a repeated or conflicting flag, `(?-:`, other letters, a missing colon) are SyntaxErrors. Such groups do not capture. Patterns without modifiers are unaffected. ([#320](https://github.com/40oleg/nona/issues/320))
 
 ### Performance
@@ -631,9 +663,9 @@ Highlights since v0.7.0:
 - Deep recursion throws `RangeError` ("Maximum call stack size exceeded") instead of terminating the process.
 - Objects with long property lists get a hash index; Linux heap allocations use a size-class allocator instead of one `mmap` per object.
 - Annex B call-expression assignment targets and RegExp `\c` escapes; TypedArray element writes and descriptors on detached or invalid targets follow the pinned Test262.
-- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/status.md).
+- `scripts/test262-audit.ps1`/`.sh` and `scripts/test262-summary.mjs` run and classify full pinned Test262 audits. See [0.17–0.20 status](docs/history/status.md).
 
-This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions: `eval` and `Function` with source text computed at run time, other realms for a few constructors, and post-ES2020 semantics. Full pinned Test262 on Windows x64: language 17298/17337, built-ins 15491/15559, Atomics 268/268, Annex B 996/1016. See [0.17–0.20 status](docs/status.md).
+This release closes the ES2020 roadmap (0.17–0.20) with documented exceptions: `eval` and `Function` with source text computed at run time, other realms for a few constructors, and post-ES2020 semantics. Full pinned Test262 on Windows x64: language 17298/17337, built-ins 15491/15559, Atomics 268/268, Annex B 996/1016. See [0.17–0.20 status](docs/history/status.md).
 
 ## v0.6.0 — 2026-09-30
 
@@ -683,4 +715,4 @@ Initial public development release.
 - Supports functions, closures, objects, arrays, descriptors, strict mode, exceptions, exponentiation, nullish coalescing, and optional chaining within the documented limits.
 - Includes a command-line compiler, examples, compatibility programs, and native execution tests.
 
-This release is experimental and does not implement complete ECMAScript or Node.js compatibility. See the [language support matrix](docs/language-support.md) for exact coverage.
+This release is experimental and does not implement complete ECMAScript or Node.js compatibility. See the [language support matrix](docs/history/language-support.md) for exact coverage.

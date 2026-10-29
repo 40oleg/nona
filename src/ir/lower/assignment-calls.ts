@@ -85,7 +85,8 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             args = this.lowerArguments(e.arguments);
         const instance = this.slot(),
             result = this.slot(),
-            dest = this.slot();
+            dest = this.slot(),
+            text = "array" in args ? undefined : this.calleeText(e.callee);
         this.emit({
             kind: "newInstance",
             dest: instance,
@@ -95,6 +96,9 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
                 : args.fixed.length
                   ? { firstArgument: args.fixed[0] }
                   : {}),
+            ...(text === undefined
+                ? {}
+                : { notConstructorMessage: text + " is not a constructor" }),
         });
         this.invokeWithArguments(result, callee, args, instance, true);
         this.emit({
@@ -200,7 +204,19 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             const callee = this.getReference(ref),
                 args = this.lowerArguments(e.arguments),
                 dest = this.slot();
-            this.invokeWithArguments(dest, callee, args, receiver);
+            this.invokeWithArguments(
+                dest,
+                callee,
+                args,
+                receiver,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                undefined,
+                e.callee,
+            );
             return dest;
         }
         const json = this.endJsonCall(e);
@@ -232,6 +248,7 @@ export abstract class AssignmentCallLowerer extends OperatorLowerer {
             ref ? this.hasOwnCall(e.callee as A.Member, args) : undefined,
             ref ? this.intrinsicCall(e.callee as A.Member, args) : undefined,
             ref ? this.stringIndexCall(e.callee as A.Member, args) : undefined,
+            e.callee,
         );
         return dest;
     }

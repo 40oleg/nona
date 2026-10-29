@@ -38,7 +38,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## 性能剖析与基准测试
 
-`node bench/run.mjs` 运行[性能](/zh/guide/performance)页面所依据的基准测试。`scripts/profile-runtime.mjs` 统计每个运行时例程执行的指令数（QEMU 跟踪），[命令行](/zh/reference/cli#options)上的 `--call-stats` 统计程序发起的调用次数。
+`node bench/run.mjs` 运行[性能](/zh/guide/performance)页面所依据的基准测试。`scripts/profile-runtime.mjs` 统计每个运行时例程执行的指令数（QEMU 跟踪），[命令行](/zh/reference/cli)上的 `--call-stats` 统计程序发起的调用次数。
 
 ## 文档
 

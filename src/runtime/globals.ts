@@ -222,7 +222,11 @@ export function emitGlobals(b: RuntimeBuilder): void {
             a.call("rt.hasProperty");
             a.load("rax", slot(80));
             a.test("rax", "rax");
-            failIf(a, "e", "rt.throwReferenceError");
+            const present = a.unique("present");
+            a.jcc("ne", present);
+            a.load("rcx", slot(64));
+            a.call("rt.throwReferenceErrorNotDefined");
+            a.label(present);
             a.label(read);
             a.load("rcx", slot(40));
             a.lea("rdx", { rip: "rt.globalValue" });

@@ -1,13 +1,15 @@
 # 0.17–0.20: итоговый срез ES2020
 
+> **Historical:** Last checked for Nona 0.17–0.20. See [`../README.md`](../README.md) for current documentation and [`../roadmap.md`](../roadmap.md) for the current status.
+
 Ветка `work/v0.17-v0.20` (PR #18) продолжает gate ES2020 после PR #5
 (0.6–0.16). Нормативная цель и исключения — в
-[`es2020-contract.md`](es2020-contract.md), матрица реализации — в
+[`../es2020-contract.md`](../es2020-contract.md), матрица реализации — в
 [`language-support.md`](language-support.md). Результат выпускается как
 **«ES2020 с документированными исключениями»**: `eval` и динамические
 конструкторы функций с исходным текстом, вычисленным во время исполнения,
 не поддерживаются: это постоянное исключение (решение в
-[`es2020-contract.md`](es2020-contract.md), issue #11).
+[`../es2020-contract.md`](../es2020-contract.md), issue #11).
 
 ## Что сделано
 
@@ -71,7 +73,7 @@ Windows x64 (Node 22, PE), полный закреплённый Test262 на `6
 RegExp duplicate named groups (ES2025, #319) are no longer excluded by tag:
 16 of the 19 `regexp-duplicate-named-groups` tests pass. The three that also
 need match indices (`regexp-match-indices`) stay `post` with that tag; they
-are listed in [test262.md](test262.md#semantics-newer-than-es2020-in-the-pinned-test262).
+are listed in [test262.md](../test262.md#semantics-newer-than-es2020-in-the-pinned-test262).
 The table above is the last full run and was not re-run for this change.
 
 Сравнение с предыдущим полным прогоном Windows (`71486fb`, который в свою
@@ -103,7 +105,7 @@ eval-коде и другой realm), `annexB/language/eval-code` 468/469
 `TEST262_EXCLUDE_FEATURES=post-es2020`: `this-val-regexp.js` использует флаг `v`
 (ES2024), два теста `named-groups/duplicate-names-match-indices.js` и
 `prototype/exec/duplicate-named-indices-groups-properties.js` — повторяющиеся
-имена групп (ES2025). Подробности — в [test262.md](test262.md).
+имена групп (ES2025). Подробности — в [test262.md](../test262.md).
 
 ## Оставшиеся отказы
 

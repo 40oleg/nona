@@ -28,7 +28,7 @@
 
 ## رد النداء والوعود
 
-تقبل الدوال `readFile` و`writeFile` و`appendFile` و`access` و`stat` و`lstat` و`readlink` و`realpath` (مع `realpath.native`) و`readdir` و`mkdir` و`rm` و`rmdir` و`unlink` و`rename` و`copyFile` و`exists` دالة رد نداء بنمط Node.js (`(error, result)`؛ أما `exists` فتمرّر قيمة منطقية فقط). وتعيد الدوال نفسها دون `exists` وعودًا من `fs.promises` ومن الوحدة `node:fs/promises` (`fs/promises` و`nona:fs/promises`)، وهي الكائن نفسه `fs.promises`. تنفّذ الصيغتان العملية المتزامنة عند الاستدعاء، وتؤجّلان فقط استدعاء رد النداء إلى دورة لاحقة أو تحسمان الوعد: فهما لا تُداخلان عمل نظام الملفات مع شيفرة أخرى.
+تقبل الدوال `readFile` و`writeFile` و`appendFile` و`access` و`stat` و`lstat` و`readlink` و`realpath` (مع `realpath.native`) و`readdir` و`mkdir`, `mkdtemp` و`rm` و`rmdir` و`unlink` و`rename`, `truncate` و`copyFile`, `symlink`, `chmod`, `utimes` و`exists` دالة رد نداء بنمط Node.js (`(error, result)`؛ أما `exists` فتمرّر قيمة منطقية فقط). وتعيد الدوال نفسها دون `exists` وعودًا من `fs.promises` ومن الوحدة `node:fs/promises` (`fs/promises` و`nona:fs/promises`)، وهي الكائن نفسه `fs.promises`. تنفّذ الصيغتان العملية المتزامنة عند الاستدعاء، وتؤجّلان فقط استدعاء رد النداء إلى دورة لاحقة أو تحسمان الوعد: فهما لا تُداخلان عمل نظام الملفات مع شيفرة أخرى.
 
 ## TextEncoder وTextDecoder {#textencoder-and-textdecoder}
 

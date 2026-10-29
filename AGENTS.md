@@ -88,6 +88,8 @@ exactly.
   runs everything under GC stress. Add the `gc-stress` label (before pushing)
   when a change touches the collector, GC roots, `rootedFn`, allocation or the
   runtime's native code. Local `npm run check` keeps GC stress everywhere.
+- `npm run check:doc-links` when you change Markdown documents or site pages
+  (relative links and anchors).
 - `npm run compare` when runtime behaviour visible to programs changes.
 - Add tests next to the existing ones in `tests/` (`*.test.ts`). Prefer
   `runOnHost` with the Node.js oracle (`runOracle`) so the same test runs on

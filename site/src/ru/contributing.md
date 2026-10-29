@@ -38,7 +38,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## Профилирование и бенчмарки
 
-`node bench/run.mjs` запускает бенчмарки, на которых основана страница [Производительность](/ru/guide/performance). `scripts/profile-runtime.mjs` считает инструкции, выполняемые каждой подпрограммой runtime (трассировка QEMU), а `--call-stats` в [командной строке](/ru/reference/cli#options) считает вызовы, которые делает программа.
+`node bench/run.mjs` запускает бенчмарки, на которых основана страница [Производительность](/ru/guide/performance). `scripts/profile-runtime.mjs` считает инструкции, выполняемые каждой подпрограммой runtime (трассировка QEMU), а `--call-stats` в [командной строке](/ru/reference/cli) считает вызовы, которые делает программа.
 
 ## Документация
 
