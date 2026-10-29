@@ -42,6 +42,7 @@ The fixes and documentation changes of v0.32.1 (below) are included; this releas
 
 ### Fixes
 
+- **`EventEmitter` "Unhandled error" message inspects the value.** `emit("error", { code: 42 })` without a listener threw `Unhandled error. ([object Object])`; the value is now rendered like `util.inspect` (`({ code: 42 })`, `('str')`), and `undefined` stays `(undefined)`. ([#513](https://github.com/40oleg/nona/issues/513))
 - **Failed assignments in strict code have the messages of Node.js.** Assignment to a `const` (`Assignment to constant variable.`), to a read-only property (`Cannot assign to read only property 'a' of object '#<Object>'`), to an accessor without a setter (`Cannot set property v of #<Object> which has only a getter`), a new property on a non-extensible object (`Cannot add property x, object is not extensible`), a property on a primitive (`Cannot create property 'x' on string 'abc'`) and `Object.setPrototypeOf` failures (`Cyclic __proto__ value`, `#<Object> is not extensible`) no longer say `Invalid operation`. ([#511](https://github.com/40oleg/nona/issues/511))
 - **`assert.throws` and `assert.rejects` keep the `Missing expected exception` prefix.** A string message replaced the whole text when the function did not throw. The error message is now `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#512](https://github.com/40oleg/nona/issues/512))
 

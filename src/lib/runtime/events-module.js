@@ -21,6 +21,73 @@ function checkMax(n) {
         throw e;
     }
 }
+// A small util.inspect stand-in for the "Unhandled error" message, so that
+// node:util is not linked in for it.
+function quote(s) {
+    const q = s.indexOf("'") >= 0 && s.indexOf('"') < 0 ? '"' : "'";
+    let out = "";
+    for (const c of s) {
+        if (c === q || c === "\\") out += "\\" + c;
+        else if (c === "\n") out += "\n";
+        else if (c === "\r") out += "\r";
+        else if (c === "\t") out += "\t";
+        else out += c;
+    }
+    return q + out + q;
+}
+function isIdentifier(k) {
+    if (k === "") return false;
+    for (let i = 0; i < k.length; i++) {
+        const c = k.charCodeAt(i);
+        const letter = (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+        if (!(letter || c === 95 || c === 36 || (i > 0 && c >= 48 && c <= 57)))
+            return false;
+    }
+    return true;
+}
+function format(v, depth, seen) {
+    switch (typeof v) {
+        case "string":
+            return quote(v);
+        case "bigint":
+            return v + "n";
+        case "function":
+            return v.name
+                ? "[Function: " + v.name + "]"
+                : "[Function (anonymous)]";
+        case "object":
+            break;
+        default:
+            return String(v);
+    }
+    if (v === null) return "null";
+    if (seen.indexOf(v) >= 0) return "[Circular *1]";
+    const isArray = Array.isArray(v);
+    if (depth > 2) return isArray ? "[Array]" : "[Object]";
+    seen.push(v);
+    const parts = [];
+    if (isArray) {
+        for (let i = 0; i < v.length; i++)
+            parts.push(format(v[i], depth + 1, seen));
+    } else {
+        const own = Reflect.ownKeys(v);
+        for (const k in v) {
+            if (own.indexOf(k) < 0) continue;
+            const key = isIdentifier(k) ? k : quote(k);
+            parts.push(key + ": " + format(v[k], depth + 1, seen));
+        }
+    }
+    seen.pop();
+    if (parts.length === 0) return isArray ? "[]" : "{}";
+    return (isArray ? "[ " : "{ ") + parts.join(", ") + (isArray ? " ]" : " }");
+}
+function show(value) {
+    try {
+        return format(value, 0, []);
+    } catch {
+        return String(value);
+    }
+}
 // Like Node.js, an emitter whose _events is undefined (the prototype's
 // value, or an own one that a subclass cleared) gets a fresh table.
 function init(emitter) {
@@ -240,7 +307,7 @@ EventEmitter.prototype.emit = function (name, ...args) {
         if (!list) {
             const value = args[0];
             if (value instanceof Error) throw value;
-            const e = new Error("Unhandled error. (" + String(value) + ")");
+            const e = new Error("Unhandled error. (" + show(value) + ")");
             e.code = "ERR_UNHANDLED_ERROR";
             e.context = value;
             throw e;
