@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.33.0 — 2026-10-28
+
+The fixes and documentation changes of v0.32.1 (below) are included; this release carries no further changes beyond the version bump.
+
 ## v0.32.1 — 2026-10-29
 
 ### Fixes
