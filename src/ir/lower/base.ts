@@ -516,13 +516,20 @@ export abstract class LowererBase {
         if (!initializing && "silentImmutable" in b) {
             if (b.silentImmutable) return;
             if (b.mutable === false) {
-                this.emit({ kind: "immutableWrite" });
+                this.emit({
+                    kind: "immutableWrite",
+                    message: "Assignment to constant variable.",
+                });
                 return;
             }
         }
         if (!initializing && "lexical" in b && b.lexical) {
             this.read(id);
-            if (!b.mutable) this.emit({ kind: "immutableWrite" });
+            if (!b.mutable)
+                this.emit({
+                    kind: "immutableWrite",
+                    message: "Assignment to constant variable.",
+                });
         }
         this.store(b, source);
     }

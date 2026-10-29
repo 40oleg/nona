@@ -2579,7 +2579,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.call("rt.throwNullishDestructure");
                     break;
                 case "immutableWrite":
-                    a.call("rt.throw" + (op.error ?? "TypeError"));
+                    if (op.message !== undefined) {
+                        a.lea("rcx", { rip: literal(op.message) });
+                        a.call("rt.throwTypeErrorText");
+                    } else a.call("rt.throw" + (op.error ?? "TypeError"));
                     break;
                 case "constant": {
                     if (staticConstant(op.dest)) break;
@@ -2636,8 +2639,15 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         });
                         a.and("rax", 1);
                         a.test("rax", "rax");
-                        if (op.strict) failIf(a, "e", "rt.throwTypeError");
-                        else a.jcc("e", done);
+                        if (op.strict) {
+                            const writable = a.unique("globalWritable");
+                            a.jcc("ne", writable);
+                            a.lea("rcx", {
+                                rip: literal(globalProperties[alias]!.name),
+                            });
+                            a.call("rt.throwReadonlyGlobal");
+                            a.label(writable);
+                        } else a.jcc("e", done);
                     }
                     copy(
                         { rip: "js.globals", addend: 16 * op.index },

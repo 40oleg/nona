@@ -254,7 +254,11 @@ export type Operation =
     | { kind: "uninitialized"; dest: number }
     | { kind: "checkInitialized"; slot: number; name?: string }
     | { kind: "checkResolvable"; slot: number; name?: string }
-    | { kind: "immutableWrite"; error?: "ReferenceError" }
+    | {
+          kind: "immutableWrite";
+          error?: "ReferenceError";
+          message?: string;
+      }
     | { kind: "nullishDestructure"; source: number; key?: number }
     | { kind: "constant"; dest: number; value: Constant }
     | { kind: "copy"; dest: number; source: number }
