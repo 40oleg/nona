@@ -370,6 +370,29 @@ export function emitErrors(b: RuntimeBuilder): void {
             fixups: [pointer(8, "rt.error.stackMessage")],
         });
     }
+    b.bundle.fragments.push(
+        stringLiteral("rt.error.notIterableMessage", "Value is not iterable"),
+    );
+    {
+        const message = new Uint8Array(16);
+        message[0] = 4;
+        b.bundle.fragments.push({
+            name: "rt.error.notIterableMessageValue",
+            section: ".rdata",
+            alignment: 8,
+            bytes: message,
+            symbols: {},
+            fixups: [pointer(8, "rt.error.notIterableMessage")],
+        });
+    }
+    b.fn("rt.throwNotIterable", 72, (a) => {
+        a.lea("rcx", slot(48));
+        a.mov("rdx", 1);
+        a.lea("r8", { rip: "rt.error.notIterableMessageValue" });
+        a.call("rt.TypeError.code");
+        a.lea("rcx", slot(48));
+        a.call("rt.throw");
+    });
     // Called from a JS prologue below rt.stackLimit; creating the error runs only
     // native code, which the margin below the limit accommodates.
     b.fn("rt.throwStackOverflow", 72, (a) => {
