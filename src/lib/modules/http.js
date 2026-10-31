@@ -2618,10 +2618,15 @@ export class Agent extends EventEmitter {
                                 this.totalSocketCount >= this.maxTotalSockets
                             )
                                 break;
-                            socket = this.createSocket(
-                                req,
-                                req._queuedAgentOptions,
-                            );
+                            try {
+                                socket = this.createSocket(
+                                    req,
+                                    req._queuedAgentOptions,
+                                );
+                            } catch (error) {
+                                this.removeRequest(req);
+                                throw error;
+                            }
                         }
                         this.removeRequest(req);
                         assignSocket(this, req, socket);
@@ -3023,6 +3028,12 @@ export class ClientRequest extends OutgoingMessage {
         this.destroyed = true;
         if (this.res) this.res._dump();
         this._destroyError = error;
+        if (this.socket && this._chunks !== null) {
+            this._destroyChunks = this._chunks;
+            // Stream tasks run before the socket's close task, including when
+            // destroy is called from its deferred assignment or abort task.
+            defer(this, "_finishDestroyWrites");
+        }
         this._clearRequest();
         if (this.socket) this.socket.destroy(error);
         else if (this._queuedAgentName !== undefined)
@@ -3030,9 +3041,24 @@ export class ClientRequest extends OutgoingMessage {
         else if (!this._offeredSocket) defer(this, "_finishDestroy");
         return this;
     }
+    _finishDestroyWrites() {
+        const chunks = this._destroyChunks;
+        this._destroyChunks = null;
+        const error =
+            this._destroyError ||
+            codedError(
+                "ERR_STREAM_DESTROYED",
+                "Cannot call write after a stream was destroyed",
+            );
+        if (this._destroyError) this._error(error);
+        for (let i = 2; i < chunks.length; i += 3) {
+            const callback = chunks[i];
+            if (callback) callback(error);
+        }
+    }
     _clearRequest() {
-        // Unsent writes (including their callbacks/message contexts) cannot
-        // complete after cancellation. Node discards these without calling them.
+        // Queued writes have no socket to complete their callbacks. Assigned
+        // corked writes keep their completion task across this cleanup.
         this._output = null;
         this._outputSize = 0;
         this._chunks = null;

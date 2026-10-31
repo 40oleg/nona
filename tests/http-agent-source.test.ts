@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { createConnection } from "node:net";
 import { httpModuleSource } from "../src/frontend/http-module.js";
 
 // Run the actual Agent, including its helpers, with only the transport replaced.
@@ -130,6 +131,31 @@ function counts(agent: any) {
                 agent.maxSockets,
         );
 }
+
+test("HTTP Agent source: a connection creation throw removes the failed request before later work", () => {
+    const { agent, connections } = pool();
+    const connect = agent.createConnection;
+    agent.createConnection = (options: any) =>
+        options.port === 99999 ? createConnection(options) : connect(options);
+    const failed = request();
+    assert.throws(() => agent.addRequest(failed, origin(99999)), {
+        name: "RangeError",
+        code: "ERR_SOCKET_BAD_PORT",
+    });
+    const live = request();
+    assert.doesNotThrow(() => agent.addRequest(live, origin(10001)));
+    assert.equal(live.assigned.length, 1);
+    assert.equal(failed.assigned.length, 0);
+    assert.equal(failed._queuedAgentName, undefined);
+    assert.equal(failed._queuedAgentOptions, undefined);
+    assert.equal(failed._agentQueueOrder, undefined);
+    assert.equal(Object.keys(agent.requests).length, 0);
+    assert.equal(Object.keys(agent._queueNames).length, 0);
+    assert.equal(connections.length, 1);
+    counts(agent);
+    agent.destroy();
+    counts(agent);
+});
 
 test("HTTP Agent source: closing A wakes B at maxTotalSockets=1", () => {
     const { agent, connections } = pool({ maxTotalSockets: 1 });

@@ -16,6 +16,109 @@ function expectNode(source: string, expected: string[]): void {
     assert.equal(native.stderr, oracleStderr);
 }
 
+const creationFailure = String.raw`import http from 'node:http';
+const agent = new http.Agent();
+const peers = [], events = [];
+let req, cleaning = false;
+const server = http.createServer((incoming, res) => res.end('live'));
+server.on('connection', socket => peers.push(socket));
+function cleanup() {
+  if (cleaning) return;
+  cleaning = true;
+  if (req) req.destroy();
+  agent.destroy();
+  for (const socket of peers) socket.destroy();
+  server.close();
+}
+const watchdog = setTimeout(() => {
+  console.log('watchdog creation failure', events.join(','));
+  process.exitCode = 1;
+  cleanup();
+}, 6000);
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+try { http.get({ host: '127.0.0.1', port: 99999, agent }); }
+catch (error) { console.log('creation error', error.name, error.code); }
+await new Promise(resolve => {
+  req = http.get({ host: '127.0.0.1', port: server.address().port, agent }, res => {
+    events.push('response');
+    let body = '';
+    res.on('data', chunk => { body += chunk; });
+    res.on('end', () => events.push('end:' + body));
+  });
+  req.on('socket', () => events.push('socket'));
+  req.on('error', error => events.push('error:' + error.name + ':' + error.code));
+  req.on('close', () => { events.push('close'); resolve(); });
+});
+console.log('later request', events.join(','));
+clearTimeout(watchdog);
+cleanup();
+`;
+
+test("node:http Agent: a connection creation throw does not poison subsequent valid requests", () =>
+    expectNode(creationFailure, [
+        "creation error RangeError ERR_SOCKET_BAD_PORT",
+        "later request socket,response,end:live,close",
+    ]));
+
+const assignedWrites = String.raw`import http from 'node:http';
+async function scenario(phase, action) {
+  const agent = new http.Agent({ maxSockets: 1, maxTotalSockets: 1 });
+  const peers = [], events = [];
+  let req, cleaning = false;
+  const server = http.createServer((incoming, res) => res.end('unexpected'));
+  server.on('connection', socket => peers.push(socket));
+  function cleanup() {
+    if (cleaning) return;
+    cleaning = true;
+    if (req) req.destroy();
+    agent.destroy();
+    for (const socket of peers) socket.destroy();
+    server.close();
+  }
+  const watchdog = setTimeout(() => {
+    console.log('watchdog assigned writes', phase, action, events.join(','));
+    process.exitCode = 1;
+    cleanup();
+  }, 6000);
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise(resolve => {
+    req = http.request({ host: '127.0.0.1', port: server.address().port, agent, method: 'POST' });
+    req.on('socket', socket => {
+      events.push('socket');
+      function cancel() {
+        for (const body of ['one', 'two'])
+          req.write(body, error => events.push(body + ':' + error.name + ':' + (error.code || '-') + ':' + error.message));
+        if (action === 'abort') req.abort();
+        else if (action === 'error') req.destroy(new TypeError('cancel'));
+        else req.destroy();
+        req.destroy();
+      }
+      if (phase === 'connected' && socket.connecting) socket.once('connect', cancel);
+      else cancel();
+    });
+    req.on('abort', () => events.push('abort'));
+    req.on('error', error => events.push('error:' + error.name + ':' + (error.code || '-') + ':' + error.message));
+    req.on('close', () => { events.push('close'); resolve(); });
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  console.log(phase, action, events.join(','));
+  clearTimeout(watchdog);
+  cleanup();
+}
+for (const phase of ['connecting', 'connected'])
+  for (const action of ['destroy', 'error', 'abort']) await scenario(phase, action);
+`;
+
+test("node:http Agent: cancellation completes corked writes made on an assigned socket exactly once", () =>
+    expectNode(assignedWrites, [
+        "connecting destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connecting error socket,error:TypeError:-:cancel,one:TypeError:-:cancel,two:TypeError:-:cancel,close",
+        "connecting abort socket,abort,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connected destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connected error socket,error:TypeError:-:cancel,one:TypeError:-:cancel,two:TypeError:-:cancel,close",
+        "connected abort socket,abort,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+    ]));
+
 // Use real, separate loopback origins: changing only a path cannot exercise the
 // global capacity limit. The watchdog owns cleanup, including queued requests,
 // so a lost wakeup produces useful output instead of the helper's process kill.

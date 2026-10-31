@@ -53,6 +53,9 @@ consume capacity until they close, and remain unreferenced with their idle timeo
 Cancelling a queued request discards its unsent data, callbacks and connection
 options without opening a socket. Its terminal error/close notification waits
 for a capacity opportunity, as in Node.js; `abort` retains its separate event.
+After socket assignment, destroying or aborting a request completes its corked write
+callbacks with the destruction error before `close`. Synchronous connection creation errors
+remove the failed request from the queue, so later valid requests can proceed.
 `Agent.destroy()` destroys current pooled sockets; the Agent can subsequently be
 used again, and eligible queued requests can receive new sockets.
 
