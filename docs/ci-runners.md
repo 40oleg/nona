@@ -24,6 +24,14 @@ runners**: the repository is public, and the self-hosted runner executes
 whatever the workflow checks out on the owner's machine. Any API failure also
 keeps the job hosted.
 
+Pull requests on the harness's `nona/issue-*` branches also stay on
+GitHub-hosted runners, including branches in this repository. Agents may run
+small targeted checks locally; full suites and long tests on their pull
+requests must not be routed back to the owner's PC. Pushes to `main`, manual
+runs and other trusted same-repository branches retain the overflow policy.
+The same branch rule is applied in both routing workflows
+([#620](https://github.com/40oleg/nona/issues/620)).
+
 The Test262 matrix jobs (eight short jobs) stay on GitHub-hosted runners: one
 self-hosted runner would run them one after another.
 
