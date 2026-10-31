@@ -2,14 +2,16 @@
 
 ## ইনস্টল
 
-আপনার সিস্টেমের আর্কাইভটি [সর্বশেষ রিলিজ](https://github.com/40oleg/nona/releases/latest) থেকে ডাউনলোড করুন, এক্সট্র্যাক্ট করুন এবং `nona --help` চালান (Linux, macOS ও BSD-তে `./nona --help`)। আর্কাইভে থাকে এক্সিকিউটেবল, লাইসেন্স ও একটি ভার্সন ফাইল; কম্পাইলারটি একটি নেটিভ প্রোগ্রাম, যার Node.js লাগে না। প্রতিটি রিলিজে `SHA256SUMS`-ও দেওয়া থাকে।
+আপনার সিস্টেমের আর্কাইভটি [সর্বশেষ রিলিজ](https://github.com/40oleg/nona/releases/latest) থেকে ডাউনলোড করুন, এক্সট্র্যাক্ট করুন এবং `nona --help` চালান (Linux, macOS ও BSD-তে `./nona --help`)। আর্কাইভে থাকে এক্সিকিউটেবল (Windows-এ `nona.exe`, অন্য সিস্টেমে `nona`), `LICENSE`, `VERSION`, `README.txt` ও `THIRD_PARTY_NOTICES.md`; কম্পাইলারটি একটি নেটিভ প্রোগ্রাম, যার Node.js লাগে না। প্রতিটি রিলিজে `SHA256SUMS`-ও দেওয়া থাকে। নিচের আর্কাইভের নামগুলিতে `<version>` রিলিজের ভার্সন বোঝায়।
 
-| OS                          | আর্কাইভ                                        | টার্গেটের নাম                |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+তৈরি করা প্রোগ্রাম বিতরণের সময় কম্পাইলারের আর্কাইভ থেকে `LICENSE` ও `THIRD_PARTY_NOTICES.md` ফাইল দুটি এক্সিকিউটেবলের সঙ্গে দিন। শেয়ার করা রানটাইমে এই [বিজ্ঞপ্তিগুলির](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md) আওতায় থাকা অদশমিক সংখ্যা ফরম্যাটিং ও ঘনমূল সমর্থন রয়েছে; ARM64 আউটপুট সফটওয়্যারে বাস্তবায়িত লগারিদম ও সূচকীয় ফাংশনও ব্যবহার করে।
+
+| OS                          | আর্কাইভ                                                                  | টার্গেটের নাম                |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 আর্কাইভ টুল অনুমতি বাদ দিলে POSIX সিস্টেমে `chmod +x nona` চালান। কিছু ইনস্টল না করেই Nona চেষ্টা করতে [প্লেগ্রাউন্ড](/playground) ব্যবহার করুন।
 

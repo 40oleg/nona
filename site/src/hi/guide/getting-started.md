@@ -2,14 +2,16 @@
 
 ## इंस्टॉल करें
 
-अपने सिस्टम का आर्काइव [नवीनतम रिलीज़](https://github.com/40oleg/nona/releases/latest) से डाउनलोड करें, उसे एक्सट्रैक्ट करें और `nona --help` चलाएँ (Linux, macOS और BSD पर `./nona --help`)। आर्काइव में एक्ज़ीक्यूटेबल, लाइसेंस और एक वर्ज़न फ़ाइल है; कंपाइलर एक नेटिव प्रोग्राम है जिसे Node.js की ज़रूरत नहीं। हर रिलीज़ में `SHA256SUMS` भी सूचीबद्ध है।
+अपने सिस्टम का आर्काइव [नवीनतम रिलीज़](https://github.com/40oleg/nona/releases/latest) से डाउनलोड करें, उसे एक्सट्रैक्ट करें और `nona --help` चलाएँ (Linux, macOS और BSD पर `./nona --help`)। आर्काइव में एक्ज़ीक्यूटेबल (Windows पर `nona.exe`, अन्य सिस्टम पर `nona`), `LICENSE`, `VERSION`, `README.txt` और `THIRD_PARTY_NOTICES.md` हैं; कंपाइलर एक नेटिव प्रोग्राम है जिसे Node.js की ज़रूरत नहीं। हर रिलीज़ में `SHA256SUMS` भी सूचीबद्ध है। नीचे आर्काइव के नामों में `<version>` रिलीज़ का वर्ज़न है।
 
-| OS                          | आर्काइव                                        | टार्गेट नाम                  |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+बनाए गए प्रोग्राम को वितरित करते समय कंपाइलर के आर्काइव से `LICENSE` और `THIRD_PARTY_NOTICES.md` फ़ाइलें एक्ज़ीक्यूटेबल के साथ रखें। साझा रनटाइम में इन [नोटिस](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md) के अंतर्गत आने वाले गैर-दशमलव संख्या फ़ॉर्मैटिंग और घनमूल का समर्थन शामिल है; ARM64 आउटपुट सॉफ़्टवेयर में लागू लघुगणक और घातीय फ़ंक्शन भी इस्तेमाल करता है।
+
+| OS                          | आर्काइव                                                                  | टार्गेट नाम                  |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 POSIX सिस्टम पर, अगर आर्काइव टूल अनुमति हटा दे तो `chmod +x nona` चलाएँ। कुछ भी इंस्टॉल किए बिना Nona आज़माने के लिए [प्लेग्राउंड](/playground) का उपयोग करें।
 

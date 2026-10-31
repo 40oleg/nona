@@ -2,14 +2,14 @@
 
 ## Install
 
-Download the archive for your system from the [latest release](https://github.com/40oleg/nona/releases/latest), extract it and run `nona --help` (`./nona --help` on Linux, macOS and BSD). The archive holds the executable, the license and a version file; the compiler is a native program that needs no Node.js. Each release also lists `SHA256SUMS`.
+Download the archive for your system from the [latest release](https://github.com/40oleg/nona/releases/latest), extract it and run `nona --help` (`./nona --help` on Linux, macOS and BSD). The archive holds the executable (`nona.exe` on Windows, `nona` elsewhere), `LICENSE`, `VERSION`, `README.txt` and `THIRD_PARTY_NOTICES.md`; the compiler is a native program that needs no Node.js. Each release also lists `SHA256SUMS`. In the archive names below, `<version>` is the release version.
 
-| OS                          | Archive                                        | Target name                  |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+| OS                          | Archive                                                                  | Target name                  |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 On POSIX systems run `chmod +x nona` if the archive tool drops the permission. To try Nona without installing anything, use the [playground](/playground).
 
@@ -55,6 +55,8 @@ done; at least 30 ms passed: true
 ```
 
 The program ends when no timers or Promise jobs are left. The executable runs on its own: copy it to a machine without Node.js and it still works.
+
+When distributing a generated program, include `LICENSE` and `THIRD_PARTY_NOTICES.md` from the compiler archive alongside it. The shared runtime includes the nondecimal formatter and cube-root support covered by these [notices](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); ARM64 output also uses the software logarithm and exponential helpers.
 
 ## Targets and cross-compilation
 

@@ -2,14 +2,16 @@
 
 ## Instalación
 
-Descarga el archivo para tu sistema desde la [última versión](https://github.com/40oleg/nona/releases/latest), extráelo y ejecuta `nona --help` (`./nona --help` en Linux, macOS y BSD). El archivo contiene el ejecutable, la licencia y un archivo de versión; el compilador es un programa nativo que no necesita Node.js. Cada versión también incluye `SHA256SUMS`.
+Descarga el archivo para tu sistema desde la [última versión](https://github.com/40oleg/nona/releases/latest), extráelo y ejecuta `nona --help` (`./nona --help` en Linux, macOS y BSD). El archivo contiene el ejecutable (`nona.exe` en Windows, `nona` en los demás sistemas), `LICENSE`, `VERSION`, `README.txt` y `THIRD_PARTY_NOTICES.md`; el compilador es un programa nativo que no necesita Node.js. Cada versión también incluye `SHA256SUMS`. En los nombres de archivo siguientes, `<version>` indica la versión publicada.
 
-| SO                          | Archivo                                        | Nombre del destino           |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+Al distribuir un programa generado, incluye junto al ejecutable los archivos `LICENSE` y `THIRD_PARTY_NOTICES.md` del archivo del compilador. El runtime compartido incluye el formato de números en bases distintas de diez y el cálculo de raíces cúbicas cubiertos por estos [avisos](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); los ejecutables ARM64 también usan las funciones de logaritmo y exponencial implementadas en software.
+
+| SO                          | Archivo                                                                  | Nombre del destino           |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 En sistemas POSIX ejecuta `chmod +x nona` si la herramienta de extracción pierde el permiso. Para probar Nona sin instalar nada, usa el [playground](/playground).
 

@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **Native distributions preserve third-party notices.** Compiler packages and release archives include `THIRD_PARTY_NOTICES.md`, with the shared cube-root implementation's SunPro/Bruce D. Evans notice and corrected numeric-runtime attribution. Release verification extracts the ZIP and tar.gz files and checks their layout, checksums, required files and exact notice bytes before publication; the installation and distribution guidance lists the files to retain with generated programs. ([#618](https://github.com/40oleg/nona/issues/618))
 - **Harness pull-request CI stays on GitHub-hosted runners.** Windows jobs for `nona/issue-*` branches no longer use the owner's self-hosted overflow, so full suites cannot compete with the permitted small local agent checks. Main and other trusted branches retain the overflow policy. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 

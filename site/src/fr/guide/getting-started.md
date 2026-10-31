@@ -2,14 +2,16 @@
 
 ## Installation
 
-Téléchargez l’archive correspondant à votre système depuis la [dernière version](https://github.com/40oleg/nona/releases/latest), extrayez-la et lancez `nona --help` (`./nona --help` sous Linux, macOS et BSD). L’archive contient l’exécutable, la licence et un fichier de version ; le compilateur est un programme natif qui n’a pas besoin de Node.js. Chaque version fournit aussi `SHA256SUMS`.
+Téléchargez l’archive correspondant à votre système depuis la [dernière version](https://github.com/40oleg/nona/releases/latest), extrayez-la et lancez `nona --help` (`./nona --help` sous Linux, macOS et BSD). L’archive contient l’exécutable (`nona.exe` sous Windows, `nona` ailleurs), `LICENSE`, `VERSION`, `README.txt` et `THIRD_PARTY_NOTICES.md` ; le compilateur est un programme natif qui n’a pas besoin de Node.js. Chaque version fournit aussi `SHA256SUMS`. Dans les noms d’archives ci-dessous, `<version>` désigne la version publiée.
 
-| OS                          | Archive                                        | Nom de cible                 |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+Lors de la distribution d’un programme généré, joignez à l’exécutable les fichiers `LICENSE` et `THIRD_PARTY_NOTICES.md` de l’archive du compilateur. Le runtime partagé comprend le formatage des nombres dans les bases autres que dix et le calcul de racine cubique couverts par ces [mentions](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md) ; les exécutables ARM64 utilisent aussi les fonctions log et exp implémentées en logiciel.
+
+| OS                          | Archive                                                                  | Nom de cible                 |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 Sur les systèmes POSIX, lancez `chmod +x nona` si l’outil d’archivage perd la permission d’exécution. Pour essayer Nona sans rien installer, utilisez le [bac à sable](/playground).
 
