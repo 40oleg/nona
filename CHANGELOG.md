@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **Computed keys preserve optional runtime parts unless proved numeric.** A string-valued `length` property or a loop counter reassigned to `"Proxy"` now keeps the global Proxy implementation in default builds. Numeric loop-counter suppression requires a lexical binding whose whole-loop writes, captures and dynamic-scope exposure preserve the restricted proof. Numeric literals, coercing arithmetic and invariant lexical counters remain selective. ([#612](https://github.com/40oleg/nona/issues/612))
 - **Harness pull-request CI stays on GitHub-hosted runners.** Windows jobs for `nona/issue-*` branches no longer use the owner's self-hosted overflow, so full suites cannot compete with the permitted small local agent checks. Main and other trusted branches retain the overflow policy. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 

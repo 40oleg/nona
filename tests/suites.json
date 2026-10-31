@@ -5,6 +5,7 @@
             "description": "Frontend, lowering and language checks (Linux check job).",
             "files": [
                 "frontend",
+                "runtime-link-numeric",
                 "hashbang",
                 "lowering",
                 "scalar-replacement",
