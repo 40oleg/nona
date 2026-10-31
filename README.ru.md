@@ -24,14 +24,14 @@ Hello, from Nona!
 
 ## Установка
 
-Скачайте сборку для своей системы из [последнего релиза](https://github.com/40oleg/nona/releases/latest), распакуйте и запустите `nona --help` (`./nona --help` в Linux, macOS и BSD). В архиве только исполняемый файл, лицензия и файл с версией; больше ничего ставить не нужно.
+Скачайте сборку для своей системы из [последнего релиза](https://github.com/40oleg/nona/releases/latest), распакуйте и запустите `nona --help` (`./nona --help` в Linux, macOS и BSD). В архиве лежат исполняемый файл (`nona.exe` в Windows, `nona` в остальных системах), `LICENSE`, `VERSION`, `README.txt` и `THIRD_PARTY_NOTICES.md`; больше ничего ставить не нужно. В именах архивов ниже `<version>` обозначает версию релиза.
 
-| ОС                          | Сборка в релизе                                | Имя цели                     | Формат файлов |
-| --------------------------- | ---------------------------------------------- | ---------------------------- | ------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   | PE32+         |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   | ELF64         |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64      |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64         |
+| ОС                          | Сборка в релизе                                                          | Имя цели                     | Формат файлов |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- | ------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   | PE32+         |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   | ELF64         |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` | Mach-O64      |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` | ELF64         |
 
 В POSIX-системах выполните `chmod +x nona`, если архиватор потерял права. [Песочница в браузере](https://40oleg.github.io/nona/playground) компилирует и скачивает программы для всех восьми целей без установки.
 
@@ -214,4 +214,4 @@ Nona не проходила аудит безопасности. Не комп�
 
 ## Лицензия
 
-[MIT](LICENSE). Сторонние уведомления — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Сторонние уведомления — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Включайте оба файла при распространении программ, собранных Nona: общая среда выполнения содержит форматирование чисел в недесятичных системах счисления и вычисление кубического корня, к которым относятся эти уведомления, а результат для ARM64 также использует программные функции логарифма и экспоненты.

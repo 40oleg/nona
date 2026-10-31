@@ -2,14 +2,16 @@
 
 ## التثبيت
 
-نزّل الأرشيف الخاص بنظامك من [أحدث إصدار](https://github.com/40oleg/nona/releases/latest)، وفُكّ ضغطه ثم شغّل `nona --help` (أو `./nona --help` على Linux وmacOS وBSD). يحتوي الأرشيف على الملف التنفيذي والرخصة وملف الإصدار؛ والمترجم برنامج أصلي لا يحتاج إلى Node.js. ويسرد كل إصدار أيضًا الملف `SHA256SUMS`.
+نزّل الأرشيف الخاص بنظامك من [أحدث إصدار](https://github.com/40oleg/nona/releases/latest)، وفُكّ ضغطه ثم شغّل `nona --help` (أو `./nona --help` على Linux وmacOS وBSD). يحتوي الأرشيف على الملف التنفيذي (`nona.exe` على Windows و`nona` على الأنظمة الأخرى) و`LICENSE` و`VERSION` و`README.txt` و`THIRD_PARTY_NOTICES.md`؛ والمترجم برنامج أصلي لا يحتاج إلى Node.js. ويسرد كل إصدار أيضًا الملف `SHA256SUMS`. يشير `<version>` في أسماء الأرشيفات أدناه إلى رقم الإصدار.
 
-| نظام التشغيل                | الأرشيف                                        | اسم المنصة                   |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+عند توزيع برنامج مولّد، أرفق معه الملفين `LICENSE` و`THIRD_PARTY_NOTICES.md` من أرشيف المترجم إلى جانب الملف التنفيذي. تتضمن بيئة التشغيل المشتركة تنسيق الأعداد بغير النظام العشري وحساب الجذر التكعيبي المشمولين بهذه [الإشعارات](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md)؛ وتستخدم مخرجات ARM64 أيضًا دوال اللوغاريتم والأسّ المنفذة برمجيًا.
+
+| نظام التشغيل                | الأرشيف                                                                  | اسم المنصة                   |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 على أنظمة POSIX نفّذ `chmod +x nona` إذا أسقطت أداة فك الضغط صلاحية التنفيذ. وللتجربة دون تثبيت أي شيء استخدم [الملعب](/playground).
 

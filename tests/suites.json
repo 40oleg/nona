@@ -30,6 +30,10 @@
                 "bench-report"
             ]
         },
+        "native-packaging": {
+            "description": "Native package layouts and release archive verification (Linux check and release jobs).",
+            "files": ["native-packaging"]
+        },
         "path": {
             "description": "node:path (Linux check job).",
             "files": ["path", "path-source"]

@@ -2,14 +2,16 @@
 
 ## Установка
 
-Скачайте архив для вашей системы из [последнего релиза](https://github.com/40oleg/nona/releases/latest), распакуйте его и выполните `nona --help` (`./nona --help` на Linux, macOS и BSD). В архиве лежат исполняемый файл, лицензия и файл версии; компилятор — нативная программа, которой не нужен Node.js. В каждом релизе также есть `SHA256SUMS`.
+Скачайте архив для вашей системы из [последнего релиза](https://github.com/40oleg/nona/releases/latest), распакуйте его и выполните `nona --help` (`./nona --help` на Linux, macOS и BSD). В архиве лежат исполняемый файл (`nona.exe` в Windows, `nona` в остальных системах), `LICENSE`, `VERSION`, `README.txt` и `THIRD_PARTY_NOTICES.md`; компилятор — нативная программа, которой не нужен Node.js. В каждом релизе также есть `SHA256SUMS`. В именах архивов ниже `<version>` обозначает версию релиза.
 
-| ОС                          | Архив                                          | Имя цели                     |
-| --------------------------- | ---------------------------------------------- | ---------------------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` |
+При распространении собранной программы включайте рядом с ней `LICENSE` и `THIRD_PARTY_NOTICES.md` из архива компилятора. Общая среда выполнения содержит форматирование чисел в недесятичных системах счисления и вычисление кубического корня, к которым относятся эти [уведомления](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); результат для ARM64 также использует программные функции логарифма и экспоненты.
+
+| ОС                          | Архив                                                                    | Имя цели                     |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` |
 
 В POSIX-системах выполните `chmod +x nona`, если архиватор потерял право на исполнение. Чтобы попробовать Nona, ничего не устанавливая, используйте [песочницу](/playground).
 

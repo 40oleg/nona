@@ -23,6 +23,14 @@ jobs:
         permissions:
             contents: write
         steps:
+            - name: Record hosted runner identity
+              env:
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+                  RUNNER_OS: ${{ runner.os }}
+                  RUNNER_ARCH: ${{ runner.arch }}
+              run: |
+                  echo "Runner: $RUNNER_ENVIRONMENT $RUNNER_OS $RUNNER_ARCH"
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
@@ -30,12 +38,18 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run build
+            - name: Test native packaging with real archive tools
+              env:
+                  NONA_NATIVE_ARCHIVE_INTEGRATION: "1"
+              run: node --test --test-concurrency=1 dist/tests/native-packaging.test.js
             - uses: actions/download-artifact@v4
               with:
                   pattern: nona-*
                   path: work/artifacts
             - name: Check versions and build the archives
               run: node scripts/release-archives.mjs --artifacts work/artifacts --out work/release --notes work/release-notes.md ${{ github.ref_type == 'tag' && format('--tag {0}', github.ref_name) || '' }}
+            - name: Verify checksums and extracted release archives
+              run: node scripts/verify-release-archives.mjs --archives work/release ${{ github.ref_type == 'tag' && format('--tag {0}', github.ref_name) || '' }}
             - uses: actions/upload-artifact@v4
               with:
                   name: release-archives
@@ -43,7 +57,7 @@ jobs:
                       work/release
                       work/release-notes.md
             - name: Publish the GitHub release
-              if: github.ref_type == 'tag'
+              if: github.event_name == 'push' && github.ref_type == 'tag'
               env:
                   GH_TOKEN: ${{ github.token }}
               run: gh release create "$GITHUB_REF_NAME" work/release/* --verify-tag --title "Nona $GITHUB_REF_NAME" --notes-file work/release-notes.md
