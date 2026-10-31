@@ -107,13 +107,27 @@ exactly.
 
 ## Releases
 
+- Finish the current release before starting issue implementation, PR maintenance
+  or release preparation for any later milestone. For Nona this applies from
+  v0.34.0 onward. The `nona-agent` queue label does not bypass this gate; preserve
+  already-created future PRs while they wait.
+- A release is complete only after its non-draft GitHub release is published,
+  the release workflow succeeds on the exact tag commit, all eight native archives
+  and `SHA256SUMS` are uploaded and nonempty, every milestone issue is closed and
+  the milestone is closed. A merged release PR or tag alone is insufficient.
+  Missing, running, failed, cancelled or unavailable evidence blocks later work.
+  Never enable work-ahead or disable release completion to continue later work
+  without a new owner instruction. Prioritize the current release's CI repair.
 - A release bumps the version in `package.json`, moves the `## Unreleased`
   entries of `CHANGELOG.md` under the new version and tags `vX.Y.Z`.
 - **Refresh `PERFORMANCE.md` for every release.** Re-run the benchmarks
-  (`node bench/run.mjs`, protocol in `bench/README.md`) against the current
+  (`node bench/report.mjs`, protocol in `bench/README.md`) against the current
   Node.js, Deno and Bun on one machine, add a dated section for the new
   version at the top of `PERFORMANCE.md` (machine, runtime versions, commit),
   and mark the section it replaces _superseded_. Keep the old sections.
+  Full release measurements run on GitHub-hosted runners; retain raw benchmark
+  artifacts and record the measured source commit. On the owner's PC use at most
+  three workers and targeted tests with concurrency 1; never run full/long suites.
 - Update the figures quoted elsewhere to the new measurement: `README.md`,
   `README.ru.md` and the site's performance pages under `site/src/` (the
   translated pages at least link the new numbers).

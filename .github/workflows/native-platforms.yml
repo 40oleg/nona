@@ -86,6 +86,10 @@ jobs:
                     - { runner: macos-15, target: darwin-arm64 }
                     - { runner: windows-11-arm, target: win32-arm64 }
         runs-on: ${{ matrix.runner }}
+        env:
+            # GC stress and compilation share this hosted ARM runner. Keep the
+            # full suites while limiting simultaneous test-file processes.
+            NONA_TEST_CONCURRENCY: ${{ matrix.target == 'win32-arm64' && '2' || '' }}
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -94,6 +98,12 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run build
+            - name: Isolated Windows ARM64 rejected-promise inspection oracle
+              if: matrix.target == 'win32-arm64'
+              run: >-
+                  node --test --test-concurrency=1
+                  --test-name-pattern="util.inspect does not mark a rejected promise as handled"
+                  dist/tests/util-inspect-promise.test.js
             - name: Build native probes
               run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
             - name: Record isolated Windows Node abort behavior

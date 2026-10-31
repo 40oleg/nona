@@ -191,7 +191,7 @@ function tablesFor(results, label) {
     });
     const wallHeader = [
         "Script",
-        ...runtimes.map((rt) => `${cap(rt)}, ${unit}`),
+        ...runtimes.map((rt) => `${cap(rt)}, s`),
         ...runtimes.map((rt) => `${cap(rt)} RSS, MB`),
         "Nona / Node",
     ];
