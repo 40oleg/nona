@@ -9,7 +9,7 @@ La comparaison avec du C++ optimisé (arithmétique, appels et chaînes UTF-16 ;
 :::
 
 ::: warning
-La comparaison actuelle avec Node.js, Deno et Bun (2026-10-18, v0.18.0) se trouve sur la [page anglaise](/guide/performance#current-release-v0-18-0-against-node-js-deno-and-bun) : hello world démarre en 1,3 ms et pèse 1,1 Mo (démarrage et mémoire : ×0,1 de Node.js), les boucles et collections simples sont ×2–×4 plus lentes, les tests orientés objet d'Are-We-Fast-Yet et les bibliothèques réelles ×11–×13, et tout ce qui passe par le moteur RegExp ×60–×350. Ci-dessous, la traduction des mesures de v0.7.0.
+Les résultats de la version actuelle, les versions de Node.js, Deno et Bun, le commit mesuré et la méthode figurent sur la [page anglaise](/guide/performance). La traduction historique des mesures de v0.7.0 est conservée ci-dessous ; ses chiffres ne décrivent pas la version actuelle.
 :::
 
 Mesuré le 2026-10-01 avec Nona `v0.7.0` (commit `b31c4d6`). Les scripts se trouvent dans [`bench/`](https://github.com/40oleg/nona/blob/main/bench/) ; `node bench/run.mjs` reproduit tous les tableaux ci-dessous.

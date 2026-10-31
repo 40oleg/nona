@@ -98,6 +98,12 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run build
+            - name: Isolated Windows ARM64 rejected-promise inspection oracle
+              if: matrix.target == 'win32-arm64'
+              run: >-
+                  node --test --test-concurrency=1
+                  --test-name-pattern="util.inspect does not mark a rejected promise as handled"
+                  dist/tests/util-inspect-promise.test.js
             - name: Build native probes
               run: node scripts/build-platform-probes.mjs work/platform-probes ${{ matrix.target }}
             - name: Record isolated Windows Node abort behavior
@@ -126,12 +132,6 @@ jobs:
               run: node scripts/run-suite.mjs buffer
             # These exercise byte memory/FP conversions and the large Unicode/RegExp
             # preludes in addition to the CPU, math, GC and coroutine probes.
-            - name: Isolated Windows ARM64 rejected-promise inspection oracle
-              if: matrix.target == 'win32-arm64'
-              run: >-
-                  node --test --test-concurrency=1
-                  --test-name-pattern="util.inspect does not mark a rejected promise as handled"
-                  dist/tests/util-inspect-promise.test.js
             - name: Portable language and built-in oracle suites
               run: node scripts/run-suite.mjs builtins
             - name: Filesystem oracle suite

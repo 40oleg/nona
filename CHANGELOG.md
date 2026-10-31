@@ -13,6 +13,12 @@
 - **`EventEmitter` "Unhandled error" message inspects the value.** `emit("error", { code: 42 })` without a listener now shows the error like `util.inspect`, not as `[object Object]`. ([#597](https://github.com/40oleg/nona/issues/597))
 - **Failed assignments in strict code have Node.js messages.** Assignment to a `const`, read-only property, getter-only accessor, non-extensible object and other failures no longer say `Invalid operation`, but give specific messages like Node.js. ([#598](https://github.com/40oleg/nona/issues/598))
 
+- **Benchmark reports render wall-time tables again.** The micro and real-program report formatter referenced an undefined unit and threw a `ReferenceError`; its wall times are now labelled in seconds, with a zero-workload CLI regression. ([#610](https://github.com/40oleg/nona/issues/610))
+
+### Development
+
+- Release benchmarks run in GitHub Actions with raw samples, instruction profiles and checked HTTP results; early and final artifacts preserve failures for diagnosis. Release instructions require published release evidence before work on a later milestone. ([#610](https://github.com/40oleg/nona/issues/610))
+
 ## v0.33.0 — 2026-10-28
 
 The fixes and documentation changes of v0.32.1 (below) are included; this release carries no further changes beyond the version bump.
