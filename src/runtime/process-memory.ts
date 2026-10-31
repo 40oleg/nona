@@ -20,6 +20,12 @@ export function emitProcessMemory(b: RuntimeBuilder): void {
         const inspect = (prefix: string) => {
             const done = a.unique(prefix + "done"),
                 yes = a.unique(prefix + "buffer");
+            // Chunk cells are swept lazily. A dead ArrayBuffer can still have
+            // its old kind and a pointer to backing pages already released by
+            // the large sweep. Only current-epoch allocations are safe to read.
+            a.load("r10", { base: "rdx", disp: H.marked });
+            a.cmpMemory("r10", { rip: "rt.gcEpoch" });
+            a.jcc("ne", done);
             a.load("r10", { base: "rdx", disp: H.kind });
             a.cmp("r10", HeapKind.object);
             a.jcc("ne", done);

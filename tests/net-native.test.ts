@@ -1,6 +1,67 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runModulesOnHost } from "./helpers/host.js";
+import { socketModuleWithSys } from "./helpers/net-source.js";
+
+test("queued socket completion owns its payload across forced collection (#601)", () => {
+    const { native } = runModulesOnHost(
+        {
+            "socket.mjs": socketModuleWithSys(`
+let attempts = 0;
+let sent = 0;
+const sys = {
+    send(fd, bytes, length) {
+        attempts++;
+        if (attempts <= 2) return -11;
+        for (let i = 0; i < length; i++) sent = sent * 10 + bytes[i];
+        return length;
+    }
+};
+export function sentBytes() { return sent; }
+`),
+            "main.mjs": String.raw`import { Socket, sentBytes } from './socket.mjs';
+const socket = new Socket();
+socket._fd = 7;
+let completions = 0;
+socket.write(new Uint8Array([1]), () => console.log('first'));
+function enqueue() {
+    const owner = {
+        payload: { text: 'queued-owner', bytes: new Uint8Array([7, 8, 9]) },
+        calls: 0,
+        _sent(error) {
+            this.calls++;
+            completions++;
+            console.log(this.payload.text, this.payload.bytes.join(','), this.calls, error === null);
+        }
+    };
+    socket._sendNow(new Uint8Array([2, 3, 99]), 2, owner);
+}
+enqueue();
+// The caller's owner reference is gone. gcStress collects at every allocation.
+let checksum = 0;
+for (let i = 0; i < 24; i++) {
+    const trash = { data: new Uint8Array([i, i + 1]), text: 'allocation-' + i };
+    checksum += trash.data[0];
+}
+console.log('before', completions, socket.writableLength, checksum);
+socket._flushWrites();
+console.log('flushed', completions, socket.writableLength);
+queueMicrotask(() => {
+    socket._flushWrites();
+    console.log('after', completions, sentBytes(), socket.bytesWritten);
+});
+`,
+        },
+        "main.mjs",
+        { gcStress: true, oracleSource: "" },
+    );
+    assert.equal(native.error, undefined);
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(
+        native.stdout,
+        "before 0 3 276\nflushed 0 0\nfirst\nqueued-owner 7,8,9 1 true\nafter 1 123 3\n",
+    );
+});
 
 // The native helpers of node:net and node:http (src/runtime/http-native.ts),
 // called through nona:internal/native. Node.js has no such module, so the
