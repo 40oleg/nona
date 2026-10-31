@@ -37,7 +37,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   RUNNER_STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
-                  TRUSTED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+                  TRUSTED: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !startsWith(github.head_ref, 'nona/issue-') }}
     changes:
         # Whether this run needs the Test262 directory jobs (#371,
         # scripts/ci-changes.mjs): always on main and manual runs; on a pull
