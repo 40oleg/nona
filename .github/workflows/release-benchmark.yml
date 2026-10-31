@@ -3,7 +3,7 @@ env:
     NODE_VERSION: "26.9.0"
 on:
     pull_request:
-        types: [opened, synchronize, reopened, edited, ready_for_review]
+        types: [opened, synchronize, reopened, ready_for_review]
     workflow_dispatch:
 permissions:
     contents: read
@@ -111,7 +111,18 @@ jobs:
             - name: Run all report suites with the release protocol
               id: report
               run: |
-                  node bench/report.mjs --suite startup,corpus,micro,real,awfy,game,profile --runs 10 --startup-runs 30 --iterations 10 --scale 0.1 --runtimes node,deno,bun,nona --out work/release-benchmark > work/release-benchmark/report.stdout.md 2> work/release-benchmark/report.stderr.log
+                  status=0
+                  node bench/report.mjs --suite startup,corpus,micro,real,awfy,game,profile --runs 10 --startup-runs 30 --iterations 10 --scale 0.1 --runtimes node,deno,bun,nona --out work/release-benchmark > work/release-benchmark/report.stdout.md 2> work/release-benchmark/report.stderr.log || status=$?
+                  if [ "$status" -ne 0 ]; then tail -n 80 work/release-benchmark/report.stderr.log; fi
+                  exit "$status"
+            - name: Retain report evidence before the HTTP measurements
+              if: ${{ always() && steps.report.outcome != 'skipped' }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: release-benchmark-report-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+                  retention-days: 90
+                  if-no-files-found: error
+                  path: work/release-benchmark
             - name: Preserve raw output and status from every HTTP generator invocation
               if: ${{ !cancelled() && steps.build.outcome == 'success' && steps.tools.outcome == 'success' }}
               run: |

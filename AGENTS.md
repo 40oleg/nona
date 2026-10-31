@@ -121,10 +121,13 @@ exactly.
 - A release bumps the version in `package.json`, moves the `## Unreleased`
   entries of `CHANGELOG.md` under the new version and tags `vX.Y.Z`.
 - **Refresh `PERFORMANCE.md` for every release.** Re-run the benchmarks
-  (`node bench/run.mjs`, protocol in `bench/README.md`) against the current
+  (`node bench/report.mjs`, protocol in `bench/README.md`) against the current
   Node.js, Deno and Bun on one machine, add a dated section for the new
   version at the top of `PERFORMANCE.md` (machine, runtime versions, commit),
   and mark the section it replaces _superseded_. Keep the old sections.
+  Full release measurements run on GitHub-hosted runners; retain raw benchmark
+  artifacts and record the measured source commit. On the owner's PC use at most
+  three workers and targeted tests with concurrency 1; never run full/long suites.
 - Update the figures quoted elsewhere to the new measurement: `README.md`,
   `README.ru.md` and the site's performance pages under `site/src/` (the
   translated pages at least link the new numbers).
