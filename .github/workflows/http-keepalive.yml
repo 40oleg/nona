@@ -1,0 +1,97 @@
+name: HTTP keep-alive regression
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+    pull_request:
+        types: [opened, synchronize, reopened, labeled]
+permissions:
+    contents: read
+concurrency:
+    group: http-keepalive-${{ github.repository }}-${{ github.head_ref || github.sha }}
+    cancel-in-progress: true
+env:
+    NODE_VERSION: "26.9.0"
+jobs:
+    hosted-http:
+        # Linux's ordinary full-ci jobs omit node:http/node:net. Run these
+        # witnesses explicitly on both x64 hosts, with no overflow routing.
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        name: HTTP keep-alive (${{ matrix.runner }})
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 35
+        strategy:
+            fail-fast: false
+            matrix:
+                runner: [windows-latest, ubuntu-24.04]
+        env:
+            # Match check.yml: stress all requested cases with gc-stress and
+            # all main/manual runs. None of these files is in gc-stress.json;
+            # other PRs run them without stress, as the ordinary shards do.
+            NONA_GC_STRESS: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'gc-stress') && 'off' || '' }}
+        steps:
+            - name: Require a GitHub-hosted runner
+              if: runner.environment != 'github-hosted'
+              run: throw 'HTTP verification requires a GitHub-hosted runner'
+              shell: pwsh
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - name: Record and verify actual runner identity
+              run: node scripts/http-keepalive-check.mjs --identity
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+            - run: npm ci
+            - id: build
+              run: npm run build
+            - name: Node 26 control (100 responses, one connection)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/http-keepalive-check.mjs --node
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+            - name: Native witness (100 responses, one connection)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/http-keepalive-check.mjs
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+            - name: HTTP pipelining, bodies, close, Agent and socket regressions
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: >-
+                  node --test --test-concurrency=1
+                  dist/tests/http.test.js
+                  dist/tests/http-responses.test.js
+                  dist/tests/http-json-bytes.test.js
+                  dist/tests/http-keepalive.test.js
+                  dist/tests/net.test.js
+                  dist/tests/net-native.test.js
+                  dist/tests/net-send-source.test.js
+            - name: Recover the original soak source from PR 603
+              id: soak-source
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              # #516 remains a separate, unmerged task. Pin its exact source;
+              # compile its server with this run's compiler, never its compiler.
+              uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ab5ea083d793e0a665fde8b0a4b33bc1fa67208e
+                  path: work/http-601-soak-source
+                  persist-credentials: false
+                  sparse-checkout-cone-mode: false
+                  sparse-checkout: |
+                      scripts/http-soak.mjs
+                      bench/http/soak-server.mjs
+            - name: Original big-only single-connection soak smoke (five minutes)
+              if: ${{ !cancelled() && steps.soak-source.outcome == 'success' }}
+              run: node scripts/http-soak-check.mjs
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+            - name: Retain partial and final HTTP evidence
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: http-601-${{ matrix.runner }}
+                  path: work/http-601
+                  if-no-files-found: warn
+                  retention-days: 14
