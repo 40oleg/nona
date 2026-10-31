@@ -12,6 +12,7 @@
                 "object-annexb",
                 "with",
                 "modules",
+                "compiler-inputs",
                 "npm",
                 "tail-calls",
                 "dynamic-functions",

@@ -40,7 +40,7 @@ Chaque option, sauf `--conditions`, ne peut apparaître qu’une fois. Voir [Ex�
 - L’entrée est un unique fichier source UTF-8. Une entrée de type module entraîne les modules qu’elle importe, et une entrée CommonJS ceux qu’elle charge avec `require`, y compris les paquets npm de `node_modules` ([paquets npm](/reference/npm)) ; les modules intégrés `nona:*` et `node:*` font partie du compilateur.
 - L’entrée peut être un répertoire de paquet : Nona compile le fichier que désigne le champ `"bin"` de son `package.json` (l’unique commande, ou celle qui porte le nom du paquet), sinon son `"main"` ou `index.js`.
 - La sortie est écrite dans un fichier temporaire voisin puis renommée à sa place, si bien qu’une compilation ratée ne laisse jamais d’exécutable à moitié écrit et conserve le précédent.
-- Le compilateur refuse d’écraser son entrée, y compris via un lien physique ou symbolique.
+- Le compilateur refuse de remplacer tout fichier lu avec succès pour la compilation ou la résolution des paquets : le point d’entrée, les sources importées ou chargées par `require`, les modules JSON, les fichiers `package.json` et les fichiers explicitement indiqués par `--icon`, `--manifest` ou `--version-info`. Les métadonnées lues pendant la résolution sont protégées même si leur contenu ne change pas le fichier choisi. Les chemins canoniques et l’identité des fichiers protègent les liens symboliques, les alias passant par des répertoires parents et les liens physiques. Un refus conserve les fichiers existants et supprime la sortie temporaire.
 - Les sorties Linux reçoivent le mode `0755`.
 
 ## Cache du runtime

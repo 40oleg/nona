@@ -42,3 +42,8 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
 
 The same options are available as `icon` (bytes), `manifest` (string) and
 `versionInfo` (object) in `compile()`. They require `--target win32-x64`.
+
+The CLI refuses to write its output over an explicit icon, manifest or version
+information file, including through a symbolic link, an alias in a parent
+directory or a hard link. These files receive the same protection as every
+source file and `package.json` successfully read for compilation or resolution.
