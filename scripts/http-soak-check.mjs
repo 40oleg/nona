@@ -33,6 +33,7 @@ const errorInfo = (error) => ({
     stack: error.stack,
 });
 mkdirSync(out, { recursive: true });
+writeFileSync(join(out, "harness-exit.json"), "");
 const report = {
     sourceRepository: "https://github.com/40oleg/nona",
     sourcePullRequest: 603,
@@ -72,6 +73,7 @@ try {
     const diagnostics = `
 const __diagOut = process.env.NONA_SOAK_DIAGNOSTICS;
 let __diagSequence = 0;
+process.on("exit", code => __diagAppendFileSync(__diagOut + "/harness-exit.json", JSON.stringify({time: new Date().toISOString(), code})));
 function __diagEvent(event, value) {
     __diagAppendFileSync(__diagOut + "/server-events.jsonl", JSON.stringify({sequence: ++__diagSequence, time: new Date().toISOString(), event, ...value}) + "\\n");
 }
@@ -97,7 +99,7 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
     writeFileSync(join(out, "http-soak.executed.mjs"), instrumented);
     report.executedHarnessSha256 = hash(instrumented);
     report.diagnostics =
-        "Raw server stdout/stderr and spawn/error/exit events only; workload and pass criteria unchanged.";
+        "Raw server stdout/stderr, spawn/error/exit events and a harness JavaScript exit marker only; workload and pass criteria unchanged.";
     const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
     const args = [
         join(root, "dist", "cli.js"),
@@ -188,6 +190,16 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
     );
     child.on("error", (error) => {
         report.spawnError = errorInfo(error);
+    });
+    // Keep native process exit distinct from close (which also waits for pipes).
+    // The recovered harness records its earlier JavaScript exit event separately.
+    child.on("exit", (code, signal) => {
+        report.events.push({
+            event: "harness.exit",
+            code,
+            signal,
+            time: new Date().toISOString(),
+        });
     });
     child.stdout.on("data", (chunk) => {
         appendFileSync(join(out, "harness.stdout.log"), chunk);

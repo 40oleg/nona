@@ -12,10 +12,21 @@ import { lower } from "../src/ir/lower.js";
 import { generate } from "../src/backend/x64/codegen.js";
 import { runOracle } from "./helpers/oracle.js";
 import { expectProgram } from "./helpers/program.js";
+import { RuntimeBuilder } from "../src/runtime/abi.js";
+import { emitProcessMemory } from "../src/runtime/process-memory.js";
+import { HeapLayout as H, HeapKind } from "../src/runtime/heap-layout.js";
+import {
+    ArrayBufferKind,
+    ArrayBufferLayout as B,
+} from "../src/runtime/array-buffer-layout.js";
 
 function native(body: (a: Assembler) => void): void {
     const r = emitRuntime(),
         a = createAssembler("entry");
+    const memory = new RuntimeBuilder();
+    emitProcessMemory(memory);
+    r.fragments.push(...memory.bundle.fragments);
+    r.functions.push(...memory.bundle.functions);
     a.initializeStack();
     a.sub("rsp", 104);
     const prologSize = a.offset;
@@ -59,6 +70,44 @@ function equal(a: Assembler, symbol: string, value: number): void {
     a.cmp("rax", value);
     a.jcc("ne", "test.fail");
 }
+
+for (const bytes of [64, 9 << 20])
+    test(`heap snapshot excludes unswept dead ArrayBuffers with ${bytes}-byte backing stores (#601)`, () =>
+        native((a) => {
+            // Allocate a real backing store and its owning ArrayBuffer cell.
+            a.mov("rcx", bytes);
+            a.call("rt.alloc");
+            a.store({ base: "rsp", disp: 40 }, "rax");
+            a.mov("rcx", B.size);
+            a.call("rt.alloc");
+            a.mov("r10", HeapKind.object);
+            a.store({ base: "rax", disp: H.kind - H.size }, "r10");
+            a.mov("r10", ArrayBufferKind);
+            a.store({ base: "rax" }, "r10");
+            a.load("r10", { base: "rsp", disp: 40 });
+            a.store({ base: "rax", disp: B.bytes }, "r10");
+            a.mov("r10", bytes);
+            a.store({ base: "rax", disp: B.byteLength }, "r10");
+            a.store({ rip: "test.roots", addend: 8 }, "rax");
+            a.mov("r10", 5);
+            a.store({ rip: "test.roots" }, "r10");
+            const snapshot = (expected: number) => {
+                a.lea("rcx", { base: "rsp", disp: 56 });
+                a.call("process.heapSnapshot.code");
+                a.load("rax", { base: "rsp", disp: 72 });
+                a.cmp("rax", expected);
+                a.jcc("ne", "test.fail");
+            };
+            snapshot(bytes); // Newly allocated buffers count before any GC.
+            a.call("rt.collect");
+            snapshot(bytes); // Rooted buffers still count after marking.
+            a.mov("rax", 0);
+            a.store({ rip: "test.roots" }, "rax");
+            a.call("rt.collect");
+            // Large backing stores are already unmapped; the dead owner cell
+            // still has its old kind and pointer until its class is swept.
+            snapshot(0);
+        }));
 test("large linked graphs are traced without recursive collector stack growth", () => {
     const source =
         "let a=null;for(let i=0;i<40000;i++){a={next:a};}let count=0;while(a){count++;a=a.next;}console.log(count);";

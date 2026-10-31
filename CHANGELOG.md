@@ -5,6 +5,7 @@
 ### Fixes
 
 - **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
+- **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
 - **Harness pull-request CI stays on GitHub-hosted runners.** Windows jobs for `nona/issue-*` branches no longer use the owner's self-hosted overflow, so full suites cannot compete with the permitted small local agent checks. Main and other trusted branches retain the overflow policy. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 

@@ -93,3 +93,48 @@ the base branch. Inherit #601's `bug` label and release milestone, and apply
 `full-ci` and `gc-stress` before the relevant push. Keep
 `NONA_AUTO_MERGE=false` and `NONA_AUTO_RELEASE=false`; no merge or release is
 part of this step.
+
+## CI repair investigation (2026-10-31)
+
+The failed HTTP workflow is
+[#41202372511](https://github.com/40oleg/nona/actions/runs/41202372511).
+The other reported platform, bootstrap, program and Windows check runs were
+cancelled; their cancelled jobs do not establish additional test failures.
+
+The Windows access violation was reproduced locally with the pinned soak
+server and a single connection, `big=1`, three seconds of load, no warm-up and
+statistics sampled every 0.5 seconds. The first loaded statistics request
+crashed with `0xc0000005`. The debugger stopped in `process.heapSnapshot.code`
+while dereferencing the backing pointer of a dead ArrayBuffer. Large backing
+allocations had already been released, but the object's small cell still had
+its old kind and pointer because its class is swept lazily.
+
+The narrow regression command, after `npm ci` and `npm run build`, is:
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern="heap snapshot excludes" dist/tests/gc.test.js
+```
+
+Before the fix, the 64-byte case failed its accounting assertion and the
+9 MiB case crashed with `0xc0000005`. Both now pass. They verify newly allocated
+and rooted buffers as well as dead owners awaiting sweeping. Heap snapshots
+check the current GC epoch before inspecting any backing pointer. The same
+short local soak then completed all its criteria with no crash or failed
+requests. This short reproduction does not replace the five-minute hosted
+smoke or #516's long validation.
+
+Eight focused Windows tests passed: the new regressions, existing GC checks,
+the HTTP oracle regression, forced-collection socket ownership, and process
+snapshot/shape checks. Build, changed-file formatting, script syntax and
+documentation links also passed. All local tests used concurrency one.
+
+The Linux artifact records PASS and the native server's expected SIGTERM at
+12:51:16 UTC, followed by the wrapper's deadline at 12:54:07 UTC. The harness
+itself ultimately exited with SIGTERM when cleaned up. Its shutdown stall
+remains unresolved; a successful workload report is not a successful harness
+exit. The wrapper retains its deadline and original pass criteria. Subsequent
+runs additionally retain `harness-exit.json` when the recovered harness enters
+its JavaScript exit listeners, and record the harness process's `exit` and
+`close` events separately. This distinguishes a shutdown stall from output
+descriptors remaining open after process termination. Linux execution is not
+available in this Windows checkout; a hosted rerun is still required.
