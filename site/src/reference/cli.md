@@ -43,7 +43,7 @@ Each option except `--conditions` may appear once. See [Windows executables](/re
 - The input is one UTF-8 source file. A module input pulls in the modules it imports and a CommonJS input the modules it requires, including npm packages from `node_modules` ([npm packages](/reference/npm)); built-in `nona:*` and `node:*` modules are part of the compiler.
 - The input may be a package directory: Nona builds the file its `package.json` `"bin"` names (the only command, or the one named after the package), otherwise its `"main"` or `index.js`.
 - The output is written to a temporary file next to it and renamed into place, so a failed build never leaves a half-written executable and keeps the previous one.
-- The compiler refuses to overwrite its input, including through a hard link or symbolic link.
+- The compiler refuses to replace any file successfully read for compilation or package resolution: the entry, imported or required sources, JSON modules, `package.json` files and explicit `--icon`, `--manifest` or `--version-info` files. This includes package metadata read during resolution even when its contents do not affect the selected file. Canonical paths and file identity protect symbolic links, aliases through parent directories and hard links. A refused build preserves the existing files and removes temporary output.
 - Linux, BSD and Darwin outputs get mode `0755`.
 
 ## Runtime cache

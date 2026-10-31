@@ -31,7 +31,31 @@ ln "$task_input" "$task_directory/hardlink.js"
 ln -s "$task_input" "$task_directory/symlink.js"
 for task_output in "$task_input" "$task_directory/hardlink.js" "$task_directory/symlink.js"; do
   if env -i PATH='' NONA_CACHE=0 "$task_compiler" build "$task_input" -o "$task_output" --target "$task_target" 2> "$task_directory/refusal.stderr"; then exit 1; else test "$?" = 1; fi
+  grep 'compilation input' "$task_directory/refusal.stderr"
   cmp "$task_input" "$task_directory/input.saved"
+  test -z "$(find "$task_directory" -name '.nona-*.tmp' -print)"
+done
+task_module="$task_directory/protected-main.mjs"
+task_middle="$task_directory/protected-middle.mjs"
+task_dependency="$task_directory/protected-dependency.mjs"
+printf "import { value } from './protected-middle.mjs';console.log(value);\n" > "$task_module"
+printf "export { value } from './protected-dependency.mjs';\n" > "$task_middle"
+printf 'export const value=42;\n' > "$task_dependency"
+for task_source in "$task_module" "$task_middle" "$task_dependency"; do cp "$task_source" "$task_source.saved"; done
+env -i PATH='' NONA_CACHE=0 "$task_compiler" build "$task_module" -o "$task_directory/protected.image" --target "$task_target"
+env -i PATH='' "$task_directory/protected.image" > "$task_directory/protected.actual"
+cmp "$task_directory/arithmetic.expected" "$task_directory/protected.actual"
+cp "$task_directory/protected.image" "$task_directory/protected.image.saved"
+ln "$task_dependency" "$task_directory/dependency-hardlink.mjs"
+ln -s "$task_dependency" "$task_directory/dependency-symlink.mjs"
+for task_output in "$task_dependency" "$task_directory/dependency-hardlink.mjs" "$task_directory/dependency-symlink.mjs"; do
+  if env -i PATH='' NONA_CACHE=0 "$task_compiler" build "$task_module" -o "$task_output" --target "$task_target" 2> "$task_directory/refusal.stderr"; then exit 1; else test "$?" = 1; fi
+  grep 'compilation input' "$task_directory/refusal.stderr"
+  grep -F "$task_dependency" "$task_directory/refusal.stderr"
+  for task_source in "$task_module" "$task_middle" "$task_dependency"; do cmp "$task_source" "$task_source.saved"; done
+  cmp "$task_output" "$task_dependency.saved"
+  cmp "$task_directory/protected.image" "$task_directory/protected.image.saved"
+  test -z "$(find "$task_directory" -name '.nona-*.tmp' -print)"
 done
 for task_pass in cold warm; do
   env -i PATH='' NONA_CACHE=1 NONA_CACHE_DIR="$task_directory/cache" "$task_compiler" build "$task_input" -o "$task_directory/$task_pass.image" --target "$task_target"

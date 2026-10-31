@@ -47,14 +47,23 @@ function canonical(path: string): string {
             : join(canonical(parent), basename(absolute));
     return process.platform === "win32" ? result.toLowerCase() : result;
 }
-function assertDifferent(input: string, output: string): void {
-    if (canonical(input) === canonical(output))
-        throw new Error("Output must not overwrite the input source");
-    if (existsSync(output)) {
-        const a = statSync(input, { bigint: true }),
-            b = statSync(output, { bigint: true });
-        if (a.dev === b.dev && a.ino === b.ino)
-            throw new Error("Output is an alias of the input source");
+function assertDifferent(inputs: ReadonlySet<string>, output: string): void {
+    const path = canonical(output),
+        identity = existsSync(output)
+            ? statSync(output, { bigint: true })
+            : undefined;
+    for (const input of inputs) {
+        if (canonical(input) === path)
+            throw new Error(
+                "Output must not overwrite compilation input " + input,
+            );
+        if (identity !== undefined && existsSync(input)) {
+            const source = statSync(input, { bigint: true });
+            if (source.dev === identity.dev && source.ino === identity.ino)
+                throw new Error(
+                    "Output is an alias of compilation input " + input,
+                );
+        }
     }
 }
 export function main(args: string[]): number {
@@ -171,6 +180,22 @@ export function main(args: string[]): number {
             );
         const descriptor = getTarget(target);
         if (!descriptor) throw new Error("Unsupported target: " + target);
+        // One collection for physical reads by resolution, compilation and CLI resources.
+        // Builtin and synthesized module IDs never pass through these read boundaries.
+        const inputs = new Set<string>();
+        const onReadFile = (path: string) => {
+            inputs.add(resolve(path));
+        };
+        const readText = (path: string) => {
+            const text = readFileSync(resolve(path), "utf8");
+            onReadFile(path);
+            return text;
+        };
+        const readBytes = (path: string) => {
+            const bytes = readFileSync(resolve(path));
+            onReadFile(path);
+            return bytes;
+        };
         // A package directory builds its command ("bin") or its main module.
         if (
             statSync(resolve(inputArg), {
@@ -179,7 +204,10 @@ export function main(args: string[]): number {
         ) {
             const directory = resolve(inputArg).split("\\").join("/"),
                 resolver = new NodeResolver(
-                    hostFileSystem({ readFileSync, statSync, realpathSync }),
+                    hostFileSystem(
+                        { readFileSync, statSync, realpathSync },
+                        onReadFile,
+                    ),
                 );
             const entry = resolver.packageEntry(
                 directory.startsWith("/") ? directory : "/" + directory,
@@ -195,16 +223,14 @@ export function main(args: string[]): number {
         }
         const input = resolve(inputArg),
             output = outputArg === undefined ? undefined : resolve(outputArg),
-            source = readFileSync(input, "utf8");
-        if (output !== undefined) assertDifferent(input, output);
+            source = readText(input);
+        if (output !== undefined) assertDifferent(inputs, output);
         if (subsystem !== undefined && target !== "win32-x64")
             throw new Error("--subsystem requires --target win32-x64");
         let versionFields;
         if (versionInfo !== undefined) {
             try {
-                versionFields = JSON.parse(
-                    readFileSync(resolve(versionInfo), "utf8"),
-                );
+                versionFields = JSON.parse(readText(versionInfo));
             } catch (error) {
                 throw new Error(
                     "Cannot read version information " +
@@ -229,6 +255,7 @@ export function main(args: string[]): number {
             fileName: inputArg,
             target: descriptor.target,
             module,
+            onReadFile,
             ...(conditions.length ? { conditions } : {}),
             ...(fullRuntime ? { fullRuntime } : {}),
             ...(linkParts.length ? { link: linkParts } : {}),
@@ -245,12 +272,8 @@ export function main(args: string[]): number {
                 : {}),
             ...(baseCache ? { baseCache } : {}),
             ...(subsystem ? { subsystem } : {}),
-            ...(icon !== undefined
-                ? { icon: readFileSync(resolve(icon)) }
-                : {}),
-            ...(manifest !== undefined
-                ? { manifest: readFileSync(resolve(manifest), "utf8") }
-                : {}),
+            ...(icon !== undefined ? { icon: readBytes(icon) } : {}),
+            ...(manifest !== undefined ? { manifest: readText(manifest) } : {}),
             ...(versionFields !== undefined
                 ? { versionInfo: versionFields }
                 : {}),
@@ -306,6 +329,8 @@ export function main(args: string[]): number {
             );
         }
         if (output === undefined) return 0;
+        // Include every successful read before creating even a temporary output.
+        assertDifferent(inputs, output);
         mkdirSync(dirname(output), { recursive: true });
         temporary = join(dirname(output), ".nona-" + randomUUID() + ".tmp");
         writeFileSync(temporary, result.image, {
@@ -313,7 +338,7 @@ export function main(args: string[]): number {
             mode: descriptor.fileMode,
         });
         // Recheck aliases immediately before the atomic replacement as well.
-        assertDifferent(input, output);
+        assertDifferent(inputs, output);
         renameSync(temporary, output);
         temporary = undefined;
         return 0;
