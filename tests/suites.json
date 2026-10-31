@@ -68,6 +68,10 @@
             "description": "node:events (Linux check job and native loader jobs).",
             "files": ["events"]
         },
+        "http-agent": {
+            "description": "Focused HTTP Agent source and native regressions (GitHub-hosted Windows and Linux check jobs).",
+            "files": ["http-agent-source", "http-agent"]
+        },
         "event-target": {
             "description": "EventTarget and event probes (native loader jobs).",
             "files": ["event-target", "event-probes"]

@@ -170,6 +170,8 @@ jobs:
             - run: npm run build
             - run: node scripts/run-suite.mjs frontend elf async events
             - run: node scripts/run-suite.mjs path child-process
+            - name: Focused HTTP Agent regressions
+              run: node --test --test-concurrency=1 dist/tests/http-agent-source.test.js dist/tests/http-agent.test.js
             - run: npm run compare:linux
             - uses: actions/checkout@v4
               with:

@@ -43,6 +43,19 @@ server has a `clientError` listener; parse errors carry the llhttp codes
 
 `https:` requests are made with [`node:https`](#nodehttps), which runs this client over TLS.
 
+Agent limits count both active and idle keep-alive connections: `maxSockets`
+applies to each origin (including TLS options for HTTPS), and `maxTotalSockets`
+applies across origins. When a socket closes or is detached for CONNECT/Upgrade,
+the Agent prefers eligible work for that origin, then scans other queued origins,
+skipping those at their per-origin limit. Requests within an origin remain FIFO;
+`scheduling: 'fifo'` or `'lifo'` selects among its free sockets. Idle sockets still
+consume capacity until they close, and remain unreferenced with their idle timeout.
+Cancelling a queued request discards its unsent data, callbacks and connection
+options without opening a socket. Its terminal error/close notification waits
+for a capacity opportunity, as in Node.js; `abort` retains its separate event.
+`Agent.destroy()` destroys current pooled sockets; the Agent can subsequently be
+used again, and eligible queued requests can receive new sockets.
+
 Performance: the server parses request heads, copies bodies, folds header
 names and writes responses with native helpers (`src/runtime/http-native.ts`);
 a request creates its `IncomingMessage` and `ServerResponse` as base-class

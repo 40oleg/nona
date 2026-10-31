@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **HTTP Agents wake queued origins when socket capacity is released.** Closing or detaching a connection now services eligible requests across origins while respecting `maxSockets` and `maxTotalSockets`. Queued cancellation drops unsent payloads and connection options without opening a connection; terminal events retain Node.js ordering. ([#616](https://github.com/40oleg/nona/issues/616))
 - **Harness pull-request CI stays on GitHub-hosted runners.** Windows jobs for `nona/issue-*` branches no longer use the owner's self-hosted overflow, so full suites cannot compete with the permitted small local agent checks. Main and other trusted branches retain the overflow policy. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 

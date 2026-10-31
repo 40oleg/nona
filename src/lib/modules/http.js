@@ -2469,6 +2469,11 @@ export class Agent extends EventEmitter {
         this.scheduling = this.options.scheduling || "lifo";
         this.maxTotalSockets = this.options.maxTotalSockets || Infinity;
         this.totalSocketCount = 0;
+        this._releasedSockets = [];
+        this._cancelledRequests = Object.create(null);
+        this._queueNames = Object.create(null);
+        this._queueOrder = 0;
+        this._draining = false;
     }
     static get defaultMaxSockets() {
         return Infinity;
@@ -2489,30 +2494,144 @@ export class Agent extends EventEmitter {
         return name;
     }
     addRequest(req, options) {
+        if (req.destroyed) return;
         options = Object.assign({ __proto__: null }, options, this.options);
         const name = this.getName(options);
-        const free = this.freeSockets[name];
-        let socket;
-        while (free !== undefined && free.length > 0) {
-            const candidate =
-                this.scheduling === "fifo" ? free.shift() : free.pop();
-            if (free.length === 0) delete this.freeSockets[name];
-            if (!candidate.destroyed) {
-                socket = candidate;
-                break;
-            }
-        }
-        if (socket !== undefined) {
-            this.reuseSocket(socket, req);
-            list(this.sockets, name).push(socket);
-            assignSocket(this, req, socket);
-        } else if (
-            (this.sockets[name] === undefined ||
-                this.sockets[name].length < this.maxSockets) &&
-            this.totalSocketCount < this.maxTotalSockets
+        req._queuedAgentName = name;
+        req._queuedAgentOptions = options;
+        req._agentQueueOrder = ++this._queueOrder;
+        this._queueNames[name] = true;
+        list(this.requests, name).push(req);
+        this._drain(name);
+    }
+    removeRequest(req) {
+        const name = req._queuedAgentName;
+        if (name !== undefined) removeFrom(this.requests, name, req);
+        req._queuedAgentName = undefined;
+        req._queuedAgentOptions = undefined;
+        req._agentQueueOrder = undefined;
+        if (
+            name !== undefined &&
+            !this.requests[name] &&
+            !this._cancelledRequests[name]
+        )
+            delete this._queueNames[name];
+    }
+    _cancelRequest(req) {
+        const name = req._queuedAgentName;
+        const cancelled = list(this._cancelledRequests, name);
+        let index = cancelled.length;
+        while (index > 0 && cancelled[index - 1].order > req._agentQueueOrder)
+            index--;
+        cancelled.splice(index, 0, {
+            order: req._agentQueueOrder,
+            req,
+        });
+        this.removeRequest(req);
+        // Node reports queued cancellation when a socket can be offered. Keep
+        // just the terminal notification, without connection options/payloads.
+        this._drain(name);
+    }
+    _nextRequest(name, offered) {
+        const waiting = this.requests[name];
+        while (
+            waiting !== undefined &&
+            waiting.length > 0 &&
+            waiting[0].destroyed
+        )
+            this.removeRequest(waiting[0]);
+        const cancelled = this._cancelledRequests[name];
+        while (
+            cancelled !== undefined &&
+            cancelled.length > 0 &&
+            (!waiting ||
+                waiting.length === 0 ||
+                cancelled[0].order < waiting[0]._agentQueueOrder)
         ) {
-            assignSocket(this, req, this.createSocket(req, options));
-        } else list(this.requests, name).push(req);
+            const active = this.sockets[name] || [],
+                free = this.freeSockets[name] || [];
+            if (
+                offered !== name &&
+                free.length === 0 &&
+                (active.length >= this.maxSockets ||
+                    (offered === undefined &&
+                        this.totalSocketCount >= this.maxTotalSockets))
+            )
+                return undefined;
+            const entry = cancelled.shift();
+            if (cancelled.length === 0) {
+                delete this._cancelledRequests[name];
+                if (!this.requests[name]) delete this._queueNames[name];
+            }
+            defer(entry.req, "_finishDestroy");
+        }
+        if (waiting !== undefined && waiting.length > 0) {
+            const req = waiting[0];
+            return req;
+        }
+        return undefined;
+    }
+    /** One iterative pump also covers synchronous/reentrant socket callbacks. */
+    _drain(preferred) {
+        this._drainAgain = true;
+        if (preferred !== undefined) this._drainPreferred = preferred;
+        if (this._draining) return;
+        this._draining = true;
+        try {
+            while (this._drainAgain) {
+                this._drainAgain = false;
+                while (this._releasedSockets.length > 0)
+                    this._releaseOne(this._releasedSockets.shift());
+                const names = Object.keys(this._queueNames);
+                const preferred = this._drainPreferred;
+                this._drainPreferred = undefined;
+                if (preferred !== undefined) {
+                    const index = names.indexOf(preferred);
+                    if (index >= 0) names.splice(index, 1);
+                    names.unshift(preferred);
+                }
+                for (const name of names) {
+                    let req;
+                    while ((req = this._nextRequest(name)) !== undefined) {
+                        const free = this.freeSockets[name];
+                        let socket;
+                        while (free !== undefined && free.length > 0) {
+                            const candidate =
+                                this.scheduling === "fifo"
+                                    ? free[0]
+                                    : free[free.length - 1];
+                            if (!candidate.destroyed) {
+                                removeFrom(this.freeSockets, name, candidate);
+                                socket = candidate;
+                                break;
+                            }
+                            this.removeSocket(candidate);
+                        }
+                        if (socket !== undefined) {
+                            this.reuseSocket(socket, req);
+                            list(this.sockets, name).push(socket);
+                        } else {
+                            const active = this.sockets[name];
+                            if (
+                                (active !== undefined &&
+                                    active.length >= this.maxSockets) ||
+                                this.totalSocketCount >= this.maxTotalSockets
+                            )
+                                break;
+                            socket = this.createSocket(
+                                req,
+                                req._queuedAgentOptions,
+                            );
+                        }
+                        this.removeRequest(req);
+                        assignSocket(this, req, socket);
+                        if (this._releasedSockets.length > 0) break;
+                    }
+                }
+            }
+        } finally {
+            this._draining = false;
+        }
     }
     createSocket(req, options) {
         options = Object.assign({ __proto__: null }, options, this.options);
@@ -2530,16 +2649,35 @@ export class Agent extends EventEmitter {
     }
     /** The response on socket is complete and its request finished. */
     _release(socket) {
+        const active = this.sockets[socket._agentName];
+        if (
+            socket._agentReleased ||
+            active === undefined ||
+            active.indexOf(socket) < 0
+        )
+            return;
+        socket._agentReleased = true;
+        this._releasedSockets.push(socket);
+        this._drain(socket._agentName);
+    }
+    _releaseOne(socket) {
         const name = socket._agentName;
+        const active = this.sockets[name];
+        if (active === undefined || active.indexOf(socket) < 0) {
+            socket._agentReleased = false;
+            return;
+        }
         this.emit("free", socket, socket._agentOptions);
+        socket._agentReleased = false;
+        if (active.indexOf(socket) < 0) return;
         if (!socket.writable || socket.destroyed) {
             socket.destroy();
             return;
         }
-        const waiting = this.requests[name];
-        if (waiting !== undefined && waiting.length > 0) {
-            const req = waiting.shift();
-            if (waiting.length === 0) delete this.requests[name];
+        const waiting = this._nextRequest(name, name);
+        if (waiting !== undefined) {
+            const req = waiting;
+            this.removeRequest(req);
             assignSocket(this, req, socket);
             return;
         }
@@ -2562,28 +2700,24 @@ export class Agent extends EventEmitter {
         removeFrom(this.sockets, name, socket);
         free.push(socket);
         socket.once("error", freeSocketError);
+        // Node can offer an idle connection to cross-origin cancellation. Only
+        // terminal notifications use this opportunity: idle sockets still count,
+        // and an earlier eligible live request retains its turn.
+        for (const pending of Object.keys(this._queueNames)) {
+            const active = this.sockets[pending] || [];
+            if (pending !== name && active.length >= this.maxSockets) continue;
+            if (this._nextRequest(pending, name) !== undefined) break;
+        }
     }
     removeSocket(socket) {
         const name = socket._agentName;
         if (
             removeFrom(this.sockets, name, socket) |
             removeFrom(this.freeSockets, name, socket)
-        )
-            this.totalSocketCount--;
-        const waiting = this.requests[name];
-        if (
-            waiting !== undefined &&
-            waiting.length > 0 &&
-            (this.sockets[name] === undefined ||
-                this.sockets[name].length < this.maxSockets)
         ) {
-            const req = waiting.shift();
-            if (waiting.length === 0) delete this.requests[name];
-            assignSocket(
-                this,
-                req,
-                this.createSocket(req, socket._agentOptions),
-            );
+            this.totalSocketCount--;
+            socket.removeListener("error", freeSocketError);
+            this._drain(name);
         }
     }
     keepSocketAlive(socket) {
@@ -2864,8 +2998,11 @@ export class ClientRequest extends OutgoingMessage {
                         codedError("ABORT_ERR", "The operation was aborted"),
                     );
             if (signal.aborted) abort();
-            else if (typeof signal.addEventListener === "function")
+            else if (typeof signal.addEventListener === "function") {
+                this._abortSignal = signal;
+                this._abortListener = abort;
                 signal.addEventListener("abort", abort, { once: true });
+            }
         }
     }
     _implicitHeader() {
@@ -2875,24 +3012,58 @@ export class ClientRequest extends OutgoingMessage {
     abort() {
         if (this.aborted) return;
         this.aborted = true;
-        queueMicrotask(() => this.emit("abort"));
+        defer(this, "_abortTask");
         this.destroy();
+    }
+    _abortTask() {
+        this.emit("abort");
     }
     destroy(error) {
         if (this.destroyed) return this;
         this.destroyed = true;
         if (this.res) this.res._dump();
         this._destroyError = error;
+        this._clearRequest();
         if (this.socket) this.socket.destroy(error);
-        else
-            queueMicrotask(() => {
-                this._error(
-                    error || (this.res ? null : hangUp("socket hang up")),
-                );
-                this._closed = true;
-                this.emit("close");
-            });
+        else if (this._queuedAgentName !== undefined)
+            this.agent._cancelRequest(this);
+        else if (!this._offeredSocket) defer(this, "_finishDestroy");
         return this;
+    }
+    _clearRequest() {
+        // Unsent writes (including their callbacks/message contexts) cannot
+        // complete after cancellation. Node discards these without calling them.
+        this._output = null;
+        this._outputSize = 0;
+        this._chunks = null;
+        this._chunkLength = 0;
+        if (this._connectListener && this.socket)
+            this.socket.removeListener("connect", this._connectListener);
+        this._connectListener = null;
+        if (this._abortSignal) {
+            this._abortSignal.removeEventListener("abort", this._abortListener);
+            this._abortSignal = null;
+            this._abortListener = null;
+        }
+        if (this.destroyed) {
+            this.removeAllListeners("response");
+            this.removeAllListeners("finish");
+            this.removeAllListeners("socket");
+            this.removeAllListeners("timeout");
+        }
+    }
+    _finishDestroy() {
+        if (this._closed) return;
+        const error = this._destroyError;
+        this._destroyError = null;
+        this._error(
+            error ||
+                (!this.res && (!this.aborted || this.socket)
+                    ? hangUp("socket hang up")
+                    : null),
+        );
+        this._closed = true;
+        this.emit("close");
     }
     _error(error) {
         if (error === null || this._errorEmitted) return;
@@ -2912,13 +3083,11 @@ export class ClientRequest extends OutgoingMessage {
     }
     _useSocket(socket) {
         if (this.destroyed) {
+            // The offer itself is deferred. Cancellation may have happened
+            // after the Agent dequeued us but before this task could run.
             if (this.agent) this.agent._release(socket);
             else socket.destroy();
-            if (!this._closed) {
-                this._error(this._destroyError || null);
-                this._closed = true;
-                this.emit("close");
-            }
+            this._finishDestroy();
             return;
         }
         this.socket = socket;
@@ -2929,11 +3098,14 @@ export class ClientRequest extends OutgoingMessage {
         if (this.timeout !== undefined)
             socket.on("timeout", onClientSocketTimeout);
         this.emit("socket", socket);
-        if (socket.connecting)
-            socket.once("connect", () => this._flushWhenReady());
-        else this._flushWhenReady();
+        if (this.destroyed) return;
+        if (socket.connecting) {
+            this._connectListener = () => this._flushWhenReady();
+            socket.once("connect", this._connectListener);
+        } else this._flushWhenReady();
     }
     _flushWhenReady() {
+        this._connectListener = null;
         const socket = this.socket;
         if (socket === null || socket._httpMessage !== this || socket.destroyed)
             return;
@@ -2947,6 +3119,7 @@ export class ClientRequest extends OutgoingMessage {
     _release() {
         if (this._released) return;
         this._released = true;
+        this._clearRequest();
         const socket = this.socket;
         socket.removeListener("error", onClientSocketError);
         socket.removeListener("close", onClientSocketClose);
@@ -2955,8 +3128,10 @@ export class ClientRequest extends OutgoingMessage {
         if (this.timeout !== undefined) socket.setTimeout(0);
         if (this.res) this.res.socket = null;
         queueMicrotask(() => {
-            this._closed = true;
-            this.emit("close");
+            if (!this._closed) {
+                this._closed = true;
+                this.emit("close");
+            }
             if (this.agent) this.agent._release(socket);
             else socket.destroy();
         });
@@ -2989,25 +3164,26 @@ function onClientSocketError(error) {
     const req = this._httpMessage;
     if (!req) return;
     this._hadError = true;
+    req._clearRequest();
     req._error(error);
 }
 function onClientSocketClose() {
     const req = this._httpMessage;
     if (!req || req.socket !== this) return;
+    this._httpMessage = null;
+    this._consumer = null;
+    this.removeListener("error", onClientSocketError);
+    this.removeListener("close", onClientSocketClose);
+    this.removeListener("timeout", onClientSocketTimeout);
     req.destroyed = true;
+    req._clearRequest();
     const res = req.res;
     if (res) {
         if (!res.complete) res.destroy(hangUp("aborted"));
-        req._closed = true;
-        req.emit("close");
+        req._finishDestroy();
         if (!res.aborted && res.readable) res.push(null);
     } else {
-        if (!this._hadError) {
-            this._hadError = true;
-            req._error(hangUp("socket hang up"));
-        }
-        req._closed = true;
-        req.emit("close");
+        req._finishDestroy();
     }
 }
 function onClientSocketTimeout() {
@@ -3188,14 +3364,11 @@ class ResponseReader {
             copyBytes(data, bodyStart, end, head, 0);
             if (hasListener(req, event)) {
                 if (socket._agent) {
-                    removeFrom(
-                        socket._agent.sockets,
-                        socket._agentName,
-                        socket,
-                    ) && socket._agent.totalSocketCount--;
                     socket.removeListener("close", onAgentSocketClose);
                     socket.removeListener("timeout", onAgentSocketTimeout);
+                    socket._agent.removeSocket(socket);
                 }
+                req._clearRequest();
                 req.emit(event, res, socket, head);
                 req.destroyed = true;
                 req._closed = true;
