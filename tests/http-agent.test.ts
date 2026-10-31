@@ -64,6 +64,7 @@ const assignedWrites = String.raw`import http from 'node:http';
 async function scenario(phase, action) {
   const agent = new http.Agent({ maxSockets: 1, maxTotalSockets: 1 });
   const peers = [], events = [];
+  const failure = new TypeError('cancel');
   let req, cleaning = false;
   const server = http.createServer((incoming, res) => res.end('unexpected'));
   server.on('connection', socket => peers.push(socket));
@@ -87,11 +88,17 @@ async function scenario(phase, action) {
       events.push('socket');
       function cancel() {
         for (const body of ['one', 'two'])
-          req.write(body, error => events.push(body + ':' + error.name + ':' + (error.code || '-') + ':' + error.message));
+          req.write(body, error => {
+            if ((action === 'error' || action === 'socket-error') && error !== failure)
+              throw new Error('write callback lost the original error');
+            events.push(body + ':' + error.name + ':' + (error.code || '-') + ':' + error.message);
+          });
         if (action === 'abort') req.abort();
-        else if (action === 'error') req.destroy(new TypeError('cancel'));
-        else req.destroy();
-        req.destroy();
+        else if (action === 'error') { req.destroy(failure); req.destroy(); }
+        else if (action === 'socket-error') { socket.destroy(failure); socket.destroy(); }
+        else if (action === 'socket-destroy') { socket.destroy(); socket.destroy(); }
+        else if (action === 'agent-destroy') { agent.destroy(); agent.destroy(); }
+        else { req.destroy(); req.destroy(); }
       }
       if (phase === 'connected' && socket.connecting) socket.once('connect', cancel);
       else cancel();
@@ -106,7 +113,8 @@ async function scenario(phase, action) {
   cleanup();
 }
 for (const phase of ['connecting', 'connected'])
-  for (const action of ['destroy', 'error', 'abort']) await scenario(phase, action);
+  for (const action of ['destroy', 'error', 'abort', 'socket-destroy', 'socket-error', 'agent-destroy'])
+    await scenario(phase, action);
 `;
 
 test("node:http Agent: cancellation completes corked writes made on an assigned socket exactly once", () =>
@@ -114,9 +122,15 @@ test("node:http Agent: cancellation completes corked writes made on an assigned 
         "connecting destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
         "connecting error socket,error:TypeError:-:cancel,one:TypeError:-:cancel,two:TypeError:-:cancel,close",
         "connecting abort socket,abort,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connecting socket-destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connecting socket-error socket,error:TypeError:-:cancel,one:TypeError:-:cancel,two:TypeError:-:cancel,close",
+        "connecting agent-destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
         "connected destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
         "connected error socket,error:TypeError:-:cancel,one:TypeError:-:cancel,two:TypeError:-:cancel,close",
         "connected abort socket,abort,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connected socket-destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
+        "connected socket-error socket,error:TypeError:-:cancel,one:TypeError:-:cancel,two:TypeError:-:cancel,close",
+        "connected agent-destroy socket,one:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,two:Error:ERR_STREAM_DESTROYED:Cannot call write after a stream was destroyed,error:Error:ECONNRESET:socket hang up,close",
     ]));
 
 // Use real, separate loopback origins: changing only a path cannot exercise the

@@ -3041,16 +3041,29 @@ export class ClientRequest extends OutgoingMessage {
         else if (!this._offeredSocket) defer(this, "_finishDestroy");
         return this;
     }
-    _finishDestroyWrites() {
-        const chunks = this._destroyChunks;
+    _flushChunks(error) {
+        // Auto-uncork may run before a destroyed socket's error/close task.
+        // Leave its batch for that task so the original error and ordering
+        // survive instead of sending it to an already destroyed transport.
+        if (this.socket && this.socket.destroyed && !this.destroyed) return;
+        super._flushChunks(error);
+    }
+    _finishDestroyWrites(error) {
+        const chunks = this._destroyChunks || this._chunks;
         this._destroyChunks = null;
-        const error =
-            this._destroyError ||
-            codedError(
-                "ERR_STREAM_DESTROYED",
-                "Cannot call write after a stream was destroyed",
-            );
-        if (this._destroyError) this._error(error);
+        this._clearRequest();
+        if (!chunks) return;
+        // Socket error/close tasks also run before auto-uncork. Detach the
+        // batch before user callbacks can destroy or uncork the request again.
+        const emitError = error || this._destroyError;
+        if (!error)
+            error =
+                this._destroyError ||
+                codedError(
+                    "ERR_STREAM_DESTROYED",
+                    "Cannot call write after a stream was destroyed",
+                );
+        if (emitError) this._error(error);
         for (let i = 2; i < chunks.length; i += 3) {
             const callback = chunks[i];
             if (callback) callback(error);
@@ -3190,7 +3203,8 @@ function onClientSocketError(error) {
     const req = this._httpMessage;
     if (!req) return;
     this._hadError = true;
-    req._clearRequest();
+    req._destroyError = error;
+    req._finishDestroyWrites(error);
     req._error(error);
 }
 function onClientSocketClose() {
@@ -3202,7 +3216,7 @@ function onClientSocketClose() {
     this.removeListener("close", onClientSocketClose);
     this.removeListener("timeout", onClientSocketTimeout);
     req.destroyed = true;
-    req._clearRequest();
+    req._finishDestroyWrites();
     const res = req.res;
     if (res) {
         if (!res.complete) res.destroy(hangUp("aborted"));

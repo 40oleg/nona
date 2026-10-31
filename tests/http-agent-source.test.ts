@@ -40,6 +40,7 @@ const ClientRequest = new Function(
     "OutgoingMessage",
     "defer",
     "hangUp",
+    "codedError",
     "ResponseReader",
     section(
         "export class ClientRequest extends OutgoingMessage {",
@@ -50,6 +51,8 @@ const ClientRequest = new Function(
     (target: any, method: string) => tasks.push(() => target[method]()),
     (message: string) =>
         Object.assign(new Error(message), { code: "ECONNRESET" }),
+    (code: string, message: string) =>
+        Object.assign(new Error(message), { code }),
     class {},
 );
 function client(agent: any): any {
@@ -76,10 +79,11 @@ class Socket extends EventEmitter {
     destroyed = false;
     writable = true;
     referenced = true;
-    destroy() {
+    destroy(error?: Error) {
         if (!this.destroyed) {
             this.destroyed = true;
             this.writable = false;
+            if (error) this.emit("error", error);
             this.emit("close");
         }
         return this;
@@ -387,6 +391,63 @@ test("HTTP Agent source: cancellation between offer and use returns the socket o
     counts(agent);
     agent.destroy();
 });
+
+for (const action of ["socket-destroy", "socket-error", "agent-destroy"]) {
+    for (const reentrant of [false, true]) {
+        test(`HTTP Agent source: ${action} completes assigned writes once (reentrant=${reentrant})`, () => {
+            const { agent } = pool({ maxSockets: 1, maxTotalSockets: 1 });
+            const req = client(agent);
+            const events: string[] = [];
+            const failure = Object.assign(new TypeError("cancel"), {
+                code: "EWRITE",
+            });
+            req.on("error", (error: any) => {
+                events.push("error:" + error.code);
+                if (action === "socket-error") assert.equal(error, failure);
+                if (reentrant) req.destroy();
+            });
+            req.on("close", () => events.push("close"));
+            req.on("socket", (socket: Socket) => {
+                req._chunks = [];
+                for (const body of ["one", "two"])
+                    req._chunks.push(body, null, (error: any) => {
+                        events.push(body + ":" + error.code);
+                        if (action === "socket-error")
+                            assert.equal(error, failure);
+                        if (reentrant) req.destroy();
+                    });
+                req._chunkLength = 6;
+                if (action === "agent-destroy") agent.destroy();
+                else
+                    socket.destroy(
+                        action === "socket-error" ? failure : undefined,
+                    );
+            });
+            agent.addRequest(req, origin(10001));
+            flush();
+            assert.deepEqual(
+                events,
+                action === "socket-error"
+                    ? ["error:EWRITE", "one:EWRITE", "two:EWRITE", "close"]
+                    : [
+                          "one:ERR_STREAM_DESTROYED",
+                          "two:ERR_STREAM_DESTROYED",
+                          "error:ECONNRESET",
+                          "close",
+                      ],
+            );
+            req.destroy();
+            agent.destroy();
+            flush();
+            assert.equal(events.length, 4);
+            assert.equal(req._chunks, null);
+            assert.equal(req._destroyChunks, null);
+            assert.equal(req._chunkLength, 0);
+            assert.equal(req._destroyError, null);
+            counts(agent);
+        });
+    }
+}
 
 test("HTTP Agent source: reverse cancellation retains request FIFO around live work", () => {
     const { agent, connections } = pool({ maxSockets: 1, maxTotalSockets: 1 });
