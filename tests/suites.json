@@ -74,7 +74,8 @@
                 "http-agent-source",
                 "http-agent",
                 "http-agent-fixtures",
-                "http-agent-retained-control"
+                "http-agent-retained-control",
+                "http-agent-idle-diagnostic"
             ]
         },
         "event-target": {

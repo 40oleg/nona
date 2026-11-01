@@ -5,6 +5,16 @@ on:
     push:
         branches: [main]
     workflow_dispatch:
+        inputs:
+            mode:
+                description: Full platform validation or supplemental idle-Agent evidence only
+                type: choice
+                default: full
+                options: [full, idle-agent-diagnostic]
+            diagnostic_commit:
+                description: Exact reviewed temporary non-release commit (diagnostic mode only)
+                type: string
+                required: false
     # On a pull request only the browser compiler runs; the platform jobs run
     # when the PR has the full-ci label (#353). "labeled" starts them once the
     # label is added.
@@ -22,6 +32,7 @@ concurrency:
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     browser-compiler:
+        if: github.event_name != 'workflow_dispatch' || inputs.mode != 'idle-agent-diagnostic'
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -48,7 +59,7 @@ jobs:
         name: Windows x64 full regression (manual)
         # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
         # for manually dispatched full-platform runs as well.
-        if: github.event_name == 'workflow_dispatch'
+        if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'idle-agent-diagnostic') && (github.event_name == 'workflow_dispatch')
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
@@ -61,7 +72,7 @@ jobs:
             - run: npm run compare
     linux-regression:
         name: Linux x64 compiler and example regression
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'idle-agent-diagnostic') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -75,7 +86,7 @@ jobs:
             - run: npm run compare:linux
     loaders:
         name: ${{ matrix.target }} native and portable suites
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'idle-agent-diagnostic') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         strategy:
             fail-fast: false
             matrix:
@@ -150,7 +161,7 @@ jobs:
                   path: work/platform-probes
     linux-distributions:
         name: Linux userspace ${{ matrix.image }}
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'idle-agent-diagnostic') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -202,7 +213,7 @@ jobs:
             - run: node scripts/verify-process-reports.mjs work/distro-results
     bsd-loaders:
         name: ${{ matrix.os }} x64 guest VM on Ubuntu host
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: (github.event_name != 'workflow_dispatch' || inputs.mode != 'idle-agent-diagnostic') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -282,3 +293,41 @@ jobs:
                   name: loader-${{ matrix.os }}-x64
                   path: work/platform-probes
             - run: node scripts/verify-process-reports.mjs
+    idle-agent-diagnostic:
+        name: Supplemental idle-Agent evidence (${{ matrix.target }})
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'idle-agent-diagnostic'
+        # A bounded diagnostic, never the full32+4 or final current-head CI gate.
+        timeout-minutes: 45
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                include:
+                    - { runner: ubuntu-24.04, target: linux-x64 }
+                    - { runner: windows-latest, target: win32-x64 }
+        runs-on: ${{ matrix.runner }}
+        env:
+            NONA_TEST_CONCURRENCY: "1"
+            DIAGNOSTIC_COMMIT: ${{ inputs.diagnostic_commit }}
+            DIAGNOSTIC_TARGET: ${{ matrix.target }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - name: Guard hosted identity and unchanged original compiler and fixtures
+              run: node scripts/http-agent-idle-diagnostic.mjs --identity
+            - run: npm ci
+            - run: npm run build
+            - name: One serial attempt per native case and exact Node control
+              run: node scripts/http-agent-idle-diagnostic.mjs
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: idle616-diagnostic-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: work/idle616-diagnostic
+                  include-hidden-files: true
+                  if-no-files-found: error

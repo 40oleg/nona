@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Development
+
+- An optional hosted HTTP Agent idle-timeout [diagnostic protocol](docs/http-agent-idle-diagnostic.md) retains exact original sources, separate GC-mode build identities and raw process evidence alongside supplemental scalar and monotonic observers. It does not replace full regression or release validation. ([#616](https://github.com/40oleg/nona/issues/616))
+
 ### Fixes
 
 - **HTTP Agents wake queued origins when socket capacity is released.** Closing or detaching a connection now services eligible requests across origins while respecting `maxSockets` and `maxTotalSockets`. Queued cancellation drops unsent payloads and connection options without opening a connection; terminal events and assigned write callbacks retain Node.js ordering, including when the socket or Agent is destroyed. Connection creation errors remove the failed request so subsequent valid requests can proceed. ([#616](https://github.com/40oleg/nona/issues/616))
