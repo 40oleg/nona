@@ -6,6 +6,7 @@
 
 ### Fixes
 
+- **The CLI protects every file read while compiling or resolving a package.** Outputs can no longer replace imported or required sources, JSON modules, package metadata or explicit icon, manifest and version information files. Canonical paths and file identity also catch symbolic links, links through parent directories and hard links. Refused builds preserve the input files and previous executable and remove temporary output. The protection is shared by the Node.js and native CLIs. ([#614](https://github.com/40oleg/nona/issues/614))
 - **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 - **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))

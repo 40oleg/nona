@@ -436,7 +436,12 @@ export interface NodeFs {
     ): { isFile(): boolean; isDirectory(): boolean } | undefined;
     realpathSync(path: string): string;
 }
-export function hostFileSystem(fs: NodeFs): NodeFileSystem {
+/** Notified after a successful physical read, with its native file name only. */
+export type FileReadObserver = (path: string) => void;
+export function hostFileSystem(
+    fs: NodeFs,
+    onReadFile?: FileReadObserver,
+): NodeFileSystem {
     const native = (path: string) =>
         /^\/[A-Za-z]:\//.test(path) ? path.slice(1) : path;
     const canonical = (path: string) => {
@@ -452,11 +457,16 @@ export function hostFileSystem(fs: NodeFs): NodeFileSystem {
     };
     return {
         read: (path) => {
+            const file = native(path);
+            let text: string;
             try {
-                return fs.readFileSync(native(path), "utf8");
+                text = fs.readFileSync(file, "utf8");
             } catch {
                 return undefined;
             }
+            // Observer failures are not missing files; keep them outside the catch.
+            onReadFile?.(file);
+            return text;
         },
         isFile: (path) => stat(path)?.isFile() ?? false,
         isDirectory: (path) => stat(path)?.isDirectory() ?? false,
