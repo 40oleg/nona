@@ -23,10 +23,9 @@ concurrency:
 
 jobs:
     route:
-        # Where the Windows job runs: GitHub-hosted windows-latest, or the
-        # owner's self-hosted Windows runner when hosted Windows jobs already
-        # wait in the queue and that runner is online and idle. Forks always
-        # stay hosted (scripts/pick-runner.mjs, docs/ci-runners.md).
+        # Full CI stays on GitHub-hosted runners for every event, including
+        # main and manual runs. The owner's PC is reserved for small targeted
+        # checks (scripts/pick-runner.mjs, docs/ci-runners.md).
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -43,7 +42,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ github.token }}
                   RUNNER_STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
-                  TRUSTED: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && !startsWith(github.head_ref, 'nona/issue-') }}
+                  TRUSTED: "false"
     programs:
         name: programs (${{ matrix.os }})
         needs: route
