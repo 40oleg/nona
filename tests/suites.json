@@ -70,7 +70,12 @@
         },
         "http-agent": {
             "description": "Focused HTTP Agent source and native regressions (GitHub-hosted Windows and Linux check jobs).",
-            "files": ["http-agent-source", "http-agent"]
+            "files": [
+                "http-agent-source",
+                "http-agent",
+                "http-agent-fixtures",
+                "http-agent-retained-control"
+            ]
         },
         "event-target": {
             "description": "EventTarget and event probes (native loader jobs).",

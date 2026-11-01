@@ -110,3 +110,60 @@ without the `gc-stress` label ([#372](https://github.com/40oleg/nona/issues/372)
 
 `main` runs everything under GC stress, so a missing root still fails there
 right after the merge. Local `npm run check` is unchanged.
+
+### HTTP Agent lifetime witnesses
+
+The real loopback programs in [http-agent.test.ts](../tests/http-agent.test.ts)
+request GC stress. The [fixture policy](../tests/helpers/http-agent-policy.ts)
+uses the same effective selection as `generate()`: only the exact environment
+value `NONA_GC_STRESS=off` suppresses requested stress. Explicit non-stress
+controls remain normal builds. The request passed to the compiler is never
+changed to make a stress-labelled witness run normally.
+
+Cleanup watchdogs are distinct from API timing assertions. The original 6000ms
+cleanup guard remains in normal native builds and Node 26 oracles. Effective
+forced-GC witnesses use the existing **180000ms per-program execution bound**
+in [host.ts](../tests/helpers/host.ts), without an earlier cleanup timer. Neither
+the host bound nor the dedicated control workflow's wrapper budget is increased.
+
+This follows matched hosted Windows evidence supplied for
+[run 41312762448, job 124866420275](https://github.com/40oleg/nona/actions/runs/41312762448/job/124866420275):
+GC off passed; GC on reached the 6000ms watchdog in phase `hold`, at elapsed
+42250ms, with phase starts `listen1:84,listen2:15858,hold:28606`. No queued
+request had been created and no `/hold` request had been observed. Head `51e8`
+retained the same fixture as source `fc024e026f6ce2e66f624d37bf6d9d9979886957`.
+Exit 13 / unsettled await followed watchdog cleanup. This establishes a
+startup/watchdog false positive, not a production GC-root defect; the host helper
+already documents very slow initialization when collecting on every allocation.
+
+Each original parameter tuple now runs in its own program: both global limits,
+every assigned-write phase/action, every queued/deferred/socket cancellation,
+peer close/refusal/Agent destruction, CONNECT and upgrade, retained contexts,
+creation failure and idle timeout/unref. This avoids charging multiple real-I/O
+scenarios to one forced-GC program bound. All original exact event, value,
+status, stdout and stderr comparisons remain. Cross-origin non-stress controls
+are retained; idle probes also have explicit non-stress native controls.
+
+The forced-GC idle probes use public request/socket APIs and the Agent's public
+`keepSocketAlive` hook, calling the original hook to preserve its pooling and
+unref decision. Active requests use `timeout: 0`; the hook pauses the idle timer
+until response/close, `setImmediate` and readiness logging finish. They then arm
+the original **200ms idle eviction** or **2000ms unref exit** deadline. The fixture
+never unreferences the client itself. Normal native controls and the Node oracle
+keep the original unstaged fixture. The unref probe's socket timeout follows the
+socket's reference state, so a missing Agent unref still fails the exit probe.
+
+[Small Node/source regressions](../tests/http-agent-fixtures.test.ts) check the
+actual code-generator selection prefix without native compilation, replay the
+measured startup clock, cover each parameter tuple with exact Node transcripts,
+run both idle variants, and show that a deliberately referenced real client
+socket still reaches the unref watchdog. They supplement native coverage.
+
+The dedicated retained-context controls keep their exact test name, source-head
+recording, separate GC-off/on runs on hosted Windows/Linux, retained artifacts
+and positive TAP guard (one actual passing witness; no skips/TODO/cancellation).
+Fresh native proof for these edits remains pending: run those controls and the
+complete Agent witnesses with requested stress on hosted Windows/Linux, followed
+by required full CI. Keep PR #631 draft until that actual evidence is reviewed.
+On the owner's PC, run only small Node/source/doc checks with concurrency 1;
+never run native compilation/execution or a GC campaign for this repair.
