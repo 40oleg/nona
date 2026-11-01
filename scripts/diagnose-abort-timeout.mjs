@@ -5,10 +5,11 @@
 // Hosted, after npm ci and npm run build (run serially; retain all artifacts):
 //   node scripts/diagnose-abort-timeout.mjs --native
 //   node scripts/diagnose-abort-timeout.mjs --native --trace
+//   node scripts/diagnose-abort-timeout.mjs --native --scalar
 //   node scripts/diagnose-abort-timeout.mjs --native --no-stress
 // Run each on main 23c5c90d, head 9fd6dc4e, merge dbeb6c23 and the candidate.
 // .github/workflows/abort-timeout-investigation.yml runs that comparison on PRs.
-// Copy this script into old hosted checkouts; do not transplant selector code.
+// Copy both diagnostic scripts into old hosted checkouts; do not transplant selector code.
 // Upload work/abort-timeout even on failure. Two passing attempts do not resolve
 // #632; retain the original stressed Events suite and PR624's release hold.
 import assert from "node:assert/strict";
@@ -25,14 +26,32 @@ import { availableParallelism, release, setPriority, constants } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
+import {
+    instrumentScalar,
+    parseScalar,
+    scalarFormat,
+} from "./abort-timeout-scalar.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const args = process.argv.slice(2);
 assert(
-    args.every((arg) => ["--native", "--trace", "--no-stress"].includes(arg)),
+    args.every(
+        (arg) =>
+            ["--native", "--trace", "--scalar", "--no-stress"].includes(arg) ||
+            /^--attempts=[1-8]$/u.test(arg),
+    ),
 );
 const native = args.includes("--native");
 const traced = args.includes("--trace");
+const scalar = args.includes("--scalar");
+assert.ok(!(traced && scalar), "Separate scalar and verbose native images");
+const attemptArgs = args.filter((arg) => arg.startsWith("--attempts="));
+assert.ok(attemptArgs.length <= 1);
+assert.ok(
+    native || attemptArgs.length === 0,
+    "Attempt campaigns are hosted-only",
+);
+const attempts = attemptArgs.length ? Number(attemptArgs[0].split("=")[1]) : 2;
 const stress = !args.includes("--no-stress");
 if (native) {
     assert.equal(process.env.GITHUB_ACTIONS, "true");
@@ -42,7 +61,7 @@ if (native) {
 }
 setPriority(0, constants.priority.PRIORITY_BELOW_NORMAL);
 const mode = native
-    ? `${stress ? "stress" : "normal"}-${traced ? "trace" : "plain"}`
+    ? `${stress ? "stress" : "normal"}-${traced ? "trace" : scalar ? "scalar" : "plain"}`
     : "source";
 const outputRoot = join(root, "work", "abort-timeout");
 mkdirSync(outputRoot, { recursive: true });
@@ -58,6 +77,10 @@ save(
     readFileSync(join(root, "tests/events.test.ts")),
 );
 save("probe.mjs", readFileSync(fileURLToPath(import.meta.url)));
+save(
+    "abort-timeout-scalar.mjs",
+    readFileSync(new URL("./abort-timeout-scalar.mjs", import.meta.url)),
+);
 const body = testSource.match(
     /"timeout cancellation fires while an ordinary timer remains active",\s*`([^`]+)`/u,
 )?.[1];
@@ -143,7 +166,10 @@ __nonaPromiseDrainJobs = (function (loop) {
     );
 }
 const instrumented = instrument(timers);
+const scalarTimers = instrumentScalar(timers);
 save("timers.traced.js", instrumented);
+save("timers.scalar.js", scalarTimers);
+json("scalar-format.json", scalarFormat);
 json("trace-format.json", {
     width: 12,
     fields: [
@@ -199,7 +225,10 @@ const metadata = {
         ].map((key) => [key, process.env[key] ?? null]),
     ),
     native,
+    mode,
     traced,
+    scalar,
+    attempts,
     requestedGcStress: stress,
     linking:
         "compileModuleToIR -> generate (default fullRuntimeLink) -> linkHost",
@@ -222,9 +251,16 @@ for (const path of [
 ])
     metadata.hashes[path] = hash(read(path));
 metadata.hashes.fixture = hash(source);
+metadata.hashes.probe = hash(readFileSync(fileURLToPath(import.meta.url)));
+metadata.hashes.scalarTooling = hash(
+    readFileSync(new URL("./abort-timeout-scalar.mjs", import.meta.url)),
+);
+metadata.hashes.effectiveTimers = hash(
+    traced ? instrumented : scalar ? scalarTimers : timers,
+);
 json("metadata.json", metadata);
 
-function execute(name, executable, argv, timeout) {
+function execute(name, executable, argv, timeout, required = true) {
     const result = spawnSync(executable, argv, {
         cwd: output,
         encoding: "utf8",
@@ -239,16 +275,19 @@ function execute(name, executable, argv, timeout) {
         signal: result.signal,
         error: result.error?.message ?? null,
     });
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 0, result.stderr);
-    return result.stdout;
+    if (required) {
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(result.stderr, "");
+    }
+    return result;
 }
 const oracle = execute(
     "node-original",
     process.execPath,
     [join(output, "main.mjs")],
     10000,
-);
+).stdout;
 assert.equal(oracle, "timeout TimeoutError\nlive true false\n");
 if (!native) {
     // Supplementary control: no timing assertions in the original are changed.
@@ -262,7 +301,7 @@ if (!native) {
         process.execPath,
         [join(output, "all-due.mjs")],
         10000,
-    );
+    ).stdout;
     assert.equal(
         allDueOracle,
         "timeout TimeoutError\nlive true false\nunexpected\n",
@@ -319,17 +358,21 @@ if (!native) {
     const pattern = /^export const runtimeTimers = ("(?:[^"\\]|\\.)*");$/mu;
     assert.equal(JSON.parse(generated.match(pattern)?.[1] ?? "null"), timers);
     try {
-        if (traced)
+        if (traced || scalar)
             writeFileSync(
                 generatedPath,
                 generated.replace(
                     pattern,
                     () =>
                         "export const runtimeTimers = " +
-                        JSON.stringify(instrumented) +
+                        JSON.stringify(traced ? instrumented : scalarTimers) +
                         ";",
                 ),
             );
+        const effectiveGenerated = readFileSync(generatedPath, "utf8");
+        save("sources.effective.generated.js", effectiveGenerated);
+        metadata.hashes.effectiveGenerated = hash(effectiveGenerated);
+        json("metadata.json", metadata);
         const { compileModuleToIR } = await import(
             pathToFileURL(join(root, "dist/src/compiler.js"))
         );
@@ -353,23 +396,74 @@ if (!native) {
         metadata.hashes.image = hash(image);
         json("metadata.json", metadata);
         const matches = [];
+        const outcomes = [];
+        const report = () =>
+            json("comparison.json", {
+                requestedAttempts: attempts,
+                completedAttempts: outcomes.length,
+                matchesOracle: matches,
+                outcomes,
+                hold: "PR624 remains held; PR633 stays draft Part of #632 until hosted causal and failing-versus-fixed proof is reviewed",
+            });
+        report();
         // Bounded independent process attempts; keep every mismatch, no retries.
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            const stdout = execute("native-" + attempt, executable, [], 180000);
-            matches.push(
-                stdout
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            const result = execute(
+                "native-" + attempt,
+                executable,
+                [],
+                180000,
+                false,
+            );
+            const stdout = result.stdout ?? "";
+            let actual = stdout;
+            let scalarError = null;
+            let findings = [];
+            if (scalar) {
+                try {
+                    const parsed = parseScalar(stdout);
+                    actual = parsed.output;
+                    findings = parsed.findings;
+                    json("native-" + attempt + ".scalar.json", parsed);
+                } catch (error) {
+                    scalarError = error.message;
+                }
+            } else if (traced) {
+                actual = stdout
                     .split("\n")
                     .filter((line) => !line.startsWith("NONA_TIMEOUT_TRACE "))
-                    .join("\n") === oracle,
-            );
+                    .join("\n");
+            }
+            const matchesOracle =
+                result.status === 0 &&
+                !result.signal &&
+                !result.error &&
+                result.stderr === "" &&
+                actual === oracle &&
+                scalarError === null &&
+                findings.length === 0;
+            matches.push(matchesOracle);
+            outcomes.push({
+                attempt,
+                status: result.status,
+                signal: result.signal,
+                error: result.error?.message ?? null,
+                scalarError,
+                findings,
+                matchesOracle,
+            });
+            report();
         }
-        json("comparison.json", {
-            matchesOracle: matches,
-            hold: "PR624 remains held until the coordinator resolves #632 with hosted failing-versus-fixed evidence",
-        });
         if (matches.some((match) => !match)) process.exitCode = 1;
+    } catch (error) {
+        json("probe-error.json", {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+        });
+        throw error;
     } finally {
-        if (traced) writeFileSync(generatedPath, generated);
+        if (traced || scalar) writeFileSync(generatedPath, generated);
     }
 }
 console.log("Retained diagnostics:", output);

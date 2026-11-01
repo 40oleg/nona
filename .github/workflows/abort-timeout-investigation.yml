@@ -7,6 +7,8 @@ on:
         paths:
             - .github/workflows/abort-timeout-investigation.yml
             - scripts/diagnose-abort-timeout.mjs
+            - scripts/abort-timeout-scalar.mjs
+            - tests/events-timeout-scalar-source.test.mjs
             - src/**
             - tests/events.test.ts
 permissions:
@@ -40,6 +42,9 @@ jobs:
         env:
             NONA_TEST_CONCURRENCY: "1"
             NONA_GC_STRESS: "on"
+            # Optional bounded hosted campaign: 1..8, always retain every outcome.
+            # Applies equally to original/plain and scalar; other modes stay at 2.
+            ABORT_TIMEOUT_ATTEMPTS: "2"
         defaults:
             run:
                 working-directory: source
@@ -56,15 +61,22 @@ jobs:
                   node-version: "26.9.0"
                   cache: npm
                   cache-dependency-path: source/package-lock.json
-            - name: Copy only the probe into the exact source checkout
+            - name: Copy only diagnostic tooling and controls into the exact source checkout
               run: >-
-                  node -e "require('node:fs').copyFileSync('../tooling/scripts/diagnose-abort-timeout.mjs','scripts/diagnose-abort-timeout.mjs')"
+                  node -e "for(const p of ['scripts/diagnose-abort-timeout.mjs','scripts/abort-timeout-scalar.mjs','tests/events-timeout-scalar-source.test.mjs']) require('node:fs').copyFileSync('../tooling/'+p,p)"
             - run: npm ci
+            - name: Controlled source-clock and scalar schema regressions
+              run: |
+                  node -e "require('node:fs').mkdirSync('work/abort-timeout',{recursive:true})"
+                  node --test --test-concurrency=1 --test-reporter=tap --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=work/abort-timeout/scalar-source.tap tests/events-timeout-scalar-source.test.mjs
             - id: build
               run: npm run build
-            - name: Original module fixture, full runtime, GC stress (two retained processes)
+            - name: Original module fixture, full runtime, GC stress (bounded retained processes)
               id: plain
-              run: node scripts/diagnose-abort-timeout.mjs --native
+              run: node scripts/diagnose-abort-timeout.mjs --native --attempts=${{ env.ABORT_TIMEOUT_ATTEMPTS }}
+            - name: Supplementary scalar timer admissions, GC stress (bounded retained processes)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --scalar --attempts=${{ env.ABORT_TIMEOUT_ATTEMPTS }}
             - name: Buffered timer liveness trace, GC stress (two retained processes)
               if: ${{ !cancelled() && steps.build.outcome == 'success' }}
               run: node scripts/diagnose-abort-timeout.mjs --native --trace
