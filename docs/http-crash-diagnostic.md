@@ -9,11 +9,28 @@ proof that #602 is fixed.
 
 ## Running and retaining evidence
 
-Run the **HTTP crash diagnostic** workflow manually on the implementation ref.
-It uses `windows-2025` directly, checks `RUNNER_ENVIRONMENT=github-hosted`, and
-uses Node 26.9.0. There is no self-hosted fallback. `node scripts/http-crash.mjs`
-also rejects local execution. No workload runs on pushes or pull requests.
-Auto-merge and auto-release remain disabled.
+Publish the reviewed update of existing **draft PR630** with `full-ci` already
+present. The **HTTP crash diagnostic** workflow accepts `pull_request` opened,
+reopened, synchronize and ready-for-review events only for PR630 when both
+repositories are `40oleg/nona` and that label is present. Draft status does not
+block the job. Other PRs cannot start this campaign. Parent review, publication
+and label readback remain with the coordinator.
+
+The workflow retains manual `workflow_dispatch` for a registered workflow.
+The PR event path permits the first launch while the workflow is absent from
+default `main`; it does not require merging this diagnostic PR first.
+The checkout explicitly selects the exact PR head SHA (the selected event SHA
+for manual runs), rather than GitHub's synthetic PR merge checkout. See
+[GitHub's PR event and checkout semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request).
+Full history is fetched, credentials are not persisted, and Git must verify
+`47193961f3bf9b69c0177d5522de3db1069447df` as an ancestor before any build or trial,
+including on manual runs. PR and manual campaigns share one concurrency group;
+each run retains the 35-minute job timeout.
+
+It uses `windows-2025` directly, checks both
+`RUNNER_ENVIRONMENT=github-hosted` and Windows identity, and uses Node 26.9.0.
+There is no self-hosted fallback. `node scripts/http-crash.mjs` also rejects
+local execution. Auto-merge and auto-release remain disabled.
 
 All trials and compiler children run serially. The campaign stops after twenty
 minutes, on cancellation, an infrastructure failure, or the first native fault.
@@ -32,6 +49,11 @@ Tests of the driver use only tiny Node children and one client.
 
 The workflow always uploads `work/http-crash/`, including after failures:
 
+- `provenance.json`: workflow SHA/ref, event SHA/ref/action, PR head/draft state,
+  actual checkout head/tree, Git's pinned #601 ancestor result, runner identity
+  and accepted #601 control references. Rejected provenance is retained too.
+  Event/workflow SHAs may differ from the source head; they are recorded
+  separately. A mismatch or unverifiable dependency fails before the campaign.
 - `runner.json` and `matrix.json`: actual runner/image version, source SHA,
   Node version, complete planned trials, completed counts, verdicts and next
   experiment. The initial matrix is saved before compilation, then after each
@@ -118,10 +140,23 @@ preserving the evidence; no green run establishes a fix.
 
 ## Results and next experiment (2026-11-01)
 
-Base source inspected: `69efefd6ea2c457db3bb0a1f8ef22f51305b3955` (v0.34.0).
-Local validation covers the diagnostic driver's tiny Node fixtures, matrix,
+The original base inspected was `69efefd6ea2c457db3bb0a1f8ef22f51305b3955`
+(v0.34.0). The current diagnostic branch **explicitly includes #601**, pinned
+at `47193961f3bf9b69c0177d5522de3db1069447df`, through parent-provided local
+merge `594c92467b87c58a3a53967b3d35b499e13b24a4`. This stack is authorized by
+[coordinator claim 6562051439](https://github.com/40oleg/nona/issues/602#issuecomment-6562051439).
+The separately accepted Windows/Linux focused #601 controls are recorded in
+[PR622's acceptance note](https://github.com/40oleg/nona/pull/622#issuecomment-6562034633)
+and [hosted run 41314077453](https://github.com/40oleg/nona/actions/runs/41314077453).
+Their references, including the Windows artifact ID/hash, accompany every
+diagnostic provenance report. These controls do not establish historical crash
+repair. PR630 remains draft, `Part of #602` and **Depends on #622**; #601 final
+acceptance, #622 merge, final main integration and current-head full CI still
+gate PR630 merge.
+
+Earlier local validation covered the diagnostic driver's tiny Node fixtures, matrix,
 error classification, partial logs, child deadlines/cancellation and cleanup.
-One tiny native instrumentation test on win32-x64 uses one connection, a
+One earlier tiny native instrumentation test on win32-x64 used one connection, a
 64-byte response and a 200 ms observation window. Its `queued-timeout` end
 event contains `timeout: 1000` with `timeoutSource: "socket._timeout"`. The
 same regression fails with the pre-review fixture because the timeout is
@@ -132,12 +167,10 @@ Hosted trial results: **0/57 executed; all pending** (0/19 Node controls,
 the hosted matrix or establish a completed non-reproduction result.
 No crash mechanism or repair is claimed. Linux remains untested for this fault.
 
-### Hosted launch blocker verified during review
+### Hosted launch repair awaiting publication and proof
 
-The published implementation branch `nona/issue-602` points to
-`50843f94c12fabd5826989704dc483eab62011a6`. GitHub lists zero Actions runs at
-that SHA. The diagnostic workflow is absent from the repository's registered
-Actions workflows. On 2026-11-01, this launch attempt:
+The earlier dispatch-only implementation could not bootstrap: the workflow was
+absent from default `main`. On 2026-11-01, this launch attempt:
 
 ```sh
 gh workflow run http-crash-diagnostic.yml --repo 40oleg/nona --ref nona/issue-602
@@ -149,20 +182,30 @@ returned exit status 1 and:
 HTTP 404: workflow http-crash-diagnostic.yml not found on the default branch (https://api.github.com/repos/40oleg/nona/actions/workflows/http-crash-diagnostic.yml)
 ```
 
-No run, hosted runner, trial artifacts or fault evidence was created. The
-review task prohibits pushing or opening a PR, so it cannot register this new
-workflow on the default branch or publish the revised instrumentation. The
-blocking hosted-evidence finding remains unresolved. Once the workflow is
-available on the default branch and the revised implementation is published,
-dispatch it at that implementation ref, verify the recorded SHA and hosted
-runner identity, then retain the run/artifact links, exact completed/pending
-counts and verdicts here. Keep #602 open in the meantime.
+No run, hosted runner, trial artifacts or fault evidence was created by that
+attempt. The PR630/full-ci trigger repairs this launch path in source; actual
+hosted execution remains pending coordinator review and publication. The remote
+PR head at this review was `d0415dda2f2d4ce48dd5193deb7131b0054ec94d`; the
+included #601 stack and launch repair have not yet been published. After the
+parent's normal push, verify the hosted run's workflow/event/source identities,
+ancestor check and runner identity, then retain run/artifact links, exact
+completed/pending counts and verdicts here. Keep #602 open.
 
-Validation commands: `npm run build`,
-`node --test --test-concurrency=1 dist/tests/http-crash-diagnostic.test.js dist/tests/suites.test.js`,
-`node site/scripts/sync-docs.mjs` followed by `npm run check:doc-links`, plus
-Prettier checks on changed supported files and PowerShell syntax parsing.
-These validate the harness; WER capture and hosted crash trials remain pending.
+Launch-repair validation is source-only, with Node children at BelowNormal and
+test concurrency one:
+
+```sh
+node --experimental-strip-types --test --test-concurrency=1 tests/http-crash-workflow.test.ts
+```
+
+The pre-fix failure is retained in `work/review/602-launch-red.txt` and the
+post-fix result in `work/review/602-launch-green.txt` for parent review. This
+separate test never imports the compiler or native diagnostic test module.
+Changed-file Prettier checks and `node site/scripts/sync-docs.mjs` followed by
+`npm run check:doc-links` check documentation (verify the generated target is
+inside this worktree with no junctions before syncing). No local build, native
+acceptance test, load or campaign is part of the launch repair. WER capture,
+all 57 trials and current integrated-head CI remain hosted and pending.
 
 The next experiment is the first hosted matrix at the implementation SHA,
 retaining raw artifacts regardless of outcome. If it produces no native fault,

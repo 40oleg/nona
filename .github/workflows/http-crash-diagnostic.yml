@@ -1,36 +1,53 @@
 name: HTTP crash diagnostic
 on:
     workflow_dispatch:
+    pull_request:
+        types: [opened, reopened, synchronize, ready_for_review]
 permissions:
     contents: read
-concurrency:
-    group: http-crash-diagnostic-${{ github.ref }}
-    cancel-in-progress: false
 env:
     NODE_VERSION: "26.9.0"
     NONA_AUTO_MERGE: "false"
     NONA_AUTO_RELEASE: "false"
 jobs:
     windows:
+        if: >-
+            github.repository == '40oleg/nona' &&
+            (github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'pull_request' && github.event.number == 630 &&
+            github.event.pull_request.base.repo.full_name == '40oleg/nona' &&
+            github.event.pull_request.head.repo.full_name == '40oleg/nona' &&
+            contains(github.event.pull_request.labels.*.name, 'full-ci')))
         # Deliberately bypass pick-runner.mjs: never use the owner's PC.
         runs-on: windows-2025
+        concurrency:
+            group: http-crash-diagnostic
+            cancel-in-progress: false
         timeout-minutes: 35
         steps:
             - uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
             - name: Verify hosted identity
               shell: pwsh
               run: |
                   if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'Hosted runner required' }
+                  if ($env:RUNNER_OS -ne 'Windows') { throw 'Hosted Windows required' }
                   New-Item -ItemType Directory -Path work/http-crash -Force | Out-Null
                   @{ name=$env:RUNNER_NAME; environment=$env:RUNNER_ENVIRONMENT; image=$env:ImageOS; imageVersion=$env:ImageVersion; os=[Environment]::OSVersion.VersionString } | ConvertTo-Json | Set-Content work/http-crash/runner.json
             - uses: actions/setup-node@v4
               with:
                   node-version: ${{ env.NODE_VERSION }}
                   cache: npm
+            - name: Verify exact source and pinned dependency provenance
+              run: node scripts/http-crash-provenance.mjs
             - run: npm ci
             - run: npm run build
             - name: Test diagnostic lifecycle
-              run: node --test --test-concurrency=1 dist/tests/http-crash-diagnostic.test.js
+              run: node --test --test-concurrency=1 dist/tests/http-crash-workflow.test.js dist/tests/http-crash-diagnostic.test.js
             - name: Install Windows debugging tools if absent
               shell: pwsh
               timeout-minutes: 8

@@ -406,6 +406,7 @@
                 "cancel-pr-runs",
                 "run-shard",
                 "http-crash-diagnostic",
+                "http-crash-workflow",
                 "ci-changes"
             ]
         }
