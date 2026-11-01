@@ -49,11 +49,13 @@ jobs:
               env:
                   NONA_SOAK_MINUTES: ${{ github.event.inputs.minutes }}
                   NONA_SOAK_CONNECTIONS: ${{ github.event.inputs.connections }}
+            - run: node scripts/http-soak-summary.mjs soak-report
+              if: always()
+              env:
+                  SOAK_JOB_STATUS: ${{ job.status }}
             - uses: actions/upload-artifact@v4
               if: always()
               with:
                   name: soak-report
                   path: soak-report/
-            - run: cat soak-report/http-soak.md >> $GITHUB_STEP_SUMMARY
-              if: always()
-              shell: bash
+                  retention-days: 30

@@ -78,6 +78,15 @@ measurement; no Windows load generator is part of the repository.
 
 ## HTTP soak test (`scripts/http-soak.mjs`)
 
+Load commands below belong on GitHub-hosted runners under the current owner
+constraints. On the owner's PC use only
+`node --test --test-concurrency=1 scripts/http-soak.test.mjs` at inherited
+below-normal priority. The separate `http-soak-control.yml` workflow runs short
+Node integration/failure fixtures on hosted Windows/Linux, with no native build.
+Those fixtures skip on local/self-hosted machines and retain failure evidence.
+A Node control or short smoke cannot establish native three-hour acceptance;
+the full native baseline still waits for #601, #602 and #615.
+
 ```
 npm run build
 npm run soak:http -- --smoke              # 5 minutes
