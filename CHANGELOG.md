@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Development
+
+- Add a dedicated GitHub-hosted public-compile semantic replay lane with exact T01/T02 inputs, effect traces, manifest samples, raw failure reports and a historical selector-omission control. Native acceptance and measured replay budget require real Windows/Linux reports. ([#617](https://github.com/40oleg/nona/issues/617))
+
+### Fixes
+
+- **Optional built-ins in parameter defaults survive body shadowing.** Body `var`, `let` and function declarations no longer hide `Proxy` or `RegExp` references in parameter initializers from runtime selection. Actual parameter bindings still shadow the built-ins. ([#613](https://github.com/40oleg/nona/issues/613))
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
