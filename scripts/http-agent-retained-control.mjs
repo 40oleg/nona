@@ -12,6 +12,7 @@ import {
 import { release, version } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { selectedExactlyOnce } from "./http-agent-retained-evidence.mjs";
 
 const gcMode = process.argv[2];
 assert.ok(gcMode === "off" || gcMode === "on", "Expected GC mode off or on");
@@ -107,9 +108,8 @@ Object.assign(evidence, {
     error: result.error?.message ?? null,
 });
 const tap = readFileSync(tapPath, "utf8");
-// A renamed or missing case must not silently become a passing zero-test run.
-evidence.selectedExactlyOnce =
-    /^# tests 1\r?$/m.test(tap) && /^# skipped 0\r?$/m.test(tap);
+// Require the exact witness to pass, rather than merely register as a test.
+evidence.selectedExactlyOnce = selectedExactlyOnce(tap, testName);
 writeFileSync(evidencePath, JSON.stringify(evidence, null, 2) + "\n");
 process.stdout.write(tap);
 process.stderr.write(readFileSync(stderrPath));
