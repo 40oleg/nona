@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import {
     selectNativeConstructPrototype,
@@ -254,11 +255,25 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 a.mov("rax", -1);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "be", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "be",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.mov("rax", 0x7fffffff);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.cvttsd2si("rax", "xmm0");
                 a.jmp(ready);
                 a.label(zero);
@@ -291,7 +306,14 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 a.load("rax", slot(72));
                 a.load("r10", { base: "rdx", disp: DataViewLayout.byteLength });
                 a.cmp("rax", "r10");
-                failIf(a, "ae", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "ae",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.load("r10", { base: "rdx", disp: DataViewLayout.byteOffset });
                 a.add("rax", "r10");
                 a.load("rdx", { base: "rdx", disp: DataViewLayout.buffer });
@@ -386,11 +408,25 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 a.mov("rax", -1);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "be", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "be",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.mov("rax", 0x7fffffff);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.cvttsd2si("rax", "xmm0");
                 a.jmp(ready);
                 a.label(zero);
@@ -448,11 +484,25 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", { base: "rdx", disp: DataViewLayout.byteLength });
                 a.cmp("rax", width);
-                failIf(a, "b", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "b",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.sub("rax", width);
                 a.load("r10", slot(72));
                 a.cmp("r10", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.load("rax", { base: "rdx", disp: DataViewLayout.byteOffset });
                 a.add("rax", "r10");
                 a.load("rdx", { base: "rdx", disp: DataViewLayout.buffer });
@@ -583,11 +633,25 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 a.mov("rax", -1);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "be", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "be",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.mov("rax", 0x7fffffff);
                 a.cvtsi2sd("xmm1", "rax");
                 a.ucomisd("xmm0", "xmm1");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.cvttsd2si("rax", "xmm0");
                 a.jmp(ready);
                 a.label(zero);
@@ -627,11 +691,25 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 failIf(a, "ne", "rt.throwTypeError");
                 a.load("rax", { base: "rdx", disp: DataViewLayout.byteLength });
                 a.cmp("rax", 8);
-                failIf(a, "b", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "b",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.sub("rax", 8);
                 a.load("r10", slot(72));
                 a.cmp("r10", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Offset is outside the bounds of the DataView",
+                    ),
+                );
                 a.load("rax", { base: "rdx", disp: DataViewLayout.byteOffset });
                 a.add("rax", "r10");
                 a.load("rdx", { base: "rdx", disp: DataViewLayout.buffer });
@@ -773,11 +851,25 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
             a.mov("rax", -1);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "be", "rt.throwRangeError");
+            failIf(
+                a,
+                "be",
+                rangeErrorThrower(
+                    b,
+                    "Start offset is outside the bounds of the buffer",
+                ),
+            );
             a.mov("rax", 0x7fffffff);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "a", "rt.throwRangeError");
+            failIf(
+                a,
+                "a",
+                rangeErrorThrower(
+                    b,
+                    "Start offset is outside the bounds of the buffer",
+                ),
+            );
             a.cvttsd2si("rax", "xmm0");
             a.store(slot(72), "rax");
             a.label(zero);
@@ -791,7 +883,14 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
             a.mov("rax", "r11");
             a.load("r10", slot(72));
             a.cmp("r10", "rax");
-            failIf(a, "a", "rt.throwRangeError");
+            failIf(
+                a,
+                "a",
+                rangeErrorThrower(
+                    b,
+                    "Start offset is outside the bounds of the buffer",
+                ),
+            );
             a.sub("rax", "r10");
             a.store(slot(80), "rax");
             a.load("rax", slot(48));
@@ -819,15 +918,15 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
             a.mov("rax", -1);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "be", "rt.throwRangeError");
+            failIf(a, "be", rangeErrorThrower(b, "Invalid DataView length"));
             a.mov("rax", 0x7fffffff);
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "a", "rt.throwRangeError");
+            failIf(a, "a", rangeErrorThrower(b, "Invalid DataView length"));
             a.cvttsd2si("rax", "xmm0");
             a.load("r10", slot(80));
             a.cmp("rax", "r10");
-            failIf(a, "a", "rt.throwRangeError");
+            failIf(a, "a", rangeErrorThrower(b, "Invalid DataView length"));
             a.store(slot(80), "rax");
             a.label(haveLength);
             a.load("r10", slot(112));
@@ -881,7 +980,14 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 emitBufferLength(a, "r10", "rax");
                 a.load("r11", slot(72));
                 a.cmp("r11", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(
+                    a,
+                    "a",
+                    rangeErrorThrower(
+                        b,
+                        "Start offset is outside the bounds of the buffer",
+                    ),
+                );
                 a.load("r11", slot(80));
                 a.store(slot(136), "r11");
                 a.load("r11", slot(128));
@@ -904,7 +1010,7 @@ export function emitDataView(b: RuntimeBuilder, float16 = true): void {
                 a.load("r10", slot(80));
                 a.add("r11", "r10");
                 a.cmp("r11", "rax");
-                failIf(a, "a", "rt.throwRangeError");
+                failIf(a, "a", rangeErrorThrower(b, "Invalid DataView length"));
                 a.label(checked);
             }
             a.mov("rcx", DataViewLayout.size);

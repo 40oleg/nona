@@ -62,15 +62,19 @@ export const ClosureFlags = {
 } as const;
 /**
  * argc, the argument area's displacement, the callee and receiver entries,
- * then one entry per argument; a construct site (rt.constructSite) has one
- * more entry, new.target, or SiteNone when the callee is new.target.
+ * the message entry, then one entry per argument; a construct site
+ * (rt.constructSite) has one more entry, new.target, or SiteNone when the
+ * callee is new.target. The message entry names the TypeError message Value
+ * of a call whose callee is not callable (`o.foo is not a function`, #504),
+ * or is SiteNone for the generic text; only rt.invokeFromSite reads it.
  */
 export const CallSiteDescriptor = {
     argc: 0,
     area: 4,
     callee: 8,
     receiver: 12,
-    entries: 16,
+    message: 16,
+    entries: 20,
 } as const;
 const F = ClosureFlags;
 /** rt.newClosure entries: the flags each can see (`never`) and always sees (`always`). */
@@ -146,6 +150,40 @@ export function writeSiteEntry(
     if ((disp & 15) !== 0)
         throw new Error("Site slots must be 16-byte aligned");
     view.setInt32(offset, disp, true);
+}
+
+/**
+ * The descriptor of a general call site: `area` is the argument area's
+ * displacement; `message` is absent for the generic not-callable text and
+ * `newTarget` is undefined for a site without one, null when it is the callee.
+ */
+export function callSiteDescriptor(
+    area: number,
+    callee: Mem,
+    receiver: Mem,
+    message: Mem | undefined,
+    args: Mem[],
+    newTarget?: Mem | null,
+): { bytes: Uint8Array; fixups: Fixup[] } {
+    const D = CallSiteDescriptor,
+        construct = newTarget !== undefined,
+        bytes = new Uint8Array(
+            D.entries + 4 * args.length + (construct ? 4 : 0),
+        ),
+        view = new DataView(bytes.buffer),
+        fixups: Fixup[] = [],
+        entry = (offset: number, mem: Mem | null | undefined) =>
+            mem
+                ? writeSiteEntry(view, fixups, offset, mem)
+                : view.setInt32(offset, SiteNone, true);
+    view.setUint32(D.argc, args.length, true);
+    view.setInt32(D.area, area, true);
+    entry(D.callee, callee);
+    entry(D.receiver, receiver);
+    entry(D.message, message);
+    args.forEach((mem, i) => entry(D.entries + 4 * i, mem));
+    if (construct) entry(D.entries + 4 * args.length, newTarget);
+    return { bytes, fixups };
 }
 
 /**
@@ -418,6 +456,24 @@ export function emitCallSites(b: RuntimeBuilder): void {
             a.call("rt.initFunctionMetadata");
             ops.finish();
         });
+    // RCX: the CallSiteDescriptor of a call whose callee is not callable
+    // (rt.invokeFromSite). Throws the TypeError its message entry names, or the
+    // generic one.
+    b.fn("rt.throwSiteNotCallable", 40, (a) => {
+        const generic = a.unique("generic");
+        a.loadSigned32("rax", {
+            base: "rcx",
+            disp: CallSiteDescriptor.message,
+        });
+        a.cmp("rax", SiteNone);
+        a.jcc("e", generic);
+        a.add("rax", "rcx");
+        a.add("rax", CallSiteDescriptor.message + 3);
+        a.mov("rcx", "rax");
+        a.call("rt.throwNotCallableMessage");
+        a.label(generic);
+        a.call("rt.throwNotCallable");
+    });
     // RCX result Value*, RDX CallSiteDescriptor: copies the arguments into the
     // caller's argument area, stores the receiver and (construct) new.target
     // pointers into the caller's outgoing fifth and sixth argument slots and
@@ -427,9 +483,11 @@ export function emitCallSites(b: RuntimeBuilder): void {
     // covers the operands. Sites with up to unrolledArguments arguments use a
     // stub for their count (callSiteStub), which keeps everything in registers;
     // the general one keeps the result and argument area pointers in the shadow
-    // space the caller allocated for this call.
+    // space the caller allocated for this call. An invoke stub passes the
+    // descriptor in R11 to rt.invokeFromSite, which reads its message entry
+    // when the callee is not callable.
     for (const [kind, target] of [
-        ["invoke", "rt.invoke"],
+        ["invoke", "rt.invokeFromSite"],
         ["construct", "rt.invokeConstruct"],
         ["tail", "rt.prepareTailCall"],
     ] as const) {
@@ -515,6 +573,7 @@ export function emitCallSites(b: RuntimeBuilder): void {
                     a.load("r9", area);
                     a.load("rcx", result);
                 } else a.mov("r8", count);
+                if (kind === "invoke") a.mov("r11", "rdx");
                 a.mov("rdx", "rax");
                 a.tailJump(target);
                 ops.finish(false);

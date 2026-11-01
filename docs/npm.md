@@ -194,9 +194,10 @@ Function` or `eval` from strings built at run time fail when they do so:
   report a Node.js version (see [process](process.md)). Packages that refuse
   to run below a Node.js version (`yargs-parser` 22) stop with their own error,
   unless they have a way to turn the check off (see [yargs](#tested-packages)).
-- **Brotli and TLS servers.** Responses with `Content-Encoding: br`, and
-  `https.createServer` or `tls.createServer`, fail with
-  `ERR_NONA_UNSUPPORTED`; the TLS client is TLS 1.3 only.
+- **Brotli and TLS servers.** The Brotli functions of `node:zlib` throw
+  `ERR_NONA_UNSUPPORTED`; `tls.createServer` throws `ERR_METHOD_NOT_IMPLEMENTED`
+  and `https.createServer` `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`; the TLS
+  client is TLS 1.3 only.
 - **Native add-ons** (`.node` files, `node-gyp`, N-API) cannot be loaded.
 - **Dynamic `require`.** `require(variable)` only finds modules that the same
   file also requires with a literal string; `require.extensions` and

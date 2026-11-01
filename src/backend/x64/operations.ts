@@ -32,6 +32,7 @@ import {
 } from "./integer-ops.js";
 import { emitSwitchTable } from "./switch-table.js";
 import { emitFastSite, type SiteFrame } from "./method-sites.js";
+import { emitNameCheck } from "./name-checks.js";
 import { emitStringIndexSite } from "./string-index-site.js";
 import type { Assembler, Mem, Condition, Reg, Xmm } from "./assembler.js";
 import type { NamedFragment, UnwindFunction } from "../machine/model.js";
@@ -88,8 +89,7 @@ import { HasCacheLayout } from "../../runtime/has-cache.js";
 import {
     ClosureDescriptor as CD,
     ClosureFlags as CF,
-    CallSiteDescriptor as SD,
-    SiteNone,
+    callSiteDescriptor,
     callSiteStub,
     closureStub,
     writeSiteEntry,
@@ -2014,7 +2014,19 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                             section: ".data",
                             alignment: 8,
                             bytes: new Uint8Array(NewCacheLayout.size),
-                            fixups: [],
+                            fixups:
+                                op.notConstructorMessage === undefined
+                                    ? []
+                                    : [
+                                          {
+                                              offset: NewCacheLayout.message,
+                                              kind: "va64",
+                                              target: constantValue(
+                                                  op.notConstructorMessage,
+                                              ),
+                                              addend: 0,
+                                          },
+                                      ],
                             symbols: {},
                         });
                         pointer("rcx", op.dest);
@@ -2113,43 +2125,30 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     ) => {
                         // rt.invoke and rt.prepareTailCall take no new.target; a construct
                         // site ends with its new.target entry (SiteNone: the callee).
+                        // Only an invoke site names the message of a callee that is not callable.
                         const construct = !!op.construct && !op.tail;
-                        const operands = [
+                        const message =
+                            op.notCallableMessage !== undefined &&
+                            !op.construct &&
+                            !op.tail
+                                ? op.notCallableMessage
+                                : undefined;
+                        const { bytes, fixups } = callSiteDescriptor(
+                            argsBase - frameBias,
                             value(op.callee),
                             op.receiver === undefined
                                 ? { rip: "rt.undefinedValue" }
                                 : value(op.receiver),
-                            ...op.arguments.map((n) => value(n)),
-                        ];
-                        const bytes = new Uint8Array(
-                                SD.callee +
-                                    4 * operands.length +
-                                    (construct ? 4 : 0),
-                            ),
-                            view = new DataView(bytes.buffer),
-                            fixups: NamedFragment["fixups"] = [];
-                        view.setUint32(SD.argc, op.arguments.length, true);
-                        view.setInt32(SD.area, argsBase - frameBias, true);
-                        operands.forEach((mem, i) =>
-                            writeSiteEntry(
-                                view,
-                                fixups,
-                                SD.callee + 4 * i,
-                                mem,
-                            ),
+                            message === undefined
+                                ? undefined
+                                : { rip: constantValue(message) },
+                            op.arguments.map((n) => value(n)),
+                            !construct
+                                ? undefined
+                                : op.newTarget === undefined
+                                  ? null
+                                  : value(op.newTarget),
                         );
-                        if (construct) {
-                            const at = SD.callee + 4 * operands.length;
-                            if (op.newTarget === undefined)
-                                view.setInt32(at, SiteNone, true);
-                            else
-                                writeSiteEntry(
-                                    view,
-                                    fixups,
-                                    at,
-                                    value(op.newTarget),
-                                );
-                        }
                         const site = "site." + fragments.length;
                         fragments.push({
                             name: site,
@@ -2570,14 +2569,8 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.store(payload(op.dest), "rax");
                     break;
                 case "checkInitialized":
-                    a.load("rax", value(op.slot));
-                    a.cmp("rax", 255);
-                    failIf(a, "e", "rt.throwReferenceError");
-                    break;
                 case "checkResolvable":
-                    a.load("rax", payload(op.slot));
-                    a.test("rax", "rax");
-                    failIf(a, "e", "rt.throwReferenceError");
+                    emitNameCheck(a, op, literal, value, payload);
                     break;
                 case "nullishDestructure":
                     pointer("rcx", op.source);
@@ -2586,7 +2579,10 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                     a.call("rt.throwNullishDestructure");
                     break;
                 case "immutableWrite":
-                    a.call("rt.throw" + (op.error ?? "TypeError"));
+                    if (op.message !== undefined) {
+                        a.lea("rcx", { rip: literal(op.message) });
+                        a.call("rt.throwTypeErrorText");
+                    } else a.call("rt.throw" + (op.error ?? "TypeError"));
                     break;
                 case "constant": {
                     if (staticConstant(op.dest)) break;
@@ -2643,8 +2639,15 @@ export function emitFunction(context: EmitContext, fn: FunctionIR): void {
                         });
                         a.and("rax", 1);
                         a.test("rax", "rax");
-                        if (op.strict) failIf(a, "e", "rt.throwTypeError");
-                        else a.jcc("e", done);
+                        if (op.strict) {
+                            const writable = a.unique("globalWritable");
+                            a.jcc("ne", writable);
+                            a.lea("rcx", {
+                                rip: literal(globalProperties[alias]!.name),
+                            });
+                            a.call("rt.throwReadonlyGlobal");
+                            a.label(writable);
+                        } else a.jcc("e", done);
                     }
                     copy(
                         { rip: "js.globals", addend: 16 * op.index },

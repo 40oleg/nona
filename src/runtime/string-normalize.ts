@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { rootedFn } from "./root-scope.js";
 import {
@@ -310,7 +311,12 @@ export function emitStringNormalize(b: RuntimeBuilder, tables = true): void {
                 a.label(next);
             }
             a.label(invalid);
-            a.call("rt.throwRangeError");
+            a.call(
+                rangeErrorThrower(
+                    b,
+                    "The normalization form should be one of NFC, NFD, NFKC, NFKD.",
+                ),
+            );
             a.label(formReady);
             a.load("r10", slot(88));
             a.load("rax", { base: "r10" });

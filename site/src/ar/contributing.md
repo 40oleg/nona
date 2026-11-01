@@ -38,7 +38,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## التحليل والقياس
 
-يشغّل `node bench/run.mjs` المقاييس التي تقوم عليها صفحة [الأداء](/ar/guide/performance). ويحصي `scripts/profile-runtime.mjs` التعليمات التي ينفّذها كل روتين في بيئة التشغيل (أثر QEMU)، ويحصي الخيار `--call-stats` في [سطر الأوامر](/ar/reference/cli#options) الاستدعاءات التي يجريها البرنامج.
+يشغّل `node bench/run.mjs` المقاييس التي تقوم عليها صفحة [الأداء](/ar/guide/performance). ويحصي `scripts/profile-runtime.mjs` التعليمات التي ينفّذها كل روتين في بيئة التشغيل (أثر QEMU)، ويحصي الخيار `--call-stats` في [سطر الأوامر](/ar/reference/cli) الاستدعاءات التي يجريها البرنامج.
 
 ## التوثيق
 

@@ -181,6 +181,13 @@ const jt=on(e,'y');e.emit('y',1);e.emit('error',new Error('bad'));console.log((a
 run();
 `,
     ],
+    [
+        "unhandled error message inspects the value",
+        `
+for(const args of [[{code:42}],['str'],[],["it's"],[[1,'a']],[null],[{a:{b:{c:{d:1}}},'x-y':1n}],[Symbol('s')]]){
+try{new EventEmitter().emit('error',...args)}catch(e){console.log(e.message,e.code,e.context===args[0])}}
+`,
+    ],
 ];
 const imports = `import Default,{EventEmitter,errorMonitor,captureRejectionSymbol,defaultMaxListeners,once,on,getEventListeners,getMaxListeners,setMaxListeners,listenerCount} from 'node:events';\n`;
 for (const [name, body] of cases) {

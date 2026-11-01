@@ -57,6 +57,8 @@ export abstract class LowererBase {
         hasOwn?: "method" | "call",
         intrinsic?: "imul",
         stringIndex?: "charCodeAt" | "charAt",
+        /** The callee expression, for the TypeError message of a callee that is not callable. */
+        calleeNode?: A.Expression,
     ): void;
     protected abstract preludeCall(name: string, args: number[]): number;
     protected blocks: BlockIR[] = [];
@@ -484,7 +486,7 @@ export abstract class LowererBase {
                         (p) => p.kind !== "Identifier",
                     )))
         )
-            this.emit({ kind: "checkInitialized", slot: dest });
+            this.emit({ kind: "checkInitialized", slot: dest, name: id.name });
         return dest;
     }
     protected write(
@@ -514,13 +516,20 @@ export abstract class LowererBase {
         if (!initializing && "silentImmutable" in b) {
             if (b.silentImmutable) return;
             if (b.mutable === false) {
-                this.emit({ kind: "immutableWrite" });
+                this.emit({
+                    kind: "immutableWrite",
+                    message: "Assignment to constant variable.",
+                });
                 return;
             }
         }
         if (!initializing && "lexical" in b && b.lexical) {
             this.read(id);
-            if (!b.mutable) this.emit({ kind: "immutableWrite" });
+            if (!b.mutable)
+                this.emit({
+                    kind: "immutableWrite",
+                    message: "Assignment to constant variable.",
+                });
         }
         this.store(b, source);
     }
@@ -752,10 +761,12 @@ export abstract class LowererBase {
                     this.emit({
                         kind: "checkResolvable",
                         slot: ref.resolvable,
+                        name: ref.id.name,
                     });
                 this.emit({
                     kind: "checkResolvable",
                     slot: this.globalExists(binding.name),
+                    name: binding.name,
                 });
             }
             // The reference was already resolved (with objects included) by reference().

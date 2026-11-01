@@ -8,6 +8,7 @@ import { bind } from "../src/frontend/binder.js";
 import { lower } from "../src/ir/lower.js";
 import { generate } from "../src/backend/x64/codegen.js";
 import { linkHost } from "./helpers/program.js";
+import { runOnHost } from "./helpers/host.js";
 
 const cases: [string, string][] = [
     [
@@ -78,4 +79,16 @@ test("reading deleted builtin identifier is an error", () => {
     assert.equal(run.error, undefined);
     assert.equal(run.status, 1);
     assert.match(run.stderr.toString(), /Nona runtime error/);
+});
+test("globalThis has Symbol.toStringTag global", () => {
+    const source =
+        "console.log(Object.prototype.toString.call(globalThis));console.log(globalThis[Symbol.toStringTag]);const d=Object.getOwnPropertyDescriptor(globalThis,Symbol.toStringTag);console.log(d.value,d.writable,d.enumerable,d.configurable);";
+    const run = runOnHost(source);
+    assert.equal(run.status, 0, run.stderr);
+    const expected = runOracle(source).stdout;
+    assert.equal(
+        expected,
+        "[object global]\nglobal\nglobal false false true\n",
+    );
+    assert.equal(run.stdout, expected);
 });

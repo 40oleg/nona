@@ -16,6 +16,7 @@ export abstract class PatternLowerer extends CallLowerer {
                     this.emit({
                         kind: "checkResolvable",
                         slot: this.globalExists(binding.name),
+                        name: binding.name,
                     });
             }
             this.write(pattern, value, initializing);
@@ -128,6 +129,7 @@ export abstract class PatternLowerer extends CallLowerer {
                             this.emit({
                                 kind: "checkResolvable",
                                 slot: this.globalExists(binding.name),
+                                name: binding.name,
                             });
                     }
                     this.write(target, boundValue, false, earlyWith);

@@ -1,5 +1,6 @@
 import type * as A from "../../frontend/ast.js";
 import { CompileError } from "../../diagnostics.js";
+import { computedMembers } from "../../frontend/link-usage.js";
 import {
     checkFfiNames,
     ffiLibraryKeys,
@@ -73,7 +74,12 @@ export abstract class CallLowerer extends ClassLowerer {
         hasOwn?: "method" | "call",
         intrinsic?: "imul",
         stringIndex?: "charCodeAt" | "charAt",
+        calleeNode?: A.Expression,
     ): void {
+        const text =
+            calleeNode && !construct && !tail && !("array" in args)
+                ? this.calleeText(calleeNode)
+                : undefined;
         if ("array" in args)
             this.emit({
                 kind: "invokeArray",
@@ -98,8 +104,44 @@ export abstract class CallLowerer extends ClassLowerer {
                 ...(hasOwn ? { hasOwn } : {}),
                 ...(intrinsic ? { intrinsic } : {}),
                 ...(stringIndex && !construct && !tail ? { stringIndex } : {}),
+                ...(text === undefined
+                    ? {}
+                    : { notCallableMessage: text + " is not a function" }),
             });
         }
+    }
+    /**
+     * The source text of a callee for a TypeError message, as V8 renders it
+     * (#504): an identifier, `this`, or a chain of `.name` accesses (and of
+     * `["name"]` with an identifier-like string) on one of them. Other
+     * expressions, and texts over 80 characters, have none.
+     */
+    protected calleeText(e: A.Expression): string | undefined {
+        const render = (e: A.Expression): string | undefined => {
+            if (e.kind === "This") return "this";
+            if (e.kind === "Identifier") {
+                const name = (e as A.Identifier).name;
+                return name.startsWith("\u0001") ? undefined : name;
+            }
+            if (e.kind !== "Member") return undefined;
+            const member = e as A.Member,
+                property = member.property;
+            if (
+                property.kind !== "Literal" ||
+                typeof (property as A.Literal).value !== "string" ||
+                (computedMembers.has(member) &&
+                    !/^[A-Za-z_$][\w$]*$/.test(
+                        (property as A.Literal).value as string,
+                    ))
+            )
+                return undefined;
+            const object = render(member.object);
+            return object === undefined
+                ? undefined
+                : object + "." + String((property as A.Literal).value);
+        };
+        const text = render(e);
+        return text !== undefined && text.length <= 80 ? text : undefined;
     }
     /** `x.hasOwnProperty(key)` or `y.call(x, key)` (with `y` possibly hasOwnProperty): the call may be answered by a cache (has-cache.ts). */
     protected hasOwnCall(

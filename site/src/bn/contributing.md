@@ -38,7 +38,7 @@ npm run format           # Prettier; CI runs npm run format:check
 
 ## প্রোফাইলিং ও বেঞ্চমার্ক
 
-`node bench/run.mjs` [পারফরম্যান্স](/bn/guide/performance) পৃষ্ঠার পেছনের বেঞ্চমার্কগুলো চালায়। `scripts/profile-runtime.mjs` প্রতিটি রানটাইম রুটিন কতগুলো ইনস্ট্রাকশন চালায় তা গোনে (একটি QEMU ট্রেস), আর [কমান্ড লাইনে](/bn/reference/cli#options) `--call-stats` একটি প্রোগ্রামের করা কলের সংখ্যা গোনে।
+`node bench/run.mjs` [পারফরম্যান্স](/bn/guide/performance) পৃষ্ঠার পেছনের বেঞ্চমার্কগুলো চালায়। `scripts/profile-runtime.mjs` প্রতিটি রানটাইম রুটিন কতগুলো ইনস্ট্রাকশন চালায় তা গোনে (একটি QEMU ট্রেস), আর [কমান্ড লাইনে](/bn/reference/cli) `--call-stats` একটি প্রোগ্রামের করা কলের সংখ্যা গোনে।
 
 ## ডকুমেন্টেশন
 

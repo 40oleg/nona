@@ -1204,6 +1204,99 @@ var __nonaPromiseDrainJobs = (function () {
             throw new TypeError("Async iterator must be an object");
         return result;
     };
+    // A failed strict [[Set]] (#511), with the messages of V8: the native
+    // runtime passes the reason, the base and the property key. The base is
+    // described without running user code: getters are not invoked.
+    var failureTypeError = TypeError,
+        failureString = String,
+        failureObject = Object,
+        failureOwnDescriptor = Object.getOwnPropertyDescriptor,
+        failureObjectToString = Object.prototype.toString,
+        failureFunctionToString = Function.prototype.toString,
+        failureToStringTag = Symbol.toStringTag;
+    function failureDataProperty(object, key) {
+        for (var level = object; level !== null;) {
+            var descriptor = failureOwnDescriptor(level, key);
+            if (descriptor !== undefined) return descriptor;
+            level = objectGetPrototypeOf(level);
+        }
+        return undefined;
+    }
+    function failureDescribe(value) {
+        if (typeof value === "function")
+            return reflectApply(failureFunctionToString, value, []);
+        if (!isObject(value)) return failureString(value);
+        var toString = failureDataProperty(value, "toString");
+        if (
+            toString !== undefined &&
+            toString.value === failureObjectToString
+        ) {
+            var constructor = failureDataProperty(value, "constructor");
+            if (
+                constructor !== undefined &&
+                typeof constructor.value === "function"
+            ) {
+                var name = failureOwnDescriptor(constructor.value, "name");
+                if (
+                    name !== undefined &&
+                    typeof name.value === "string" &&
+                    name.value !== ""
+                )
+                    return "#<" + name.value + ">";
+            }
+        }
+        var tag = failureDataProperty(value, failureToStringTag);
+        if (tag === undefined)
+            return reflectApply(failureObjectToString, value, []);
+        return (
+            "[object " +
+            (typeof tag.value === "string" ? tag.value : "Object") +
+            "]"
+        );
+    }
+    __nonaRegexpVm.setFailure = function (reason, base, key) {
+        var name = failureString(key);
+        if (reason === "length") {
+            reason = "readonly";
+            name = "length";
+        } else if (reason === "primitive") {
+            var found = failureDataProperty(failureObject(base), key);
+            reason =
+                found !== undefined && found.writable === false
+                    ? "readonly"
+                    : "create";
+        }
+        var message;
+        if (reason === "extensible")
+            message =
+                "Cannot add property " + name + ", object is not extensible";
+        else if (reason === "getter")
+            message =
+                "Cannot set property " +
+                name +
+                " of " +
+                failureDescribe(isObject(base) ? base : failureObject(base)) +
+                " which has only a getter";
+        else if (reason === "create")
+            message =
+                "Cannot create property '" +
+                name +
+                "' on " +
+                typeof base +
+                " '" +
+                failureDescribe(base) +
+                "'";
+        else
+            message =
+                "Cannot assign to read only property '" +
+                name +
+                "' of " +
+                typeof base +
+                " '" +
+                failureDescribe(base) +
+                "'";
+        throw new failureTypeError(message);
+    };
     var moduleTable = [],
         modulePaths = objectCreate(null),
         builtinModules = objectCreate(null);

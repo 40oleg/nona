@@ -18,6 +18,17 @@ import { ProxyKind } from "./object-layout.js";
 import { ProxyLayout } from "./proxy.js";
 
 export const ErrorKind = 5;
+/** Reasons of a failed strict [[Set]] that rt.throwSetFailure reports (#511):
+ * "length" is a read-only array length met by an index write, "primitive" a
+ * primitive base whose wrapper has no setter for the key. */
+export const setFailureReasons = [
+    "readonly",
+    "getter",
+    "extensible",
+    "length",
+    "primitive",
+] as const;
+export type SetFailureReason = (typeof setFailureReasons)[number];
 export const errorRoots = [
     ...errorConstructorNames.map((n) => "rt." + n.toLowerCase() + "Prototype"),
     "rt.errorToString",
@@ -102,6 +113,7 @@ export function emitErrorBrand(b: RuntimeBuilder): void {
         a.store({ base: "rcx", disp: 8 }, "rax");
     });
 }
+
 type ArgumentRegister = "rcx" | "rdx" | "r8" | "r9";
 /** Like failIf(..., "rt.throwTypeError") for a get or set on an undefined or
  * null base: on condition c, call rt.throwNullishGet/Set with the base and key
@@ -369,6 +381,29 @@ export function emitErrors(b: RuntimeBuilder): void {
             fixups: [pointer(8, "rt.error.stackMessage")],
         });
     }
+    b.bundle.fragments.push(
+        stringLiteral("rt.error.notIterableMessage", "Value is not iterable"),
+    );
+    {
+        const message = new Uint8Array(16);
+        message[0] = 4;
+        b.bundle.fragments.push({
+            name: "rt.error.notIterableMessageValue",
+            section: ".rdata",
+            alignment: 8,
+            bytes: message,
+            symbols: {},
+            fixups: [pointer(8, "rt.error.notIterableMessage")],
+        });
+    }
+    b.fn("rt.throwNotIterable", 72, (a) => {
+        a.lea("rcx", slot(48));
+        a.mov("rdx", 1);
+        a.lea("r8", { rip: "rt.error.notIterableMessageValue" });
+        a.call("rt.TypeError.code");
+        a.lea("rcx", slot(48));
+        a.call("rt.throw");
+    });
     // Called from a JS prologue below rt.stackLimit; creating the error runs only
     // native code, which the margin below the limit accommodates.
     b.fn("rt.throwStackOverflow", 72, (a) => {
@@ -387,6 +422,81 @@ export function emitErrors(b: RuntimeBuilder): void {
         a.lea("rcx", slot(48));
         a.call("rt.throw");
     });
+    // RCX string descriptor of the identifier; throws a ReferenceError whose
+    // message is prefix + name + suffix (V8 wording).
+    for (const [helper, prefix, suffix] of [
+        ["NotDefined", "", " is not defined"],
+        ["Tdz", "Cannot access '", "' before initialization"],
+    ] as const) {
+        const fragment = (key: string, text: string): string => {
+            const symbol = "rt.error.reference." + helper + key;
+            if (text === "") return "rt.error.key.empty";
+            b.bundle.fragments.push(stringLiteral(symbol, text));
+            const bytes = new Uint8Array(16);
+            bytes[0] = 4;
+            b.bundle.fragments.push({
+                name: symbol + "Value",
+                section: ".rdata",
+                alignment: 8,
+                bytes,
+                symbols: {},
+                fixups: [pointer(8, symbol)],
+            });
+            return symbol + "Value";
+        };
+        const prefixValue = fragment("Prefix", prefix),
+            suffixValue = fragment("Suffix", suffix);
+        rootedFn(
+            b,
+            "rt.throwReferenceError" + helper,
+            168,
+            [{ kind: "locals", offset: 64, count: 4 }],
+            (a) => {
+                // Locals: name (64), prefix + name (80), message (96), error (112).
+                a.mov("rax", 4);
+                a.store(slot(64), "rax");
+                a.store(slot(72), "rcx");
+                a.lea("rcx", slot(80));
+                a.lea("rdx", { rip: prefixValue });
+                a.lea("r8", slot(64));
+                a.call("rt.concat");
+                a.lea("rcx", slot(96));
+                a.lea("rdx", slot(80));
+                a.lea("r8", { rip: suffixValue });
+                a.call("rt.concat");
+                a.lea("rcx", slot(112));
+                a.mov("rdx", 1);
+                a.lea("r8", slot(96));
+                a.call("rt.ReferenceError.code");
+                a.lea("rcx", slot(112));
+                a.call("rt.throw");
+            },
+        );
+    }
+    for (const [fn, text] of <[string, string][]>[
+        ["rt.throwJsonCircular", "Converting circular structure to JSON"],
+        ["rt.throwJsonBigInt", "Do not know how to serialize a BigInt"],
+    ]) {
+        b.bundle.fragments.push(stringLiteral(fn + ".message", text));
+        const message = new Uint8Array(16);
+        message[0] = 4;
+        b.bundle.fragments.push({
+            name: fn + ".messageValue",
+            section: ".rdata",
+            alignment: 8,
+            bytes: message,
+            symbols: {},
+            fixups: [pointer(8, fn + ".message")],
+        });
+        b.fn(fn, 72, (a) => {
+            a.lea("rcx", slot(48));
+            a.mov("rdx", 1);
+            a.lea("r8", { rip: fn + ".messageValue" });
+            a.call("rt.TypeError.code");
+            a.lea("rcx", slot(48));
+            a.call("rt.throw");
+        });
+    }
     for (const name of [
         "TypeError",
         "ReferenceError",
@@ -403,6 +513,167 @@ export function emitErrors(b: RuntimeBuilder): void {
             a.lea("rcx", slot(48));
             a.call("rt.throw");
         });
+    // Callability errors (#504). The *Message helpers take RCX = message Value*
+    // (a static string, so building the error has no safepoint before the
+    // throw); for rt.throwNotCallableMessage and rt.throwNotConstructorMessage
+    // RCX = 0 selects the generic text.
+    for (const [key, text] of [
+        ["notCallable", "value is not a function"],
+        ["notConstructor", "value is not a constructor"],
+        ["classCallPrefix", "Class constructor "],
+        ["classCallSuffix", " cannot be invoked without 'new'"],
+    ] as const) {
+        b.bundle.fragments.push(stringLiteral("rt.error." + key, text));
+        const message = new Uint8Array(16);
+        message[0] = 4;
+        b.bundle.fragments.push({
+            name: "rt.error." + key + "Value",
+            section: ".rdata",
+            alignment: 8,
+            bytes: message,
+            symbols: {},
+            fixups: [pointer(8, "rt.error." + key)],
+        });
+    }
+    b.fn("rt.throwTypeErrorMessage", 72, (a) => {
+        a.mov("r8", "rcx");
+        a.lea("rcx", slot(48));
+        a.mov("rdx", 1);
+        a.call("rt.TypeError.code");
+        a.lea("rcx", slot(48));
+        a.call("rt.throw");
+    });
+    // RCX points to a static string literal; the message is a string Value built in the frame.
+    b.fn("rt.throwTypeErrorText", 72, (a) => {
+        a.mov("r10", 4);
+        a.store(slot(32), "r10");
+        a.store(slot(40), "rcx");
+        a.lea("rcx", slot(48));
+        a.mov("rdx", 1);
+        a.lea("r8", slot(32));
+        a.call("rt.TypeError.code");
+        a.lea("rcx", slot(48));
+        a.call("rt.throw");
+    });
+    // A failed strict [[Set]] (#511). RCX the reason literal (setFailureReasons),
+    // RDX the base Value*, R8 the key Value*. __nonaRegexpVm.setFailure throws
+    // the TypeError; without the prelude this throws the generic one.
+    for (const reason of setFailureReasons)
+        b.bundle.fragments.push(
+            stringLiteral("rt.str.setFailure." + reason, reason),
+        );
+    rootedFn(
+        b,
+        "rt.throwSetFailure",
+        120,
+        [{ kind: "locals", offset: 48, count: 4 }],
+        (a) => {
+            a.mov("r10", 4);
+            a.store(slot(48), "r10");
+            a.store(slot(56), "rcx");
+            for (const [source, target] of [
+                ["rdx", 64],
+                ["r8", 80],
+            ] as const)
+                for (const part of [0, 8]) {
+                    a.load("r10", { base: source, disp: part });
+                    a.store(slot(target + part), "r10");
+                }
+            a.lea("rcx", slot(96));
+            a.mov("rdx", 3);
+            a.lea("r8", slot(48));
+            a.call("rt.prelude.setFailure");
+            a.call("rt.throwTypeError");
+        },
+    );
+    // RCX the name literal of a non-writable global property alias (NaN = 1).
+    b.fn("rt.throwReadonlyGlobal", 72, (a) => {
+        a.mov("r10", 5);
+        a.store(slot(32), "r10");
+        a.lea("r10", { rip: "rt.globalObject" });
+        a.store(slot(40), "r10");
+        a.mov("r10", 4);
+        a.store(slot(48), "r10");
+        a.store(slot(56), "rcx");
+        a.lea("rcx", { rip: "rt.str.setFailure.readonly" });
+        a.lea("rdx", slot(32));
+        a.lea("r8", slot(48));
+        a.call("rt.throwSetFailure");
+    });
+    for (const [key, text] of [
+        ["cyclicPrototype", "Cyclic __proto__ value"],
+        ["notExtensible", "#<Object> is not extensible"],
+    ] as const) {
+        b.bundle.fragments.push(stringLiteral("rt.error.text." + key, text));
+        b.fn("rt.throwTypeError." + key, 40, (a) => {
+            a.lea("rcx", { rip: "rt.error.text." + key });
+            a.call("rt.throwTypeErrorText");
+        });
+    }
+    for (const key of ["notCallable", "notConstructor"]) {
+        const name =
+            "rt.throw" + key[0]!.toUpperCase() + key.slice(1) + "Message";
+        b.fn(name, 40, (a) => {
+            const ready = a.unique("ready");
+            a.test("rcx", "rcx");
+            a.jcc("ne", ready);
+            a.lea("rcx", { rip: "rt.error." + key + "Value" });
+            a.label(ready);
+            a.call("rt.throwTypeErrorMessage");
+        });
+        b.fn(name.slice(0, -"Message".length), 40, (a) => {
+            a.lea("rcx", { rip: "rt.error." + key + "Value" });
+            a.call("rt.throwTypeErrorMessage");
+        });
+    }
+    // RCX: Value* of a class constructor called without new. The message names
+    // it by its own `name` data property when that is a string (no getter runs),
+    // else by the empty string, as V8 does. Reached through the realm table of
+    // the callee, so the TypeError belongs to the callee's realm.
+    rootedFn(
+        b,
+        "rt.throwClassConstructorCall",
+        104,
+        [{ kind: "locals", offset: 48, count: 3 }],
+        (a) => {
+            for (const offset of [0, 8]) {
+                a.load("rax", { rip: "rt.error.key.empty", addend: offset });
+                a.store(slot(48 + offset), "rax");
+            }
+            const ready = a.unique("ready");
+            a.load("rcx", { base: "rcx", disp: 8 });
+            a.lea("rdx", { rip: "rt.str.name" });
+            a.call("rt.findOwnProperty");
+            a.test("rax", "rax");
+            a.jcc("e", ready);
+            a.load("r10", { base: "rax", disp: P.attributes });
+            a.and("r10", A.accessor);
+            a.test("r10", "r10");
+            a.jcc("ne", ready);
+            a.load("r10", { base: "rax", disp: P.value });
+            a.cmp("r10", 4);
+            a.jcc("ne", ready);
+            for (const offset of [0, 8]) {
+                a.load("r10", { base: "rax", disp: P.value + offset });
+                a.store(slot(48 + offset), "r10");
+            }
+            a.label(ready);
+            a.lea("rcx", slot(64));
+            a.lea("rdx", { rip: "rt.error.classCallPrefixValue" });
+            a.lea("r8", slot(48));
+            a.call("rt.concat");
+            a.lea("rcx", slot(80));
+            a.lea("rdx", slot(64));
+            a.lea("r8", { rip: "rt.error.classCallSuffixValue" });
+            a.call("rt.concat");
+            a.lea("rcx", slot(64));
+            a.mov("rdx", 1);
+            a.lea("r8", slot(80));
+            a.call("rt.TypeError.code");
+            a.lea("rcx", slot(64));
+            a.call("rt.throw");
+        },
+    );
     emitNullishErrors(b);
     emitNullishDestructureError(b);
     b.bundle.fragments.push(

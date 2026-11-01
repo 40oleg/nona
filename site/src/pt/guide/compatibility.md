@@ -93,4 +93,4 @@ Os imports nomeados de módulos embutidos são podados antes de escolher as part
 
 ## Buffer
 
-`Buffer`, `Blob` e `File` globais, e as importações `node:buffer` / `buffer` / `nona:buffer`, estão disponíveis em todos os alvos nativos. O Buffer suporta as codificações de bytes padrão, fatias compartilhadas, cópia, busca e acesso numérico. Blob/File suportam dados imutáveis e metadados. Há streams de bytes/texto de Blob e registro/resolução de URLs de objeto; veja [o contrato da API e as limitações](/pt/reference/host-apis#buffer-and-binary-data).
+`Buffer`, `Blob` e `File` globais, e as importações `node:buffer` / `buffer` / `nona:buffer`, estão disponíveis em todos os alvos nativos. O Buffer suporta as codificações de bytes padrão, fatias compartilhadas, cópia, busca e acesso numérico. Blob/File suportam dados imutáveis e metadados. Há streams de bytes/texto de Blob e registro/resolução de URLs de objeto; veja [o contrato da API e as limitações](/reference/host-apis#buffer-and-binary-data).

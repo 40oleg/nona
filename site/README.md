@@ -12,6 +12,7 @@ npm run preview          # serve the production build
 npm run check:samples    # compile every program in samples/ for its targets
 npm run check:playground # the browser bundle of the compiler matches the CLI (after a build)
 npm run check:links      # links to repository files on GitHub exist (after a build)
+                         # (links and anchors between documents: `npm run check:doc-links` in the root)
 ```
 
 ## Layout

@@ -38,7 +38,7 @@ Cada arquivo de testes pertence a exatamente uma suíte em `tests/suites.json`; 
 
 ## Profiling e benchmarks
 
-`node bench/run.mjs` executa os benchmarks por trás da página de [Desempenho](/pt/guide/performance). `scripts/profile-runtime.mjs` conta as instruções executadas por cada rotina do runtime (um trace do QEMU), e `--call-stats` na [linha de comando](/pt/reference/cli#options) conta as chamadas feitas por um programa.
+`node bench/run.mjs` executa os benchmarks por trás da página de [Desempenho](/pt/guide/performance). `scripts/profile-runtime.mjs` conta as instruções executadas por cada rotina do runtime (um trace do QEMU), e `--call-stats` na [linha de comando](/pt/reference/cli) conta as chamadas feitas por um programa.
 
 ## Documentação
 

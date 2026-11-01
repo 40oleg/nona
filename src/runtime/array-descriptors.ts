@@ -1,3 +1,4 @@
+import { rangeErrorThrower } from "./range-error-thrower.js";
 import { RuntimeBuilder, slot, failIf } from "./abi.js";
 import { rootedFn } from "./root-scope.js";
 import {
@@ -40,8 +41,8 @@ export function emitArrayDescriptors(b: RuntimeBuilder): void {
             a.load("rax", slot(48));
             a.cvtsi2sd("xmm1", "rax");
             a.ucomisd("xmm0", "xmm1");
-            failIf(a, "p", "rt.throwRangeError");
-            failIf(a, "ne", "rt.throwRangeError");
+            failIf(a, "p", rangeErrorThrower(b, "Invalid array length"));
+            failIf(a, "ne", rangeErrorThrower(b, "Invalid array length"));
             a.load("rcx", slot(40));
             a.storesd({ base: "rcx", disp: 8 }, "xmm1");
             a.mov("rax", 3);

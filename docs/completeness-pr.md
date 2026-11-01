@@ -1,5 +1,7 @@
 # Prepared PR: Completeness and readiness audit for v0.20.0
 
+> **Historical:** the prepared pull request text for the v0.20.0 completeness audit (#394). It stays here because the audit evidence refers to this path. For the current state read [completeness-audit.md](completeness-audit.md).
+
 This is a local handoff for the single issue-394 PR to `main`. No push or PR
 creation is authorized in this step. Retain the current work branch for this
 handoff; resolve its harness-selected `nona/issue-394` name before publication

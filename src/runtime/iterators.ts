@@ -661,6 +661,10 @@ export function emitIterators(b: RuntimeBuilder): void {
             a.store(slot(40), "rcx");
             a.store(slot(48), "rdx");
             a.store(slot(56), "r8");
+            // getProperty on undefined/null would throw a generic TypeError.
+            a.load("rax", { base: "r8" });
+            a.cmp("rax", 1);
+            failIf(a, "be", "rt.throwNotIterable");
             a.mov("rax", 6);
             a.store(slot(64), "rax");
             a.lea("rax", { rip: "rt.Symbol.iterator.value" });
@@ -671,11 +675,11 @@ export function emitIterators(b: RuntimeBuilder): void {
             a.call("rt.getProperty");
             a.load("rax", slot(80));
             a.cmp("rax", 5);
-            failIf(a, "ne", "rt.throwTypeError");
+            failIf(a, "ne", "rt.throwNotIterable");
             a.load("r10", slot(88));
             a.load("rax", { base: "r10", disp: O.kind });
             a.cmp("rax", FunctionKind);
-            failIf(a, "ne", "rt.throwTypeError");
+            failIf(a, "ne", "rt.throwNotIterable");
             a.load("rax", slot(56));
             a.store(slot(32), "rax");
             a.lea("rcx", slot(96));
