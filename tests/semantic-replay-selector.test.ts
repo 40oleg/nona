@@ -27,3 +27,34 @@ test("replay retains every original T01 numeric AST assertion and T02 parameter 
                 c.id,
             );
 });
+
+test("every finite AST peer preserves the original selector result", () => {
+    const cases = loadInventory("pr");
+    for (const c of selectorContracts) {
+        const peer = cases.find(
+            (item: { id: string }) => item.id === c.semanticId,
+        );
+        assert.equal(
+            selected(peer.files[peer.entry], peer.goal, c.part),
+            c.present,
+            c.id,
+        );
+    }
+});
+
+test("builtin selection in real module graphs comes from the imported source", () => {
+    for (const c of loadInventory("pr").filter(
+        (c: { family: string }) => c.family === "graph",
+    )) {
+        assert.equal(
+            selected(c.files[c.entry], c.goal, c.link[0]),
+            false,
+            `${c.id}: entry`,
+        );
+        assert.equal(
+            selected(c.files["scope.mjs"], c.goal, c.link[0]),
+            true,
+            `${c.id}: dependency`,
+        );
+    }
+});

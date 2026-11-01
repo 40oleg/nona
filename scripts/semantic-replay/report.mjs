@@ -8,6 +8,18 @@ import assert from "node:assert/strict";
 
 export const sha256 = (bytes) =>
     createHash("sha256").update(bytes).digest("hex");
+export function compileEvidence(result, elapsedMs) {
+    return {
+        ok: result.ok,
+        elapsedMs,
+        diagnostics: result.ok ? [] : result.diagnostics,
+        imports: result.ok ? result.imports : null,
+        linked: result.ok ? result.linked : null,
+        image: result.ok
+            ? { sha256: sha256(result.image), length: result.image.length }
+            : null,
+    };
+}
 export function errorDetails(error) {
     if (!error) return null;
     return Object.fromEntries(
@@ -68,15 +80,24 @@ export function compareOutcomes(actual, expected, normalizeCRLF = false) {
                 `${field}: ${JSON.stringify(actual[field])} != ${JSON.stringify(expected[field])}`,
             );
     }
-    if (!normalizeCRLF)
-        for (const field of ["stdoutBase64", "stderrBase64"]) {
-            if (
-                actual[field] !== undefined &&
-                expected[field] !== undefined &&
-                actual[field] !== expected[field]
-            )
-                differences.push(`${field}: raw bytes differ`);
-        }
+    for (const field of ["stdout", "stderr"]) {
+        const bytes = (outcome) => {
+            const raw = outcome[field + "Base64"];
+            const buffer =
+                raw === undefined
+                    ? Buffer.from(outcome[field] ?? "", "utf8")
+                    : Buffer.from(raw, "base64");
+            // Remove only the CR byte of a CRLF pair, without decoding:
+            // distinct invalid UTF-8 bytes must stay distinct.
+            return normalizeCRLF
+                ? buffer.filter(
+                      (byte, i) => byte !== 13 || buffer[i + 1] !== 10,
+                  )
+                : buffer;
+        };
+        if (Buffer.compare(bytes(actual), bytes(expected)) !== 0)
+            differences.push(`${field}: raw bytes differ`);
+    }
     return differences;
 }
 export function effectiveOptions(fixture, mode, target) {

@@ -65,6 +65,10 @@
                 "stdout": "function\n",
                 "stderr": "",
                 "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
             }
         },
         {
@@ -87,6 +91,10 @@
                 "stdout": "function\n",
                 "stderr": "",
                 "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
             }
         },
         {
@@ -2310,7 +2318,11 @@
                 "main.js": "const holder={length:\"Proxy\"}; for(let i=holder.length;;){console.log(typeof globalThis[i]);break;}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 4"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 4",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-6",
@@ -2321,7 +2333,11 @@
                 "main.js": "for(let i=0,n=0;n<2;i=\"Proxy\",n++)console.log(typeof globalThis[i]);"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 6"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 6",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-9",
@@ -2329,10 +2345,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);i=\"Proxy\";}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);i=\"Proxy\";console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 9"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 9",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-10",
@@ -2340,10 +2365,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);i+=\"Proxy\";}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);i+=\"Proxy\";console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 10"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 10",
+            "expected": {
+                "stdout": "undefined\nundefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-11",
@@ -2351,10 +2385,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);i||=\"Proxy\";}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);i||=\"Proxy\";console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 11"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 11",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-12",
@@ -2362,10 +2405,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);[i]=[\"Proxy\"];}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);[i]=[\"Proxy\"];console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 12"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 12",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-13",
@@ -2373,10 +2425,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);({x:i}={x:\"Proxy\"});}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);({x:i}={x:\"Proxy\"});console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 13"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 13",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-14",
@@ -2384,10 +2445,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);[...i]=[\"Proxy\"];}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);[...i]=[\"Proxy\"];console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 14"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 14",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-15",
@@ -2395,10 +2465,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);({...i}={x:\"Proxy\"});}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);({...i}={x:\"Proxy\"});console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 15"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 15",
+            "expected": {
+                "stdout": "undefined\nundefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-16",
@@ -2406,10 +2485,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);[i=\"Proxy\"]=[];}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);[i=\"Proxy\"]=[];console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 16"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 16",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-17",
@@ -2417,10 +2505,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);for(i of [\"Proxy\"]){};}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);for(i of [\"Proxy\"]){}console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 17"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 17",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-18",
@@ -2428,10 +2525,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);for([i] of [[\"Proxy\"]]){};}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);for([i] of [[\"Proxy\"]]){}console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 18"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 18",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-19",
@@ -2439,10 +2545,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "for(let i=0,n=0;n<2;i++,n++){console.log(typeof globalThis[i]);for(i in {Proxy:1}){};}"
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);for(i in {\"Proxy\":\"Proxy\"}){}console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 19"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 19",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-20",
@@ -2453,7 +2568,11 @@
                 "main.js": "for(let i=0;i<1;i++){function mutate(){i=\"Proxy\"} mutate();console.log(typeof globalThis[i]);break;}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 20"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 20",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-21",
@@ -2461,10 +2580,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "const label=\"Proxy\"; for(let i=0;i<1;i++){const read=()=>i;console.log(read());}"
+                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(typeof globalThis[i]);const read=()=>i;console.log(read());}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 21"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 21",
+            "expected": {
+                "stdout": "undefined\n0\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-26",
@@ -2472,10 +2600,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "const label=\"Proxy\";for(var i=0;i<1;i++)console.log(i);"
+                "main.js": "const label=\"Proxy\";for(var i=0;i<1;i++)console.log(typeof globalThis[i]);"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 26"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 26",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-27",
@@ -2483,10 +2620,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(i);eval(\"i=1\");}"
+                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(typeof globalThis[i]);eval(\"i=1\");}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 27"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 27",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-28",
@@ -2494,10 +2640,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){const f=()=>eval(\"i=1\");f();console.log(i);}"
+                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(typeof globalThis[i]);const f=()=>eval(\"i=1\");f();}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 28"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 28",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-29",
@@ -2505,10 +2660,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "const label=\"Proxy\";const o={};for(let i=0;i<1;i++){console.log(i);with(o)i++;}"
+                "main.js": "const label=\"Proxy\";const o={};for(let i=0;i<1;i++){console.log(typeof globalThis[i]);with(o)i++;}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 29"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 29",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-fallback-30",
@@ -2516,10 +2680,19 @@
             "goal": "script",
             "entry": "main.js",
             "files": {
-                "main.js": "const label=\"Proxy\";const o={};with(o){for(let i=0;i<1;i++)console.log(i);}"
+                "main.js": "const label=\"Proxy\";const o={};with(o){for(let i=0;i<1;i++)console.log(typeof globalThis[i]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of runtime-link-resolved fallback 30"
+            "provenance": "finite counterpart of runtime-link-resolved fallback 30",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
         },
         {
             "id": "numeric-ast-restricted-1",
@@ -2530,7 +2703,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 1"
+            "provenance": "finite counterpart of restricted numeric invariants 1",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-2",
@@ -2541,7 +2718,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; i = 1; i += 2; i -= x; i *= x; i >>>= x; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 2"
+            "provenance": "finite counterpart of restricted numeric invariants 2",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-3",
@@ -2552,7 +2733,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; i = +x; i = x - y; i = x++; ++i; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 3"
+            "provenance": "finite counterpart of restricted numeric invariants 3",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-4",
@@ -2563,7 +2748,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){{ let i = \"Proxy\"; i = value } a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 4"
+            "provenance": "finite counterpart of restricted numeric invariants 4",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-5",
@@ -2574,7 +2763,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){try {} catch (i) { i = \"Proxy\" } a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 5"
+            "provenance": "finite counterpart of restricted numeric invariants 5",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-6",
@@ -2585,7 +2778,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){for (let i of [\"Proxy\"]) { i = value } a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 6"
+            "provenance": "finite counterpart of restricted numeric invariants 6",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-7",
@@ -2596,7 +2793,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){for (let i in {x: \"Proxy\"}) { i = value } a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 7"
+            "provenance": "finite counterpart of restricted numeric invariants 7",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-8",
@@ -2607,7 +2808,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){function f(i) { i = \"Proxy\" } a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 8"
+            "provenance": "finite counterpart of restricted numeric invariants 8",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-9",
@@ -2618,7 +2823,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){function f() { let i = \"Proxy\"; return i } a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 9"
+            "provenance": "finite counterpart of restricted numeric invariants 9",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-10",
@@ -2629,7 +2838,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){((i) => { i = \"Proxy\" })(1); a[i]; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 10"
+            "provenance": "finite counterpart of restricted numeric invariants 10",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-restricted-11",
@@ -2640,7 +2853,11 @@
                 "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; o[i] = \"Proxy\"; console.log(a[0]);}"
             },
             "modes": ["default", "full"],
-            "provenance": "finite counterpart of restricted numeric invariants 11"
+            "provenance": "finite counterpart of restricted numeric invariants 11",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
         },
         {
             "id": "numeric-ast-other-1",
@@ -2655,6 +2872,10 @@
                 "file": "scripts/semantic-replay/fixtures/cases.json",
                 "origin": "authored finite semantic counterpart for issue 617",
                 "selectorSource": "tests/runtime-link-resolved.test.ts"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
             }
         },
         {
@@ -2670,6 +2891,10 @@
                 "file": "scripts/semantic-replay/fixtures/cases.json",
                 "origin": "authored finite semantic counterpart for issue 617",
                 "selectorSource": "tests/runtime-link-resolved.test.ts"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
             }
         },
         {
@@ -2685,6 +2910,10 @@
                 "file": "scripts/semantic-replay/fixtures/cases.json",
                 "origin": "authored finite semantic counterpart for issue 617",
                 "selectorSource": "tests/runtime-link-resolved.test.ts"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
             }
         },
         {

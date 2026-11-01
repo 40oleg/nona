@@ -15,6 +15,7 @@ import { performance } from "node:perf_hooks";
 import { root, loadInventory, summarizeInventory } from "./inventory.mjs";
 import {
     sha256,
+    compileEvidence,
     saveReport,
     recordProcess,
     recordOracle,
@@ -158,15 +159,7 @@ async function runCompiledOnHost(jobPath) {
             ...options,
             ...(options.module ? { moduleHost } : {}),
         });
-        report.compile = {
-            ok: result.ok,
-            elapsedMs: performance.now() - started,
-            diagnostics: result.ok ? [] : result.diagnostics,
-            linked: result.ok ? result.linked : null,
-            image: result.ok
-                ? { sha256: sha256(result.image), length: result.image.length }
-                : null,
-        };
+        report.compile = compileEvidence(result, performance.now() - started);
         report.stage = "compiled";
         saveReport(reportPath, report);
         if (result.ok) {

@@ -117,6 +117,256 @@ test("effective options retain explicit goal, target and link choices", () => {
     );
 });
 
+test("CRLF normalization compares raw bytes without hiding invalid UTF-8 or lone CR", () => {
+    for (const field of ["stdout", "stderr"] as const) {
+        const outcome = (bytes: number[], raw = true) => ({
+            ...good,
+            [field]: Buffer.from(bytes).toString("utf8"),
+            ...(raw
+                ? { [field + "Base64"]: Buffer.from(bytes).toString("base64") }
+                : {}),
+        });
+        // Both decode to the same replacement character followed by a newline.
+        assert.ok(
+            reporter.compareOutcomes(
+                outcome([0xff, 13, 10]),
+                outcome([0xfe, 10]),
+                true,
+            ).length,
+            `${field}: unequal invalid bytes must remain unequal`,
+        );
+        assert.deepEqual(
+            reporter.compareOutcomes(
+                outcome([0xff, 13, 10]),
+                outcome([0xff, 10]),
+                true,
+            ),
+            [],
+        );
+        assert.ok(
+            reporter.compareOutcomes(
+                outcome([0xff, 13, 10]),
+                outcome([0xff, 10]),
+            ).length,
+        );
+        assert.ok(
+            reporter.compareOutcomes(
+                outcome([120, 13]),
+                outcome([120, 10]),
+                true,
+            ).length,
+        );
+        for (const rawOnActual of [true, false]) {
+            assert.deepEqual(
+                reporter.compareOutcomes(
+                    outcome([120, 13, 10], rawOnActual),
+                    outcome([120, 10], !rawOnActual),
+                    true,
+                ),
+                [],
+            );
+            assert.ok(
+                reporter.compareOutcomes(
+                    outcome([0xff], rawOnActual),
+                    outcome([0xff], !rawOnActual),
+                    true,
+                ).length,
+                "a decoded replacement character cannot stand in for invalid raw bytes",
+            );
+        }
+    }
+});
+
+test("compile evidence retains imports, reasons, diagnostics and exact image identity", () => {
+    const image = Uint8Array.from([0, 255, 13, 10]);
+    const imports = ["KERNEL32.dll!ExitProcess", "KERNEL32.dll!WriteFile"];
+    const linked = [
+        {
+            part: "proxy",
+            reason: '"Proxy" in a string (dynamic property access)',
+        },
+    ];
+    assert.deepEqual(
+        reporter.compileEvidence({ ok: true, image, imports, linked }, 12),
+        {
+            ok: true,
+            elapsedMs: 12,
+            diagnostics: [],
+            imports,
+            linked,
+            image: { sha256: reporter.sha256(image), length: 4 },
+        },
+    );
+    const diagnostics = [{ code: "E_BIND", message: "unbound name" }];
+    assert.deepEqual(reporter.compileEvidence({ ok: false, diagnostics }, 3), {
+        ok: false,
+        elapsedMs: 3,
+        diagnostics,
+        imports: null,
+        linked: null,
+        image: null,
+    });
+});
+
+// Each mutation is intentionally distinct. In particular += and object rest
+// conservatively select Proxy without ever making the executed key "Proxy".
+const finiteMutations = [
+    [9, 'i="Proxy";', "function"],
+    [10, 'i+="Proxy";', "undefined"],
+    [11, 'i||="Proxy";', "function"],
+    [12, '[i]=["Proxy"];', "function"],
+    [13, '({x:i}={x:"Proxy"});', "function"],
+    [14, '[...i]=["Proxy"];', "function"],
+    [15, '({...i}={x:"Proxy"});', "undefined"],
+    [16, '[i="Proxy"]=[];', "function"],
+    [17, 'for(i of ["Proxy"]){}', "function"],
+    [18, 'for([i] of [["Proxy"]]){}', "function"],
+    [19, 'for(i in {"Proxy":"Proxy"}){}', "function"],
+] as const;
+for (const [id, mutation, after] of finiteMutations)
+    test(`finite numeric fallback ${id} observes its own mutation before numeric update`, () => {
+        const c = inventory
+            .loadInventory("pr")
+            .find((c: { id: string }) => c.id === `numeric-ast-fallback-${id}`);
+        const source = c.files[c.entry];
+        const oracle = reporter.recordProcess(
+            process.execPath,
+            [
+                "--input-type=commonjs",
+                "-e",
+                `require("node:vm").runInThisContext(${JSON.stringify(source)})`,
+            ],
+            process.cwd(),
+            3000,
+        );
+        assert.deepEqual(
+            reporter.compareOutcomes(oracle, {
+                stdout: `undefined\n${after}\n`,
+                stderr: "",
+                status: 0,
+            }),
+            [],
+            JSON.stringify(oracle),
+        );
+        const position = source.indexOf(mutation);
+        assert.ok(
+            position >= 0,
+            `retain distinct mutation: ${mutation}\n${source}`,
+        );
+        assert.ok(
+            source.indexOf(
+                "console.log(typeof globalThis[i])",
+                position + mutation.length,
+            ) >= 0,
+            `computed read must observe the assigned key before ++: ${source}`,
+        );
+        assert.deepEqual(c.expected, {
+            stdout: `undefined\n${after}\n`,
+            stderr: "",
+            status: 0,
+        });
+    });
+
+for (const id of [21, 26, 27, 28, 29, 30])
+    test(`finite numeric fallback ${id} retains computed read and binding context`, () => {
+        const c = inventory
+            .loadInventory("pr")
+            .find((c: { id: string }) => c.id === `numeric-ast-fallback-${id}`);
+        const source = c.files[c.entry];
+        assert.ok(source.includes('"Proxy"'), "retain whole string candidate");
+        assert.ok(source.includes("console.log(typeof globalThis[i])"), source);
+        const context = new Map([
+            [21, "const read=()=>i;console.log(read());"],
+            [26, "for(var i=0;"],
+            [27, 'eval("i=1")'],
+            [28, 'const f=()=>eval("i=1");f();'],
+            [29, "with(o)i++"],
+            [30, "with(o){for(let i=0;"],
+        ]);
+        assert.ok(source.includes(context.get(id)!), source);
+        const oracle = reporter.recordProcess(
+            process.execPath,
+            [
+                "--input-type=commonjs",
+                "-e",
+                `require("node:vm").runInThisContext(${JSON.stringify(source)})`,
+            ],
+            process.cwd(),
+            3000,
+        );
+        const expected = {
+            stdout: id === 21 ? "undefined\n0\n" : "undefined\n",
+            stderr: "",
+            status: 0,
+        };
+        assert.deepEqual(
+            reporter.compareOutcomes(oracle, expected),
+            [],
+            JSON.stringify(oracle),
+        );
+        assert.deepEqual(c.expected, expected);
+    });
+
+test("all original AST contracts retain explicit public default selection controls", () => {
+    assert.equal(
+        reporter.sha256(JSON.stringify(inventory.selectorContracts)),
+        "8db82ef183cd177d628d357ddd94ccacf0711837283c81d96279456745ede584",
+    );
+    const cases = inventory.loadInventory("pr");
+    for (const contract of inventory.selectorContracts) {
+        const peer = cases.find(
+            (c: { id: string }) => c.id === contract.semanticId,
+        );
+        assert.deepEqual(
+            peer.selector,
+            { part: contract.part, present: contract.present },
+            contract.id,
+        );
+        assert.ok(peer.modes.includes("default"), contract.id);
+        assert.equal(peer.defaultContract, undefined, contract.id);
+    }
+});
+
+test("real builtin module graphs retain raw Node oracle and dependency resolution", () => {
+    for (const id of ["graph-proxy", "graph-regexp"]) {
+        const fixture = inventory
+            .loadInventory("pr")
+            .find((c: { id: string }) => c.id === id);
+        assert.equal(fixture.goal, "module");
+        assert.equal(Object.keys(fixture.files).length, 2);
+        assert.match(
+            fixture.files[fixture.entry],
+            /import .* from "\.\/scope\.mjs"/,
+        );
+        const directory = mkdtempSync(resolve("work/nona-replay-unit-graph-"));
+        try {
+            reporter.writeGraph(directory, fixture);
+            const oracle = reporter.recordOracle(directory, fixture, 3000);
+            assert.deepEqual(
+                reporter.compareOutcomes(oracle, fixture.expected),
+                [],
+                JSON.stringify(oracle),
+            );
+            assert.equal(
+                oracle.stdoutBase64,
+                Buffer.from(fixture.expected.stdout).toString("base64"),
+            );
+            const { host, description } = reporter.moduleGraphHost(
+                fixture,
+                "/replay/" + fixture.entry,
+            );
+            const dependency = host.resolve(
+                "./scope.mjs",
+                "/replay/" + fixture.entry,
+            );
+            assert.equal(host.read(dependency), fixture.files["scope.mjs"]);
+            assert.deepEqual(description.reads, ["/replay/scope.mjs"]);
+        } finally {
+            rmSync(directory, { recursive: true, force: true });
+        }
+    }
+});
+
 test("recorder retains raw child failures and script global scope", () => {
     const run = reporter.recordProcess(
         process.execPath,
@@ -290,7 +540,10 @@ test("inventory pins exact originals, every T01/T02 family and manifest sample",
     assert.deepEqual(summary.goals, { script: 121, module: 42 });
     assert.deepEqual(summary.modes, { default: 163, full: 163, explicit: 50 });
     assert.equal(summary.cases, cases.length);
-    assert.ok(summary.aliases.length > 0);
+    assert.deepEqual(summary.aliases, [
+        ["default-regexp", "parameter-script-regexp-2"],
+    ]);
+    assert.equal(summary.nativeRuns, 376);
     assert.equal(
         summary.nativeRuns,
         cases.reduce(

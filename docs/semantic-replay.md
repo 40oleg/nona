@@ -95,7 +95,7 @@ excuse other computed-property omissions.
 
 [run.mjs](../scripts/semantic-replay/run.mjs) calls `compile()` with
 `reportLink: true` in a separate bounded child per mode. It saves effective
-target, parse goal, file name, default/full/explicit flags, diagnostics, image
+target, parse goal, file name, default/full/explicit flags, diagnostics, imports, image
 SHA-256/length, linked parts/reasons, compile time and execution time. Node is
 version 26. Classic scripts execute via `vm.runInThisContext` in an isolated
 child, preserving global script scope; modules execute as real files and a real
@@ -105,7 +105,8 @@ No ModuleHost function is pretended to be JSON-serializable.
 
 Reports include raw stdout/stderr text **and base64 bytes**, status, signal,
 process error properties, invocation, working directory and elapsed time.
-Comparison explicitly normalizes CRLF only. Compile workers preserve their own
+Comparison normalizes only CRLF byte pairs and compares the remaining raw bytes;
+lone CR and differing invalid UTF-8 bytes remain significant. Compile workers preserve their own
 raw child outcomes too. Compiler/source/selector/build hashes and a per-file
 source/build hash inventory, actual Git SHA/dirty status, Node executable,
 runner image/identity and workflow run/attempt accompany every lane.
