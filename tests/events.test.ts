@@ -236,6 +236,7 @@ for (const fullRuntime of [false, true]) {
             });
             assert.equal(oracle.error, undefined);
             assert.equal(oracle.status, 0, oracle.stderr);
+            assert.equal(oracle.stderr, "");
             assert.equal(
                 oracle.stdout,
                 "timeout TimeoutError\nlive true false\n",
@@ -266,6 +267,7 @@ for (const fullRuntime of [false, true]) {
             assert.equal(native.error, undefined);
             assert.equal(native.status, 0, native.stderr);
             assert.equal(native.stdout, oracle.stdout);
+            assert.equal(native.stderr, oracle.stderr);
         } finally {
             removeTemporaryDirectory(directory);
         }
