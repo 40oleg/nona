@@ -1,5 +1,8 @@
 # Networking (`node:http`, `node:net`, `node:tls`, `node:https`)
 
+For the bounded Windows native-crash investigation, see the
+[HTTP crash diagnostic protocol](http-crash-diagnostic.md).
+
 Nona compiles HTTP/1.1 servers and clients, plain TCP sockets and TLS 1.3
 clients into the executable. The modules follow the Node.js APIs and wire behaviour closely
 enough that the tests run the same programs under Node.js and compare the

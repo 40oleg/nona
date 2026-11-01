@@ -278,6 +278,7 @@
                 "harness",
                 "has-cache",
                 "http",
+                "http-keepalive",
                 "http-json-bytes",
                 "http-responses",
                 "immediate-source",
@@ -301,6 +302,7 @@
                 "native-construction",
                 "net",
                 "net-native",
+                "net-send-source",
                 "tls",
                 "tls-crypto",
                 "tls-handshake",
@@ -403,6 +405,8 @@
                 "pick-runner",
                 "cancel-pr-runs",
                 "run-shard",
+                "http-crash-diagnostic",
+                "http-crash-workflow",
                 "ci-changes"
             ]
         }

@@ -2,10 +2,16 @@
 
 ## Unreleased
 
+### Development
+
+- Add bounded hosted Windows HTTP crash diagnostics with Node controls, per-trial state/termination evidence and native dump collection. Repair the initial dispatch-only launch with a draft-PR630/full-ci trigger, exact-head checkout and pinned #601 ancestry/provenance checks; retain manual dispatch and serialize both paths. All 57 hosted trials remain pending; no crash fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
 
+- **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
+- **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
 - **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 - **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))
