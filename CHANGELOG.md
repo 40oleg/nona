@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a retained AbortSignal timeout diagnostic with Node 26 controls and buffered timer-phase traces for the unresolved Darwin ARM64 liveness investigation ([#632](https://github.com/40oleg/nona/issues/632)).
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
