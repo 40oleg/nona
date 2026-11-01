@@ -663,6 +663,7 @@ async function main() {
     const totalRequests = summary.requests;
     summary.acceptancePass = acceptancePass({
         config,
+        checkoutDirty: receipt.checkoutDirty,
         server: receipt.server,
         mix: Object.fromEntries(mix),
         routeCounts,

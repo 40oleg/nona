@@ -125,7 +125,14 @@ export function machineIdentity() {
 }
 
 // A passing short/control run is useful infrastructure evidence, never native acceptance.
-export function acceptancePass({ config, server, mix, routeCounts, summary }) {
+export function acceptancePass({
+    config,
+    checkoutDirty,
+    server,
+    mix,
+    routeCounts,
+    summary,
+}) {
     const required = [
         "text",
         "json",
@@ -138,6 +145,7 @@ export function acceptancePass({ config, server, mix, routeCounts, summary }) {
     ];
     return (
         summary.pass &&
+        checkoutDirty === false &&
         server.kind === "native" &&
         /^[0-9a-f]{40}$/i.test(server.measuredSourceCommit ?? "") &&
         /^[0-9a-f]{64}$/i.test(server.imageSha256 ?? "") &&

@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendSummary } from "./http-soak-summary.mjs";
 import { spawnSync } from "node:child_process";
+import { runInNewContext } from "node:vm";
 
 test("invalid CLI duration preserves exit status and original configuration failure without starting a server", () => {
     const dir = mkdtempSync(join(tmpdir(), "http-soak-cli-"));
@@ -226,9 +227,10 @@ test("provenance distinguishes Node source from native image and unknown externa
     }
 });
 
-test("short, control, reduced mix and unknown-image evidence never satisfy native acceptance", () => {
-    const full = {
+function nativeAcceptanceEvidence() {
+    return {
         config: readConfig({}, false),
+        checkoutDirty: false,
         server: {
             kind: "native",
             imageSha256: "a".repeat(64),
@@ -257,6 +259,10 @@ test("short, control, reduced mix and unknown-image evidence never satisfy nativ
         },
         summary: { pass: true },
     };
+}
+
+test("short, control, reduced mix and unknown-image evidence never satisfy native acceptance", () => {
+    const full = nativeAcceptanceEvidence();
     assert.equal(acceptancePass(full), true);
     for (const change of [
         (e) => (e.config.minutes = 5),
@@ -272,6 +278,47 @@ test("short, control, reduced mix and unknown-image evidence never satisfy nativ
         assert.equal(acceptancePass(e), false);
     }
 });
+
+for (const [name, checkoutDirty, expected] of [
+    ["clean", false, true],
+    ["dirty", true, false],
+    ["unknown", null, false],
+    ["undefined", undefined, false],
+    ["missing", undefined, false],
+]) {
+    test(`${name} checkout provenance gives native acceptance ${expected} without changing configured pass`, () => {
+        const e = nativeAcceptanceEvidence();
+        if (name === "missing") delete e.checkoutDirty;
+        else e.checkoutDirty = checkoutDirty;
+        assert.equal(acceptancePass(e), expected);
+        assert.equal(e.summary.pass, true);
+    });
+
+    test(`driver uses recorded ${name} checkout provenance for native acceptance ${expected}`, () => {
+        // Execute only the real verdict call: no server, load or timers.
+        const source = readFileSync(
+            new URL("./http-soak.mjs", import.meta.url),
+            "utf8",
+        );
+        const call = source.match(
+            /summary\.acceptancePass = acceptancePass\(\{[\s\S]*?\}\);/,
+        );
+        assert.ok(call, "driver acceptance call must be present");
+        const e = nativeAcceptanceEvidence();
+        if (name === "missing") delete e.checkoutDirty;
+        else e.checkoutDirty = checkoutDirty;
+        runInNewContext(call[0], {
+            acceptancePass,
+            receipt: e,
+            config: e.config,
+            mix: Object.entries(e.mix),
+            routeCounts: e.routeCounts,
+            summary: e.summary,
+        });
+        assert.equal(e.summary.acceptancePass, expected);
+        assert.equal(e.summary.pass, true);
+    });
+}
 
 test("response checks cover text, chunking, big data and deliberate statuses", () => {
     assert.equal(
