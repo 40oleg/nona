@@ -12,6 +12,7 @@ import {
     renameSync,
     rmSync,
     statSync,
+    symlinkSync,
     writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
@@ -31,6 +32,25 @@ const version: string = JSON.parse(
     readFileSync("package.json", "utf8"),
 ).version;
 const notice = readFileSync("THIRD_PARTY_NOTICES.md");
+// Independent official license snapshot, fetched from
+// https://www.unicode.org/license.txt on 2026-11-01 (Unicode License V3).
+// Comparing package bytes only to the canonical notices misses omitted terms.
+const unicodeLicense = readFileSync(
+    "tests/fixtures/licenses/unicode-3.0.txt",
+    "utf8",
+);
+const assertUnicodeNotice = (bytes: Buffer, target: string) => {
+    const text = bytes.toString();
+    assert.ok(
+        text
+            .replace(/\s+/g, " ")
+            .includes(unicodeLicense.trim().replace(/\s+/g, " ")),
+        `${target}: full Unicode copyright and permission notice`,
+    );
+    assert.match(text, /© 2025 Unicode®, Inc\./);
+    assert.ok(text.includes("src/runtime/data/regexp-unicode-data.ts"));
+    assert.ok(text.includes("src/runtime/data/regexp-emoji-data.ts"));
+};
 const image = Buffer.from([0, 1, 2, 0xff, 0x4e, 0x6f, 0x6e, 0x61]);
 const executable = (target: string) =>
     target.startsWith("win32-") ? "nona.exe" : "nona";
@@ -118,6 +138,10 @@ test("native packages include the canonical notices for all eight targets", () =
                 notice,
                 target,
             );
+            assertUnicodeNotice(
+                readFileSync(join(directory, "THIRD_PARTY_NOTICES.md")),
+                target,
+            );
             assert.deepEqual(
                 readFileSync(join(directory, executable(target))),
                 image,
@@ -145,6 +169,96 @@ test("native packages include the canonical notices for all eight targets", () =
                     0o111,
                     target,
                 );
+        }
+    } finally {
+        rmSync(work, { recursive: true, force: true });
+    }
+});
+
+test("native package contract preserves full Unicode attribution in all eight layouts", async (t) => {
+    const { validateNativePackage } = await loadValidator();
+    const work = temporary();
+    try {
+        for (const target of targets) {
+            await t.test(target, () => {
+                const directory = join(work, target);
+                packageFixture(directory, target);
+                assert.deepEqual(
+                    readdirSync(directory).sort(),
+                    manifest(target),
+                );
+                validateNativePackage(directory, target, version);
+                assertUnicodeNotice(
+                    readFileSync(join(directory, "THIRD_PARTY_NOTICES.md")),
+                    target,
+                );
+            });
+        }
+    } finally {
+        rmSync(work, { recursive: true, force: true });
+    }
+});
+
+const license = readFileSync("LICENSE");
+const brokenLicenses = [
+    { name: "missing", bytes: undefined },
+    { name: "empty", bytes: Buffer.alloc(0) },
+    { name: "truncated", bytes: license.subarray(0, license.length - 1) },
+    {
+        name: "altered",
+        bytes: Buffer.concat([
+            Buffer.from([license[0]! ^ 1]),
+            license.subarray(1),
+        ]),
+    },
+];
+for (const broken of brokenLicenses) {
+    test(`package validation rejects ${broken.name} LICENSE bytes in all eight layouts`, async () => {
+        const { validateNativePackage } = await loadValidator();
+        const work = temporary();
+        try {
+            for (const target of targets) {
+                const directory = join(work, target);
+                packageFixture(directory, target);
+                const file = join(directory, "LICENSE");
+                if (broken.bytes === undefined) rmSync(file);
+                else writeFileSync(file, broken.bytes);
+                assert.throws(
+                    () => validateNativePackage(directory, target, version),
+                    /LICENSE/,
+                    `${target}: ${broken.name}`,
+                );
+            }
+        } finally {
+            rmSync(work, { recursive: true, force: true });
+        }
+    });
+}
+
+test("package validation rejects symlinked license and notices", async (t) => {
+    const { validateNativePackage } = await loadValidator();
+    const work = temporary();
+    try {
+        packageFixture(work, "linux-x64");
+        for (const name of ["LICENSE", "THIRD_PARTY_NOTICES.md"]) {
+            const file = join(work, name);
+            const saved = join(work, name + ".saved");
+            renameSync(file, saved);
+            try {
+                symlinkSync(saved, file, "file");
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== "EPERM")
+                    throw error;
+                t.skip("creating file symlinks requires Windows privileges");
+                return;
+            }
+            assert.throws(
+                () => validateNativePackage(work, "linux-x64", version),
+                /must be a regular file/,
+                name,
+            );
+            rmSync(file);
+            renameSync(saved, file);
         }
     } finally {
         rmSync(work, { recursive: true, force: true });
@@ -227,7 +341,7 @@ test("package validation rejects stale versions and README identities", async ()
     }
 });
 
-test("release assembly preflights every notice before modifying output or invoking archive tools", () => {
+test("release assembly preflights every legal file before modifying output or invoking archive tools", () => {
     const work = temporary(),
         artifacts = join(work, "artifacts"),
         out = join(work, "archives");
@@ -235,29 +349,37 @@ test("release assembly preflights every notice before modifying output or invoki
         artifactFixtures(artifacts);
         mkdirSync(out);
         writeFileSync(join(out, "keep.txt"), "previous release");
-        const file = join(
-            artifacts,
-            "nona-openbsd-x64",
-            "THIRD_PARTY_NOTICES.md",
-        );
-        for (const broken of brokenNotices) {
-            if (broken.bytes === undefined) rmSync(file);
-            else writeFileSync(file, broken.bytes);
-            const result = script(
-                "release-archives.mjs",
-                [
-                    "--artifacts",
-                    artifacts,
-                    "--out",
-                    out,
-                    "--notes",
-                    join(work, "notes.md"),
-                ],
-                { ...process.env, PATH: "" },
-            );
-            rejected(result, /nona-openbsd-x64[\s\S]*THIRD_PARTY_NOTICES\.md/);
-            assert.deepEqual(readdirSync(out), ["keep.txt"], broken.name);
-            assert.equal(existsSync(join(work, "notes.md")), false);
+        for (const [name, cases, canonical] of [
+            ["THIRD_PARTY_NOTICES.md", brokenNotices, notice],
+            ["LICENSE", brokenLicenses, license],
+        ] as const) {
+            const file = join(artifacts, "nona-openbsd-x64", name);
+            for (const broken of cases) {
+                if (broken.bytes === undefined) rmSync(file);
+                else writeFileSync(file, broken.bytes);
+                const result = script(
+                    "release-archives.mjs",
+                    [
+                        "--artifacts",
+                        artifacts,
+                        "--out",
+                        out,
+                        "--notes",
+                        join(work, "notes.md"),
+                    ],
+                    { ...process.env, PATH: "" },
+                );
+                rejected(
+                    result,
+                    new RegExp(
+                        "nona-openbsd-x64[\\s\\S]*" +
+                            name.replaceAll(".", "\\."),
+                    ),
+                );
+                assert.deepEqual(readdirSync(out), ["keep.txt"], broken.name);
+                assert.equal(existsSync(join(work, "notes.md")), false);
+            }
+            writeFileSync(file, canonical);
         }
     } finally {
         rmSync(work, { recursive: true, force: true });
@@ -543,14 +665,20 @@ test(
                 },
                 /VERSION/,
             );
-            await tamper(
-                "missing LICENSE",
-                "darwin-arm64",
-                (directory) => {
-                    rmSync(join(directory, "LICENSE"));
-                },
-                /incorrect package directory or contents/,
-            );
+            for (const broken of brokenLicenses) {
+                await tamper(
+                    broken.name + " LICENSE",
+                    "darwin-arm64",
+                    (directory) => {
+                        const file = join(directory, "LICENSE");
+                        if (broken.bytes === undefined) rmSync(file);
+                        else writeFileSync(file, broken.bytes);
+                    },
+                    broken.bytes === undefined
+                        ? /incorrect package directory or contents/
+                        : /LICENSE/,
+                );
+            }
             await tamper(
                 "wrong top directory",
                 "linux-x64",

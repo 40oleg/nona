@@ -4,7 +4,7 @@
 
 从[最新发布](https://github.com/40oleg/nona/releases/latest)下载适合你系统的压缩包，解压后运行 `nona --help`（Linux、macOS 和 BSD 上为 `./nona --help`）。压缩包中包含可执行文件（Windows 上为 `nona.exe`，其他系统上为 `nona`）、`LICENSE`、`VERSION`、`README.txt` 和 `THIRD_PARTY_NOTICES.md`；编译器是一个原生程序，不需要 Node.js。每个发布版本还列出了 `SHA256SUMS`。下表压缩包名称中的 `<version>` 表示发布版本号。
 
-分发生成的程序时，请在可执行文件旁附上编译器压缩包中的 `LICENSE` 和 `THIRD_PARTY_NOTICES.md`。共享运行时包含这些[声明](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md)所涉及的非十进制数字格式化和立方根支持；ARM64 输出还使用软件实现的对数和指数函数。
+分发生成的程序时，请在可执行文件旁附上编译器压缩包中的 `LICENSE` 和 `THIRD_PARTY_NOTICES.md`。共享运行时包含这些[声明](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md)所涉及的非十进制数字格式化和立方根支持；ARM64 输出还使用软件实现的对数和指数函数。 RegExp 和 Intl 支持还会导入受 Unicode 声明涵盖的生成 Unicode 数据。
 
 | 操作系统                    | 压缩包                                                                   | 目标名称                     |
 | --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |

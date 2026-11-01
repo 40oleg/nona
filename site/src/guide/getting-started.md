@@ -56,7 +56,7 @@ done; at least 30 ms passed: true
 
 The program ends when no timers or Promise jobs are left. The executable runs on its own: copy it to a machine without Node.js and it still works.
 
-When distributing a generated program, include `LICENSE` and `THIRD_PARTY_NOTICES.md` from the compiler archive alongside it. The shared runtime includes the nondecimal formatter and cube-root support covered by these [notices](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); ARM64 output also uses the software logarithm and exponential helpers.
+When distributing a generated program, include `LICENSE` and `THIRD_PARTY_NOTICES.md` from the compiler archive alongside it. The shared runtime includes the nondecimal formatter and cube-root support covered by these [notices](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); ARM64 output also uses the software logarithm and exponential helpers. RegExp and Intl support also imports generated Unicode data covered by the Unicode notice.
 
 ## Targets and cross-compilation
 

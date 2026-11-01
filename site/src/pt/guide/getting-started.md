@@ -4,7 +4,7 @@
 
 Baixe o arquivo do seu sistema na [versão mais recente](https://github.com/40oleg/nona/releases/latest), extraia-o e execute `nona --help` (`./nona --help` no Linux, macOS e BSD). O arquivo contém o executável (`nona.exe` no Windows, `nona` nos demais sistemas), `LICENSE`, `VERSION`, `README.txt` e `THIRD_PARTY_NOTICES.md`; o compilador é um programa nativo que não precisa do Node.js. Cada versão também lista `SHA256SUMS`. Nos nomes de arquivo abaixo, `<version>` indica a versão publicada.
 
-Ao distribuir um programa gerado, inclua junto ao executável os arquivos `LICENSE` e `THIRD_PARTY_NOTICES.md` do arquivo do compilador. O runtime compartilhado inclui a formatação de números em bases diferentes de dez e o cálculo de raízes cúbicas abrangidos por estes [avisos](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); os executáveis ARM64 também usam as funções de logaritmo e exponencial implementadas em software.
+Ao distribuir um programa gerado, inclua junto ao executável os arquivos `LICENSE` e `THIRD_PARTY_NOTICES.md` do arquivo do compilador. O runtime compartilhado inclui a formatação de números em bases diferentes de dez e o cálculo de raízes cúbicas abrangidos por estes [avisos](https://github.com/40oleg/nona/blob/main/THIRD_PARTY_NOTICES.md); os executáveis ARM64 também usam as funções de logaritmo e exponencial implementadas em software. O suporte a RegExp e Intl também importa dados Unicode gerados abrangidos pelo aviso Unicode.
 
 | SO                          | Arquivo                                                                  | Nome do alvo                 |
 | --------------------------- | ------------------------------------------------------------------------ | ---------------------------- |

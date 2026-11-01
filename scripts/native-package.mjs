@@ -9,6 +9,7 @@ export const releaseVersion = JSON.parse(
 ).version;
 export const noticeName = "THIRD_PARTY_NOTICES.md";
 const canonicalNotices = readFileSync(join(projectRoot, noticeName));
+const canonicalLicense = readFileSync(join(projectRoot, "LICENSE"));
 
 export function packageFiles(target) {
     return [
@@ -36,6 +37,10 @@ export function validateNativePackage(directory, target, version) {
     if (!readFileSync(join(directory, noticeName)).equals(canonicalNotices))
         throw new Error(
             `${label}/${noticeName} does not match the repository notice bytes`,
+        );
+    if (!readFileSync(join(directory, "LICENSE")).equals(canonicalLicense))
+        throw new Error(
+            `${label}/LICENSE does not match the repository license bytes`,
         );
     const packaged = readFileSync(join(directory, "VERSION"), "utf8").trim();
     if (packaged !== version)
