@@ -9,7 +9,7 @@
 :::
 
 ::: warning
-与 Node.js、Deno 和 Bun 的最新对比（2026-10-18，v0.18.0）见[英文页面](/guide/performance#current-release-v0-18-0-against-node-js-deno-and-bun)：hello world 启动 1.3 ms、大小 1.1 MB（启动和内存为 Node.js 的 ×0.1），简单循环和集合慢 ×2–×4，Are-We-Fast-Yet 的面向对象基准和真实库慢 ×11–×13，经过 RegExp 引擎的一切慢 ×60–×350。以下是 v0.7.0 测量结果的译文。
+当前版本的测量结果、Node.js、Deno 和 Bun 的版本、测量提交和方法见[英文页面](/guide/performance)。以下保留 v0.7.0 测量的历史译文，其数字不代表当前版本。
 :::
 
 测量于 2026-10-01，对象为 Nona `v0.7.0`（提交 `b31c4d6`）。脚本位于 [`bench/`](https://github.com/40oleg/nona/blob/main/bench/)；`node bench/run.mjs` 可以复现下面的每一张表。

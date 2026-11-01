@@ -566,10 +566,10 @@ test("CLI protects a dependency aliased after compilation and cleans its tempora
 test("CLI help and version", () => {
     const help = cli(["--help"]);
     assert.equal(help.status, 0);
-    assert.match(help.stdout, /Nona 0.33.0/);
+    assert.match(help.stdout, /Nona 0.34.0/);
     const version = cli(["--version"]);
     assert.equal(version.status, 0);
-    assert.equal(version.stdout, "0.33.0\n");
+    assert.equal(version.stdout, "0.34.0\n");
 });
 test("CLI builds nested output and runs executable", () =>
     fixture((dir) => {
