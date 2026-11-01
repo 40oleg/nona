@@ -2,11 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runModulesOnHost } from "./helpers/host.js";
 
-function expectNode(source: string, expected: string[]): void {
+// Request stress here; generate() applies the repository's NONA_GC_STRESS=off
+// selection. In particular, a full-GC run must not become a normal build.
+function expectNode(source: string, expected: string[], gcStress = true): void {
     const { native, oracle, oracleStatus, oracleStderr } = runModulesOnHost(
         { "main.mjs": source },
         "main.mjs",
-        { gcStress: false },
+        { gcStress },
     );
     assert.equal(oracleStatus, 0, oracleStderr + oracle);
     assert.equal(native.error, undefined);
@@ -87,12 +89,18 @@ async function scenario(phase, action) {
     req.on('socket', socket => {
       events.push('socket');
       function cancel() {
-        for (const body of ['one', 'two'])
+        for (const body of ['one', 'two']) {
+          // Only this retained write callback owns the context after cancel()
+          // returns; error emission and the first callback can allocate/collect.
+          const context = { body, payload: Buffer.from(body), nested: { tag: 'retained' } };
           req.write(body, error => {
+            if (context.body !== body || context.payload.toString() !== body || context.nested.tag !== 'retained')
+              throw new Error('write callback lost its context');
             if ((action === 'error' || action === 'socket-error') && error !== failure)
               throw new Error('write callback lost the original error');
             events.push(body + ':' + error.name + ':' + (error.code || '-') + ':' + error.message);
           });
+        }
         if (action === 'abort') req.abort();
         else if (action === 'error') { req.destroy(failure); req.destroy(); }
         else if (action === 'socket-error') { socket.destroy(failure); socket.destroy(); }
@@ -222,15 +230,27 @@ await scenario(1);
 await scenario(2);
 `;
 
-test("node:http Agent: closing a socket wakes other origins at maxTotalSockets 1 and 2", () =>
-    expectNode(boundedOrigins, [
-        "queued 1 1",
-        "woken 1 /hold0,/other1",
-        "complete 1 /hold0,/other1 2 peak 1",
-        "queued 2 2",
-        "woken 2 /hold0,/other1,/other2",
-        "complete 2 /hold0,/hold1,/other1,/other2 4 peak 2",
-    ]));
+// Keep the same exact public observations as an explicit non-stress control.
+// The primary case and every lifetime case still request stress, including on
+// main and PRs labelled gc-stress; no local environment shortcut is used here.
+for (const gcStress of [true, false])
+    test(
+        "node:http Agent: closing a socket wakes other origins at maxTotalSockets 1 and 2" +
+            (gcStress ? "" : " (non-stress control)"),
+        () =>
+            expectNode(
+                boundedOrigins,
+                [
+                    "queued 1 1",
+                    "woken 1 /hold0,/other1",
+                    "complete 1 /hold0,/other1 2 peak 1",
+                    "queued 2 2",
+                    "woken 2 /hold0,/other1,/other2",
+                    "complete 2 /hold0,/hold1,/other1,/other2 4 peak 2",
+                ],
+                gcStress,
+            ),
+    );
 
 const cancellations = String.raw`import http from 'node:http';
 async function scenario(mode, action) {
@@ -347,6 +367,107 @@ test("node:http Agent: cancellation while queued, before assignment and after th
         "socket error canceled socket,error:TypeError:-:cancel,close live socket,response,end:live,close seen /live",
         "socket destroy canceled socket,error:Error:ECONNRESET:socket hang up,close live socket,response,end:live,close seen /live",
         "socket abort canceled socket,abort,error:Error:ECONNRESET:socket hang up,close live socket,response,end:live,close seen /live",
+    ]));
+
+// These factories return only completion promises. Callback contexts and the
+// deferred cancellation error must survive through the request/Agent roots,
+// across allocation and a turn of the loop before capacity is released.
+const retainedContexts = String.raw`import http from 'node:http';
+const agent = new http.Agent({ maxSockets: 1, maxTotalSockets: 1 });
+const servers = [], sockets = [], requests = [], seen = [];
+const canceledEvents = [], liveEvents = [];
+let held, holding, cleaning = false, phase = 'listen';
+const ready = new Promise(resolve => { holding = resolve; });
+function cleanup() {
+  if (cleaning) return;
+  cleaning = true;
+  for (const req of requests) req.destroy();
+  agent.destroy();
+  for (const socket of sockets) socket.destroy();
+  for (const server of servers) server.close();
+}
+const watchdog = setTimeout(() => {
+  console.log('watchdog retained contexts', phase, canceledEvents.join(','), liveEvents.join(','), seen.join(','));
+  process.exitCode = 1;
+  cleanup();
+}, 6000);
+function listen() {
+  return new Promise(resolve => {
+    const server = http.createServer((req, res) => {
+      seen.push(req.url);
+      res.setHeader('Connection', 'close');
+      if (req.url === '/hold') { held = res; holding(); }
+      else res.end('live');
+    });
+    servers.push(server);
+    server.on('connection', socket => sockets.push(socket));
+    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+  });
+}
+function cancelWithContext(req) {
+  const failure = new TypeError('cancel');
+  failure.context = { payload: Buffer.from('error-context') };
+  req.destroy(failure);
+  req.destroy();
+}
+function enqueueCanceled(port) {
+  const context = { label: 'cancel-listener' };
+  return new Promise(resolve => {
+    const req = http.request({ host: '127.0.0.1', port, path: '/canceled', method: 'POST', agent }, () => {
+      throw new Error('canceled response callback ran');
+    });
+    requests.push(req);
+    req.on('socket', () => { throw new Error('canceled request received a socket'); });
+    req.on('error', error => canceledEvents.push('error:' + error.name + ':' + (error.code || '-') + ':' + error.message + ':' + error.context.payload.toString() + ':' + context.label));
+    req.on('close', () => { canceledEvents.push('close:' + context.label); resolve(); });
+    req.write(Buffer.from('abandoned write'), () => { throw new Error('canceled write callback ran'); });
+    req.end('abandoned end', () => { throw new Error('canceled end callback ran'); });
+    cancelWithContext(req);
+  });
+}
+function enqueueLive(port) {
+  const context = { label: 'live-context', payload: Buffer.from('retained') };
+  return new Promise(resolve => {
+    const req = http.get({ host: '127.0.0.1', port, path: '/live', agent }, res => {
+      liveEvents.push('response:' + context.payload.toString());
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => liveEvents.push('end:' + body));
+    });
+    requests.push(req);
+    req.on('socket', () => liveEvents.push('socket:' + context.label));
+    req.on('error', error => { if (!cleaning) liveEvents.push('error:' + error.name + ':' + error.code); });
+    req.on('close', () => { liveEvents.push('close:' + context.label); resolve(); });
+  });
+}
+const a = await listen(), b = await listen();
+phase = 'hold';
+const first = new Promise(resolve => {
+  const req = http.get({ host: '127.0.0.1', port: a, path: '/hold', agent }, res => res.resume());
+  requests.push(req);
+  req.on('error', error => { if (!cleaning) throw error; });
+  req.on('close', resolve);
+});
+await ready;
+phase = 'queue';
+const canceled = enqueueCanceled(b), live = enqueueLive(b);
+await new Promise(resolve => setImmediate(resolve));
+console.log('retained before release', canceledEvents.length, liveEvents.length);
+phase = 'release';
+held.end(Buffer.from('release'));
+await Promise.all([first, canceled, live]);
+await new Promise(resolve => setImmediate(resolve));
+console.log('retained canceled', canceledEvents.join(','));
+console.log('retained live', liveEvents.join(','), 'seen', seen.join(','));
+clearTimeout(watchdog);
+cleanup();
+`;
+
+test("node:http Agent: retains callback contexts and the deferred cancellation error until capacity is released", () =>
+    expectNode(retainedContexts, [
+        "retained before release 0 0",
+        "retained canceled error:TypeError:-:cancel:error-context:cancel-listener,close:cancel-listener",
+        "retained live socket:live-context,response:retained,end:live,close:live-context seen /hold,/live",
     ]));
 
 const releaseEdges = String.raw`import http from 'node:http';
