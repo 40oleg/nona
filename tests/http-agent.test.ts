@@ -11,7 +11,8 @@ function expectNode(source: string, expected: string[], gcStress = true): void {
         { gcStress },
     );
     assert.equal(oracleStatus, 0, oracleStderr + oracle);
-    assert.equal(native.error, undefined);
+    assert.equal(oracleStderr, "");
+    assert.equal(native.error, undefined, native.stderr + native.stdout);
     assert.equal(native.status, 0, native.stderr + native.stdout);
     assert.equal(oracle, expected.join("\n") + "\n");
     assert.equal(native.stdout, oracle);
@@ -372,11 +373,18 @@ test("node:http Agent: cancellation while queued, before assignment and after th
 // These factories return only completion promises. Callback contexts and the
 // deferred cancellation error must survive through the request/Agent roots,
 // across allocation and a turn of the loop before capacity is released.
+// Only the assigned /hold request is retained separately for cleanup; keeping
+// queued requests in requests[] would bypass the ownership under test.
 const retainedContexts = String.raw`import http from 'node:http';
 const agent = new http.Agent({ maxSockets: 1, maxTotalSockets: 1 });
 const servers = [], sockets = [], requests = [], seen = [];
 const canceledEvents = [], liveEvents = [];
-let held, holding, cleaning = false, phase = 'listen';
+let held, holding, cleaning = false, phase = 'setup';
+const started = Date.now(), phases = [];
+function enterPhase(name) {
+  phase = name;
+  phases.push(name + ':' + (Date.now() - started));
+}
 const ready = new Promise(resolve => { holding = resolve; });
 function cleanup() {
   if (cleaning) return;
@@ -387,7 +395,9 @@ function cleanup() {
   for (const server of servers) server.close();
 }
 const watchdog = setTimeout(() => {
-  console.log('watchdog retained contexts', phase, canceledEvents.join(','), liveEvents.join(','), seen.join(','));
+  console.log('watchdog retained contexts', phase, 'elapsed-ms', Date.now() - started,
+    'phases-ms', phases.join(','), 'canceled', canceledEvents.join(','),
+    'live', liveEvents.join(','), 'seen', seen.join(','));
   process.exitCode = 1;
   cleanup();
 }, 6000);
@@ -396,7 +406,7 @@ function listen() {
     const server = http.createServer((req, res) => {
       seen.push(req.url);
       res.setHeader('Connection', 'close');
-      if (req.url === '/hold') { held = res; holding(); }
+      if (req.url === '/hold') { held = res; enterPhase('hold-received'); holding(); }
       else res.end('live');
     });
     servers.push(server);
@@ -416,7 +426,6 @@ function enqueueCanceled(port) {
     const req = http.request({ host: '127.0.0.1', port, path: '/canceled', method: 'POST', agent }, () => {
       throw new Error('canceled response callback ran');
     });
-    requests.push(req);
     req.on('socket', () => { throw new Error('canceled request received a socket'); });
     req.on('error', error => canceledEvents.push('error:' + error.name + ':' + (error.code || '-') + ':' + error.message + ':' + error.context.payload.toString() + ':' + context.label));
     req.on('close', () => { canceledEvents.push('close:' + context.label); resolve(); });
@@ -434,14 +443,16 @@ function enqueueLive(port) {
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => liveEvents.push('end:' + body));
     });
-    requests.push(req);
     req.on('socket', () => liveEvents.push('socket:' + context.label));
     req.on('error', error => { if (!cleaning) liveEvents.push('error:' + error.name + ':' + error.code); });
     req.on('close', () => { liveEvents.push('close:' + context.label); resolve(); });
   });
 }
-const a = await listen(), b = await listen();
-phase = 'hold';
+enterPhase('listen1');
+const a = await listen();
+enterPhase('listen2');
+const b = await listen();
+enterPhase('hold');
 const first = new Promise(resolve => {
   const req = http.get({ host: '127.0.0.1', port: a, path: '/hold', agent }, res => res.resume());
   requests.push(req);
@@ -449,11 +460,11 @@ const first = new Promise(resolve => {
   req.on('close', resolve);
 });
 await ready;
-phase = 'queue';
+enterPhase('queue');
 const canceled = enqueueCanceled(b), live = enqueueLive(b);
 await new Promise(resolve => setImmediate(resolve));
 console.log('retained before release', canceledEvents.length, liveEvents.length);
-phase = 'release';
+enterPhase('release');
 held.end(Buffer.from('release'));
 await Promise.all([first, canceled, live]);
 await new Promise(resolve => setImmediate(resolve));
