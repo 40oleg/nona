@@ -657,19 +657,21 @@ class UsageWalker {
             for (const id of boundNames(parameter)) scope.names.add(id.name);
         if (node.rest)
             for (const id of boundNames(node.rest)) scope.names.add(id.name);
-        const declarations = collectDeclarations(node.body.body, "var");
-        for (const lexical of declarations.lexicals)
-            scope.names.add(lexical.name);
-        for (const id of declarations.vars) scope.names.add(id.name);
-        for (const fn of declarations.bodyFunctions)
-            scope.names.add(fn.id.name);
         node.parameters.forEach((parameter, index) => {
             this.pattern(parameter, scope);
             const init = node.defaults?.[index];
             if (init) this.expression(init, scope);
         });
         if (node.rest) this.pattern(node.rest, scope);
-        this.statements(node.body.body, scope);
+        // Defaults see parameters and outer scopes, not body declarations.
+        // References are resolved after traversal, so keep distinct scope objects.
+        const body: Scope = { parent: scope, names: new Set() };
+        const declarations = collectDeclarations(node.body.body, "var");
+        for (const lexical of declarations.lexicals)
+            body.names.add(lexical.name);
+        for (const id of declarations.vars) body.names.add(id.name);
+        for (const fn of declarations.bodyFunctions) body.names.add(fn.id.name);
+        this.statements(node.body.body, body);
     }
     private class(node: A.ClassDeclaration | A.ClassExpression, parent: Scope) {
         const scope: Scope =

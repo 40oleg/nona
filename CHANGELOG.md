@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Optional built-ins in parameter defaults survive body shadowing.** Body `var`, `let` and function declarations no longer hide `Proxy` or `RegExp` references in parameter initializers from runtime selection. Actual parameter bindings still shadow the built-ins. ([#613](https://github.com/40oleg/nona/issues/613))
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
