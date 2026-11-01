@@ -1,13 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eventsModuleSource } from "../src/runtime/events-module-source.js";
 import { compile } from "../src/compiler.js";
 import { runModulesOnHost } from "./helpers/host.js";
 import { removeTemporaryDirectory } from "./helpers/cleanup.js";
+import { requireHostTarget } from "../src/target.js";
 
 const cases: [string, string][] = [
     [
@@ -210,4 +211,63 @@ for (const [name, body] of cases) {
             assert.equal(native.stdout, oracle);
         },
     );
+}
+
+// Keep the original module imports, delays, event order and GC request. The
+// module-to-IR oracle above always links the full runtime; these exercise the
+// public compiler's selected-runtime path as well (#632).
+for (const fullRuntime of [false, true]) {
+    test(`events public compile: timeout liveness (fullRuntime=${fullRuntime})`, () => {
+        const body = cases.find(
+            ([name]) =>
+                name ===
+                "timeout cancellation fires while an ordinary timer remains active",
+        )![1];
+        const source = imports + body;
+        const directory = mkdtempSync(join(tmpdir(), "nona-events-timeout-"));
+        try {
+            const entry = join(directory, "main.mjs");
+            writeFileSync(entry, source);
+            const oracle = spawnSync(process.execPath, [entry], {
+                encoding: "utf8",
+                timeout: 10000,
+                windowsHide: true,
+                cwd: directory,
+            });
+            assert.equal(oracle.error, undefined);
+            assert.equal(oracle.status, 0, oracle.stderr);
+            assert.equal(
+                oracle.stdout,
+                "timeout TimeoutError\nlive true false\n",
+            );
+            const compiled = compile(source, {
+                fileName: entry,
+                target: requireHostTarget(),
+                module: true,
+                gcStress: true,
+                fullRuntime,
+            });
+            assert.ok(
+                compiled.ok,
+                compiled.ok ? "" : JSON.stringify(compiled.diagnostics),
+            );
+            const executable = join(
+                directory,
+                process.platform === "win32" ? "image.exe" : "image",
+            );
+            writeFileSync(executable, compiled.image);
+            chmodSync(executable, 0o755);
+            const native = spawnSync(executable, [], {
+                encoding: "utf8",
+                timeout: 180000,
+                windowsHide: true,
+                cwd: directory,
+            });
+            assert.equal(native.error, undefined);
+            assert.equal(native.status, 0, native.stderr);
+            assert.equal(native.stdout, oracle.stdout);
+        } finally {
+            removeTemporaryDirectory(directory);
+        }
+    });
 }

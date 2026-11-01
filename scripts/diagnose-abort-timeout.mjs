@@ -7,6 +7,7 @@
 //   node scripts/diagnose-abort-timeout.mjs --native --trace
 //   node scripts/diagnose-abort-timeout.mjs --native --no-stress
 // Run each on main 23c5c90d, head 9fd6dc4e, merge dbeb6c23 and the candidate.
+// .github/workflows/abort-timeout-investigation.yml runs that comparison on PRs.
 // Copy this script into old hosted checkouts; do not transplant selector code.
 // Upload work/abort-timeout even on failure. Two passing attempts do not resolve
 // #632; retain the original stressed Events suite and PR624's release hold.
@@ -20,7 +21,7 @@ import {
     readFileSync,
     writeFileSync,
 } from "node:fs";
-import { availableParallelism, setPriority, constants } from "node:os";
+import { availableParallelism, release, setPriority, constants } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
@@ -180,6 +181,7 @@ const metadata = {
     node: process.version,
     platform: process.platform,
     arch: process.arch,
+    osRelease: release(),
     availableParallelism: availableParallelism(),
     environment: Object.fromEntries(
         [
@@ -188,6 +190,8 @@ const metadata = {
             "GITHUB_SHA",
             "RUNNER_NAME",
             "RUNNER_ENVIRONMENT",
+            "RUNNER_OS",
+            "RUNNER_ARCH",
             "ImageOS",
             "ImageVersion",
             "NONA_GC_STRESS",
@@ -245,6 +249,7 @@ const oracle = execute(
     [join(output, "main.mjs")],
     10000,
 );
+assert.equal(oracle, "timeout TimeoutError\nlive true false\n");
 if (!native) {
     // Supplementary control: no timing assertions in the original are changed.
     save(
@@ -252,11 +257,15 @@ if (!native) {
         source +
             "\nAtomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,1100);\n",
     );
-    execute(
+    const allDueOracle = execute(
         "node-all-due",
         process.execPath,
         [join(output, "all-due.mjs")],
         10000,
+    );
+    assert.equal(
+        allDueOracle,
+        "timeout TimeoutError\nlive true false\nunexpected\n",
     );
     for (const [name, atEntry, inCallback] of [
         ["normal", 0, 0],

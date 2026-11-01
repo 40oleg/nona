@@ -1,0 +1,85 @@
+name: AbortSignal timeout investigation
+on:
+    # This focused path works on the proposed PR; it does not require installing
+    # a dispatch-only workflow on main before the investigation can run.
+    pull_request:
+        types: [opened, synchronize, reopened, labeled]
+        paths:
+            - .github/workflows/abort-timeout-investigation.yml
+            - scripts/diagnose-abort-timeout.mjs
+            - src/**
+            - tests/events.test.ts
+permissions:
+    contents: read
+concurrency:
+    group: abort-timeout-${{ github.event.pull_request.number }}
+    cancel-in-progress: false
+jobs:
+    compare:
+        if: >-
+            github.head_ref == 'nona/issue-632' &&
+            contains(github.event.pull_request.labels.*.name, 'full-ci') &&
+            contains(github.event.pull_request.labels.*.name, 'gc-stress')
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                runner: [macos-15, windows-latest, ubuntu-24.04]
+                revision:
+                    - name: main23c5c90
+                      ref: 23c5c90d330e488539385ab213e996bb4c4d6457
+                    - name: failing624head
+                      ref: 9fd6dc4e8f2b012f08e9d68c30a10f04c3e852e8
+                    - name: failing624merge
+                      ref: dbeb6c23a79d6d8be49d36684d6dd62029edb691
+                    - name: candidate
+                      ref: ""
+        name: ${{ matrix.runner }} / ${{ matrix.revision.name }}
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
+        env:
+            NONA_TEST_CONCURRENCY: "1"
+            NONA_GC_STRESS: "on"
+        defaults:
+            run:
+                working-directory: source
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: tooling
+            - uses: actions/checkout@v4
+              with:
+                  path: source
+                  ref: ${{ matrix.revision.ref || github.sha }}
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+                  cache-dependency-path: source/package-lock.json
+            - name: Copy only the probe into the exact source checkout
+              run: >-
+                  node -e "require('node:fs').copyFileSync('../tooling/scripts/diagnose-abort-timeout.mjs','scripts/diagnose-abort-timeout.mjs')"
+            - run: npm ci
+            - id: build
+              run: npm run build
+            - name: Original module fixture, full runtime, GC stress (two retained processes)
+              id: plain
+              run: node scripts/diagnose-abort-timeout.mjs --native
+            - name: Buffered timer liveness trace, GC stress (two retained processes)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --trace
+            - name: Supplementary control without GC stress (two retained processes)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --no-stress
+            - name: Permanent public compile regressions, GC stress
+              if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.revision.name == 'candidate' }}
+              run: >-
+                  node --test --test-concurrency=1
+                  --test-name-pattern="events public compile: timeout liveness"
+                  dist/tests/events.test.js
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: abort-timeout-${{ matrix.runner }}-${{ matrix.revision.name }}
+                  path: source/work/abort-timeout
+                  if-no-files-found: error
