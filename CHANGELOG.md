@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Development
+
+- Add bounded, manually dispatched hosted Windows HTTP crash diagnostics with Node controls, per-trial state/termination evidence and native dump collection. Investigation results remain pending; no crash fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes

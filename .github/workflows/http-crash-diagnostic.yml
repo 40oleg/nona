@@ -1,0 +1,71 @@
+name: HTTP crash diagnostic
+on:
+    workflow_dispatch:
+permissions:
+    contents: read
+concurrency:
+    group: http-crash-diagnostic-${{ github.ref }}
+    cancel-in-progress: false
+env:
+    NODE_VERSION: "26.9.0"
+    NONA_AUTO_MERGE: "false"
+    NONA_AUTO_RELEASE: "false"
+jobs:
+    windows:
+        # Deliberately bypass pick-runner.mjs: never use the owner's PC.
+        runs-on: windows-2025
+        timeout-minutes: 35
+        steps:
+            - uses: actions/checkout@v4
+            - name: Verify hosted identity
+              shell: pwsh
+              run: |
+                  if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'Hosted runner required' }
+                  New-Item -ItemType Directory -Path work/http-crash -Force | Out-Null
+                  @{ name=$env:RUNNER_NAME; environment=$env:RUNNER_ENVIRONMENT; image=$env:ImageOS; imageVersion=$env:ImageVersion; os=[Environment]::OSVersion.VersionString } | ConvertTo-Json | Set-Content work/http-crash/runner.json
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - name: Test diagnostic lifecycle
+              run: node --test --test-concurrency=1 dist/tests/http-crash-diagnostic.test.js
+            - name: Install Windows debugging tools if absent
+              shell: pwsh
+              timeout-minutes: 8
+              run: |
+                  $cdb = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+                  if (-not (Test-Path -LiteralPath $cdb)) {
+                      Invoke-WebRequest 'https://go.microsoft.com/fwlink/?linkid=2196241' -OutFile work/winsdksetup.exe
+                      $installer = Start-Process -FilePath work/winsdksetup.exe -WindowStyle Hidden -ArgumentList '/features OptionId.WindowsDesktopDebuggers /quiet /norestart' -PassThru
+                      if (-not $installer.WaitForExit(420000)) { Stop-Process -Id $installer.Id -Force; throw 'SDK installation timed out' }
+                      if ($installer.ExitCode -notin @(0,3010)) { throw "SDK installation failed: $($installer.ExitCode)" }
+                  }
+                  if (-not (Test-Path -LiteralPath $cdb)) { throw 'CDB unavailable' }
+            - name: Configure per-image full dumps
+              run: pwsh -File scripts/http-crash-windows.ps1 setup
+            - name: Serial bounded trials (Node control and Nona)
+              run: node scripts/http-crash.mjs
+            - name: Retain raw exception, PC, load bases and stack
+              if: always()
+              run: pwsh -File scripts/http-crash-windows.ps1 collect
+            - name: Remove diagnostic WER keys
+              if: always()
+              run: pwsh -File scripts/http-crash-windows.ps1 cleanup
+            - name: Summarize completed and pending trials
+              if: always()
+              shell: pwsh
+              run: |
+                  if (Test-Path -LiteralPath work/http-crash/matrix.json) {
+                      $matrix = Get-Content work/http-crash/matrix.json -Raw | ConvertFrom-Json
+                      "Completed $(@($matrix.results).Count) of $(@($matrix.planned).Count) planned trials. See the artifact for raw evidence. No product fix is established." | Add-Content $env:GITHUB_STEP_SUMMARY
+                      foreach ($trial in $matrix.results) { "- $($trial.id): $($trial.runtime)/$($trial.gc), $($trial.state), c=$($trial.concurrency), $($trial.verdict)" | Add-Content $env:GITHUB_STEP_SUMMARY }
+                  }
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-crash-windows-${{ github.sha }}-${{ github.run_attempt }}
+                  path: work/http-crash/
+                  if-no-files-found: warn
+                  retention-days: 30

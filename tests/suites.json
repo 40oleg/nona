@@ -403,6 +403,7 @@
                 "pick-runner",
                 "cancel-pr-runs",
                 "run-shard",
+                "http-crash-diagnostic",
                 "ci-changes"
             ]
         }
