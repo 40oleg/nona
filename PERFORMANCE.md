@@ -1,18 +1,337 @@
 # Performance: Nona vs Node.js, Deno and Bun
 
-The current numbers are [the v0.18.0 section](#current-release-v0180-against-nodejs-deno-and-bun),
-measured on 2026-10-18/19 against Node.js, Deno and Bun with the standard
-suites (Are-We-Fast-Yet, Benchmarks Game programs), real programs and the
-repository's own micro-benchmarks (#392). Older sections keep the date and
-version they were measured at (v0.13.0 reusing the 2026-10-14 comparison,
-v0.10.0 on 2026-10-08, v0.7.0 on 2026-10-01) and are marked _superseded_. The
-scripts live in [`bench/`](bench/); `node bench/report.mjs` reproduces every
-table of the current section and `node bench/run.mjs` the older ones (protocol
-in [`bench/README.md`](bench/README.md)). The sections after the v0.18.0 one record
-targeted measurements of later changes (the comparison with optimized C++ of
-#401, #48, #155, #44 and the HTTP server of #403, whose 2026-10-22 section has every case, connection count and generator); the work merged after v0.18.0 is not in its tables.
+Current numbers are [the v0.34.0 measurement](#current-release-v0340-against-nodejs-deno-and-bun), taken on 2026-10-31. Older sections preserve their original versions, machines and dates and are superseded. Reproduce the current tables with bench/report.mjs using [the benchmark protocol](bench/README.md).
+
+## Current release (v0.34.0) against Node.js, Deno and Bun
+
+Measured on 2026-10-31 at [a14e50d4ac5f](https://github.com/40oleg/nona/commit/a14e50d4ac5f0921ddd237148c4ea527edb754c6) by [the hosted release workflow](https://github.com/40oleg/nona/actions/runs/41207589631). All suites and both HTTP generators ran sequentially on one GitHub-hosted Ubuntu 24.04 machine: AMD EPYC 9V45 96-Core Processor, 4 vCPUs, 15.6 GiB RAM, linux 7.0.0-1017-azure x64; CPU governor not exposed. Host contention is unknown. These results measure Linux x64; other native targets were not benchmarked.
+
+Runtime/tool versions: Node.js v26.9.0, Deno 2.9.8, Bun 1.4.4, hyperfine 1.18.0, valgrind 3.22.0. Workflow artifacts retain exact OS/affinity/QEMU/compiler/package versions, pinned vendor revisions, source hashes, raw samples and reports for 90 days.
+
+Protocol: [bench/README.md](bench/README.md), all seven bench/report.mjs suites. Corpus, micro, real programs and Benchmarks Game use 10 fresh-process runs after one warm-up; scale 0.1 applies to micro-benchmarks, real programs use their default scale 1, and game sizes are fixed per case. Startup uses 30 samples after five warm-ups, five RSS samples and three Nona compiler builds (Bun compilation is measured once). Are-We-Fast-Yet uses 10 verified in-process iterations, showing the first iteration and the median of iterations 4–10. Profiles use one QEMU instruction-count run and one Node.js Callgrind measurement per case at the small scales shown in their table. Tables show median and IQR except HTTP, which shows median and min–max. The ≈ marker denotes the repository's ×1.5 comparison band, not a statistical confidence interval. Executable and memory columns labelled MB by the scripts use MiB (2²⁰ bytes).
+
+Deno cannot load the pinned lodash CommonJS file as a default ES-module export in the startup and real-program cases. Those failures remain visible and are the only documented runtime limitation accepted by the validator. Other workload failures, incorrect results, missing samples or HTTP errors prevent a complete report.
+
+The measured source commit is recorded above. Later release-report and CI-only edits do not change the compiler or benchmark implementations.
+
+The older v0.18.0 comparison used a different machine and Node.js 22. Changes in the ratios between those tables and these results are not a controlled release-to-release regression test.
+
+### Summary
+
+Time ratios below 1 favor Nona. Categories group operation timings; startup also includes the ten complete corpus programs.
+
+| Category                               | Cases | Geomean Nona / Node | Nona faster (>×1.5) | Within noise | Node faster (>×1.5) |
+| -------------------------------------- | ----- | ------------------- | ------------------- | ------------ | ------------------- |
+| Start-up (hello world, lodash loaded)  | 12    | ×0.1                | 12                  | 0            | 0                   |
+| Compute (calls, numbers, typed arrays) | 17    | ×2.5                | 1                   | 4            | 12                  |
+| Allocation, objects and collections    | 10    | ×1.9                | 1                   | 3            | 6                   |
+| Strings, RegExp and JSON               | 26    | ×3.6                | 1                   | 6            | 19                  |
+| I/O and the event loop                 | 5     | ×2.6                | 0                   | 1            | 4                   |
+| Real programs                          | 9     | ×13                 | 0                   | 0            | 9                   |
+| Are-We-Fast-Yet (steady state)         | 14    | ×16                 | 0                   | 0            | 14                  |
+| Benchmarks Game (whole process)        | 9     | ×8.6                | 0                   | 0            | 9                   |
+
+### Start-up, executable size, build time, memory
+
+**Hello world**, start-up: median (IQR) of 30 runs after 5 warm-ups with hyperfine; peak RSS: median of 5 runs.
+
+| How the program runs       | Start-up, ms        | Executable, MB | Build, s | Peak RSS, MB |
+| -------------------------- | ------------------- | -------------- | -------- | ------------ |
+| Nona, compiled ELF         | 0.556 (0.543–0.564) | 1.24           | 0.230    | 1.32         |
+| Bun, `bun build --compile` | 2.46 (2.40–2.61)    | 104            | 0.129    | 12.3         |
+| Bun, `bun x.js`            | 2.62 (2.54–2.67)    | (the runtime)  | —        | 14.1         |
+| Deno, `deno run x.js`      | 12.7 (11.8–13.6)    | (the runtime)  | —        | 33.6         |
+| Node, `node x.js`          | 15.8 (15.4–16.2)    | (the runtime)  | —        | 47.6         |
+
+**lodash 4.17.21 loaded, one call (`bench/startup/lodash-hello.mjs`)**, start-up: median (IQR) of 30 runs after 5 warm-ups with hyperfine; peak RSS: median of 5 runs.
+
+| How the program runs       | Start-up, ms                                                                            | Executable, MB | Build, s | Peak RSS, MB |
+| -------------------------- | --------------------------------------------------------------------------------------- | -------------- | -------- | ------------ |
+| Nona, compiled ELF         | 7.81 (7.78–7.84)                                                                        | 9.21           | 2.17     | 15.2         |
+| Bun, `bun build --compile` | 10.1 (9.77–10.9)                                                                        | 104            | 0.134    | 29.4         |
+| Bun, `bun x.js`            | 13.2 (12.4–13.5)                                                                        | (the runtime)  | —        | 33.5         |
+| Deno, `deno run x.js`      | fails: error: Uncaught SyntaxError: The requested module '../real/vendor/lodash/lodash. | (the runtime)  | —        | —            |
+| Node, `node x.js`          | 29.6 (28.8–30.0)                                                                        | (the runtime)  | —        | 54.8         |
+
+### Program corpus sample
+
+`node bench/report.mjs --suite corpus --runs 10 --runtimes node,deno,bun,nona`: the first ten programs of the [program corpus](programs/README.md), whole-process wall time, median (IQR) of 10 runs, ms, and peak RSS, MB; stdout compared between runtimes.
+
+| Program                   | Node, ms         | Deno, ms         | Bun, ms          | Nona, ms         | Node RSS, MB | Deno RSS, MB | Bun RSS, MB | Nona RSS, MB | Nona / Node |
+| ------------------------- | ---------------- | ---------------- | ---------------- | ---------------- | ------------ | ------------ | ----------- | ------------ | ----------- |
+| `001-insertion-sort`      | 18.4 (18.1–19.3) | 14.6 (13.6–15.8) | 4.65 (4.35–4.78) | 1.90 (1.90–2.00) | 47.7         | 35.8         | 16.6        | 1.33         | ×0.1        |
+| `002-binary-search`       | 19.1 (18.7–19.4) | 21.1 (14.3–30.0) | 4.75 (4.35–4.80) | 2.00 (1.90–2.00) | 47.7         | 35.8         | 16.6        | 1.48         | ×0.1        |
+| `003-prime-sieve`         | 19.7 (18.9–20.3) | 39.8 (14.1–161)  | 4.90 (4.63–5.00) | 1.90 (1.90–1.90) | 47.7         | 36.3         | 16.7        | 1.33         | ×0.1        |
+| `004-closure-accounts`    | 19.3 (19.1–19.5) | 74.9 (23.2–117)  | 4.70 (4.60–5.10) | 2.00 (2.00–2.00) | 48.4         | 36.4         | 17.3        | 1.42         | ×0.1        |
+| `005-expression-parser`   | 19.5 (19.2–20.1) | 14.8 (14.2–15.5) | 4.70 (4.55–5.08) | 1.90 (1.90–1.98) | 48.4         | 35.4         | 17.8        | 1.40         | ×0.1        |
+| `006-tree-traversal`      | 19.1 (18.7–19.8) | 14.8 (14.5–15.2) | 5.50 (5.50–5.70) | 2.00 (2.00–2.10) | 47.8         | 36.2         | 19.4        | 1.45         | ×0.1        |
+| `007-shortest-path`       | 18.8 (17.9–19.0) | 15.1 (14.0–15.6) | 4.90 (4.55–5.08) | 2.00 (1.92–2.00) | 47.7         | 36.2         | 17.0        | 1.40         | ×0.1        |
+| `008-matrix-multiply`     | 19.4 (19.1–19.7) | 15.5 (14.8–15.9) | 4.75 (4.55–5.20) | 2.20 (2.10–2.42) | 47.8         | 36.3         | 17.3        | 1.76         | ×0.1        |
+| `009-run-length-encoding` | 19.3 (18.8–19.9) | 14.9 (13.8–15.3) | 4.75 (4.63–5.10) | 1.95 (1.90–2.08) | 48.5         | 36.8         | 17.4        | 1.40         | ×0.1        |
+| `010-exception-cleanup`   | 19.7 (19.1–20.1) | 15.9 (15.3–16.4) | 4.75 (4.70–5.20) | 2.00 (2.00–2.00) | 48.4         | 36.0         | 18.3        | 1.45         | ×0.1        |
+
+### Micro-benchmarks
+
+`node bench/report.mjs --suite micro --scale 0.1 --runs 10 --runtimes node,deno,bun,nona`: median (interquartile range) of 10 runs, ms, one process per run after a warm-up run. `--scale 0.1` is N = 100 000 of the array, object, call and class rows.
+
+| Operation                                            | Node                   | Deno                   | Bun                    | Nona                   | Nona / Node |
+| ---------------------------------------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ----------- |
+| `push` × N                                           | 5.35 (5.25–5.37)       | 2.76 (2.62–2.86)       | 2.07 (2.06–2.11)       | 2.70 (2.68–2.74)       | ×0.5        |
+| `Array.from({length: N})`                            | 2.66 (2.61–2.68)       | 3.16 (2.94–4.66)       | 1.49 (1.35–1.60)       | 17.0 (16.9–17.1)       | ×6.4        |
+| `new Array(N)` + fill                                | 0.743 (0.725–0.779)    | 0.720 (0.620–0.818)    | 0.640 (0.514–0.653)    | 1.76 (1.74–1.79)       | ×2.4        |
+| Sum with a `for` loop                                | 0.858 (0.831–0.908)    | 1.33 (0.743–1.35)      | 0.406 (0.253–0.420)    | 0.641 (0.640–0.644)    | ≈×0.7       |
+| `map` → `filter` → `reduce`                          | 1.93 (1.91–2.01)       | 2.63 (2.29–2.69)       | 2.19 (2.15–2.28)       | 5.86 (5.83–5.87)       | ×3.0        |
+| `sort` N numbers with a comparator                   | 20.9 (20.8–21.5)       | 26.1 (24.8–28.4)       | 20.9 (20.6–21.0)       | 48.5 (48.4–48.6)       | ×2.3        |
+| Create N objects `{id, x, y, name}`                  | 9.32 (9.21–9.55)       | 7.18 (6.66–7.75)       | 2.49 (2.48–2.55)       | 12.2 (12.1–12.2)       | ≈×1.3       |
+| Read 3 properties × N                                | 1.28 (1.26–1.32)       | 4.62 (4.17–5.05)       | 0.765 (0.757–0.808)    | 0.918 (0.910–0.926)    | ≈×0.7       |
+| `Map.set` × N                                        | 9.55 (9.29–9.95)       | 8.44 (7.55–9.31)       | 7.33 (7.14–7.48)       | 14.2 (14.1–14.3)       | ≈×1.5       |
+| `Map.get` × N                                        | 2.41 (2.33–2.50)       | 2.78 (2.51–3.27)       | 1.53 (1.49–1.78)       | 3.37 (3.34–3.47)       | ≈×1.4       |
+| `Set.add` + `Set.has` × N                            | 6.03 (5.90–6.28)       | 6.36 (5.95–6.46)       | 8.69 (8.62–9.30)       | 12.9 (12.7–13.0)       | ×2.1        |
+| `s += "abc" + i` × 20 000                            | 5.36 (5.33–5.41)       | 1.96 (1.92–2.05)       | 2.03 (1.94–2.10)       | 2.65 (2.62–2.69)       | ×0.5        |
+| `split("1")` + `join("-")`                           | 0.862 (0.858–0.879)    | 1.47 (1.34–1.48)       | 2.36 (2.08–2.60)       | 3.41 (3.40–3.55)       | ×4.0        |
+| `indexOf` in a loop                                  | 0.116 (0.115–0.135)    | 0.140 (0.131–0.147)    | 0.0525 (0.0415–0.0589) | 0.0958 (0.0953–0.0964) | ≈×0.8       |
+| `/abc(\d{3})-/g.exec` in a loop                      | 0.160 (0.148–0.187)    | 0.131 (0.105–0.177)    | 0.167 (0.159–0.176)    | 13.3 (13.2–13.3)       | ×83         |
+| `fib(32)` recursive                                  | 13.3 (13.2–13.4)       | 13.3 (13.0–14.1)       | 11.4 (11.4–13.7)       | 40.3 (40.2–40.4)       | ×3.0        |
+| 200×200 matrix multiply                              | 17.3 (16.9–17.6)       | 16.5 (15.7–18.8)       | 16.3 (15.5–16.5)       | 87.8 (87.5–87.9)       | ×5.1        |
+| BigInt factorial 3000!                               | 0.0856 (0.0820–0.0985) | 0.248 (0.135–0.267)    | 0.179 (0.168–0.181)    | 0.561 (0.560–0.566)    | ×6.6        |
+| 5M short-lived objects                               | 9.14 (6.98–9.40)       | 5.66 (5.53–5.94)       | 8.55 (8.39–8.74)       | 26.2 (26.0–26.3)       | ×2.9        |
+| Promise chain, `.then` × 100 000                     | 16.9 (16.8–17.1)       | 27.5 (26.3–28.0)       | 4.83 (4.37–5.02)       | 58.0 (57.7–58.2)       | ×3.4        |
+| 10 000 sequential `setTimeout(fn, 0)`                | 1 060 (1 059–1 061)    | 2 064 (2 062–2 065)    | 1 059 (1 059–1 060)    | 1 063 (1 063–1 064)    | ≈×1.0       |
+| `JSON.stringify`, 30 000 objects                     | 5.60 (5.59–5.62)       | 6.05 (5.96–7.30)       | 5.55 (5.39–7.26)       | 18.0 (17.8–18.1)       | ×3.2        |
+| `JSON.parse`, 2.9 MB                                 | 16.6 (16.5–16.7)       | 14.5 (14.2–15.4)       | 9.22 (8.91–9.53)       | 20.7 (20.3–20.9)       | ≈×1.3       |
+| `writeFileSync` × 10 of 1 MB chunks (SCALE × 100 MB) | 3.70 (3.68–3.72)       | 7.06 (6.97–7.48)       | 2.51 (2.43–2.81)       | 18.9 (18.9–19.1)       | ×5.1        |
+| `readFileSync` of the same file                      | 7.81 (7.63–7.87)       | 15.8 (15.3–17.4)       | 3.86 (3.73–4.54)       | 24.3 (24.2–24.6)       | ×3.1        |
+| `Float64Array`: fill, sum, map, 1M                   | 8.09 (8.05–11.3)       | 9.68 (9.21–9.90)       | 11.8 (11.6–12.2)       | 16.4 (16.4–16.6)       | ×2.0        |
+| Call `add(a, b)` × 10N                               | 4.74 (4.64–4.77)       | 3.50 (3.02–4.20)       | 4.45 (4.35–4.53)       | 14.3 (14.3–14.4)       | ×3.0        |
+| Create and call N closures                           | 13.9 (13.6–14.1)       | 12.0 (10.9–12.4)       | 8.35 (8.23–8.90)       | 46.9 (46.7–47.0)       | ×3.4        |
+| `call` + `apply` × 4N                                | 4.53 (4.20–4.81)       | 7.30 (6.47–7.74)       | 3.17 (3.11–3.47)       | 25.8 (25.6–25.9)       | ×5.7        |
+| Method through an inheritance chain                  | 1.17 (1.16–1.31)       | 1.70 (1.54–1.85)       | 3.53 (3.22–4.08)       | 19.0 (19.0–19.3)       | ×16         |
+| Polymorphic call, 3 classes                          | 2.34 (2.29–2.42)       | 4.16 (3.46–5.57)       | 6.35 (6.18–6.89)       | 25.3 (25.3–25.5)       | ×11         |
+| `new Square(i)` × N                                  | 9.60 (9.49–9.92)       | 5.24 (4.46–5.61)       | 4.70 (4.07–4.83)       | 18.0 (17.9–18.0)       | ×1.9        |
+| Long-string equality                                 | 0.616 (0.609–3.65)     | 0.206 (0.198–0.210)    | 0.308 (0.285–0.332)    | 0.664 (0.655–0.675)    | ≈×1.1       |
+| Substring search                                     | 0.0632 (0.0630–0.0637) | 0.0821 (0.0783–0.0867) | 0.0365 (0.0360–0.0485) | 0.143 (0.143–0.143)    | ×2.3        |
+| `split`/`replaceAll`                                 | 0.198 (0.195–0.204)    | 0.207 (0.200–0.221)    | 0.174 (0.171–0.182)    | 0.295 (0.292–0.301)    | ≈×1.5       |
+| Long `Map` keys                                      | 1.98 (1.97–2.05)       | 2.09 (2.01–2.30)       | 2.51 (2.48–2.53)       | 5.06 (5.03–5.07)       | ×2.5        |
+| Global `match` with alternations over a log          | 0.343 (0.337–0.350)    | 2.04 (1.82–2.28)       | 0.289 (0.277–0.315)    | 2.69 (2.68–2.72)       | ×7.8        |
+| `replaceAll`/`replace`/`split` with many matches     | 7.58 (7.20–7.69)       | 7.01 (6.67–7.91)       | 6.29 (6.15–6.54)       | 70.6 (70.6–70.8)       | ×9.3        |
+| Typed array `fill`                                   | 0.239 (0.237–0.242)    | 0.235 (0.234–0.236)    | 0.336 (0.332–0.390)    | 0.338 (0.337–0.348)    | ≈×1.4       |
+| Typed array `copyWithin`/`set`                       | 0.774 (0.761–0.795)    | 0.805 (0.783–0.904)    | 0.853 (0.804–0.938)    | 1.22 (1.22–1.23)       | ×1.6        |
+| Typed array searches                                 | 1.80 (1.79–1.82)       | 2.09 (2.01–2.31)       | 0.690 (0.676–0.858)    | 1.90 (1.85–1.98)       | ≈×1.1       |
+| Typed array loops                                    | 5.07 (5.04–5.29)       | 2.85 (1.86–3.43)       | 1.85 (1.75–1.91)       | 1.19 (1.18–1.20)       | ×0.2        |
+| `sort()` of N log lines                              | 1.79 (1.77–1.81)       | 1.46 (1.43–1.95)       | 1.13 (1.12–1.32)       | 2.22 (2.22–2.23)       | ≈×1.2       |
+| `sort` of N log lines with a comparator              | 1.29 (1.26–1.37)       | 1.64 (1.51–1.89)       | 1.36 (1.32–1.66)       | 2.54 (2.54–2.58)       | ×2.0        |
+| `toSorted()` of N log lines                          | 0.916 (0.903–0.929)    | 1.17 (1.02–1.36)       | 0.615 (0.607–0.752)    | 3.87 (3.86–3.90)       | ×4.2        |
+| `sort()` of N numbers (as strings)                   | 0.595 (0.590–0.599)    | 0.727 (0.706–1.04)     | 0.314 (0.297–0.327)    | 2.96 (2.95–2.97)       | ×5.0        |
+| `sort((a, b) => a - b)` of N numbers                 | 0.460 (0.438–0.539)    | 0.654 (0.631–0.716)    | 0.464 (0.453–0.484)    | 1.63 (1.62–1.64)       | ×3.5        |
+
+Whole scripts, wall time including start-up (median and IQR, s) and peak RSS (median, MB):
+
+| Script            | Node, s                | Deno, s                | Bun, s                 | Nona, s                   | Node RSS, MB | Deno RSS, MB | Bun RSS, MB | Nona RSS, MB | Nona / Node |
+| ----------------- | ---------------------- | ---------------------- | ---------------------- | ------------------------- | ------------ | ------------ | ----------- | ------------ | ----------- |
+| `05_array`        | 0.0544 (0.0539–0.0550) | 0.0617 (0.0591–0.0671) | 0.0344 (0.0339–0.0349) | 0.0834 (0.0833–0.0838)    | 64.7         | 58.3         | 36.5        | 35.7         | ×1.5        |
+| `06_objects`      | 0.0530 (0.0526–0.0542) | 0.0573 (0.0563–0.0591) | 0.0290 (0.0285–0.0297) | 0.0537 (0.0536–0.0539)    | 81.2         | 71.0         | 51.2        | 49.3         | ≈×1.0       |
+| `07_strings`      | 0.0268 (0.0267–0.0270) | 0.0274 (0.0270–0.0288) | 0.0110 (0.0104–0.0117) | 0.0244 (0.0241–0.0245)    | 58.2         | 48.9         | 30.9        | 13.6         | ≈×0.9       |
+| `08_numeric`      | 0.0515 (0.0509–0.0517) | 0.0561 (0.0533–0.0596) | 0.0353 (0.0336–0.0367) | 0.134 (0.134–0.134)       | 57.8         | 50.2         | 32.8        | 10.4         | ×2.6        |
+| `09_gc`           | 0.0296 (0.0277–0.0299) | 0.0294 (0.0288–0.0311) | 0.0158 (0.0155–0.0162) | 0.0309 (0.0307–0.0311)    | 56.4         | 49.4         | 36.7        | 12.6         | ≈×1.0       |
+| `10_async`        | 1.10 (1.10–1.10)       | 2.12 (2.12–2.12)       | 1.07 (1.07–1.07)       | 1.14 (1.14–1.14)          | 74.3         | 78.2         | 33.7        | 77.0         | ≈×1.0       |
+| `11_json`         | 0.0542 (0.0539–0.0546) | 0.0556 (0.0534–0.0581) | 0.0266 (0.0261–0.0280) | 0.0631 (0.0620–0.0637)    | 80.3         | 68.7         | 46.2        | 58.4         | ≈×1.2       |
+| `12_fs`           | 0.0352 (0.0350–0.0356) | 0.0545 (0.0536–0.0567) | 0.0156 (0.0153–0.0172) | 0.0513 (0.0510–0.0514)    | 70.6         | 78.2         | 33.7        | 53.1         | ≈×1.5       |
+| `13_typed`        | 0.0328 (0.0310–0.0331) | 0.0341 (0.0333–0.0351) | 0.0195 (0.0187–0.0201) | 0.0215 (0.0215–0.0217)    | 70.8         | 64.5         | 42.6        | 20.6         | ×0.7        |
+| `14_calls`        | 0.0471 (0.0467–0.0481) | 0.0498 (0.0490–0.0516) | 0.0241 (0.0230–0.0261) | 0.104 (0.104–0.105)       | 76.5         | 68.7         | 39.3        | 104          | ×2.2        |
+| `15_classes`      | 0.0359 (0.0349–0.0363) | 0.0363 (0.0357–0.0373) | 0.0219 (0.0206–0.0231) | 0.0690 (0.0688–0.0695)    | 64.0         | 53.0         | 37.4        | 26.3         | ×1.9        |
+| `16_string_scan`  | 0.0436 (0.0418–0.0441) | 0.0464 (0.0452–0.0476) | 0.0231 (0.0224–0.0237) | 0.0999 (0.0997–0.100)     | 74.9         | 66.5         | 43.7        | 52.3         | ×2.3        |
+| `17_typed_arrays` | 0.0299 (0.0294–0.0305) | 0.0331 (0.0313–0.0343) | 0.0122 (0.0118–0.0127) | 0.00970 (0.00960–0.00977) | 59.1         | 52.1         | 29.5        | 7.84         | ×0.3        |
+| `18_sort`         | 0.0294 (0.0277–0.0296) | 0.0340 (0.0315–0.0341) | 0.0118 (0.0115–0.0125) | 0.0199 (0.0199–0.0200)    | 56.8         | 47.3         | 26.6        | 12.6         | ≈×0.7       |
+
+### Real programs
+
+`node bench/report.mjs --suite real --runs 10 --runtimes node,deno,bun,nona`: median (IQR) of 10 runs, ms (libraries from `node bench/real/fetch.mjs`).
+
+| Operation                                             | Node             | Deno             | Bun              | Nona                   | Nona / Node |
+| ----------------------------------------------------- | ---------------- | ---------------- | ---------------- | ---------------------- | ----------- |
+| acorn 8.18.0: first parse of its own 230 KB           | 45.0 (44.4–45.7) | 45.2 (44.8–46.5) | 47.0 (46.6–47.9) | 354 (353–356)          | ×7.9        |
+| acorn: 10 more parses                                 | 147 (145–148)    | 125 (123–126)    | 156 (153–163)    | 2 397 (2 393–2 400)    | ×16         |
+| JSON: `stringify` 100 000 records (20 MB)             | 88.4 (87.8–88.7) | 93.2 (92.7–93.5) | 54.6 (54.3–55.4) | 244 (243–248)          | ×2.8        |
+| JSON: read the 20 MB file                             | 30.0 (29.7–30.4) | 56.7 (56.1–57.3) | 12.7 (12.6–12.9) | 68.4 (66.5–68.6)       | ×2.3        |
+| JSON: `parse` 20 MB                                   | 108 (107–110)    | 110 (107–111)    | 59.3 (58.0–63.9) | 258 (256–259)          | ×2.4        |
+| JSON: `stringify(…, null, 2)`                         | 127 (126–128)    | 133 (133–135)    | 67.3 (66.6–68.1) | 230 (227–231)          | ×1.8        |
+| lodash 4.17.21: groupBy/sortBy/uniqBy, 50 000 records | 35.5 (35.1–35.9) | —                | 40.8 (39.4–42.1) | 294 (290–296)          | ×8.3        |
+| lodash: chunk/sumBy/countBy/pick                      | 36.2 (36.0–36.4) | —                | 30.6 (30.3–31.1) | 1 084 (1 082–1 093)    | ×30         |
+| lodash: camelCase/kebabCase/capitalize × 150 000      | 54.2 (53.2–54.8) | —                | 59.4 (57.4–60.3) | 17 260 (17 213–17 430) | ×318        |
+| lodash: cloneDeep/isEqual/merge, 10 000 records       | 45.4 (45.3–45.9) | —                | 57.0 (56.4–58.1) | 366 (363–369)          | ×8.1        |
+| log-scan: `match` with an alternation, 11 MB (#389)   | 2.36 (2.33–2.40) | 3.67 (3.65–3.70) | 3.79 (3.63–3.98) | 34.0 (33.9–34.4)       | ×14         |
+| log-scan: `replaceAll`, 200 000 matches (#387)        | 13.3 (13.2–13.4) | 4.23 (4.20–4.26) | 10.5 (10.4–10.8) | 12.2 (12.0–12.2)       | ≈×0.9       |
+| log-scan: capturing `exec` loop over 200 000 lines    | 24.0 (24.0–24.1) | 14.2 (13.8–14.3) | 15.0 (14.6–15.4) | 538 (537–539)          | ×22         |
+| log-scan: `split` + `indexOf`/`includes` filters      | 13.8 (13.5–14.4) | 23.8 (23.2–24.3) | 16.8 (16.1–17.4) | 53.4 (53.2–53.6)       | ×3.9        |
+| log-scan: default `sort` of 50 000 strings (#388)     | 16.3 (16.1–16.4) | 16.6 (16.5–16.9) | 13.8 (13.7–13.9) | 31.2 (30.9–31.6)       | ×1.9        |
+| log-scan: `slice` keys into a `Map`                   | 17.8 (17.2–17.9) | 12.3 (12.3–12.5) | 15.0 (15.0–15.2) | 28.1 (27.9–28.7)       | ×1.6        |
+| marked 12.0.2: first render                           | 24.0 (23.6–24.4) | 20.5 (19.7–21.7) | 13.6 (12.8–14.3) | 344 (343–345)          | ×14         |
+| marked: 5 more renders                                | 23.7 (23.0–24.1) | 23.2 (22.8–23.6) | 28.4 (27.3–29.0) | 1 658 (1 649–1 672)    | ×70         |
+| Prettier 3.6.2: first format of 2 000 lines           | 161 (161–167)    | 165 (162–167)    | 201 (199–239)    | 814 (809–817)          | ×5.0        |
+| Prettier: 3 more formats                              | 280 (276–288)    | 292 (285–295)    | 325 (323–384)    | 2 237 (2 222–2 313)    | ×8.0        |
+
+Whole scripts, wall time (s) and peak RSS (MB):
+
+| Script     | Node, s                | Deno, s                | Bun, s                 | Nona, s             | Node RSS, MB | Deno RSS, MB | Bun RSS, MB | Nona RSS, MB | Nona / Node |
+| ---------- | ---------------------- | ---------------------- | ---------------------- | ------------------- | ------------ | ------------ | ----------- | ------------ | ----------- |
+| `acorn`    | 0.230 (0.226–0.231)    | 0.212 (0.210–0.217)    | 0.219 (0.216–0.226)    | 2.79 (2.78–2.79)    | 129          | 124          | 96.8        | 95.7         | ×12         |
+| `json-big` | 0.635 (0.611–0.648)    | 0.656 (0.633–0.665)    | 0.299 (0.297–0.303)    | 1.97 (1.95–1.98)    | 446          | 408          | 369         | 769          | ×3.1        |
+| `lodash`   | 0.241 (0.240–0.243)    | —                      | 0.236 (0.234–0.239)    | 19.1 (19.1–19.3)    | 139          | —            | 133         | 221          | ×79         |
+| `log-scan` | 0.226 (0.225–0.229)    | 0.257 (0.255–0.260)    | 0.139 (0.137–0.140)    | 0.947 (0.946–0.950) | 232          | 214          | 149         | 245          | ×4.2        |
+| `marked`   | 0.0745 (0.0736–0.0756) | 0.0720 (0.0716–0.0732) | 0.0519 (0.0512–0.0530) | 2.02 (2.01–2.04)    | 71.7         | 62.5         | 52.7        | 38.9         | ×27         |
+| `prettier` | 0.498 (0.492–0.514)    | 0.509 (0.496–0.516)    | 0.560 (0.555–0.657)    | 3.10 (3.07–3.16)    | 208          | 198          | 171         | 178          | ×6.2        |
+
+**Failures:**
+
+- lodash on deno: 1 run(s) failed: error: Uncaught SyntaxError: The requested module './vendor/lodash/lodash.js' does not provide an export named 'default'
+
+### Are-We-Fast-Yet
+
+`node bench/report.mjs --suite awfy --iterations 10 --runtimes node,deno,bun,nona`: the 14 benchmarks of [Are-We-Fast-Yet](https://github.com/smarr/are-we-fast-yet) (revision in `bench/awfy/fetch.mjs`) with the suite's standard inner-iteration counts, 10 timed iterations in one process per runtime. "First" is iteration 1 (cold: a JIT is still compiling), "steady" the median of iterations 4–10. Every iteration verified its result.
+
+| Benchmark (inner iterations) | Node first, ms | Deno first, ms | Bun first, ms | Nona first, ms | Node steady, ms | Deno steady, ms | Bun steady, ms | Nona steady, ms | Nona / Node steady | Nona / Node first |
+| ---------------------------- | -------------- | -------------- | ------------- | -------------- | --------------- | --------------- | -------------- | --------------- | ------------------ | ----------------- |
+| DeltaBlue (12000)            | 56.1           | 57.6           | 64.5          | 285            | 13.0            | 12.5            | 23.2           | 280             | ×22                | ×5.1              |
+| Richards (100)               | 65.3           | 72.2           | 69.3          | 1 265          | 56.6            | 56.1            | 53.1           | 1 249           | ×22                | ×19               |
+| Json (100)                   | 35.7           | 39.8           | 55.2          | 369            | 22.6            | 23.0            | 18.2           | 365             | ×16                | ×10               |
+| CD (250)                     | 71.7           | 74.1           | 79.1          | 582            | 38.1            | 37.9            | 45.6           | 579             | ×15                | ×8.1              |
+| Havlak (1500)                | 122            | 115            | 152           | 2 586          | 59.1            | 57.7            | 98.9           | 2 594           | ×44                | ×21               |
+| Bounce (1500)                | 26.6           | 22.8           | 23.6          | 503            | 14.5            | 14.3            | 15.1           | 499             | ×35                | ×19               |
+| List (1500)                  | 25.6           | 24.4           | 23.3          | 227            | 20.3            | 20.3            | 17.4           | 224             | ×11                | ×8.9              |
+| Mandelbrot (500)             | 32.9           | 30.3           | 29.3          | 87.2           | 26.6            | 26.6            | 26.7           | 87.1            | ×3.3               | ×2.6              |
+| NBody (250000)               | 18.9           | 16.3           | 27.7          | 639            | 12.2            | 12.2            | 18.0           | 368             | ×30                | ×34               |
+| Permute (1000)               | 30.3           | 34.1           | 29.6          | 372            | 28.5            | 28.4            | 25.5           | 372             | ×13                | ×12               |
+| Queens (1000)                | 24.3           | 30.2           | 19.5          | 303            | 18.3            | 18.3            | 12.7           | 296             | ×16                | ×12               |
+| Sieve (3000)                 | 47.1           | 40.0           | 37.3          | 367            | 38.4            | 32.3            | 28.3           | 365             | ×9.5               | ×7.8              |
+| Storage (1000)               | 51.5           | 46.7           | 55.4          | 709            | 33.4            | 32.7            | 48.4           | 706             | ×21                | ×14               |
+| Towers (600)                 | 27.9           | 29.3           | 30.7          | 348            | 26.2            | 26.2            | 19.3           | 343             | ×13                | ×12               |
+
+Warm-up curve, iterations 1–6, ms (Node.js then Nona):
+
+| Benchmark | Node 1 | Node 2 | Node 3 | Node 4 | Node 5 | Node 6 | Nona 1 | Nona 2 | Nona 3 | Nona 4 | Nona 5 | Nona 6 |
+| --------- | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
+| DeltaBlue | 56.1   | 31.0   | 27.7   | 21.4   | 11.4   | 14.0   | 285    | 281    | 283    | 280    | 272    | 282    |
+| Richards  | 65.3   | 56.9   | 56.7   | 56.6   | 56.8   | 56.8   | 1 265  | 1 242  | 1 240  | 1 302  | 1 243  | 1 246  |
+| Json      | 35.7   | 23.8   | 23.3   | 26.9   | 22.6   | 22.7   | 369    | 364    | 364    | 365    | 365    | 365    |
+| Havlak    | 122    | 65.4   | 63.4   | 64.9   | 60.1   | 59.1   | 2 586  | 2 580  | 2 633  | 2 599  | 2 574  | 2 569  |
+| NBody     | 18.9   | 13.6   | 12.4   | 12.7   | 12.1   | 12.2   | 639    | 368    | 380    | 367    | 379    | 368    |
+
+The suite compiles to one 9.55 MB executable in 4.58 s.
+
+### Benchmarks Game
+
+`node bench/report.mjs --suite game --runs 10 --runtimes node,deno,bun,nona`: the nine programs in `bench/game/`, written after the problem descriptions of the [Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/) (single-threaded; sizes reduced from the game's), whole-process wall time including start-up as the game reports it, median (IQR) of 10 runs, s, and peak RSS, MB. The outputs of all runtimes were compared byte for byte.
+
+| Program (size)                           | Node, s                | Deno, s                | Bun, s                 | Nona, s             | Node RSS, MB | Deno RSS, MB | Bun RSS, MB | Nona RSS, MB | Nona / Node |
+| ---------------------------------------- | ---------------------- | ---------------------- | ---------------------- | ------------------- | ------------ | ------------ | ----------- | ------------ | ----------- |
+| binary-trees (N=16)                      | 0.244 (0.240–0.246)    | 0.201 (0.199–0.210)    | 0.133 (0.132–0.135)    | 0.902 (0.899–0.908) | 343          | 138          | 66.8        | 87.8         | ×3.7        |
+| fannkuch-redux (N=10)                    | 0.215 (0.215–0.215)    | 0.229 (0.228–0.231)    | 0.186 (0.185–0.186)    | 1.24 (1.23–1.25)    | 53.7         | 50.3         | 30.5        | 5.32         | ×5.7        |
+| fasta (N=1000000)                        | 0.214 (0.211–0.215)    | 0.223 (0.220–0.228)    | 0.206 (0.205–0.208)    | 0.565 (0.562–0.568) | 87.6         | 83.4         | 59.7        | 29.7         | ×2.6        |
+| k-nucleotide (INPUT=fasta 250 000)       | 0.578 (0.576–0.583)    | 0.601 (0.600–0.602)    | 0.440 (0.435–0.441)    | 6.00 (5.95–6.02)    | 125          | 125          | 100         | 119          | ×10         |
+| mandelbrot (N=2000)                      | 0.212 (0.211–0.212)    | 0.223 (0.218–0.224)    | 0.210 (0.210–0.211)    | 0.674 (0.674–0.680) | 55.9         | 54.3         | 32.9        | 8.84         | ×3.2        |
+| n-body (N=1000000)                       | 0.0749 (0.0745–0.0765) | 0.0860 (0.0840–0.0903) | 0.0825 (0.0811–0.0867) | 2.63 (2.62–2.65)    | 56.0         | 53.2         | 29.8        | 12.9         | ×35         |
+| spectral-norm (N=2000)                   | 0.700 (0.696–0.705)    | 0.644 (0.642–0.646)    | 0.203 (0.201–0.203)    | 3.14 (3.13–3.15)    | 55.5         | 53.4         | 27.1        | 5.54         | ×4.5        |
+| reverse-complement (INPUT=fasta 250 000) | 0.0493 (0.0481–0.0510) | 0.0650 (0.0646–0.0689) | 0.0396 (0.0375–0.0398) | 0.677 (0.674–0.679) | 76.3         | 75.5         | 53.7        | 227          | ×14         |
+| regex-redux (INPUT=fasta 250 000)        | 0.121 (0.120–0.122)    | 0.123 (0.120–0.125)    | 0.0406 (0.0404–0.0454) | 7.40 (7.35–7.41)    | 103          | 96.6         | 48.5        | 298          | ×61         |
+
+### Instruction counts and profiles
+
+`node bench/report.mjs --suite profile`: instructions executed, millions. Nona: exact counts from QEMU's execution trace (`scripts/profile-runtime.mjs`), with the routine families and single routines that executed most of them; Node.js: `valgrind --tool=callgrind` of the whole process. The ratio subtracts each runtime's hello-world start-up (first row). Small scales keep the traces bounded, so Node.js is still mostly in its interpreter and baseline compiler here; the ratios are upper bounds for its optimized code.
+
+| Case                              | Node, M instr. | Nona, M instr. | Nona / Node (minus start-up) | Nona: families                                                                    | Nona: top routines                                                                                                 |
+| --------------------------------- | -------------- | -------------- | ---------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `01_hello` (SCALE 0.01)           | 114            | 1.15           | ×0.0                         | property access 36%, other runtime 41%, strings: hash 7%, allocation 5%           | `rt.hasProperty` 7%, `rt.lookupProperty` 7%, `rt.shapeLookup` 6%, `rt.findOwnProperty` 6%, `rt.propKeyHash` 6%     |
+| `07_strings` (SCALE 0.01)         | 114            | 33.9           | ×61                          | RegExp engine (JS) 28%, other runtime 30%, property access 16%, allocation 3%     | `js.regexpVm.fn.43` 10%, `rt.elementGet` 9%, `js.regexpVm.fn.40` 8%, `rt.getPropertyCached` 3%, `rt.elementSet` 3% |
+| `09_gc` (SCALE 0.01)              | 235            | 52.3           | ×0.4                         | compiled program 25%, allocation 13%, other runtime 31%, gc: sweep 8%             | `js.main` 25%, `rt.allocRaw` 7%, `rt.icGet` 7%, `rt.sweepChunk` 7%, `rt.getPropertyCached` 6%                      |
+| `14_calls` (SCALE 0.01)           | 281            | 88.3           | ×0.5                         | compiled program 29%, property access 21%, other runtime 32%, allocation 5%       | `js.main` 27%, `rt.getPropertyCached` 13%, `rt.Math.round.fn.code` 10%, `rt.propIndexProbe` 4%, `rt.alloc` 4%      |
+| `15_classes` (SCALE 0.01)         | 295            | 105            | ×0.6                         | compiled program 34%, property access 19%, other runtime 39%, calls 4%            | `js.main` 22%, `rt.getPropertyCached` 13%, `rt.icGet` 10%, `rt.icMethod` 8%, `js.fn.2` 7%                          |
+| `awfy/awfy NBody` (SCALE 0.01)    | 284            | 144            | ≈×0.8                        | other runtime 51%, compiled program 17%, property access 19%, strings: compare 9% | `rt.shapeLookup` 19%, `js.fn.433` 15%, `rt.getPropertyCached` 10%, `rt.compareStrings` 9%, `rt.icGet` 9%           |
+| `awfy/awfy Richards` (SCALE 0.01) | 487            | 336            | ≈×0.9                        | other runtime 52%, property access 13%, compiled program 21%, strings: compare 2% | `rt.shapeLookup` 24%, `rt.icGet` 15%, `rt.getPropertyCached` 10%, `js.fn.506` 6%, `rt.icMethod` 4%                 |
+| `game/n-body N=1000` (SCALE 1)    | 159            | 61.1           | ≈×1.3                        | other runtime 50%, compiled program 16%, property access 20%, strings: compare 9% | `rt.shapeLookup` 18%, `js.fn.2` 16%, `rt.getPropertyCached` 9%, `rt.compareStrings` 9%, `rt.icGet` 7%              |
+
+### Release HTTP server
+
+Both generators use the same six cases, 1/32/256 connections, one two-second warm-up and five three-second measured runs per runtime and cell. Server and generator use different pinned CPUs. Raw output, errors and response preflights are retained; every cell must complete its protocol.
+
+#### Dependency-free load generator
+
+machine: Linux 7.0.0-1017-azure x86_64, 4 CPUs, AMD EPYC 9V45 96-Core Processor, governor n/a
+node: v26.9.0; nona: a14e50d; generator: load; server on CPU 0, client on CPU 1; 5 runs of 3 s per cell
+
+##### 1 connection
+
+| Case      | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 54.6k (54.2k–55.3k)             | 57.2k (55.4k–57.4k)          | ×1.05       | 0.027 / 0.025       | 90 / 18             |
+| json      | 54.4k (53.8k–55.1k)             | 53.2k (52.8k–53.7k)          | ×0.98       | 0.027 / 0.026       | 93 / 18             |
+| headers   | 47.6k (46.7k–47.9k)             | 50.9k (50.8k–51.1k)          | ×1.07       | 0.030 / 0.028       | 84 / 24             |
+| close     | 14.1k (14.0k–14.1k)             | 14.1k (14.1k–14.1k)          | ×1.00       | 0.040 / 0.049       | 143 / 18            |
+| upload16k | 38.0k (37.3k–39.3k)             | 35.7k (35.5k–36.0k)          | ×0.94       | 0.039 / 0.038       | 94 / 18             |
+| big64k    | 34.8k (34.5k–35.0k)             | 43.4k (43.1k–43.6k)          | ×1.25       | 0.157 / 0.032       | 100 / 18            |
+
+##### 32 connections
+
+| Case      | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 85.6k (85.0k–86.0k)             | 102.9k (101.9k–103.0k)       | ×1.20       | 0.714 / 0.607       | 98 / 18             |
+| json      | 82.5k (82.0k–82.9k)             | 90.2k (89.9k–90.5k)          | ×1.09       | 0.740 / 0.702       | 95 / 18             |
+| headers   | 69.1k (68.9k–69.5k)             | 83.1k (82.6k–84.0k)          | ×1.20       | 0.877 / 0.768       | 91 / 24             |
+| close     | 19.5k (19.3k–19.5k)             | 20.7k (20.6k–20.8k)          | ×1.06       | 5.587 / 1.043       | 150 / 18            |
+| upload16k | 57.6k (56.7k–63.4k)             | 62.7k (62.6k–63.0k)          | ×1.09       | 1.065 / 0.887       | 112 / 18            |
+| big64k    | 39.3k (38.9k–39.8k)             | 49.8k (49.1k–50.6k)          | ×1.26       | 1.518 / 1.267       | 147 / 18            |
+
+##### 256 connections
+
+| Case      | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 82.5k (81.7k–83.3k)             | 101.4k (100.8k–101.7k)       | ×1.23       | 5.993 / 4.873       | 117 / 19            |
+| json      | 82.0k (81.7k–82.1k)             | 88.6k (86.4k–89.3k)          | ×1.08       | 6.061 / 5.570       | 118 / 19            |
+| headers   | 68.5k (68.1k–68.6k)             | 84.3k (84.0k–84.5k)          | ×1.23       | 3.964 / 5.874       | 113 / 26            |
+| close     | 21.0k (20.7k–21.4k)             | 21.1k (21.1k–21.1k)          | ×1.01       | 7.045 / 7.055       | 154 / 19            |
+| upload16k | 48.9k (47.4k–63.3k)             | 57.4k (56.6k–60.3k)          | ×1.17       | 14.228 / 8.468      | 195 / 19            |
+| big64k    | 36.7k (35.5k–36.8k)             | 50.3k (49.8k–51.6k)          | ×1.37       | 7.252 / 9.796       | 166 / 19            |
+
+#### wrk
+
+machine: Linux 7.0.0-1017-azure x86_64, 4 CPUs, AMD EPYC 9V45 96-Core Processor, governor n/a
+node: v26.9.0; nona: a14e50d; generator: wrk; server on CPU 0, client on CPU 1; 5 runs of 3 s per cell
+
+##### 1 connection
+
+| Case      | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 35.5k (34.5k–35.8k)             | 36.1k (35.9k–36.1k)          | ×1.02       | 0.077 / 0.037       | 86 / 18             |
+| json      | 35.2k (34.3k–35.4k)             | 34.8k (33.3k–35.0k)          | ×0.99       | 0.076 / 0.039       | 89 / 18             |
+| headers   | 32.5k (31.3k–33.3k)             | 34.1k (34.1k–34.1k)          | ×1.05       | 0.073 / 0.04        | 82 / 24             |
+| close     | 13.3k (13.0k–13.3k)             | 12.6k (12.5k–12.6k)          | ×0.95       | 0.052 / 0.059       | 140 / 18            |
+| upload16k | 30.3k (27.7k–30.4k)             | 30.9k (30.8k–31.0k)          | ×1.02       | 0.161 / 0.201       | 89 / 18             |
+| big64k    | 19.3k (18.9k–19.7k)             | 22.0k (21.7k–22.0k)          | ×1.14       | 0.152 / 0.056       | 92 / 18             |
+
+##### 32 connections
+
+| Case      | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 81.1k (79.6k–81.9k)             | 101.0k (98.3k–101.4k)        | ×1.24       | 0.754 / 0.613       | 96 / 18             |
+| json      | 78.3k (77.5k–78.7k)             | 83.6k (83.2k–84.2k)          | ×1.07       | 0.784 / 0.738       | 98 / 18             |
+| headers   | 62.5k (61.8k–62.9k)             | 78.8k (78.6k–79.2k)          | ×1.26       | 0.98 / 0.784        | 92 / 24             |
+| close     | 18.6k (18.6k–18.7k)             | 19.5k (19.4k–19.5k)          | ×1.04       | 4.23 / 1.25         | 151 / 18            |
+| upload16k | 65.0k (64.0k–66.9k)             | 60.4k (60.1k–60.5k)          | ×0.93       | 0.95 / 0.98         | 110 / 18            |
+| big64k    | 39.1k (38.2k–39.2k)             | 41.3k (41.2k–41.4k)          | ×1.06       | 0.93 / 0.795        | 147 / 18            |
+
+##### 256 connections
+
+| Case      | Node.js req/s (median, min–max) | Nona req/s (median, min–max) | Nona / Node | p99 Node / Nona, ms | RSS Node / Nona, MB |
+| --------- | ------------------------------- | ---------------------------- | ----------- | ------------------- | ------------------- |
+| hello     | 77.9k (76.9k–78.1k)             | 100.6k (99.0k–100.9k)        | ×1.29       | 4.15 / 2.85         | 114 / 19            |
+| json      | 77.4k (76.2k–77.7k)             | 82.6k (81.6k–83.0k)          | ×1.07       | 3.57 / 3.47         | 115 / 19            |
+| headers   | 61.5k (61.0k–61.8k)             | 77.7k (77.7k–78.5k)          | ×1.26       | 4.80 / 3.74         | 112 / 26            |
+| close     | 19.3k (18.9k–19.4k)             | 19.4k (19.2k–19.5k)          | ×1.01       | 9.59 / 9.91         | 149 / 19            |
+| upload16k | 54.5k (51.4k–55.8k)             | 59.0k (57.0k–59.6k)          | ×1.08       | 12.30 / 4.60        | 194 / 19            |
+| big64k    | 38.3k (37.6k–38.5k)             | 41.3k (41.2k–41.5k)          | ×1.08       | 10.08 / 6.16        | 160 / 19            |
 
 ## Current release (v0.18.0) against Node.js, Deno and Bun
+
+_Superseded by [the v0.34.0 measurement](#current-release-v0340-against-nodejs-deno-and-bun); the original dates and results below are historical._
 
 Measured on 2026-10-18/19 at `main` 453418c1 (v0.18.0 plus the merged #356, #357
 and #361 work) on a Linux x86-64 cloud VM (Intel Xeon 2.80 GHz, 2 vCPU, 7.8 GB
