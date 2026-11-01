@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { compile } from "../src/compiler.js";
 
 const diagnostic = await import(
     pathToFileURL(resolve("scripts/http-crash.mjs")).href
@@ -244,13 +245,73 @@ test("listener-free and destroy variants retain their distinct behavior", async 
         assert.equal(paused.workload.requests, 1);
         assert.match(
             readFileSync(join(dir, "paused", "stdout.log"), "utf8"),
-            /"timeout":1000/,
+            /"timeout":1000,"timeoutSource":"socket.timeout"/,
         );
         assert.throws(() => process.kill(paused.pid, 0), { code: "ESRCH" });
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }
 });
+
+test(
+    "tiny native queued-timeout trace records the effective timeout and fallback provenance",
+    {
+        skip: process.platform !== "win32" || process.arch !== "x64",
+    },
+    async () => {
+        const dir = directory();
+        try {
+            const source = join(dir, "server.mjs");
+            writeFileSync(source, fixture.serverSource());
+            const compiled = compile(readFileSync(source, "utf8"), {
+                fileName: source,
+                target: "win32-x64",
+                module: true,
+                gcStress: false,
+            });
+            if (!compiled.ok) assert.fail(JSON.stringify(compiled.diagnostics));
+            const executable = join(dir, "server.exe");
+            writeFileSync(executable, compiled.image);
+            // One connection and 64 bytes verify instrumentation only, not #602.
+            const result = await diagnostic.runTrial(
+                {
+                    ...spec,
+                    runtime: "nona",
+                    gc: "off",
+                    state: "queued-timeout",
+                },
+                {
+                    directory: join(dir, "native"),
+                    command: executable,
+                    args: [],
+                    startupMs: 10000,
+                    observationMs: 200,
+                    hardMs: 15000,
+                },
+            );
+            assert.equal(result.verdict, "observed-no-fault");
+            assert.equal(result.workload.requests, 1);
+            const events = readFileSync(
+                join(dir, "native", "stdout.log"),
+                "utf8",
+            )
+                .split(/\r?\n/)
+                .filter((line) => line.startsWith("diagnostic "))
+                .map((line) => JSON.parse(line.slice("diagnostic ".length)));
+            const end = events.find((event) => event.event === "end");
+            assert.ok(end, "native trace must include the end event");
+            assert.equal(end.timeout, 1000);
+            assert.equal(end.timeoutSource, "socket._timeout");
+            for (const event of events.filter((event) => event.socket)) {
+                assert.equal(typeof event.timeout, "number");
+                assert.equal(event.timeoutSource, "socket._timeout");
+            }
+            assert.throws(() => process.kill(result.pid, 0), { code: "ESRCH" });
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    },
+);
 
 test("startup deadline kills its child and retains partial stderr and manifest", async () => {
     const dir = directory();

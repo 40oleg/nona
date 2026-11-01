@@ -100,6 +100,11 @@ the synchronous writes, before `end()`. These are **attempted states**: OS
 buffers can drain the entire response despite a paused peer. Inspect
 `socketQueued`, `responseQueued`, `ended`, `destroyed`, actual socket timeout,
 socket ID and event sequence before calling a state queued, timed out or idle.
+The controlled trace reads the numeric public `socket.timeout` first, then
+Nona's internal `socket._timeout` as a diagnostic fallback. `timeoutSource`
+records `socket.timeout`, `socket._timeout` or `unavailable`; an unavailable
+timeout is explicitly `null`. A zero timeout is retained. This reads the
+effective value at each event rather than substituting the requested timeout.
 Absent queue properties remain absent in the raw trace; they do not prove an
 empty queue. A changed failure class during minimization is a different result.
 
@@ -116,9 +121,42 @@ preserving the evidence; no green run establishes a fix.
 Base source inspected: `69efefd6ea2c457db3bb0a1f8ef22f51305b3955` (v0.34.0).
 Local validation covers the diagnostic driver's tiny Node fixtures, matrix,
 error classification, partial logs, child deadlines/cancellation and cleanup.
-The controlled server compiles to win32-x64. No native crash trial or soak was
-run on the owner's PC. Hosted trial results: **0/57 executed; all pending**.
+One tiny native instrumentation test on win32-x64 uses one connection, a
+64-byte response and a 200 ms observation window. Its `queued-timeout` end
+event contains `timeout: 1000` with `timeoutSource: "socket._timeout"`. The
+same regression fails with the pre-review fixture because the timeout is
+omitted. The Node control records `timeoutSource: "socket.timeout"`.
+No native crash trial or soak was run on the owner's PC.
+Hosted trial results: **0/57 executed; all pending** (0/19 Node controls,
+0/19 Nona normal, 0/19 Nona GC stress). The tiny test does not count toward
+the hosted matrix or establish a completed non-reproduction result.
 No crash mechanism or repair is claimed. Linux remains untested for this fault.
+
+### Hosted launch blocker verified during review
+
+The published implementation branch `nona/issue-602` points to
+`50843f94c12fabd5826989704dc483eab62011a6`. GitHub lists zero Actions runs at
+that SHA. The diagnostic workflow is absent from the repository's registered
+Actions workflows. On 2026-11-01, this launch attempt:
+
+```sh
+gh workflow run http-crash-diagnostic.yml --repo 40oleg/nona --ref nona/issue-602
+```
+
+returned exit status 1 and:
+
+```text
+HTTP 404: workflow http-crash-diagnostic.yml not found on the default branch (https://api.github.com/repos/40oleg/nona/actions/workflows/http-crash-diagnostic.yml)
+```
+
+No run, hosted runner, trial artifacts or fault evidence was created. The
+review task prohibits pushing or opening a PR, so it cannot register this new
+workflow on the default branch or publish the revised instrumentation. The
+blocking hosted-evidence finding remains unresolved. Once the workflow is
+available on the default branch and the revised implementation is published,
+dispatch it at that implementation ref, verify the recorded SHA and hosted
+runner identity, then retain the run/artifact links, exact completed/pending
+counts and verdicts here. Keep #602 open in the meantime.
 
 Validation commands: `npm run build`,
 `node --test --test-concurrency=1 dist/tests/http-crash-diagnostic.test.js dist/tests/suites.test.js`,

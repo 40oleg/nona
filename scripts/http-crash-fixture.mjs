@@ -87,10 +87,17 @@ let diagnosticEvents = 0;
 const diagnosticStart = Date.now();
 function trace(event, socket, response, error) {
     if (diagnosticEvents++ >= 2048) return;
+    // Node exposes timeout publicly; Nona currently stores it in _timeout.
+    // Keep the provenance so an internal diagnostic read is explicit.
+    const timeoutSource = socket && typeof socket.timeout === 'number'
+        ? 'socket.timeout'
+        : socket && typeof socket._timeout === 'number' ? 'socket._timeout' : 'unavailable';
+    const timeout = timeoutSource === 'socket.timeout' ? socket.timeout
+        : timeoutSource === 'socket._timeout' ? socket._timeout : null;
     console.log('diagnostic ' + JSON.stringify({event, sequence:diagnosticEvents,
         ms:Date.now()-diagnosticStart, socket:socket && socket.__diagnosticId,
         destroyed:socket && socket.destroyed,
-        timeout:socket && socket.timeout,
+        timeout, timeoutSource,
         socketQueued:socket && socket.writableLength,
         responseQueued:response && response.writableLength,
         ended:response && response.writableEnded,
