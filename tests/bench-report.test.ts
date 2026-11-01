@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 // The statistics, formatting and metric labels behind bench/report.mjs (#392).
@@ -43,6 +44,48 @@ type Metrics = {
 };
 const load = async <T>(file: string) =>
     (await import(pathToFileURL(resolve(file)).href)) as T;
+
+test("micro report CLI writes seconds with no matching benchmark cases", () => {
+    const temporaryRoot = resolve(tmpdir());
+    const directory = mkdtempSync(join(temporaryRoot, "nona-bench-report-"));
+    try {
+        const run = spawnSync(
+            process.execPath,
+            [
+                "bench/report.mjs",
+                "--suite",
+                "micro",
+                "--only",
+                "__no_matching_case__",
+                "--runtimes",
+                "node",
+                "--runs",
+                "1",
+                "--out",
+                directory,
+            ],
+            { encoding: "utf8", timeout: 30_000 },
+        );
+        assert.equal(run.error, undefined);
+        assert.equal(run.status, 0, run.stderr);
+        const header =
+            /\| Script \| Node, s \| Node RSS, MB \| Nona \/ Node \|/;
+        assert.match(run.stdout, header);
+        assert.match(readFileSync(join(directory, "micro.md"), "utf8"), header);
+        const report = JSON.parse(
+            readFileSync(join(directory, "micro.json"), "utf8"),
+        );
+        assert.deepEqual(report.results, []);
+        assert.deepEqual(report.mismatches, []);
+        assert.deepEqual(report.failures, []);
+        assert.deepEqual(report.info.runtimes, ["node"]);
+        assert.equal(report.info.runs, 1);
+    } finally {
+        assert.equal(dirname(directory), temporaryRoot);
+        assert.ok(basename(directory).startsWith("nona-bench-report-"));
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
 
 test("median, quantiles and geometric mean", async () => {
     const s = await load<Stats>("bench/lib/stats.mjs");
