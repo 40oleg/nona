@@ -1,5 +1,11 @@
 # Журнал разработки Nona
 
+## 2026-10-31 — выпуск v0.34.0
+
+- Версия package.json и package-lock.json обновлена до 0.34.0; `src/version.ts`, CLI help и `--version` — тоже.
+- В выпуск вошли исправления: `globalThis[Symbol.toStringTag]` и `Object.prototype.toString` для глобального объекта (#514, #596), описательные сообщения об ошибках при spread, destructuring и iteration нетерируемых значений (#593), `assert.throws` сохраняет префикс сообщения (#594), `EventEmitter` показывает значения ошибок как `util.inspect` (#597), описательные сообщения об ошибках при неудачных присваиваниях в strict mode (#598).
+- Полный аудит Test262 для v0.34.0 не проводился: цифры на странице статуса относятся к аудиту v0.8.0.
+
 ## 2026-10-28 — выпуск v0.33.0
 
 - Версия package.json и package-lock.json обновлена до 0.33.0; `src/version.ts`, CLI help и `--version` — тоже.

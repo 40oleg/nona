@@ -2,11 +2,24 @@
 
 ## Unreleased
 
+## v0.34.0 — 2026-10-31
+
 ### Fixes
 
 - **Native distributions preserve third-party notices.** Compiler packages and release archives include `THIRD_PARTY_NOTICES.md`, with the shared cube-root implementation's SunPro/Bruce D. Evans notice and corrected numeric-runtime attribution. Release verification extracts the ZIP and tar.gz files and checks their layout, checksums, required files and exact notice bytes before publication; the installation and distribution guidance lists the files to retain with generated programs. ([#618](https://github.com/40oleg/nona/issues/618))
 - **Harness pull-request CI stays on GitHub-hosted runners.** Windows jobs for `nona/issue-*` branches no longer use the owner's self-hosted overflow, so full suites cannot compete with the permitted small local agent checks. Main and other trusted branches retain the overflow policy. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
+- **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))
+- **`assert.throws` and `assert.rejects` keep the message prefix.** A string message used to replace the whole error text when the function did not throw; now it becomes `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#594](https://github.com/40oleg/nona/issues/594))
+- **Object.prototype.toString behavior is more complete.** `Object.prototype.toString.call(globalThis)` is `[object global]` instead of `[object Object]`, and other [[Class]] symbols are used correctly in built-in methods. ([#596](https://github.com/40oleg/nona/issues/596))
+- **`EventEmitter` "Unhandled error" message inspects the value.** `emit("error", { code: 42 })` without a listener now shows the error like `util.inspect`, not as `[object Object]`. ([#597](https://github.com/40oleg/nona/issues/597))
+- **Failed assignments in strict code have Node.js messages.** Assignment to a `const`, read-only property, getter-only accessor, non-extensible object and other failures no longer say `Invalid operation`, but give specific messages like Node.js. ([#598](https://github.com/40oleg/nona/issues/598))
+
+- **Benchmark reports render wall-time tables again.** The micro and real-program report formatter referenced an undefined unit and threw a `ReferenceError`; its wall times are now labelled in seconds, with a zero-workload CLI regression. ([#610](https://github.com/40oleg/nona/issues/610))
+
+### Development
+
+- Release benchmarks run in GitHub Actions with raw samples, instruction profiles and checked HTTP results; early and final artifacts preserve failures for diagnosis. Release instructions require published release evidence before work on a later milestone. ([#610](https://github.com/40oleg/nona/issues/610))
 
 ## v0.33.0 — 2026-10-28
 
