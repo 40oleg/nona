@@ -278,6 +278,8 @@
                 "harness",
                 "has-cache",
                 "http",
+                "http-backpressure",
+                "http-backpressure-source",
                 "http-json-bytes",
                 "http-responses",
                 "immediate-source",

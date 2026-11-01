@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **HTTP and TCP writes honor backpressure through partial sends and corking.** A false write keeps an explicit drain obligation until its queued bytes leave, including HTTP auto-corked writes and socket tails below the high-water mark. Terminal paths cancel pending writes and drain listeners; queued HTTP completion objects retain their completion protocol. ([#615](https://github.com/40oleg/nona/issues/615))
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
