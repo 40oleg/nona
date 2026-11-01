@@ -107,7 +107,9 @@ test("native process heap snapshot reads actual allocator state without calls", 
     assert.ok(
         !fragment.fixups.some(
             (item) =>
-                item.target === "rt.alloc" || item.target.startsWith("rt.gc"),
+                item.target === "rt.alloc" ||
+                (item.target.startsWith("rt.gc") &&
+                    item.target !== "rt.gcEpoch"),
         ),
     );
 });

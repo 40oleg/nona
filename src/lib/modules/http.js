@@ -635,7 +635,7 @@ export class OutgoingMessage {
         // A corked message can cross its HWM while a partial send leaves a
         // socket tail below the socket HWM. That tail still owes us a drain.
         if (socket !== null && socket.writableLength > 0)
-            socket._needDrain = true;
+            socket._requestDrain();
         if (socket !== this._drainSocket) {
             this._unwatchDrain();
             if (socket !== null && !socket.destroyed) {
@@ -678,6 +678,7 @@ export class OutgoingMessage {
                 socket !== null &&
                 socket._httpMessage === this &&
                 !socket.connecting &&
+                !socket.writableNeedDrain &&
                 this.writableLength === 0
             ) {
                 this._needDrain = false;

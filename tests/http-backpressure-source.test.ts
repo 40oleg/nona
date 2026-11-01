@@ -3,14 +3,22 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { StringDecoder } from "node:string_decoder";
 import {
+    createHash,
+    createHmac,
+    randomBytes,
+    createDecipheriv,
+} from "node:crypto";
+import {
     modulesNetCommon,
     modulesHttp,
     modulesNetworkStream,
+    modulesTls,
+    modulesTlsCrypto,
 } from "../src/lib/sources.generated.js";
 
 // Execute the production modules with scripted syscalls. Only the native byte
 // helpers are adapted; Socket, Readable and HTTP methods are unchanged.
-function boundary(results: number[] = []) {
+function boundary(results: number[] = [], secure?: boolean) {
     const strip = (source: string) =>
         source
             .replace(/^import\s[\s\S]*?;\r?\n/gm, "")
@@ -35,9 +43,13 @@ function boundary(results: number[] = []) {
     };
     const slice = (src: Uint8Array, start: number, end: number) =>
         src.slice(start, end);
+    const wire: number[] = [];
     const sys = {
-        send: (_fd: number, _bytes: Uint8Array, length: number) =>
-            results.shift() ?? length,
+        send: (_fd: number, bytes: Uint8Array, length: number) => {
+            const n = results.shift() ?? length;
+            if (n > 0) wire.push(...bytes.subarray(0, n));
+            return n;
+        },
         close() {},
         watch() {},
         shutdown() {},
@@ -86,16 +98,305 @@ function boundary(results: number[] = []) {
         slice,
         undefined,
     );
-    const socket = new net.Socket();
-    socket._fd = 1;
+    const raw = new net.Socket();
+    raw._fd = 1;
+    let socket = raw;
+    if (secure !== undefined) {
+        // Real record framing, HKDF and AES-GCM; fixed traffic secrets isolate
+        // write scheduling from key exchange/certificate verification (hosted).
+        const t = new Function(
+            "createHash",
+            "createHmac",
+            "randomBytes",
+            strip(modulesTlsCrypto) +
+                ";return {hkdfExpandLabel,createAead,concatBytes};",
+        )(createHash, createHmac, randomBytes);
+        const tls = new Function(
+            "Buffer",
+            "net",
+            "osRandomBytes",
+            "t",
+            "parseCertificate",
+            "peerCertificate",
+            "verifyPeer",
+            "checkServerIdentity",
+            "systemRootCertificates",
+            strip(modulesTls) +
+                ";return {TLSSocket,ClientEngine,TrafficKeys,suites};",
+        )(Buffer, net, randomBytes, t);
+        socket = new tls.TLSSocket(raw);
+        socket._engine = new tls.ClientEngine();
+        socket._engine.suite = tls.suites[0x1301];
+        socket._engine.write = new tls.TrafficKeys(
+            tls.suites[0x1301],
+            new Uint8Array(32).fill(7),
+        );
+        socket._engine.state = "connected";
+        socket._secure = secure;
+    }
     const message = new http.OutgoingMessage();
     message._header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n";
     message.chunkedEncoding = true;
     message.socket = socket;
     socket._httpMessage = message;
-    return { socket, message, http, results };
+    return { socket, raw, message, http, results, wire };
 }
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+// Independent Node AEAD oracle checks the bytes emitted by the production TLS
+// engine, including a 16 KiB record split and the final HTTP chunk framing.
+function plaintext(wire: number[], key: Uint8Array, iv: Uint8Array) {
+    const bytes = Buffer.from(wire),
+        chunks: Buffer[] = [];
+    let sequence = 0;
+    for (let at = 0; at < bytes.length;) {
+        const size = bytes.readUInt16BE(at + 3),
+            nonce = Buffer.from(iv);
+        nonce[11] = nonce[11]! ^ sequence++;
+        const decipher = createDecipheriv("aes-128-gcm", key, nonce);
+        decipher.setAAD(bytes.subarray(at, at + 5));
+        decipher.setAuthTag(bytes.subarray(at + 5 + size - 16, at + 5 + size));
+        const inner = Buffer.concat([
+            decipher.update(bytes.subarray(at + 5, at + 5 + size - 16)),
+            decipher.final(),
+        ]);
+        assert.equal(inner.at(-1), 23);
+        chunks.push(inner.subarray(0, -1));
+        at += 5 + size;
+    }
+    return Buffer.concat(chunks).toString();
+}
+
+test("TLS secure write legitimately returns true for a partial raw tail below HWM", async () => {
+    const { socket, raw } = boundary([10000], true);
+    const events: string[] = [];
+    socket.on("drain", () => events.push("drain"));
+    assert.equal(
+        socket.write(new Uint8Array(20480), (e: unknown) => {
+            assert.equal(e, null);
+            events.push("callback");
+        }),
+        true,
+    );
+    assert.equal(raw.writableLength, 10524);
+    assert.equal(raw.writableNeedDrain, false);
+    assert.equal(socket.writableNeedDrain, false);
+    assert.deepEqual(events, []);
+    raw._flushWrites();
+    await tick();
+    assert.deepEqual(events, ["callback"]);
+});
+
+test("HTTPS partial-send tail below HWM fulfills the corked HTTP drain promise", async () => {
+    const { socket, raw, message, wire } = boundary([10000], true);
+    const events: string[] = [];
+    const { key, iv } = socket._engine.write;
+    message.on("drain", () => {
+        assert.equal(message.writableNeedDrain, false);
+        events.push("drain");
+    });
+    assert.equal(
+        message.write("x".repeat(20480), (e: unknown) => {
+            assert.equal(e, null);
+            events.push("callback");
+        }),
+        false,
+    );
+    await tick();
+    assert.ok(raw.writableLength > 0 && raw.writableLength < 16384);
+    assert.equal(socket._pendingLength, 0);
+    assert.equal(message.writableNeedDrain, true);
+    assert.deepEqual(events, []);
+    raw._flushWrites();
+    await tick();
+    assert.equal(raw.writableLength, 0);
+    assert.equal(socket.writableLength, 0);
+    assert.equal(message.writableLength, 0);
+    assert.equal(
+        plaintext(wire, key, iv),
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5000\r\n" +
+            "x".repeat(20480) +
+            "\r\n",
+    );
+    assert.deepEqual(
+        events,
+        ["callback", "drain"],
+        `empty HTTPS queues; message needDrain=${message.writableNeedDrain}, TLS needDrain=${socket.writableNeedDrain}, raw needDrain=${raw.writableNeedDrain}`,
+    );
+    raw._flushWrites();
+    await tick();
+    assert.deepEqual(events, ["callback", "drain"]);
+    assert.equal(message._drainSocket, null);
+});
+
+for (const secure of [false, true]) {
+    for (const first of [10000, -11, -4, 20579]) {
+        test(`HTTPS secure=${secure} send=${first}: completion and one empty-queue drain`, async () => {
+            const { socket, raw, message } = boundary([first], secure);
+            const events: string[] = [];
+            message.on("drain", () => {
+                assert.equal(message.writableLength, 0);
+                assert.equal(message.writableNeedDrain, false);
+                events.push("drain");
+            });
+            assert.equal(
+                message.write("x".repeat(20480), (e: unknown) => {
+                    assert.equal(e, null);
+                    events.push("callback");
+                }),
+                false,
+            );
+            await tick();
+            if (!secure) {
+                assert.equal(socket._pendingLength, 20535);
+                assert.deepEqual(events, []);
+                socket._onSecure();
+                await tick();
+            }
+            if (first !== 20579) {
+                assert.ok(raw.writableLength > 0);
+                assert.deepEqual(events, []);
+                raw._flushWrites();
+                // Raw Socket completions stay asynchronous, even for the last byte.
+                assert.deepEqual(events, []);
+            }
+            await tick();
+            assert.equal(socket._pendingLength, 0);
+            assert.equal(message.writableLength, 0);
+            const expected =
+                secure && first === 20579
+                    ? ["drain", "callback"]
+                    : ["callback", "drain"];
+            assert.deepEqual(events, expected);
+            raw._flushWrites();
+            await tick();
+            assert.deepEqual(events, expected);
+            assert.equal(socket.writableNeedDrain, false);
+            assert.equal(message._drainSocket, null);
+        });
+    }
+}
+
+for (const fast of [false, true]) {
+    test(`TLS pre-handshake ${fast ? "fast" : "public"} false write drains only after the raw tail`, async () => {
+        const { socket, raw } = boundary([10000], false);
+        const events: string[] = [];
+        socket.on("drain", () => {
+            assert.equal(socket.writableLength, 0);
+            events.push("drain");
+        });
+        const bytes = new Uint8Array(20480);
+        const callback = (e: unknown) => {
+            assert.equal(e, null);
+            events.push("callback");
+        };
+        assert.equal(
+            fast
+                ? socket._sendNow(bytes, bytes.length, callback)
+                : socket.write(bytes, callback),
+            false,
+        );
+        assert.equal(socket.writableNeedDrain, true);
+        socket._onSecure();
+        assert.ok(raw.writableLength > 0 && raw.writableLength < 16384);
+        await tick();
+        assert.deepEqual(events, []);
+        raw._flushWrites();
+        await tick();
+        assert.deepEqual(events, ["callback", "drain"]);
+    });
+}
+
+for (const secure of [false, true]) {
+    for (const terminal of ["destroy", "error", "deferred destroy", "end"]) {
+        test(`HTTPS secure=${secure} ${terminal}: terminal completions settle once without late drain`, async () => {
+            const { socket, raw, message, results } = boundary([10000], secure);
+            const events: string[] = [];
+            socket.on("error", (e: any) => events.push(e.code));
+            socket.on("close", () => events.push("close"));
+            message.on("drain", () => events.push("drain"));
+            message.on("finish", () => events.push("finish"));
+            message.write("x".repeat(20480), (e: any) =>
+                events.push(e?.code || "callback"),
+            );
+            await tick();
+            if (terminal === "end") {
+                results.push(-11, -11, -11);
+                message.end();
+                if (!secure) socket._onSecure();
+                await tick();
+                assert.deepEqual(events, []);
+                results.length = 0;
+                raw._flushWrites();
+            } else if (terminal === "error") {
+                if (!secure) socket._onSecure();
+                results.push(-32);
+                raw._flushWrites();
+            } else {
+                if (terminal === "deferred destroy") {
+                    if (!secure) socket._onSecure();
+                    raw._flushWrites();
+                }
+                message.destroy();
+            }
+            await tick();
+            raw._flushWrites();
+            await tick();
+            assert.deepEqual(
+                events,
+                terminal === "end"
+                    ? ["callback", "finish"]
+                    : terminal === "error"
+                      ? ["EPIPE", "EPIPE", "close"]
+                      : [
+                            terminal === "destroy"
+                                ? "ERR_STREAM_DESTROYED"
+                                : "callback",
+                            "close",
+                        ],
+            );
+            assert.equal(message.writableLength, 0);
+            assert.equal(message.writableNeedDrain, false);
+            assert.equal(socket.writableNeedDrain, false);
+            assert.equal(socket._pendingLength, 0);
+            assert.equal(message._drainSocket, null);
+        });
+    }
+}
+
+for (const terminal of ["destroy", "end", "seal error"]) {
+    test(`TLS fast owner ${terminal} keeps its completion protocol`, async () => {
+        const { socket } = boundary([], true);
+        const events: string[] = [];
+        socket.on("error", (e: any) => events.push("error:" + e.code));
+        socket.on("close", () => events.push("close"));
+        if (terminal === "destroy") socket.destroy();
+        else if (terminal === "end") socket.end();
+        else socket._engine.state = "closed";
+        const owner = {
+            _sent(e: any) {
+                assert.equal(this, owner);
+                events.push("callback:" + e?.code);
+            },
+        };
+        assert.equal(socket._sendNow(new Uint8Array(1), 1, owner), false);
+        await tick();
+        assert.equal(events.filter((e) => e.startsWith("callback:")).length, 1);
+        const code =
+            terminal === "destroy"
+                ? "ERR_STREAM_DESTROYED"
+                : terminal === "end"
+                  ? "ERR_STREAM_WRITE_AFTER_END"
+                  : "ERR_SSL_PROTOCOL_ERROR";
+        assert.ok(events.includes("callback:" + code));
+        if (terminal === "seal error")
+            assert.deepEqual(events, [
+                "callback:" + code,
+                "error:" + code,
+                "close",
+            ]);
+    });
+}
 
 for (const first of [1, -11, -4]) {
     test(`fast HTTP send ${first}: false creates a drain obligation until flushing`, async () => {

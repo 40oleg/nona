@@ -1,33 +1,28 @@
-# CI runners: GitHub-hosted with a self-hosted overflow
+# CI runners: GitHub-hosted validation
 
-The Windows jobs are the slowest part of CI and GitHub runs only a few of them
-at a time, so a burst of pull requests queues them for hours. The owner's
-self-hosted Windows runner takes the overflow.
+Full suites and long validation run on GitHub-hosted runners. This applies to
+pull requests, pushes to `main` and manual runs, even when hosted jobs queue
+and the owner's self-hosted runner is idle. The owner's PC is reserved for at
+most three agents running small targeted checks with concurrency 1
+([#620](https://github.com/40oleg/nona/issues/620)).
 
 ## How a Windows job picks its runner
 
 `check.yml` (the `windows` shards and `windows-compare`) and `program-corpus.yml` (the Windows half of
 `programs`) first run a small `route` job on `ubuntu-latest`. It runs
-[`scripts/pick-runner.mjs`](../scripts/pick-runner.mjs), which looks at the
-repository's runners and at the jobs of other workflow runs that wait for a
-runner, and gives the Windows job one of two `runs-on` values:
-
-- the self-hosted runner (`[self-hosted, Windows, X64]`) when at least one
-  `windows-latest` job is already waiting for a GitHub-hosted runner, the
-  self-hosted runner is online and idle, and no other job waits for it;
-- `windows-latest` otherwise.
-
-The job summary of `route` says which one it chose and why. Pushes to `main`,
-manual runs and pull requests from branches of this repository may use the
-self-hosted runner. **Pull requests from forks always stay on GitHub-hosted
-runners**: the repository is public, and the self-hosted runner executes
-whatever the workflow checks out on the owner's machine. Any API failure also
-keeps the job hosted.
+[`scripts/pick-runner.mjs`](../scripts/pick-runner.mjs). Both workflows set
+`TRUSTED: "false"`, so it returns `windows-latest` without enabling local
+overflow. Fork code also remains hosted. The `route` job summary records the
+selected runner and reason.
 
 The Test262 matrix jobs (eight short jobs) stay on GitHub-hosted runners: one
 self-hosted runner would run them one after another.
 
-## Setup
+## Optional overflow support (disabled)
+
+The decision helper retains its overflow capability for a future owner-approved
+policy change. Runner registration and secrets are preserved; neither enables
+overflow while the workflows explicitly set `TRUSTED: "false"`.
 
 1. Register the runner for this repository (Settings → Actions → Runners → New
    self-hosted runner, Windows x64) with the default labels `self-hosted`,

@@ -2,12 +2,15 @@
 
 ## Unreleased
 
-- **HTTP and TCP writes honor backpressure through partial sends and corking.** A false write keeps an explicit drain obligation until its queued bytes leave, including HTTP auto-corked writes and socket tails below the high-water mark. Terminal paths cancel pending writes and drain listeners; queued HTTP completion objects retain their completion protocol. ([#615](https://github.com/40oleg/nona/issues/615))
+- **HTTP, HTTPS and TCP writes honor backpressure through partial sends and corking.** A false write keeps an explicit drain obligation until its queued bytes leave, including HTTP auto-corked writes and TLS/raw socket tails below the high-water mark. TLS carries this obligation across handshake completion without an early drain. Terminal paths cancel pending writes and drain listeners; queued HTTP completion objects retain their completion protocol. ([#615](https://github.com/40oleg/nona/issues/615))
 
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
 
+- **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
+- **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
+- **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 - **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))
 - **`assert.throws` and `assert.rejects` keep the message prefix.** A string message used to replace the whole error text when the function did not throw; now it becomes `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#594](https://github.com/40oleg/nona/issues/594))

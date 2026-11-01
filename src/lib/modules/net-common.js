@@ -823,6 +823,10 @@ export class Socket extends Readable {
         if (!ok) this._needDrain = true;
         return ok;
     }
+    /** Arm a drain owed by an upper layer even when our tail is below HWM. */
+    _requestDrain() {
+        this._needDrain = true;
+    }
     _flushWrites() {
         while (
             this._writeQueue !== null &&
