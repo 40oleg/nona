@@ -48,7 +48,17 @@ No parent environment snapshot is used. The child and compiler receive a
 new null-prototype map. Windows OS entries are literal `SystemRoot=C:\Windows`,
 `WINDIR=C:\Windows`, `SystemDrive=C:`, `ComSpec=C:\Windows\System32\cmd.exe`
 and `PATH=C:\Windows\System32;C:\Windows`; `TEMP` and `TMP` point to the
-new experiment's `safe-temp` directory. The literal OS location must exist.
+new experiment's `safe-temp` directory. Windows also supplies synthetic
+`HOMEDRIVE=C:`, `HOMEPATH=\nona-synthetic-user`,
+`LOGONSERVER=\\NONA-SYNTHETIC`, `USERDOMAIN=NONA-SYNTHETIC`,
+`USERNAME=nona-synthetic-user` and `USERPROFILE=C:\nona-synthetic-user`.
+Together these explicitly cover all eleven entries in
+[Node 26.9.0's libuv required-variable list](https://github.com/nodejs/node/blob/v26.9.0/deps/uv/src/win/process.c#L47-L59),
+preventing libuv from filling missing entries with parent-derived values even
+when spawn receives an explicit environment. All entries are added before
+calculating numbered filler and padding, retaining the exact total counts and
+equal-volume controls below. The literal Windows OS location must exist;
+the synthetic profile and logon server are fixture values only.
 Linux uses literal `PATH=/usr/bin:/bin`, `LANG=C` and the new directory as
 `TMPDIR`. Nothing is copied from the parent's PATH, user profile or temporary
 directory settings.
@@ -320,3 +330,14 @@ Native lifecycle, timeout, cleanup, compiler/image provenance and timing
 behavior remain **unexecuted
 locally and pending hosted validation**. Passing pure tests cannot substitute
 for that evidence.
+
+The review correction adds a pure regression covering the complete libuv
+required-variable allowlist in every Windows shape and GC mode, including
+exact synthetic/allowlisted values, unique case-insensitive names, total counts,
+descriptors and equal-volume controls. Before the correction it failed on
+missing `HOMEDRIVE` (`0 !== 1`); the other 11 tooling tests passed with zero
+skips. The correction supplies the six missing variables before sizing.
+After the correction, all 28 focused tooling/fixture and source tests passed
+with zero skips; changed-file Prettier and driver syntax checks also passed.
+This RED/GREEN check does not execute native children or establish a timing
+improvement; hosted validation remains pending.

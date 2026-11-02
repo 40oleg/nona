@@ -135,6 +135,48 @@ test("synthetic fixtures count OS and stress entries and enforce equal UTF-16 vo
     );
 });
 
+test("Windows fixtures explicitly supply every libuv-required variable before sizing", () => {
+    // Complete required_vars list in Node v26.9.0 deps/uv/src/win/process.c.
+    // Missing entries can be injected from the parent despite an explicit env.
+    const required = {
+        HOMEDRIVE: "C:",
+        HOMEPATH: "\\nona-synthetic-user",
+        LOGONSERVER: "\\\\NONA-SYNTHETIC",
+        PATH: "C:\\Windows\\System32;C:\\Windows",
+        SYSTEMDRIVE: "C:",
+        SYSTEMROOT: "C:\\Windows",
+        TEMP: "C:\\safe",
+        USERDOMAIN: "NONA-SYNTHETIC",
+        USERNAME: "nona-synthetic-user",
+        USERPROFILE: "C:\\nona-synthetic-user",
+        WINDIR: "C:\\Windows",
+    };
+    for (const gc of ["off", "on"])
+        for (const [shape, count] of [
+            ["base", 39],
+            ["few", 40],
+            ["many", 150],
+        ]) {
+            const env = makeEnvironment({
+                platform: "win32",
+                shape,
+                gc,
+                temporary: "C:\\safe",
+            });
+            for (const [name, value] of Object.entries(required)) {
+                const aliases = Object.keys(env).filter(
+                    (key) => key.toUpperCase() === name,
+                );
+                assert.equal(aliases.length, 1, `${shape}/${gc}: ${name}`);
+                assert.equal(env[aliases[0]], value, `${shape}/${gc}: ${name}`);
+            }
+            const aggregate = aggregateEnvironment(env);
+            assert.equal(aggregate.count, count);
+            assert.equal(aggregate.descriptorErrors, 0);
+            if (shape !== "base") assert.equal(aggregate.units, 9221);
+        }
+});
+
 test("aggregate counts entry terminators, equals signs, final NUL and UTF-16 code units", () => {
     const env = { X: "😀", Y: "a=b" };
     assert.deepEqual(aggregateEnvironment(env), {

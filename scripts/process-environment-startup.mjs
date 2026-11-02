@@ -124,6 +124,14 @@ export function makeEnvironment({ platform, shape, gc, temporary }) {
             PATH: "C:\\Windows\\System32;C:\\Windows",
             TEMP: temporary,
             TMP: temporary,
+            // Complete libuv's required_vars allowlist before sizing. Otherwise
+            // Node can inject missing entries from the parent's environment.
+            HOMEDRIVE: "C:",
+            HOMEPATH: "\\nona-synthetic-user",
+            LOGONSERVER: "\\\\NONA-SYNTHETIC",
+            USERDOMAIN: "NONA-SYNTHETIC",
+            USERNAME: "nona-synthetic-user",
+            USERPROFILE: "C:\\nona-synthetic-user",
         });
     else
         Object.assign(env, {
