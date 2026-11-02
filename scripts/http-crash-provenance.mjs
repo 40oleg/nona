@@ -38,16 +38,16 @@ export function launchAllowed(env, event) {
     );
 }
 
-function git(...args) {
-    return execFileSync("git", args, { encoding: "utf8" }).trim();
+function git(env, ...args) {
+    return execFileSync("git", args, { encoding: "utf8", env }).trim();
 }
 
-export function dependencyStatus(head) {
+export function dependencyStatus(head, env) {
     if (!shaPattern.test(head)) throw new Error("Expected exact head SHA");
     const result = spawnSync(
         "git",
         ["merge-base", "--is-ancestor", dependencyPin, head],
-        { encoding: "utf8" },
+        { encoding: "utf8", env },
     );
     return {
         commit: dependencyPin,
@@ -57,13 +57,13 @@ export function dependencyStatus(head) {
     };
 }
 
-export function collectProvenance(env, event) {
-    const head = git("rev-parse", "HEAD");
+export function collectProvenance(env, event, childEnv) {
+    const head = git(childEnv, "rev-parse", "HEAD");
     return provenanceRecord(
         env,
         event,
-        { head, tree: git("rev-parse", "HEAD^{tree}") },
-        dependencyStatus(head),
+        { head, tree: git(childEnv, "rev-parse", "HEAD^{tree}") },
+        dependencyStatus(head, childEnv),
     );
 }
 

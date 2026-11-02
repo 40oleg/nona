@@ -407,6 +407,8 @@
                 "run-shard",
                 "http-crash-diagnostic",
                 "http-crash-workflow",
+                "http-crash-acceptance",
+                "http-startup",
                 "ci-changes"
             ]
         }

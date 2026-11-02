@@ -12,6 +12,12 @@ import net from "node:net";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { referenceBlob, serverSource } from "./http-crash-fixture.mjs";
+import {
+    diagnosticAcceptance,
+    acceptanceFiles,
+} from "./http-crash-acceptance.mjs";
+import { trialMatrix } from "./http-crash-plan.mjs";
+export { diagnosticAcceptance } from "./http-crash-acceptance.mjs";
 
 export const hashFile = (file) =>
     createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -19,57 +25,7 @@ const save = (file, value) =>
     writeFileSync(file, JSON.stringify(value, null, 2) + "\n");
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
-export function trialMatrix() {
-    const trials = [];
-    const add = (config) => {
-        for (const runtime of ["node", "nona"])
-            for (const gc of runtime === "nona" ? ["off", "stress"] : ["n/a"])
-                trials.push({
-                    route: "/big",
-                    ...config,
-                    runtime,
-                    gc,
-                    id: `trial-${trials.length + 1}`,
-                });
-    };
-    // First run the unminimized #603 topology, with only settings reporting.
-    add({
-        fixture: "reference",
-        listeners: "original",
-        concurrency: 32,
-        state: "keepalive",
-        chunkBytes: 65536,
-        chunks: 16,
-    });
-    for (const listeners of ["original", "none"])
-        for (const concurrency of [1, 32])
-            for (const state of [
-                "keepalive",
-                "queued-timeout",
-                "idle-timeout",
-                "destroy-queued",
-            ])
-                add({
-                    fixture: "controlled",
-                    listeners,
-                    concurrency,
-                    state,
-                    chunkBytes: 65536,
-                    chunks: 16,
-                });
-    // Reduced pressure, without implying that it reproduces the same fault.
-    for (const listeners of ["original", "none"])
-        add({
-            fixture: "controlled",
-            listeners,
-            concurrency: 4,
-            state: "destroy-queued",
-            chunkBytes: 16384,
-            chunks: 4,
-        });
-    return trials;
-}
-
+export { trialMatrix } from "./http-crash-plan.mjs";
 export function classifyTermination(result, workload, ready) {
     if (result.error) return "infrastructure-error";
     const code = result.code === null ? null : result.code >>> 0;
@@ -247,7 +203,7 @@ export async function runTrial(spec, options) {
         timeoutMs: report.limits.hardMs,
         signal,
         env: {
-            ...process.env,
+            ...(options.env ?? process.env),
             DIAG_LISTENERS: spec.listeners,
             DIAG_STATE: spec.state,
             DIAG_CHUNK_BYTES: String(spec.chunkBytes),
@@ -611,11 +567,25 @@ async function main() {
                 "If no native fault: compare the same traced matrix at 4d75a9d9 and the #601 before/after commits on hosted Windows; match queue/close sequence and fault signature before minimizing. No product fix established; #602 remains open.",
         });
     }
-    if (
-        results.length !== matrix.length ||
-        results.some((r) => r.verdict !== "observed-no-fault")
-    )
-        process.exitCode = 1;
+    // Separate infrastructure/scenario acceptance; retain all raw classifications
+    // and matrix reports unchanged. Incomplete matrices and interruption fail.
+    const retainedMatrix = JSON.parse(
+        readFileSync(join(output, "matrix.json"), "utf8"),
+    );
+    const provenancePath = join(output, "provenance.json");
+    let provenance;
+    try {
+        provenance = JSON.parse(readFileSync(provenancePath, "utf8"));
+    } catch {
+        provenance = null;
+    }
+    const acceptance = diagnosticAcceptance(
+        retainedMatrix,
+        acceptanceFiles(output, retainedMatrix),
+        provenance,
+    );
+    save(join(output, "acceptance.json"), acceptance);
+    if (!acceptance.accepted) process.exitCode = 1;
 }
 
 if (

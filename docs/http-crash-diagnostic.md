@@ -7,10 +7,167 @@ open until a fault has been connected to its owning object/state and a reduced
 regression fails before a demonstrated repair. A clean run after #601 is not
 proof that #602 is fixed.
 
-## Running and retaining evidence
+## Hosted evidence and startup follow-up (2026-11-01)
 
-Publish the reviewed update of existing **draft PR630** with `full-ci` already
-present. The **HTTP crash diagnostic** workflow accepts `pull_request` opened,
+[Run 41337528064, job 124940395131](https://github.com/40oleg/nona/actions/runs/41337528064/job/124940395131)
+at `3f199321d8fd543257d04f7680609ca1b459fa9e` **failed**, completing 45/57
+trials before the original twenty-minute bound. Node and Nona/off each produced
+12 clean observations and three `client-error` observations. All 15 attempted
+stressed trials reused only two images: 14 reached the original 60-second startup
+deadline; the last was interrupted at 39.856 seconds. None produced stdout,
+stderr, settings, readiness or requests. All four compiler children exited 0
+(about 8–9 seconds). No native-fault exit or WER dump was observed before
+deliberate SIGKILL. These facts establish neither a runtime/GC cause nor a repair.
+The earlier pre-launch status recorded below is historical and superseded.
+
+The next experiment is **optional `startup-602` mode of the already registered
+`native-platforms.yml`**, rather than another 57-trial campaign. Parent review and
+publication remain mandatory: leave PR630 draft at its existing head and preserve
+its CI. The coordinator may publish the reviewed diagnostic commit to a temporary
+same-issue `issue-602-startup-*` branch and dispatch the registered workflow there:
+
+```sh
+gh workflow run native-platforms.yml --repo 40oleg/nona \
+  --ref issue-602-startup-<review-id> \
+  -f diagnostic_mode=startup-602 -f diagnostic_sha=<exact-reviewed-commit>
+```
+
+This document does not authorize this worker to publish or dispatch. The default
+`full` input preserves every original manual/PR/main job and condition. Special
+mode admits only one literal `windows-2025` job, with Node **26.9.0 x64**, no
+self-hosted fallback, and serial attempts/concurrency one. Guards check repository,
+manual event, temporary non-main/non-tag ref, exact input/event/checkout/workflow
+commit, tree, hosted identity, unchanged compiler `src` tree from the retained
+head, and pinned #601 ancestor. New workflows absent from main cannot bootstrap
+through dispatch; this mode deliberately uses the registered workflow.
+
+One attempt per probe, in order:
+
+1. **Exact retained stressed reference first**, from artifact `13099115124` of
+   the run above. Verify original ZIP SHA-256
+   `2e60c99f112f3140b9da9ae91e48add5b948b178f0fb82be88a9eeadc423327e`,
+   retained source/build/provenance, and image SHA-256
+   `23bfce34206002318c362f7c285eef3dc3547901113b8146fd9e8f7153a770d7`.
+   Download/extraction occurs only after hosted guards. Validate every ZIP path,
+   alias, size and link mode before extraction; never substitute a regenerated
+   image. The original artifact lacks a compiler-binary digest: record that
+   limitation, its exact compiler source tree, original build entry and options.
+2. Console-only native stressed marker.
+3. Console marker, first `process.stdout` access, then stream write and markers.
+4. HTTP import only, then console marker.
+5. Minimal HTTP create/listen, with import/create/listen-callback markers.
+6. One instrumented original reference with literal markers after import,
+   process access, JSON, big string, create and listen callback.
+7. If the remaining original campaign budget permits, one exact-retained-source
+   `compileModuleToIR` → `generate` → `linkPe` comparison. This is a different
+   pipeline, not a second retained baseline. Public `compile` collects source
+   usage and calls `requestLink`; helper `generate` defaults to `fullRuntimeLink`.
+   Both prune builtins. Retain actual paths/options, selected links, compiler
+   file hashes, source, assembly, image hashes and raw child status.
+
+Startup remains **60 seconds**, child hard bound **90 seconds**, compiler bound
+**120 seconds**, campaign **20 minutes**, with actual GC stress enabled. As in the
+original campaign, the campaign clock starts in the driver after workflow
+installation/build/SDK preparation, and includes artifact restoration and all
+probe builds. Reference probes retain the server/API/client timers, four bounded
+requests and 22-second observation, using one client in this startup experiment.
+The small finite/listen probes send no workload. The old 57-trial matrix, fixture,
+timers, PR trigger and default fault collector remain compatible. No retry-for-green or local
+native/image/debugger execution is allowed.
+
+For the unchanged retained image, external process queries sample CPU time and
+working/private bytes near 5/15/20/30/40/50 seconds while still pre-ready. CDB
+attempts small text snapshots near 20/40 seconds, with at most five seconds each,
+inside the original wall deadline. Microsoft documents
+[`-pvr`](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/cdb-command-line-options)
+as noninvasive without suspending the target, unlike ordinary
+[noninvasive attach](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/noninvasive-debugging--user-mode-).
+The command records modules, thread registers and stacks, then
+[`qd`](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/qd--quit-and-detach-).
+There are no symbol-server waits or new memory dumps in live inspection. Running
+thread contexts can be unavailable/inconsistent; retain raw PC/module bases and
+base-relative addresses when possible. Start/end/elapsed/PID/attach-mode/exit/
+timeout and partial stdout/stderr are retained, including failed capture. Missing
+capture is incomplete evidence, never an inferred stack. Inspection is aborted
+and awaited with the trial; child deadline runs independently. The always cleanup
+step also checks recorded child PID/parent/creation time before stopping it.
+
+Startup children receive only an explicit, case-insensitive allowlist of needed
+Windows OS/PATH/temp/SDK fields, hosted identity/provenance and PORT/DIAG/GC/cache
+settings, through `scripts/http-startup-env.mjs`. This includes native probes,
+compiler children, Git helpers, PowerShell inspectors, artifact helpers, SDK
+installation and fault analysis. Unknown variables and credentials never pass
+this boundary. Only the parent artifact API fetch retains its required token;
+headers and environment values are never logged. Live snapshots omit `!peb`,
+which [displays environment and command-line data](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-peb).
+Startup fault analysis uses the collector's opt-in `-Startup602` command set to
+omit process/environment expansion and derive the fault module base from `lm`.
+The default collector and its original campaign retain their existing behavior.
+Raw receipts and full WER child dumps remain retained; this is prevention before
+spawn, not filtering or redacting captured evidence.
+
+Static HTTP dependencies evaluate before the fixture's first statement, even a
+marker textually above the import. Native `console.log` uses `rt.log` → `rt.write`
+→ `WriteFile`; `process.stdout` lazily initializes stream machinery. Source:
+`src/runtime/io.ts`, `src/runtime/console.ts`, `src/lib/runtime/process.js` and
+`tests/helpers/host.ts`. The helper's 180-second stress allowance is a hypothesis
+to investigate, not permission to alter the 60-second campaign bound. Markers
+change demand, allocations, roots and potentially linking; even external
+inspection perturbs scheduling. No marker variant or assembly listing alone
+establishes a GC cause. Preserve the baseline and report observer effects.
+
+The workflow always retains `work/http-startup/`, including `startup.json`,
+separate workflow/event/head/tree/dependency provenance, original ZIP/extraction
+inventory, API and retained-build verification, per-probe source/build/link/hash/
+assembly/status receipts, partial output, CPU and CDB receipts, cleanup and the
+original WER collector outputs. Fault/infrastructure failures stop the plan;
+timeouts remain failures. Budget exhaustion or unavailable evidence is bounded
+incomplete. Hosted causality and any product regression/repair remain pending.
+
+## Separate scenario acceptance
+
+Aggregate acceptance requires the independently built original 57-trial plan,
+including every parameter, runtime, GC mode, ID and order. The driver and
+validator share `scripts/http-crash-plan.mjs`; an artifact cannot redefine the
+campaign by trimming its own plan. Empty, partial, altered, duplicate, extra or
+reordered plans/results and missing or inconsistent completion metadata fail.
+Per-row evidence can still establish intended destruction in a partial campaign;
+it cannot make that campaign complete or set `productFix` to true.
+
+`classifyTermination` and raw `matrix.json`/trial/client/server records remain
+unchanged. `acceptance.json` adds an independent per-row `acceptance` field and
+`productFix: false`. `intended-destroy` is permitted only for a unique, matching
+Node/native-off pair with the same scenario/source/cardinalities, one request per
+client, zero responses/wrong output/hangs, exactly one `ECONNRESET` / `socket hang
+up` per client, and positive queued bytes followed by explicit destruction before
+`end()` on every server connection. Both members need complete matching raw
+reports, settings/readiness, clean stderr, zero dropped bytes, sequential uncapped
+traces, client closure, ordinary coordinated observation-complete termination,
+source/provenance and successful native compiler receipts. No arbitrary
+`client-error` or state-only exception is admitted. Stressed intentional-destroy
+acceptance remains incomplete until its own matching evidence exists.
+
+Exact retained text for pairs 13/14 (original, c1), 25/26 (original, c32), and
+37/38 (no listeners, c1) is copied into a pure regression fixture, with no native
+images. Tests exercise these payloads and negative corruption of either member.
+The six raw verdicts stay `client-error`; only their separate scenario acceptance
+changes. The actual **45/57 + 14 startup failures + one interruption still fails**.
+All other client errors, native faults (including missing dump/provenance), wrong
+output, unexpected exits/signals, hangs, startup failures, missing/truncated data
+and incomplete/interrupted matrices fail or remain incomplete. This is diagnostic
+infrastructure acceptance, not #602 product acceptance or permission to close it.
+
+Local validation uses only the separate pure/source/fake-child test files, serial
+at BelowNormal. Do not run `http-crash-diagnostic.test.ts` locally: it imports the
+compiler and contains a native test. RED/GREEN logs and parent handoff are in
+`work/review/602-*-red.txt`, `work/review/602-pure-green.txt` and
+`work/review602-startup.txt`. No build, full suite, native compilation, artifact
+image download/execution, debugger/provisioning or startup campaign ran locally.
+
+## Original campaign (preserved)
+
+The original **draft PR630** campaign uses `full-ci`. The **HTTP crash
+diagnostic** workflow accepts `pull_request` opened,
 reopened, synchronize and ready-for-review events only for PR630 when both
 repositories are `40oleg/nona` and that label is present. Draft status does not
 block the job. Other PRs cannot start this campaign. Parent review, publication
@@ -162,7 +319,8 @@ event contains `timeout: 1000` with `timeoutSource: "socket._timeout"`. The
 same regression fails with the pre-review fixture because the timeout is
 omitted. The Node control records `timeoutSource: "socket.timeout"`.
 No native crash trial or soak was run on the owner's PC.
-Hosted trial results: **0/57 executed; all pending** (0/19 Node controls,
+Before the first hosted launch, trial results were recorded as
+**0/57 executed; all pending** (0/19 Node controls,
 0/19 Nona normal, 0/19 Nona GC stress). The tiny test does not count toward
 the hosted matrix or establish a completed non-reproduction result.
 No crash mechanism or repair is claimed. Linux remains untested for this fault.
@@ -207,13 +365,9 @@ inside this worktree with no junctions before syncing). No local build, native
 acceptance test, load or campaign is part of the launch repair. WER capture,
 all 57 trials and current integrated-head CI remain hosted and pending.
 
-The next experiment is the first hosted matrix at the implementation SHA,
-retaining raw artifacts regardless of outcome. If it produces no native fault,
-repeat the exact reference/traced controls with the historical `4d75a9d9`
-compiler and the #601 before/after compiler commits on the same hosted image.
-First determine whether the second request stalls and whether queued output
-survives until close; compare listener variants with matching queue/close
-sequences. Preserve historical fault signature (exception code and PC relative
-to the image base) before reducing concurrency or route topology further.
-The #601 before/after evidence is still needed; this work does not assert that
-dependency has been satisfied or close #602.
+The startup follow-up described above supersedes the former proposal to repeat
+the broad matrix. Preserve historical fault signature (exception code and PC
+relative to the image base) if a fault is observed. Startup checkpoints/CPU/stack
+and matching control evidence must precede speculative runtime changes. The
+#601 before/after causal comparison remains outstanding; this work does not
+establish a #602 mechanism or close the issue.

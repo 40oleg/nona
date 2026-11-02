@@ -1,5 +1,6 @@
 param([ValidateSet('setup', 'collect', 'cleanup')][string]$Phase,
-      [string]$Output = 'work/http-crash')
+      [string]$Output = 'work/http-crash',
+      [switch]$Startup602)
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
     throw 'Crash collection is restricted to GitHub-hosted runners'
@@ -50,6 +51,11 @@ if ($Phase -eq 'setup') {
             # .exr/.ecxr/r retain the raw exception and fault PC, lm/!peb the
             # actual image load base, kv the best stack available without PDBs.
             $commands = '.exr -1; .ecxr; r; lm; !peb; .symfix; .reload; ln @rip; u @rip-20 L40; kv; !analyze -v; q'
+            if ($Startup602) {
+                # Startup receipts need raw exceptions/PCs/modules/stacks only.
+                # Never display process parameters, environment or command line.
+                $commands = '.exr -1; .ecxr; r; lm; ln @rip; u @rip-20 L40; kv; q'
+            }
             $debugger = Start-Process -FilePath $cdb -WindowStyle Hidden -PassThru `
                 -ArgumentList @('-z', ('"' + $dump.FullName + '"'), '-c', ('"' + $commands + '"')) `
                 -RedirectStandardOutput $log -RedirectStandardError ($log + '.stderr')
@@ -61,6 +67,14 @@ if ($Phase -eq 'setup') {
             $raw = Get-Content -LiteralPath $log -Raw
             if ($raw -match 'rip=([0-9a-fA-F`]+)') { $row.faultPc = $Matches[1] }
             if ($raw -match 'ImageBaseAddress:\s*([0-9a-fA-F`]+)') { $row.loadBase = $Matches[1] }
+            if ($Startup602 -and $row.faultPc) {
+                $pc = [Convert]::ToUInt64(($row.faultPc -replace '`',''), 16)
+                foreach ($module in [regex]::Matches($raw, '(?im)^([0-9a-f`]{8,})\s+([0-9a-f`]{8,})\s+(\S+)')) {
+                    $base = [Convert]::ToUInt64(($module.Groups[1].Value -replace '`',''), 16)
+                    $end = [Convert]::ToUInt64(($module.Groups[2].Value -replace '`',''), 16)
+                    if ($pc -ge $base -and $pc -lt $end) { $row.loadBase = $module.Groups[1].Value; break }
+                }
+            }
         }
         $rows += $row
     }

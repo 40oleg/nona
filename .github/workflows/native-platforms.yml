@@ -5,6 +5,17 @@ on:
     push:
         branches: [main]
     workflow_dispatch:
+        inputs:
+            diagnostic_mode:
+                description: Optional isolated diagnostic; full preserves the normal platform jobs
+                type: choice
+                options: [full, startup-602]
+                default: full
+                required: false
+            diagnostic_sha:
+                description: Exact reviewed temporary issue-602-startup-* commit (startup mode only)
+                type: string
+                required: false
     # On a pull request only the browser compiler runs; the platform jobs run
     # when the PR has the full-ci label (#353). "labeled" starts them once the
     # label is added.
@@ -22,6 +33,7 @@ concurrency:
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     browser-compiler:
+        if: inputs.diagnostic_mode != 'startup-602'
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -48,7 +60,7 @@ jobs:
         name: Windows x64 full regression (manual)
         # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
         # for manually dispatched full-platform runs as well.
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.diagnostic_mode != 'startup-602' && github.event_name == 'workflow_dispatch'
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
@@ -61,7 +73,7 @@ jobs:
             - run: npm run compare
     linux-regression:
         name: Linux x64 compiler and example regression
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -75,7 +87,7 @@ jobs:
             - run: npm run compare:linux
     loaders:
         name: ${{ matrix.target }} native and portable suites
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         strategy:
             fail-fast: false
             matrix:
@@ -150,7 +162,7 @@ jobs:
                   path: work/platform-probes
     linux-distributions:
         name: Linux userspace ${{ matrix.image }}
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -200,9 +212,80 @@ jobs:
                     cmp "$expected" "work/distro-results/${binary##*/}.actual"
                   done
             - run: node scripts/verify-process-reports.mjs work/distro-results
+    http-startup-602:
+        name: Optional HTTP startup investigation (diagnostic only)
+        if: github.repository == '40oleg/nona' && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'startup-602' && startsWith(github.ref, 'refs/heads/issue-602-startup-') && inputs.diagnostic_sha == github.sha
+        runs-on: windows-2025
+        permissions:
+            contents: read
+            actions: read
+        timeout-minutes: 35
+        concurrency:
+            group: http-startup-602
+            cancel-in-progress: false
+        env:
+            STARTUP_MODE: ${{ inputs.diagnostic_mode }}
+            STARTUP_EXPECTED_SHA: ${{ inputs.diagnostic_sha }}
+            NONA_AUTO_MERGE: "false"
+            NONA_AUTO_RELEASE: "false"
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  architecture: x64
+                  cache: npm
+            - name: Verify exact temporary ref and hosted provenance before installation
+              run: node scripts/http-startup.mjs --verify
+            - run: npm ci
+            - run: npm run build
+            - name: Pure diagnostic regressions only (serial)
+              run: node --test --test-concurrency=1 dist/tests/http-crash-acceptance.test.js dist/tests/http-startup.test.js
+            - name: Install Windows debugging tools if absent (same SDK as original collector)
+              shell: node scripts/http-startup-env.mjs pwsh -NoProfile -File {0}
+              timeout-minutes: 8
+              run: |
+                  $cdb = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+                  if (-not (Test-Path -LiteralPath $cdb)) {
+                      Invoke-WebRequest 'https://go.microsoft.com/fwlink/?linkid=2196241' -OutFile work/http-startup/winsdksetup.exe
+                      $installer = Start-Process -FilePath work/http-startup/winsdksetup.exe -WindowStyle Hidden -ArgumentList '/features OptionId.WindowsDesktopDebuggers /quiet /norestart' -PassThru
+                      try {
+                          if (-not $installer.WaitForExit(420000)) { throw 'SDK installation timed out' }
+                          if ($installer.ExitCode -notin @(0,3010)) { throw "SDK installation failed: $($installer.ExitCode)" }
+                      } finally { if (-not $installer.HasExited) { Stop-Process -Id $installer.Id -Force } }
+                  }
+                  # Missing debugger is recorded by the bounded inspector; it is
+                  # incomplete evidence and never a sampled-stack claim.
+            - name: Configure original per-image fault collector unchanged
+              run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-crash-windows.ps1 setup -Output work/http-startup
+            - name: One attempt per startup probe, retained reference first
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node scripts/http-startup.mjs
+            - name: Cleanup owned debugger and children
+              if: always()
+              run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-startup-cleanup.ps1
+            - name: Original fault dump analysis
+              if: always()
+              run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-crash-windows.ps1 collect -Output work/http-startup -Startup602
+            - name: Remove original WER keys
+              if: always()
+              run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-crash-windows.ps1 cleanup -Output work/http-startup
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-startup-602-${{ github.sha }}-${{ github.run_attempt }}
+                  path: work/http-startup/
+                  if-no-files-found: warn
+                  retention-days: 30
     bsd-loaders:
         name: ${{ matrix.os }} x64 guest VM on Ubuntu host
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false

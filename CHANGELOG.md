@@ -4,7 +4,7 @@
 
 ### Development
 
-- Add bounded hosted Windows HTTP crash diagnostics with Node controls, per-trial state/termination evidence and native dump collection. Repair the initial dispatch-only launch with a draft-PR630/full-ci trigger, exact-head checkout and pinned #601 ancestry/provenance checks; retain manual dispatch and serialize both paths. All 57 hosted trials remain pending; no crash fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))
+- Add bounded hosted Windows HTTP crash diagnostics with Node controls, per-trial state/termination evidence and native dump collection. The original 45/57 campaign failed with stressed startup deadlines and interruption. Prepare optional startup-only dispatch through the registered native-platforms workflow, retained-image verification, bounded external CPU/CDB inspection and distinct, strictly paired intentional-destroy acceptance. Isolate startup child environments and require the canonical 57-trial matrix for aggregate acceptance. Preserve raw verdicts and original bounds; hosted causality remains pending and no crash fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))
 
 ## v0.34.0 — 2026-10-31
 
