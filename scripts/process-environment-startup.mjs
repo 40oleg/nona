@@ -28,7 +28,11 @@ export const DEADLINES = Object.freeze({
 const shapes = ["base", "few", "many"];
 const modes = ["off", "on"];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const errorInfo = (error) => ({ name: error.name, code: error.code });
+const errorInfo = (error) => ({
+    name: error.name,
+    code: error.code,
+    message: error.message,
+});
 
 export function readConfig(args) {
     const allowed = new Set([
@@ -230,21 +234,29 @@ export function buildDecision(record) {
     };
 }
 
-// Source is identical for old/new, GC modes and Node, on both platforms. Ready
-// is emitted BEFORE parsing the post-ready manifest or exercising mutations.
-export function fixtureSource() {
-    return `const aggregateEnvironment=${aggregateEnvironment.toString()};
+// Native source is identical for old/new and both GC modes/platforms. Only the
+// Node control includes full enumeration; never charge Proxy scans to native
+// startup or its bounded post-ready proof. Both paths observe real process.env.
+export function fixtureSource({ full = false } = {}) {
+    return `${full ? `const aggregateEnvironment=${aggregateEnvironment.toString()};` : ""}
+const env=process.env;
+const selected=["NONA_CASE","7","constructor","toString","π","__proto__","NONA_GC_STRESS"];
+const sentinels=env.NONA_CASE==="first"&&env["7"]==="numeric"&&env.constructor==="collision"&&env.toString==="collision"&&env["π"]==="unicode"&&env.__proto__==="collision"&&(env.NONA_GC_STRESS==="off"||env.NONA_GC_STRESS==="on");
 let input="";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data",chunk=>{input+=chunk});
 process.stdin.on("end",()=>{
   try {
-    const expected=JSON.parse(input), env=process.env;
+    const expected=JSON.parse(input);
     let mismatches=0;
-    const keys=Object.keys(env), wanted=Object.keys(expected);
+    ${
+        full
+            ? `const keys=Object.keys(env), wanted=Object.keys(expected);
     if(keys.length!==wanted.length)mismatches++;
     for(const key of wanted)if(!Object.prototype.hasOwnProperty.call(env,key)||env[key]!==expected[key])mismatches++;
-    for(const key of keys)if(!Object.prototype.hasOwnProperty.call(expected,key))mismatches++;
+    for(const key of keys)if(!Object.prototype.hasOwnProperty.call(expected,key))mismatches++;`
+            : `for(const key of selected)if(env[key]!==expected[key])mismatches++;`
+    }
     const upper="NONA_CASE",lower="nona_case",windows=process.platform==="win32";
     let semantics=env[upper]==="first";
     if(windows){
@@ -263,8 +275,30 @@ process.stdin.on("end",()=>{
     process.exit(mismatches===0&&semantics?0:2);
   }catch(error){console.log("NONA_ENV_PROBE_ERROR");process.exit(3)}
 });
-console.log("NONA_ENV_READY "+JSON.stringify(aggregateEnvironment(process.env)));
+console.log("NONA_ENV_READY "+JSON.stringify({sentinels${full ? ",aggregate:aggregateEnvironment(env)" : ""}}));
 `;
+}
+
+export function visibilityFor(engine) {
+    assert.ok(["node", "baseline", "candidate"].includes(engine));
+    return engine === "node" ? "full-node-control" : "sampled-native";
+}
+
+export function verifyReady(actual, env, engine) {
+    const full = visibilityFor(engine) === "full-node-control";
+    return {
+        readyVerified:
+            actual?.sentinels === true &&
+            (full
+                ? verifyAggregate(actual.aggregate, env)
+                : actual !== null &&
+                  typeof actual === "object" &&
+                  Object.keys(actual).length === 1 &&
+                  !Object.hasOwn(actual, "aggregate")),
+        aggregateVerified: full
+            ? verifyAggregate(actual?.aggregate, env)
+            : null,
+    };
 }
 
 function rowPass(row) {
@@ -278,7 +312,12 @@ function rowPass(row) {
         Number.isFinite(row.totalMs) &&
         row.totalMs >= 0 &&
         row.totalMs <= DEADLINES.hard &&
-        row.aggregateVerified === true &&
+        row.parentAggregateVerified === true &&
+        row.visibility === visibilityFor(row.engine) &&
+        row.readyVerified === true &&
+        (row.engine === "node"
+            ? row.aggregateVerified === true
+            : row.aggregateVerified === null) &&
         row.probeVerified === true &&
         row.cleanupVerified === true &&
         row.code === 0 &&
@@ -348,6 +387,54 @@ export function requireHosted(host) {
     assert.equal(host.node, "v26.9.0");
 }
 
+// The workflow admits only the existing owner PR or an owner dispatch at the
+// very same branch/head. A PR merge SHA is never a candidate source pin.
+export function admitEvent({
+    name,
+    repository,
+    owner,
+    ref,
+    sha,
+    actor,
+    event,
+    candidate,
+    candidateBlob,
+    pairs = "2",
+}) {
+    assert.equal(repository, "40oleg/nona");
+    assert.equal(owner, "40oleg");
+    assert.match(candidate, /^[0-9a-f]{40}$/);
+    assert.match(candidateBlob, /^[0-9a-f]{40}$/);
+    assert.notEqual(candidate, BASELINE);
+    assert.notEqual(candidateBlob, BASELINE_BLOB);
+    assert.ok(["2", "4"].includes(pairs));
+    if (name === "pull_request") {
+        const pr = event.pull_request;
+        assert.ok(["opened", "synchronize", "reopened"].includes(event.action));
+        assert.equal(event.number, 639);
+        assert.equal(pr.number, 639);
+        assert.equal(pr.state, "open");
+        assert.equal(pr.user.login, "40oleg");
+        assert.equal(pr.head.repo.full_name, repository);
+        assert.equal(pr.head.repo.owner.login, owner);
+        assert.equal(pr.head.ref, "nona/issue-638");
+        assert.equal(pr.head.sha, candidate);
+        assert.equal(pr.base.repo.full_name, repository);
+        assert.equal(pr.base.ref, "main");
+        assert.equal(ref, "refs/pull/639/merge");
+        assert.equal(pairs, "2");
+    } else {
+        assert.equal(name, "workflow_dispatch");
+        assert.equal(actor, "40oleg");
+        assert.equal(ref, "refs/heads/nona/issue-638");
+        assert.equal(sha, candidate);
+        assert.equal(event.inputs.candidate, candidate);
+        assert.equal(event.inputs.candidate_blob, candidateBlob);
+        assert.equal(event.inputs.pairs, pairs);
+    }
+    return { candidate, candidateBlob, pairs, event: name, ref };
+}
+
 function hostedIdentity() {
     requireHosted({
         actions: process.env.GITHUB_ACTIONS,
@@ -356,10 +443,24 @@ function hostedIdentity() {
         arch: process.arch,
         node: process.version,
     });
+    for (const field of [
+        "GITHUB_RUN_ID",
+        "GITHUB_RUN_ATTEMPT",
+        "GITHUB_SHA",
+        "GITHUB_WORKFLOW_REF",
+        "GITHUB_WORKFLOW_SHA",
+        "RUNNER_NAME",
+        "ImageOS",
+        "ImageVersion",
+    ])
+        assert.ok(process.env[field], `missing hosted identity: ${field}`);
     return {
         run: process.env.GITHUB_RUN_ID,
         attempt: process.env.GITHUB_RUN_ATTEMPT,
         workflowCommit: process.env.GITHUB_SHA,
+        event: process.env.GITHUB_EVENT_NAME,
+        workflowRef: process.env.GITHUB_WORKFLOW_REF,
+        workflowSha: process.env.GITHUB_WORKFLOW_SHA,
         runner: process.env.RUNNER_NAME,
         image: process.env.ImageOS,
         imageVersion: process.env.ImageVersion,
@@ -379,7 +480,11 @@ function git(root, args) {
         windowsHide: true,
     });
     assert.ifError(result.error);
-    assert.equal(result.status, 0, "Git provenance check failed");
+    assert.equal(
+        result.status,
+        0,
+        `Git provenance check failed: ${result.stdout}\n${result.stderr}`,
+    );
     return result.stdout.trim();
 }
 
@@ -598,7 +703,7 @@ async function runBuild(args, cwd, env, prefix, abortSignal) {
     });
 }
 
-async function runCondition(
+export async function runCondition(
     item,
     command,
     args,
@@ -607,6 +712,7 @@ async function runCondition(
     cwd,
     persist,
     abortSignal,
+    { spawnChild = spawn, pidAbsent = absent } = {},
 ) {
     mkdirSync(directory, { recursive: true });
     for (const name of ["stdout.log", "stderr.log", "events.jsonl"])
@@ -616,7 +722,11 @@ async function runCondition(
         ...item,
         readyMs: null,
         probeMs: null,
-        aggregateVerified: false,
+        visibility: visibilityFor(item.engine),
+        parentAggregateVerified:
+            aggregateEnvironment(env).descriptorErrors === 0,
+        aggregateVerified: item.engine === "node" ? false : null,
+        readyVerified: false,
         probeVerified: false,
         cleanupVerified: false,
         code: null,
@@ -685,17 +795,18 @@ async function runCondition(
             abortSignal.removeEventListener("abort", abort);
             row.totalMs = elapsed();
             if (row.totalMs > DEADLINES.hard) row.timeout ??= "hard";
-            row.cleanupVerified = closed && absent(child?.pid);
+            row.cleanupVerified = closed && pidAbsent(child?.pid);
+            if (buffer !== "") fail("unterminated fixture protocol output");
             event("cleanup", {
                 verified: row.cleanupVerified,
                 closed,
-                pidAbsent: absent(child?.pid),
+                pidAbsent: pidAbsent(child?.pid),
             });
             save();
             done(row);
         };
         try {
-            child = spawn(command, args, {
+            child = spawnChild(command, args, {
                 cwd,
                 env,
                 windowsHide: true,
@@ -733,6 +844,11 @@ async function runCondition(
             fail({ stream: "stdin", ...errorInfo(error) });
             save();
         });
+        for (const stream of ["stdout", "stderr"])
+            child[stream].on("error", (error) => {
+                fail({ stream, ...errorInfo(error) });
+                save();
+            });
         child.on("exit", (code, signal) => {
             row.code = code;
             row.signal = signal;
@@ -746,9 +862,11 @@ async function runCondition(
             event("close", { code, signal });
             finish();
         });
-        child.stderr.on("data", (chunk) =>
-            appendFileSync(join(directory, "stderr.log"), chunk),
-        );
+        child.stderr.on("data", (chunk) => {
+            appendFileSync(join(directory, "stderr.log"), chunk);
+            fail("unexpected fixture stderr");
+            save();
+        });
         child.stdout.on("data", (chunk) => {
             appendFileSync(join(directory, "stdout.log"), chunk);
             buffer += chunk.toString("utf8");
@@ -776,17 +894,19 @@ async function runCondition(
                         clearTimeout(readinessTimer);
                         if (row.readyMs > DEADLINES.readiness)
                             row.timeout ??= "readiness";
-                        row.aggregateVerified = verifyAggregate(
-                            row.actual,
-                            env,
+                        Object.assign(
+                            row,
+                            verifyReady(row.actual, env, item.engine),
                         );
-                        if (!row.aggregateVerified)
+                        if (!row.readyVerified)
                             fail(
-                                "child-visible aggregate differs; fixture not comparable",
+                                "child sentinel/Node aggregate verification failed",
                             );
                         event("ready", {
                             actual: row.actual,
                             aggregateVerified: row.aggregateVerified,
+                            visibility: row.visibility,
+                            readyVerified: row.readyVerified,
                         });
                         probeStarted = performance.now();
                         probeTimer = setTimeout(
@@ -840,7 +960,7 @@ async function main(args) {
     const plan = schedule(config.pairs),
         rows = [];
     const report = {
-        schema: 1,
+        schema: 2,
         identity,
         config,
         deadlines: DEADLINES,
@@ -852,6 +972,12 @@ async function main(args) {
         historicalComparison:
             "Minimal synthetic fixture; counts/volume only. No historical environment reconstruction or #602 acceptance.",
         nativeExecuted: false,
+        measurementBoundary: {
+            parent: "Constructed synthetic map: exact keys/values, UTF-16 units and data descriptors; not proof of native visibility",
+            node: "Sanitized child: full count/UTF-16/descriptors before READY, exact full key/value shape after READY",
+            native: "Real process.env: seven fixed sentinel names before READY, selected values and alias/get/has/descriptor/set/delete/reinsert after READY; aggregate/count/units/full shape UNMEASURED",
+            pureVM: "Existing process-environment-source tests independently enumerate actual initializer/Proxy semantics; not native visibility evidence",
+        },
     };
     const checkpoint = () =>
         writeFileSync(
@@ -875,6 +1001,20 @@ async function main(args) {
     process.on("SIGINT", () => interruption("SIGINT"));
     process.on("SIGTERM", () => interruption("SIGTERM"));
     try {
+        report.admission = admitEvent({
+            name: process.env.GITHUB_EVENT_NAME,
+            repository: process.env.GITHUB_REPOSITORY,
+            owner: process.env.GITHUB_REPOSITORY_OWNER,
+            ref: process.env.GITHUB_REF,
+            sha: process.env.GITHUB_SHA,
+            actor: process.env.GITHUB_ACTOR,
+            event: JSON.parse(
+                readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"),
+            ),
+            candidate: config.candidate,
+            candidateBlob: config.candidateBlob,
+            pairs: String(config.pairs),
+        });
         report.harnessSha256 = sha256(readFileSync(new URL(import.meta.url)));
         report.checkouts = {
             baseline: verifyCheckout(
@@ -934,6 +1074,10 @@ async function main(args) {
             text = fixtureSource();
         writeFileSync(fixture, text);
         report.fixtureSha256 = sha256(text);
+        const nodeFixture = join(config.out, "node-control.mjs");
+        const nodeText = fixtureSource({ full: true });
+        writeFileSync(nodeFixture, nodeText);
+        report.nodeFixtureSha256 = sha256(nodeText);
         const temporary = join(config.out, "safe-temp");
         mkdirSync(temporary);
         if (process.platform === "win32")
@@ -1120,7 +1264,8 @@ writeFileSync(image,result.image);
                         item.engine === "node" ? process.execPath : image,
                     ),
                 ) !== pinnedImage ||
-                sha256(readFileSync(fixture)) !== report.fixtureSha256
+                sha256(readFileSync(fixture)) !== report.fixtureSha256 ||
+                sha256(readFileSync(nodeFixture)) !== report.nodeFixtureSha256
             ) {
                 report.errors.push(
                     `measurement image/fixture changed before ${item.id}; remaining plan is incomplete`,
@@ -1131,7 +1276,7 @@ writeFileSync(image,result.image);
             await runCondition(
                 item,
                 item.engine === "node" ? process.execPath : image,
-                item.engine === "node" ? [fixture] : [],
+                item.engine === "node" ? [nodeFixture] : [],
                 environments[`${item.shape}-${item.gc}`],
                 join(config.out, item.id),
                 config.out,
@@ -1166,5 +1311,43 @@ if (
     process.argv[1] &&
     import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-    await main(process.argv.slice(2));
+    if (process.argv[2] === "--admit") {
+        const identity = hostedIdentity();
+        const event = JSON.parse(
+            readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"),
+        );
+        const candidate = process.env.NONA_CANDIDATE;
+        assert.match(candidate, /^[0-9a-f]{40}$/);
+        const candidateBlob = git(process.cwd(), [
+            "rev-parse",
+            `${candidate}:src/lib/runtime/process.js`,
+        ]);
+        const admission = admitEvent({
+            name: process.env.GITHUB_EVENT_NAME,
+            repository: process.env.GITHUB_REPOSITORY,
+            owner: process.env.GITHUB_REPOSITORY_OWNER,
+            ref: process.env.GITHUB_REF,
+            sha: process.env.GITHUB_SHA,
+            actor: process.env.GITHUB_ACTOR,
+            event,
+            candidate,
+            candidateBlob,
+            pairs: process.env.NONA_PAIRS,
+        });
+        const checkout = verifyCheckout(
+            process.cwd(),
+            candidate,
+            candidateBlob,
+        );
+        writeFileSync(
+            resolve(process.argv[3]),
+            JSON.stringify({ admission, identity, checkout }, null, 2) + "\n",
+        );
+        appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `candidate=${candidate}\nblob=${candidateBlob}\npairs=${admission.pairs}\n`,
+        );
+    } else {
+        await main(process.argv.slice(2));
+    }
 }
