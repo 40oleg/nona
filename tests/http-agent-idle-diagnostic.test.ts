@@ -137,7 +137,7 @@ test("idle diagnostic observer suffixes accept only complete scalar and trace ou
         for (const [id, suffix, other] of [
             ["scalar-stress", scalar, trace],
             ["trace-stress", trace, scalar],
-        ]) {
+        ] as const) {
             for (const [name, stdout, ok] of [
                 ["valid LF", "expected\n" + suffix, true],
                 [
@@ -457,7 +457,9 @@ test("idle diagnostic exact Node controls exercise original, scalar and chronolo
                     original.replace(/trace 1 [^\n]+\n/g, ""),
                 ]) {
                     writeFileSync(runs[0].stdout.path, malformed);
-                    const run = structuredClone(runs[0]);
+                    const run: {
+                        stdout: ReturnType<typeof outputReceipt>["stdout"];
+                    } = structuredClone(runs[0]);
                     // Refresh the byte receipt to test the trace parser itself.
                     run.stdout.bytes = Buffer.byteLength(malformed);
                     run.stdout.sha256 = createHash("sha256")
