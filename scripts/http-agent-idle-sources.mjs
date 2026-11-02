@@ -208,6 +208,13 @@ export function makePlan(witness, agentProgram) {
         "off",
     ).source;
     const control = (id, source) => ({ id, source, boundMs: 60000 });
+    // One uninstrumented intervention, before listen or any response can arm
+    // the peer idle deadline. Preserve the exact stressed no-op watchdog.
+    const isolated = replaceOnce(
+        stress,
+        "const server = http.createServer((req, res) => res.end(req.url));\n",
+        "const server = http.createServer((req, res) => res.end(req.url));\nserver.keepAliveTimeout = 0;\n",
+    );
     return [
         {
             id: "original-stress",
@@ -243,6 +250,14 @@ export function makePlan(witness, agentProgram) {
             source: chronology(stress, true),
             nativeBoundMs: 180000,
             controls: [control("node-trace", chronology(stagedNode))],
+        },
+        {
+            id: "server-idle-disabled-stress",
+            requestedGC: true,
+            selection: "on",
+            source: isolated,
+            nativeBoundMs: 180000,
+            controls: [control("node-server-idle-disabled", isolated)],
         },
     ];
 }

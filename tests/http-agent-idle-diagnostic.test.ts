@@ -12,6 +12,181 @@ const load = () =>
         pathToFileURL(resolve("scripts/http-agent-idle-diagnostic.mjs")).href
     );
 
+test("idle diagnostic uninstrumented isolation is one pre-listen insertion with exact staged Node control", async () => {
+    const d = await load();
+    const { agentCases } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-cases.ts")).href
+    );
+    const { agentProgram } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-policy.ts")).href
+    );
+    const witness = agentCases.find(
+        (c: { id: string }) => c.id === "idle-timeout",
+    )!;
+    const plan = d.makePlan(witness, agentProgram);
+    assert.equal(plan.length, 5);
+    const isolated = plan[4];
+    assert.equal(isolated.id, "server-idle-disabled-stress");
+    assert.equal(isolated.requestedGC, true);
+    assert.equal(isolated.selection, "on");
+    assert.equal(isolated.nativeBoundMs, 180000);
+    const creation =
+        "const server = http.createServer((req, res) => res.end(req.url));\n";
+    const insertion = "server.keepAliveTimeout = 0;\n";
+    assert.equal(isolated.source.split(insertion).length, 2);
+    assert.ok(isolated.source.includes(creation + insertion));
+    assert.equal(isolated.source.replace(insertion, ""), plan[0].source);
+    assert.ok(
+        isolated.source.indexOf(insertion) <
+            isolated.source.indexOf("server.listen("),
+    );
+    assert.deepEqual(isolated.controls, [
+        {
+            id: "node-server-idle-disabled",
+            source: isolated.source,
+            boundMs: 60000,
+        },
+    ]);
+    assert.doesNotMatch(
+        isolated.source,
+        /diagnostic|record\(|performance\.now|Atomics|Float64Array/,
+    );
+    for (const replacement of ["", creation + creation]) {
+        const changed = (
+            w: Parameters<typeof agentProgram>[0],
+            gc: boolean,
+            selection: string,
+        ) => {
+            const program = agentProgram(w, gc, selection);
+            return {
+                ...program,
+                source: program.source.replace(creation, replacement),
+            };
+        };
+        assert.throws(() => d.makePlan(witness, changed), /anchor changed/);
+    }
+});
+
+test("idle diagnostic uninstrumented isolation keeps strict separate failed output and process outcomes", async () => {
+    const d = await load();
+    const directory = mkdtempSync(join(tmpdir(), "idle616-isolation-compare-"));
+    const expected =
+        "body /first false\nidle\ntimed out 1 true\nbody /second false\nreplacement true 2\n";
+    const id = "server-idle-disabled-stress";
+    try {
+        const run = outputReceipt(directory, "native", expected);
+        assert.equal(d.compare({ id, runs: [run] }, expected).ok, true);
+        assert.equal(
+            d.compare({ id: "unknown-case", runs: [run] }, expected).ok,
+            false,
+        );
+        const zero = expected.replace("timed out 1", "timed out 0");
+        assert.equal(
+            d.compare(
+                { id, runs: [outputReceipt(directory, "zero", zero)] },
+                zero,
+            ).ok,
+            false,
+        );
+        for (const stdout of [
+            expected.replace("timed out 1", "timed out 0"),
+            expected + "diagnostic scalar false true\n",
+            expected.slice(0, -1),
+            expected + "extra\n",
+        ]) {
+            const failed = outputReceipt(directory, "failed", stdout);
+            const before = structuredClone(failed);
+            const result = d.compare({ id, runs: [failed] }, expected);
+            assert.equal(result.ok, false);
+            assert.equal(readFileSync(failed.stdout.path, "utf8"), stdout);
+            assert.deepEqual(failed, before);
+            assert.equal(d.compare({ id, runs: [run] }, expected).ok, true);
+            assert.equal(
+                result.ok,
+                false,
+                "a later isolated pass cannot rewrite an earlier failure",
+            );
+        }
+        for (const change of [
+            { status: 1 },
+            { signal: "SIGKILL" },
+            { error: { message: "spawn" } },
+            { deadlineExceeded: true },
+            { closeSeen: false },
+            { pipes: { ...run.pipes, stdoutClosed: false } },
+        ])
+            assert.equal(
+                d.compare({ id, runs: [{ ...run, ...change }] }, expected).ok,
+                false,
+            );
+        const stderr = outputReceipt(
+            directory,
+            "stderr",
+            "unexpected\n",
+        ).stdout;
+        assert.equal(
+            d.compare({ id, runs: [{ ...run, stderr }] }, expected).ok,
+            false,
+        );
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test("idle diagnostic uninstrumented isolation exact Node control emits original timeout1 replacement2", async () => {
+    const d = await load();
+    const { agentCases } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-cases.ts")).href
+    );
+    const { agentProgram } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-policy.ts")).href
+    );
+    const witness = agentCases.find(
+        (c: { id: string }) => c.id === "idle-timeout",
+    )!;
+    const isolated = d.makePlan(witness, agentProgram)[4];
+    assert.ok(isolated, "Missing mandatory isolation case/control");
+    // Keep this single actual ~200ms Node execution and all raw evidence.
+    const directory = mkdtempSync(resolve("work/idle616-isolation-node-"));
+    console.log("Retained isolation Node evidence: " + directory);
+    const control = isolated.controls[0];
+    const path = join(directory, "main.mjs");
+    writeFileSync(path, control.source);
+    const run = await d.supervise(
+        process.execPath,
+        [path],
+        directory,
+        control.id,
+        control.boundMs,
+    );
+    const sourceBytes = readFileSync(path);
+    Object.assign(run, {
+        engine: "node",
+        actualGC: false,
+        source: {
+            path,
+            bytes: sourceBytes.length,
+            sha256: createHash("sha256").update(sourceBytes).digest("hex"),
+        },
+        executableSha256: createHash("sha256")
+            .update(readFileSync(process.execPath))
+            .digest("hex"),
+    });
+    writeFileSync(
+        join(directory, control.id + ".receipt.json"),
+        JSON.stringify(run, null, 2) + "\n",
+    );
+    const comparison = d.compare(
+        { id: isolated.id, runs: [run] },
+        witness.expected.join("\n") + "\n",
+    );
+    writeFileSync(
+        join(directory, "comparison.json"),
+        JSON.stringify(comparison, null, 2) + "\n",
+    );
+    assert.equal(comparison.ok, true, JSON.stringify(comparison));
+});
+
 test("idle diagnostic finish observer reaches actual hasListener-gated _sent once per response", async () => {
     const d = await load();
     const { agentCases } = await import(
@@ -617,7 +792,7 @@ test("idle diagnostic exact Node controls exercise original, scalar and chronolo
     const plan = d.makePlan(witness, agentProgram);
     const dir = mkdtempSync(join(tmpdir(), "idle616-node-"));
     try {
-        for (const item of plan) {
+        for (const item of plan.slice(0, 4)) {
             const runs = [];
             for (const control of item.controls) {
                 const path = join(dir, control.id + ".mjs");
@@ -703,6 +878,7 @@ test("idle diagnostic exact plan, source immutability and scalar observer limits
             ["normal-off", false, "off", 1],
             ["scalar-stress", true, "on", 1],
             ["trace-stress", true, "on", 1],
+            ["server-idle-disabled-stress", true, "on", 1],
         ],
     );
     assert.equal(plan[0].source, agentProgram(witness, true, "on").source);
@@ -802,13 +978,14 @@ test("idle diagnostic rejects empty, partial, malformed, skipped and wrong-selec
         source: artifact,
     });
     const fixture = {
-        schema: 2,
+        schema: 3,
         complete: true,
         budget: {
-            nativeCases: 4,
-            nodeControls: 7,
+            nativeCases: 5,
+            nodeControls: 8,
             originalNodeControls: 5,
             supplementaryNodeControls: 2,
+            isolationNodeControls: 1,
         },
         supplementary: {
             kind: "supplementary-native-stress-source-wrapper",
@@ -879,11 +1056,35 @@ test("idle diagnostic rejects empty, partial, malformed, skipped and wrong-selec
             ],
             ["scalar-stress", true, "on", ["native", "node-scalar"], hash],
             ["trace-stress", true, "on", ["native", "node-trace"], hash],
+            [
+                "server-idle-disabled-stress",
+                true,
+                "on",
+                ["native", "node-server-idle-disabled"],
+                "39b252fd7cad09b0b578c4be1e1e144009a558b4fb867753d05d627a90ef9fbc",
+            ],
         ].map(([id, requestedGC, selection, names, sourceHash]: any) => {
-            const source = { ...artifact, sha256: sourceHash };
+            const source = {
+                ...artifact,
+                sha256: sourceHash,
+                bytes: id === "server-idle-disabled-stress" ? 2269 : 1,
+            };
             return {
                 id,
                 source,
+                ...(id === "server-idle-disabled-stress"
+                    ? {
+                          sourceChange: {
+                              kind: "uninstrumented-server-idle-disabled",
+                              replacementOracle: false,
+                              originalSourceSha256:
+                                  "3a56740f611c7b8c983180cd1f47f5fd86a2748a9eeb53f591cbb8ad721ca764",
+                              sourceSha256:
+                                  "39b252fd7cad09b0b578c4be1e1e144009a558b4fb867753d05d627a90ef9fbc",
+                              diff: "--- original-stress/main.mjs\n+++ server-idle-disabled-stress/main.mjs\n@@ -16 +16,2 @@\n const server = http.createServer((req, res) => res.end(req.url));\n+server.keepAliveTimeout = 0;\n",
+                          },
+                      }
+                    : {}),
                 builder: { ...receipt, boundMs: 180000 },
                 build: {
                     requestedGC,
@@ -958,10 +1159,33 @@ test("idle diagnostic rejects empty, partial, malformed, skipped and wrong-selec
         { ...fixture.budget, nodeControls: 5 },
         { ...fixture.budget, originalNodeControls: 4 },
         { ...fixture.budget, supplementaryNodeControls: 1 },
+        { ...fixture.budget, nativeCases: 4 },
+        { ...fixture.budget, nodeControls: 7 },
+        { ...fixture.budget, isolationNodeControls: 0 },
     ])
         assert.throws(() => d.validateReport({ ...fixture, budget }));
     for (const change of [
         (r: any) => r.cases.pop(),
+        (r: any) => r.cases.push(structuredClone(r.cases[4])),
+        (r: any) => (r.cases[4].id = "unknown-case"),
+        (r: any) => (r.cases[4].id = r.cases[3].id),
+        (r: any) => (r.cases[4].source.sha256 = hash),
+        (r: any) => delete r.cases[4].sourceChange,
+        (r: any) =>
+            (r.cases[4].sourceChange.diff += "+res.on('finish', callback);\n"),
+        (r: any) => (r.cases[4].sourceChange.originalSourceSha256 = hash),
+        (r: any) => (r.cases[4].sourceChange.replacementOracle = true),
+        (r: any) => (r.cases[4].source.bytes = 2240),
+        (r: any) => r.cases[4].runs.pop(),
+        (r: any) => r.cases[4].runs.push(structuredClone(r.cases[4].runs[1])),
+        (r: any) => (r.cases[4].runs[1].source.sha256 = hash),
+        (r: any) => (r.cases[4].build.actualGC = false),
+        (r: any) => (r.cases[4].build.moduleLoadSelection = "off"),
+        (r: any) => (r.cases[4].runs[0].boundMs = 180001),
+        (r: any) => (r.cases[4].runs[1].boundMs = 60001),
+        (r: any) => (r.cases[4].runs[0].pipes.stdoutClosed = false),
+        (r: any) => (r.cases[0].comparison.ok = false),
+        (r: any) => (r.cases[4].comparison.ok = false),
         (r: any) => r.cases[0].runs.pop(),
         (r: any) => (r.cases[0].build.actualGC = false),
         (r: any) => (r.cases[1].build.actualGC = true),

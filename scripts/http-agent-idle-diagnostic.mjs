@@ -263,11 +263,26 @@ const expectedPlan = [
     ["normal-off", false, "off", ["native", "node-normal"]],
     ["scalar-stress", true, "on", ["native", "node-scalar"]],
     ["trace-stress", true, "on", ["native", "node-trace"]],
+    [
+        "server-idle-disabled-stress",
+        true,
+        "on",
+        ["native", "node-server-idle-disabled"],
+    ],
 ];
 const originalHashes = [
     "3a56740f611c7b8c983180cd1f47f5fd86a2748a9eeb53f591cbb8ad721ca764",
     "2a7ed3b3c82fce0911892574dd73f314def670a890e8ea9ee83a8b5584343abf",
 ];
+const isolationHash =
+    "39b252fd7cad09b0b578c4be1e1e144009a558b4fb867753d05d627a90ef9fbc";
+const isolationChange = {
+    kind: "uninstrumented-server-idle-disabled",
+    replacementOracle: false,
+    originalSourceSha256: originalHashes[0],
+    sourceSha256: isolationHash,
+    diff: "--- original-stress/main.mjs\n+++ server-idle-disabled-stress/main.mjs\n@@ -16 +16,2 @@\n const server = http.createServer((req, res) => res.end(req.url));\n+server.keepAliveTimeout = 0;\n",
+};
 function checkBlob(value, verifyFiles) {
     assert.equal(typeof value.path, "string");
     assert.ok(value.path.length > 0);
@@ -311,17 +326,18 @@ function checkRun(run, verifyFiles) {
 }
 
 export function validateReport(report, verifyFiles = false, plan, timingPlan) {
-    assert.equal(report.schema, 2);
+    assert.equal(report.schema, 3);
     assert.equal(report.complete, true);
-    assert.equal(report.budget.nativeCases, 4);
-    assert.equal(report.budget.nodeControls, 7);
+    assert.equal(report.budget.nativeCases, 5);
+    assert.equal(report.budget.nodeControls, 8);
     assert.equal(report.budget.originalNodeControls, 5);
     assert.equal(report.budget.supplementaryNodeControls, 2);
+    assert.equal(report.budget.isolationNodeControls, 1);
     validateTimingPair(report.supplementary, verifyFiles, timingPlan);
     assert.equal(report.identity.sourcePin, SOURCE_PIN);
     assert.match(report.identity.head, /^[a-f0-9]{40}$/);
     assert.match(report.identity.tree, /^[a-f0-9]{40}$/);
-    assert.equal(report.cases.length, 4);
+    assert.equal(report.cases.length, 5);
     report.cases.forEach((entry, i) => {
         const [id, requested, selection, runs] = expectedPlan[i];
         assert.equal(entry.id, id);
@@ -329,6 +345,11 @@ export function validateReport(report, verifyFiles = false, plan, timingPlan) {
         assert.ok(entry.source.bytes > 0);
         if (plan) assert.equal(entry.source.sha256, sha(plan[i].source));
         if (i < 2) assert.equal(entry.source.sha256, originalHashes[i]);
+        if (i === 4) {
+            assert.equal(entry.source.sha256, isolationHash);
+            assert.equal(entry.source.bytes, 2269);
+            assert.deepEqual(entry.sourceChange, isolationChange);
+        }
         const build = entry.build;
         assert.equal(build.requestedGC, requested);
         assert.equal(build.moduleLoadSelection, selection);
@@ -366,6 +387,10 @@ export function validateReport(report, verifyFiles = false, plan, timingPlan) {
                 assert.equal(run.engine, "node");
                 assert.equal(run.actualGC, false);
                 assert.match(run.executableSha256, /^[a-f0-9]{64}$/);
+                if (i === 4) {
+                    assert.equal(run.source.sha256, isolationHash);
+                    assert.equal(run.source.bytes, 2269);
+                }
                 if (plan)
                     assert.equal(
                         run.source.sha256,
@@ -374,6 +399,8 @@ export function validateReport(report, verifyFiles = false, plan, timingPlan) {
             }
         });
         assert.equal(entry.comparison.ok, true);
+        if (verifyFiles)
+            assert.deepEqual(entry.comparison, compare(entry, timingExpected));
     });
     return true;
 }
@@ -389,6 +416,8 @@ async function loadPlan() {
     const plan = makePlan(witness, agentProgram);
     assert.equal(sha(plan[0].source), originalHashes[0]);
     assert.equal(sha(plan[1].source), originalHashes[1]);
+    assert.equal(sha(plan[4].source), isolationHash);
+    assert.equal(plan[4].controls[0].source, plan[4].source);
     return {
         plan,
         timingPlan: makeTimingPair(witness, agentProgram),
@@ -515,6 +544,15 @@ export function compare(entry, expected) {
     const normalizedExpected = expected.replaceAll("\r\n", "\n");
     const observations = [];
     let failure = entry.runs.length ? null : { message: "Zero executed cases" };
+    if (!expectedPlan.some(([id]) => id === entry.id))
+        failure = { message: "Unknown diagnostic case: " + entry.id };
+    if (
+        entry.id === "server-idle-disabled-stress" &&
+        normalizedExpected !== timingExpected
+    )
+        failure = {
+            message: "Isolation must retain the exact original expectation",
+        };
     for (const run of entry.runs) {
         try {
             checkRun(run, true);
@@ -850,16 +888,17 @@ export async function runTimingPair(plan, expected, directory) {
 
 async function campaign() {
     const report = {
-        schema: 2,
+        schema: 3,
         complete: false,
         purpose:
             "One attempt per case; discriminating evidence only, no causal conclusion or full-CI readiness",
         budget: {
             attemptsPerCase: 1,
-            nativeCases: 4,
-            nodeControls: 7,
+            nativeCases: 5,
+            nodeControls: 8,
             originalNodeControls: 5,
             supplementaryNodeControls: 2,
+            isolationNodeControls: 1,
             buildBoundMs: 180000,
             jobMinutes: 45,
         },
@@ -878,6 +917,9 @@ async function campaign() {
                 requestedGC: item.requestedGC,
                 moduleLoadSelection: item.selection,
                 sourceSha256: sha(item.source),
+                ...(item.id === "server-idle-disabled-stress"
+                    ? { sourceChange: isolationChange }
+                    : {}),
                 nativeBoundMs: item.nativeBoundMs,
                 controls: item.controls.map((control) => ({
                     id: control.id,
@@ -887,10 +929,12 @@ async function campaign() {
                 })),
                 apiDeadlines: {
                     clientIdleMs: 200,
-                    serverKeepAliveMs: 5000,
+                    serverKeepAliveMs:
+                        item.id === "server-idle-disabled-stress" ? 0 : 5000,
                     serverBufferMs: 1000,
                     cleanupWatchdogMs: item.requestedGC ? null : 6000,
-                    nodeCleanupWatchdogMs: 6000,
+                    nodeCleanupWatchdogMs:
+                        item.id === "server-idle-disabled-stress" ? null : 6000,
                 },
             })),
         );
@@ -921,6 +965,9 @@ async function campaign() {
                 source: blob(sourcePath),
                 runs: [],
                 build: null,
+                ...(item.id === "server-idle-disabled-stress"
+                    ? { sourceChange: isolationChange }
+                    : {}),
             };
             report.cases.push(entry);
             save();
