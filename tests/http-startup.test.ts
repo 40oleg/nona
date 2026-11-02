@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import {
     readFileSync,
@@ -325,7 +326,7 @@ test("live inspector commands cannot suspend or extend startup, and empty debugg
         "incomplete",
     );
     const raw =
-        "STARTUP_SNAPSHOT_BEGIN\n00000001`40000000 00000001`40100000 nona_http\nrip=00000001`40001234\nChild-SP RetAddr\n00 00000000`0014f728 00000001`40001234 nona_http+0x1234\nSTARTUP_SNAPSHOT_END\n";
+        "STARTUP_SNAPSHOT_BEGIN\nstart end module name\n00000001`40000000 00000001`40100000 nona_http\nrip=00000001`40001234\nChild-SP RetAddr\n00 00000000`0014f728 00000001`40001234 nona_http+0x1234\nSTARTUP_SNAPSHOT_END\n";
     const parsed = api.snapshotEvidence(raw, {
         code: 0,
         reason: null,
@@ -1019,4 +1020,603 @@ test("workflow helper wrapper and guarded compiler Git query isolate their actua
         "kv",
         "q",
     ]);
+});
+
+// These regressions reject the actual hosted parser/count failure, not invented
+// numbered-only frames. The adjacent manifest records the verified text hashes.
+const retainedInspector = JSON.parse(
+    readFileSync(
+        "tests/fixtures/http-startup/retained-inspection.json",
+        "utf8",
+    ),
+);
+const retainedCdb = readFileSync(
+    "tests/fixtures/http-startup/retained-cdb20.stdout.txt",
+    "utf8",
+);
+function retainedInspection() {
+    const fixture = structuredClone(retainedInspector);
+    Object.assign(
+        fixture.inspection.snapshots[0],
+        api.snapshotEvidence(
+            retainedCdb,
+            fixture.inspection.snapshots[0].termination,
+            fixture.snapshotStderr,
+        ),
+    );
+    return fixture;
+}
+
+test("retained CDB20 accepts real unnumbered per-thread kv frames and only genuine lm modules", () => {
+    const parsed = api.snapshotEvidence(
+        retainedCdb,
+        retainedInspector.inspection.snapshots[0].termination,
+        "",
+    );
+    assert.equal(parsed.status, "raw-context-and-stack-present-unvalidated");
+    assert.equal(parsed.rawStackFrames.length, 35);
+    assert.equal(parsed.rawThreads.length, 4);
+    assert.equal(parsed.moduleBases.length, 9);
+    assert.deepEqual(parsed.relativePCs[0], {
+        pc: "00007ff6c2c51678",
+        module: "nona_http",
+        offset: "0x1678",
+    });
+    assert.ok(
+        parsed.moduleBases.every((m: any) => !["mov", ":"].includes(m.module)),
+    );
+    assert.ok(parsed.rawStackFrames[0].startsWith("0000003e`521fd1f0"));
+    assert.equal(parsed.moduleBases[0].start, "00007ff6`c2c50000");
+    assert.equal(parsed.relativePCs[1].module, "ntdll");
+});
+
+test("each retained thread requires its own nonempty stack section", (t) => {
+    const term = retainedInspector.inspection.snapshots[0].termination;
+    for (const thread of [3, 0, 1, 2]) {
+        const section = new RegExp(
+            "(^[ .]*" +
+                thread +
+                "  Id:[^\\n]*\\n)([\\s\\S]*?)(?=^[ .]*\\d+  Id:|^STARTUP_SNAPSHOT_END)",
+            "m",
+        );
+        assert.ok(section.test(retainedCdb), `fixture thread ${thread}`);
+        for (const [label, body] of [
+            ["whole stack absent", ""],
+            ["header only", "Child-SP RetAddr\n"],
+            [
+                "frames without header",
+                retainedCdb
+                    .match(section)![2]!
+                    .replace(/^Child-SP[^\n]*\n/m, ""),
+            ],
+        ]) {
+            const parsed = api.snapshotEvidence(
+                retainedCdb.replace(section, (_all, row) => row + body),
+                term,
+                "",
+            );
+            if (thread === 3 && label === "whole stack absent")
+                t.diagnostic(
+                    JSON.stringify({
+                        status: parsed.status,
+                        pcs: parsed.rawPCs.length,
+                        threads: parsed.rawThreads.length,
+                        frames: parsed.rawStackFrames.length,
+                    }),
+                );
+            assert.equal(parsed.rawThreads.length, 4);
+            assert.equal(parsed.rawPCs.length, 4);
+            assert.equal(
+                parsed.status,
+                "incomplete",
+                `thread ${thread}: ${label}`,
+            );
+        }
+    }
+    const numbered = retainedCdb.replace(/^(0000003e`[^\n]+)$/gm, "00 $1");
+    const parsed = api.snapshotEvidence(numbered, term, "");
+    assert.equal(parsed.status, "raw-context-and-stack-present-unvalidated");
+    assert.equal(parsed.rawStackFrames.length, 35);
+});
+
+test("inspector snapshot timestamps share one clock read at start and end including finally", async (t) => {
+    for (const interrupted of [false, true])
+        await t.test(String(interrupted), async () => {
+            const start = Date.parse(retainedInspector.trial.startedAt);
+            let now = start;
+            let captured = false;
+            let saved: any;
+            const commands: number[] = [];
+            const inspector = runInNewContext(
+                pureBody("scripts/http-startup.mjs") + "inspectBaseline;",
+                {
+                    ...api,
+                    join,
+                    process: { env: {} },
+                    startupChildEnv: () => ({}),
+                    Date: class extends Date {
+                        constructor(value?: any) {
+                            super(value === undefined ? ++now : value);
+                        }
+                        static now() {
+                            return ++now;
+                        }
+                    },
+                    delay: async (ms: number) => {
+                        now += ms;
+                    },
+                    existsSync: () => true,
+                    writeFileSync: (_file: string, text: string) => {
+                        saved = JSON.parse(text);
+                    },
+                    readFileSync: (file: string) => {
+                        if (file.endsWith("trial.json"))
+                            return JSON.stringify({
+                                ...retainedInspector.trial,
+                                status: captured ? "observed" : "starting",
+                            });
+                        if (file.includes("cpu-"))
+                            return file.endsWith("stderr.log")
+                                ? ""
+                                : JSON.stringify({
+                                      pid: retainedInspector.trial.pid,
+                                      cpuMs: 1,
+                                      workingSetBytes: 1,
+                                      utc: new Date(now).toISOString(),
+                                  });
+                        if (file.endsWith("stdout.log")) return retainedCdb;
+                        if (file.endsWith("stderr.log")) return "";
+                        throw Error("unexpected read: " + file);
+                    },
+                    snapshotCommand: (
+                        pid: number,
+                        origin: number,
+                        stamp: number,
+                    ) => {
+                        commands.push(stamp);
+                        return api.snapshotCommand(pid, origin, stamp);
+                    },
+                    // Inert boundary: no child, SDK or debugger is started.
+                    untrackedCapture: async (command: string) => {
+                        if (command.endsWith("cdb.exe")) {
+                            captured = true;
+                            if (interrupted)
+                                throw Error("fake capture interruption");
+                        }
+                        return retainedInspector.inspection.snapshots[0]
+                            .termination;
+                    },
+                },
+            );
+            await inspector("memory", new AbortController().signal);
+            assert.equal(saved.snapshots.length, 1);
+            assert.equal(commands.length, 1);
+            const snapshot = saved.snapshots[0];
+            t.diagnostic(
+                JSON.stringify({
+                    interrupted,
+                    commandAt: commands[0],
+                    startElapsedMs: snapshot.startElapsedMs,
+                    startedAt: snapshot.startedAt,
+                    endElapsedMs: snapshot.endElapsedMs,
+                    endedAt: snapshot.endedAt,
+                }),
+            );
+            assert.equal(saved.status, interrupted ? "incomplete" : "finished");
+            assert.equal(
+                snapshot.status,
+                interrupted
+                    ? "incomplete"
+                    : "raw-context-and-stack-present-unvalidated",
+            );
+            assert.deepEqual(
+                [
+                    snapshot.startElapsedMs,
+                    Date.parse(snapshot.startedAt),
+                    Date.parse(snapshot.endedAt),
+                ],
+                [
+                    commands[0]! - start,
+                    commands[0],
+                    start + snapshot.endElapsedMs,
+                ],
+            );
+            assert.ok(snapshot.endElapsedMs >= snapshot.startElapsedMs);
+            assert.equal(snapshot.timeoutMs, 5000);
+            if (!interrupted) {
+                const fixture = scheduledInspector(25000);
+                fixture.inspection = saved;
+                assert.equal(api.inspectionCoverage(fixture).complete, true);
+            }
+        });
+});
+
+test("snapshot parsing fails closed for missing context, malformed addresses, debugger errors and partial streams", () => {
+    const term = retainedInspector.inspection.snapshots[0].termination;
+    for (const [label, raw, termination, stderr] of [
+        [
+            "no module table",
+            retainedCdb.replace(
+                "start             end                 module name",
+                "unknown",
+            ),
+            term,
+            "",
+        ],
+        [
+            "no module rows",
+            retainedCdb.replace(/^00007ff[69]`[^\n]+\(.*\)[^\n]*$/gm, ""),
+            term,
+            "",
+        ],
+        [
+            "reversed range",
+            retainedCdb.replace("00007ff6`c3571000", "00007ff6`c2c40000"),
+            term,
+            "",
+        ],
+        [
+            "bad module address",
+            retainedCdb.replace("00007ff6`c3571000", "00007ff6`zzzzzzzz"),
+            term,
+            "",
+        ],
+        [
+            "unknown PC module",
+            retainedCdb.replace("rip=00007ff6c2c51678", "rip=0000000112345678"),
+            term,
+            "",
+        ],
+        [
+            "one thread has header only",
+            retainedCdb.replace(/^0000003e`531f[^\n]+$/gm, ""),
+            term,
+            "",
+        ],
+        [
+            "bad stack address",
+            retainedCdb.replace("0000003e`521fd1f0", "0000003e`zzzzzzzz"),
+            term,
+            "",
+        ],
+        ["duplicate end", retainedCdb + "\nSTARTUP_SNAPSHOT_END\n", term, ""],
+        [
+            "overlapping modules",
+            retainedCdb.replace("00007ff9`b97a0000", "00007ff6`c2c60000"),
+            term,
+            "",
+        ],
+        [
+            "malformed extra module row",
+            retainedCdb.replace(
+                "rax=0000000024986f54",
+                "zzzzzzzz`12345678 00007ff9`bfda5000 bogus\nrax=0000000024986f54",
+            ),
+            term,
+            "",
+        ],
+        ["bad rip", retainedCdb.replace(/rip=[^ ]+/g, "rip=xyz"), term, ""],
+        ["no frames", retainedCdb.replace(/^0000003e`[^\n]+$/gm, ""), term, ""],
+        [
+            "end missing",
+            retainedCdb.replace(/^STARTUP_SNAPSHOT_END$/m, ""),
+            term,
+            "",
+        ],
+        [
+            "echo is not marker",
+            retainedCdb.replace(/^STARTUP_SNAPSHOT_BEGIN$/m, ""),
+            term,
+            "",
+        ],
+        [
+            "dropped stdout",
+            retainedCdb,
+            { ...term, dropped: { stdout: 1, stderr: 0 } },
+            "",
+        ],
+        [
+            "dropped stderr",
+            retainedCdb,
+            { ...term, dropped: { stdout: 0, stderr: 1 } },
+            "",
+        ],
+        ["timeout", retainedCdb, { ...term, reason: "deadline" }, ""],
+        ["spawn error", retainedCdb, { ...term, error: "failed" }, ""],
+        [
+            "debugger error",
+            retainedCdb.replace(
+                /^STARTUP_SNAPSHOT_END$/m,
+                "Unable to read thread context\nSTARTUP_SNAPSHOT_END",
+            ),
+            term,
+            "",
+        ],
+        ["stderr error", retainedCdb, term, "Unable to read memory"],
+        ["oversized", retainedCdb + "x".repeat(1024 * 1024), term, ""],
+    ] as const) {
+        assert.equal(
+            api.snapshotEvidence(raw, termination, stderr).status,
+            "incomplete",
+            label,
+        );
+    }
+    const noContext = api.snapshotEvidence(
+        retainedCdb.replace(
+            "start             end                 module name",
+            "unknown",
+        ),
+        term,
+        "",
+    );
+    assert.deepEqual(noContext.moduleBases, []);
+    assert.ok(
+        noContext.relativePCs.every(
+            (p: any) => p.module === null && p.offset === null,
+        ),
+    );
+});
+
+test("retained readiness upper bound makes CDB40 explicitly not due in post-hoc re-analysis", () => {
+    const f = retainedInspection();
+    const coverage = api.inspectionCoverage?.(f);
+    assert.equal(coverage?.complete, true);
+    assert.deepEqual(
+        coverage.snapshots.map((s: any) => [s.targetMs, s.status]),
+        [
+            [20000, "captured"],
+            [40000, "not-due"],
+        ],
+    );
+    assert.deepEqual(
+        coverage.samples.map((s: any) => [s.targetMs, s.status]),
+        [
+            [5000, "captured"],
+            [15000, "captured"],
+            [20000, "captured"],
+            [30000, "captured"],
+            [40000, "not-due"],
+            [50000, "not-due"],
+        ],
+    );
+    assert.equal(coverage.boundary.kind, "readiness-upper-bound");
+    assert.equal(coverage.boundary.traceMs, 35898);
+    assert.equal(f.provenance.originalJobConclusion, "failure");
+});
+
+function scheduledInspector(readyMs: number | null) {
+    const f = retainedInspection();
+    const terminalMs = readyMs === null ? 60010 : readyMs + 22005;
+    const boundary = readyMs ?? 60000;
+    const sample = f.inspection.samples[0];
+    f.inspection.samples = [5000, 15000, 20000, 30000, 40000, 50000]
+        .filter((ms) => ms < boundary)
+        .map((ms) => ({
+            ...structuredClone(sample),
+            targetMs: ms,
+            actualElapsedMs: ms + 500,
+            data: {
+                ...sample.data,
+                utc: new Date(
+                    Date.parse(f.trial.startedAt) + ms + 400,
+                ).toISOString(),
+            },
+        }));
+    const snapshot = f.inspection.snapshots[0];
+    f.inspection.snapshots = [20000, 40000]
+        .filter((ms) => ms < boundary)
+        .map((ms) => ({
+            ...structuredClone(snapshot),
+            targetMs: ms,
+            startElapsedMs: ms + 516,
+            endElapsedMs: ms + 2311,
+            startedAt: new Date(
+                Date.parse(f.trial.startedAt) + ms + 516,
+            ).toISOString(),
+            endedAt: new Date(
+                Date.parse(f.trial.startedAt) + ms + 2311,
+            ).toISOString(),
+        }));
+    f.trial.elapsedMs = terminalMs;
+    f.trial.termination.elapsedMs = terminalMs - 1;
+    f.trial.termination.reason =
+        readyMs === null ? "deadline" : "observation-complete";
+    f.trial.verdict =
+        readyMs === null ? "startup-timeout" : "observed-no-fault";
+    f.trial.workload.requests = readyMs === null ? 0 : 1;
+    f.trial.workload.completed = readyMs === null ? 0 : 1;
+    const events: any[] = [{ event: "spawn", ms: 6, pid: f.trial.pid }];
+    if (readyMs !== null)
+        events.push({ event: "request", ms: readyMs, client: 0, round: 0 });
+    events.push({
+        event: "termination",
+        ms: terminalMs,
+        ...f.trial.termination,
+    });
+    f.client = events.map((e) => JSON.stringify(e)).join("\n") + "\n";
+    f.endedAt = new Date(
+        Date.parse(f.trial.startedAt) + terminalMs,
+    ).toISOString();
+    if (readyMs === null) f.stdout = "";
+    return f;
+}
+
+test("schedule coverage requires every due capture and verified readiness or a complete startup deadline", () => {
+    assert.equal(typeof api.inspectionCoverage, "function");
+    for (const [ready, count] of [
+        [1000, 0],
+        [19000, 0],
+        [20000, 0],
+        [40000, 1],
+        [35898, 1],
+        [45000, 2],
+        [null, 2],
+    ] as const) {
+        const c = api.inspectionCoverage(scheduledInspector(ready));
+        assert.equal(c.complete, true, String(ready));
+        assert.equal(
+            c.snapshots.filter((s: any) => s.status === "captured").length,
+            count,
+        );
+    }
+    const corruptions: Record<string, (f: any) => void> = {
+        "missing due snapshot": (f: any) => f.inspection.snapshots.pop(),
+        "missing first due snapshot": (f: any) =>
+            f.inspection.snapshots.shift(),
+        "malformed trace row": (f: any) => (f.client = "null\n"),
+        "malformed capture": (f: any) => (f.inspection.snapshots[0] = null),
+        "missing due sample": (f: any) => f.inspection.samples.pop(),
+        "missing manifest": (f: any) => (f.inspection = null),
+        "missing pid": (f: any) => (f.trial.pid = null),
+        "wrong SHA": (f: any) => (f.trial.sha = "f".repeat(40)),
+        "missing expected SHA": (f: any) => delete f.expectedSha,
+        "wrong identity": (f: any) => f.inspection.pid++,
+        "sample from another trial": (f: any) =>
+            (f.inspection.samples[0].data.utc = "2000-01-01T00:00:00Z"),
+        "snapshot from another trial": (f: any) =>
+            (f.inspection.snapshots[0].startedAt = "2000-01-01T00:00:00Z"),
+        "snapshot start off by one ms": (f: any) =>
+            (f.inspection.snapshots[0].startElapsedMs += 1),
+        "snapshot end off by one ms": (f: any) =>
+            (f.inspection.snapshots[0].endElapsedMs += 1),
+        "snapshot wrong target": (f: any) =>
+            (f.inspection.snapshots[0].args[2] = "9999"),
+        "unknown readiness": (f: any) =>
+            (f.client = f.client
+                .split("\n")
+                .filter((l: string) => !l.includes('"request"'))
+                .join("\n")),
+        "no ready stdout": (f: any) => (f.stdout = ""),
+        cancel: (f: any) => (f.trial.termination.reason = "aborted"),
+        "truncated inspector": (f: any) =>
+            (f.inspection.status = "waiting-for-pid"),
+        "aborted inspector": (f: any) =>
+            (f.inspection.status = "stopped-with-trial"),
+        "inspector error": (f: any) => (f.inspection.error = "cancelled"),
+        "failed capture": (f: any) =>
+            (f.inspection.snapshots[0].termination.code = 1),
+        "capture drop": (f: any) =>
+            (f.inspection.snapshots[0].termination.dropped.stdout = 1),
+        "sample stderr drop": (f: any) =>
+            (f.inspection.samples[0].termination.dropped.stderr = 1),
+        "unavailable capture": (f: any) => {
+            f.inspection.snapshots[0].status = "unavailable";
+            f.inspection.snapshots[0].unavailableReason = "CDB missing";
+        },
+        "duplicate capture": (f: any) =>
+            f.inspection.snapshots.push(f.inspection.snapshots[0]),
+        "truncated trace": (f: any) => (f.client = f.client.trimEnd()),
+        "terminal missing": (f: any) =>
+            (f.client = f.client
+                .split("\n")
+                .filter((l: string) => !l.includes('"termination"'))
+                .join("\n")),
+        "trial streams drop": (f: any) =>
+            (f.trial.termination.dropped.stdout = 1),
+        stderr: (f: any) => (f.stderr = "error"),
+    };
+    for (const [label, mutate] of Object.entries(corruptions)) {
+        const f = scheduledInspector(45000);
+        mutate(f);
+        assert.equal(api.inspectionCoverage(f).complete, false, label);
+    }
+    const missing = scheduledInspector(1000);
+    missing.inspection = null;
+    assert.equal(
+        api.inspectionCoverage(missing).complete,
+        false,
+        "early readiness cannot bypass manifest",
+    );
+    const unavailable = scheduledInspector(35898);
+    unavailable.inspection.snapshots[0].status = "unavailable";
+    unavailable.inspection.snapshots[0].unavailableReason = "CDB missing";
+    assert.equal(
+        api.inspectionCoverage(unavailable).snapshots[0].actual[0]
+            .unavailableReason,
+        "CDB missing",
+    );
+});
+
+test("retained CDB fixture keeps the hash-verified stdout bytes", () => {
+    assert.equal(
+        createHash("sha256")
+            .update(
+                readFileSync(
+                    "tests/fixtures/http-startup/retained-cdb20.stdout.txt",
+                ),
+            )
+            .digest("hex"),
+        "b9f79b0ae3d0417e951a3f3406941a4d3f075aabc34b9aa32cfbe0206bebd117",
+    );
+});
+
+test("hosted report uses due coverage instead of unconditional two snapshots with only in-memory IO", async () => {
+    for (const missingDue of [false, true]) {
+        const f = missingDue ? scheduledInspector(45000) : retainedInspection();
+        if (missingDue) f.inspection.snapshots.pop();
+        let saved: any;
+        const fakeProcess: any = {
+            env: {},
+            argv: [],
+            pid: 1,
+            once() {},
+            removeListener() {},
+        };
+        const driver = runInNewContext(
+            pureBody("scripts/http-startup.mjs") +
+                `
+            verify = () => ({checkout:{head:'${f.expectedSha}'}});
+            restore = async () => ({binary:'fake-image',source:'fake-source'});
+            inspectBaseline = async () => {};
+            main;
+        `,
+            {
+                ...api,
+                join,
+                resolve,
+                AbortController,
+                process: fakeProcess,
+                startupPlan: () => [api.startupPlan()[0]],
+                startupChildEnv: () => ({}),
+                runTrial: async () => f.trial,
+                Date: class extends Date {
+                    constructor() {
+                        super(f.endedAt);
+                    }
+                    static now() {
+                        return Date.parse(f.endedAt);
+                    }
+                },
+                setTimeout: () => 1,
+                clearTimeout() {},
+                mkdirSync() {},
+                existsSync: () => true,
+                hashFile: (file: string) =>
+                    file === "fake-image"
+                        ? api.retained.imageHash
+                        : api.retained.sourceHash,
+                writeFileSync: (file: string, contents: string) => {
+                    if (file.endsWith("startup.json"))
+                        saved = JSON.parse(contents);
+                },
+                readFileSync: (file: string) => {
+                    if (file.endsWith("inspection.json"))
+                        return JSON.stringify(f.inspection);
+                    if (file.endsWith("trial.json"))
+                        return JSON.stringify(f.trial);
+                    if (file.endsWith("client.jsonl")) return f.client;
+                    if (file.endsWith("stdout.log")) return f.stdout;
+                    if (file.endsWith("stderr.log")) return f.stderr;
+                    throw Error("unexpected read: " + file);
+                },
+            },
+        );
+        await driver();
+        assert.equal(saved.inspectionComplete, !missingDue);
+        assert.equal(fakeProcess.exitCode, missingDue ? 1 : undefined);
+        assert.equal(
+            saved.inspectionCoverage.snapshots[1].status,
+            missingDue ? "missing-due" : "not-due",
+        );
+    }
 });

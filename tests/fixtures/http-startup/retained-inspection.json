@@ -1,0 +1,265 @@
+{
+    "provenance": {
+        "artifact": "13129080701",
+        "archiveBytes": 53551652,
+        "archiveSha256": "23c06c323bd76e3219ad305fa93dfd947fe949f7fa45e82120da1c65137eeea2",
+        "textMapArchiveSha256": "23c06c323bd76e3219ad305fa93dfd947fe949f7fa45e82120da1c65137eeea2",
+        "originalJobConclusion": "failure",
+        "selection": "CDB stdout verbatim; selected trial/inspection/client/stream records. Removed only old derived snapshot parser fields.",
+        "entries": [
+            {
+                "path": "trial-retained-reference/cdb-20/stdout.log",
+                "bytes": 12776,
+                "sha256": "b9f79b0ae3d0417e951a3f3406941a4d3f075aabc34b9aa32cfbe0206bebd117"
+            },
+            {
+                "path": "trial-retained-reference/inspection.json",
+                "bytes": 10234,
+                "sha256": "307e05a015cb90eb60994454a5b2cf52eed822b293add019115c81ded0987fa9"
+            },
+            {
+                "path": "trial-retained-reference/trial.json",
+                "bytes": 1436,
+                "sha256": "da6cc6b3f616e3e224c367e8ae3c15a2765d383ae219e894f87135a23788d2c0"
+            },
+            {
+                "path": "trial-retained-reference/client.jsonl",
+                "bytes": 1743,
+                "sha256": "212158854b8981f6b17bbad186c6132c74cb4fc5bc0f0b2835de36f673db70d8"
+            },
+            {
+                "path": "trial-retained-reference/stdout.log",
+                "bytes": 167,
+                "sha256": "84a813f5c288ff21edaa5c936182ee5ce1008e65bfb0666a7d347cc5c08f4c55"
+            },
+            {
+                "path": "trial-retained-reference/stderr.log",
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "path": "trial-retained-reference/cdb-20/stderr.log",
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "path": "startup.json",
+                "bytes": 23838,
+                "sha256": "b9b7dc792ba5785a604185ad890c031029714dc45d44c9af5deb370d77d11ea3"
+            }
+        ]
+    },
+    "inspection": {
+        "status": "finished",
+        "attachMode": "-pvr (noninvasive, nonsuspending)",
+        "samples": [
+            {
+                "targetMs": 5000,
+                "actualElapsedMs": 5562,
+                "termination": {
+                    "pid": 1484,
+                    "code": 0,
+                    "signal": null,
+                    "hex": "0x0",
+                    "reason": null,
+                    "error": null,
+                    "elapsedMs": 550,
+                    "dropped": {
+                        "stdout": 0,
+                        "stderr": 0
+                    }
+                },
+                "raw": "D:\\a\\nona\\nona\\work\\http-startup\\trial-retained-reference\\cpu-5",
+                "status": "sampled",
+                "data": {
+                    "cpuMs": 5406.25,
+                    "privateBytes": 6107136,
+                    "utc": "2026-11-02T09:07:19.4451842Z",
+                    "pid": 8168,
+                    "workingSetBytes": 8716288
+                }
+            },
+            {
+                "targetMs": 15000,
+                "actualElapsedMs": 15579,
+                "termination": {
+                    "pid": 5144,
+                    "code": 0,
+                    "signal": null,
+                    "hex": "0x0",
+                    "reason": null,
+                    "error": null,
+                    "elapsedMs": 565,
+                    "dropped": {
+                        "stdout": 0,
+                        "stderr": 0
+                    }
+                },
+                "raw": "D:\\a\\nona\\nona\\work\\http-startup\\trial-retained-reference\\cpu-15",
+                "status": "sampled",
+                "data": {
+                    "workingSetBytes": 9195520,
+                    "utc": "2026-11-02T09:07:29.4619163Z",
+                    "cpuMs": 15312.5,
+                    "pid": 8168,
+                    "privateBytes": 6270976
+                }
+            },
+            {
+                "targetMs": 20000,
+                "actualElapsedMs": 20515,
+                "termination": {
+                    "pid": 848,
+                    "code": 0,
+                    "signal": null,
+                    "hex": "0x0",
+                    "reason": null,
+                    "error": null,
+                    "elapsedMs": 513,
+                    "dropped": {
+                        "stdout": 0,
+                        "stderr": 0
+                    }
+                },
+                "raw": "D:\\a\\nona\\nona\\work\\http-startup\\trial-retained-reference\\cpu-20",
+                "status": "sampled",
+                "data": {
+                    "privateBytes": 7286784,
+                    "cpuMs": 20203.125,
+                    "utc": "2026-11-02T09:07:34.4168252Z",
+                    "workingSetBytes": 9928704,
+                    "pid": 8168
+                }
+            },
+            {
+                "targetMs": 30000,
+                "actualElapsedMs": 30539,
+                "termination": {
+                    "pid": 8204,
+                    "code": 0,
+                    "signal": null,
+                    "hex": "0x0",
+                    "reason": null,
+                    "error": null,
+                    "elapsedMs": 535,
+                    "dropped": {
+                        "stdout": 0,
+                        "stderr": 0
+                    }
+                },
+                "raw": "D:\\a\\nona\\nona\\work\\http-startup\\trial-retained-reference\\cpu-30",
+                "status": "sampled",
+                "data": {
+                    "cpuMs": 30187.5,
+                    "pid": 8168,
+                    "privateBytes": 8462336,
+                    "utc": "2026-11-02T09:07:44.4241401Z",
+                    "workingSetBytes": 11304960
+                }
+            }
+        ],
+        "snapshots": [
+            {
+                "targetMs": 20000,
+                "startElapsedMs": 20516,
+                "startedAt": "2026-11-02T09:07:34.494Z",
+                "debugger": "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe",
+                "attachMode": "-pvr (noninvasive, nonsuspending)",
+                "status": "incomplete",
+                "timeoutMs": 5000,
+                "args": [
+                    "-pvr",
+                    "-p",
+                    "8168",
+                    "-y",
+                    "",
+                    "-c",
+                    ".echo STARTUP_SNAPSHOT_BEGIN; lm; ~* r; ~* kv; .echo STARTUP_SNAPSHOT_END; qd"
+                ],
+                "debuggerPid": 3660,
+                "termination": {
+                    "pid": 3660,
+                    "code": 0,
+                    "signal": null,
+                    "hex": "0x0",
+                    "reason": null,
+                    "error": null,
+                    "elapsedMs": 1793,
+                    "dropped": {
+                        "stdout": 0,
+                        "stderr": 0
+                    }
+                },
+                "raw": "D:\\a\\nona\\nona\\work\\http-startup\\trial-retained-reference\\cdb-20",
+                "endedAt": "2026-11-02T09:07:36.289Z",
+                "endElapsedMs": 22311
+            }
+        ],
+        "perturbation": "External process queries and CDB memory/context reads can affect scheduling. Running contexts may be unavailable/inconsistent; no mechanism inferred.",
+        "pid": 8168
+    },
+    "trial": {
+        "id": "trial-retained-reference",
+        "fixture": "reference",
+        "listeners": "original",
+        "concurrency": 1,
+        "state": "keepalive",
+        "chunkBytes": 65536,
+        "chunks": 16,
+        "runtime": "nona",
+        "gc": "stress",
+        "sha": "12fc81a20eeaf7deac5e2bcf11ac6d6b25be78b1",
+        "sourceHash": "bd8e4abac8b6cde1af33a8dd717882ab34a0e894243fd8bb2e75c04b4d380eda",
+        "imageHash": "23bfce34206002318c362f7c285eef3dc3547901113b8146fd9e8f7153a770d7",
+        "imageCompilerHead": "3f199321d8fd543257d04f7680609ca1b459fa9e",
+        "fixtureOriginHead": "3f199321d8fd543257d04f7680609ca1b459fa9e",
+        "route": "/big",
+        "startedAt": "2026-11-02T09:07:13.978Z",
+        "status": "finished",
+        "settings": {
+            "event": "settings",
+            "keepAliveTimeout": "5000",
+            "keepAliveTimeoutBuffer": "1000",
+            "timeout": "0",
+            "requestTimeout": "300000",
+            "headersTimeout": "60000"
+        },
+        "port": 52014,
+        "limits": {
+            "startupMs": 60000,
+            "observationMs": 22000,
+            "rounds": 4,
+            "hardMs": 90000
+        },
+        "workload": {
+            "requests": 4,
+            "completed": 4,
+            "wrongOutput": 0,
+            "errors": 0,
+            "hangs": 0
+        },
+        "termination": {
+            "pid": 8168,
+            "code": null,
+            "signal": "SIGKILL",
+            "hex": null,
+            "reason": "observation-complete",
+            "error": null,
+            "elapsedMs": 57902,
+            "dropped": {
+                "stdout": 0,
+                "stderr": 0
+            }
+        },
+        "pid": 8168,
+        "timeoutWindowCovered": true,
+        "verdict": "observed-no-fault",
+        "elapsedMs": 57903
+    },
+    "client": "{\"ms\":6,\"event\":\"spawn\",\"pid\":8168,\"command\":\"D:\\\\a\\\\nona\\\\nona\\\\work\\\\http-startup\\\\retained\\\\reference-stress\\\\nona-http.exe\",\"args\":[]}\n{\"ms\":35898,\"event\":\"request\",\"client\":0,\"round\":0}\n{\"ms\":35899,\"event\":\"client-socket\",\"socket\":1,\"client\":0}\n{\"ms\":38796,\"event\":\"response\",\"client\":0,\"round\":0,\"bytes\":1048576,\"valid\":true,\"reused\":false,\"status\":200,\"headers\":{\"content-type\":\"text/plain\",\"date\":\"Mon, 02 Nov 2026 09:07:50 GMT\",\"connection\":\"keep-alive\",\"keep-alive\":\"timeout=5\",\"transfer-encoding\":\"chunked\"}}\n{\"ms\":38803,\"event\":\"request\",\"client\":0,\"round\":1}\n{\"ms\":41445,\"event\":\"response\",\"client\":0,\"round\":1,\"bytes\":1048576,\"valid\":true,\"reused\":true,\"status\":200,\"headers\":{\"content-type\":\"text/plain\",\"date\":\"Mon, 02 Nov 2026 09:07:53 GMT\",\"connection\":\"keep-alive\",\"keep-alive\":\"timeout=5\",\"transfer-encoding\":\"chunked\"}}\n{\"ms\":41451,\"event\":\"request\",\"client\":0,\"round\":2}\n{\"ms\":44044,\"event\":\"response\",\"client\":0,\"round\":2,\"bytes\":1048576,\"valid\":true,\"reused\":true,\"status\":200,\"headers\":{\"content-type\":\"text/plain\",\"date\":\"Mon, 02 Nov 2026 09:07:56 GMT\",\"connection\":\"keep-alive\",\"keep-alive\":\"timeout=5\",\"transfer-encoding\":\"chunked\"}}\n{\"ms\":44053,\"event\":\"request\",\"client\":0,\"round\":3}\n{\"ms\":46705,\"event\":\"response\",\"client\":0,\"round\":3,\"bytes\":1048576,\"valid\":true,\"reused\":true,\"status\":200,\"headers\":{\"content-type\":\"text/plain\",\"date\":\"Mon, 02 Nov 2026 09:07:58 GMT\",\"connection\":\"keep-alive\",\"keep-alive\":\"timeout=5\",\"transfer-encoding\":\"chunked\"}}\n{\"ms\":50822,\"event\":\"client-close\",\"socket\":1,\"client\":0,\"hadError\":false}\n{\"ms\":57903,\"event\":\"termination\",\"pid\":8168,\"code\":null,\"signal\":\"SIGKILL\",\"hex\":null,\"reason\":\"observation-complete\",\"error\":null,\"elapsedMs\":57902,\"dropped\":{\"stdout\":0,\"stderr\":0}}\n",
+    "stdout": "diagnostic {\"event\":\"settings\",\"keepAliveTimeout\":\"5000\",\"keepAliveTimeoutBuffer\":\"1000\",\"timeout\":\"0\",\"requestTimeout\":\"300000\",\"headersTimeout\":\"60000\"}\nready 52014\n",
+    "stderr": "",
+    "snapshotStderr": "",
+    "endedAt": "2026-11-02T09:08:11.885Z",
+    "expectedSha": "12fc81a20eeaf7deac5e2bcf11ac6d6b25be78b1"
+}

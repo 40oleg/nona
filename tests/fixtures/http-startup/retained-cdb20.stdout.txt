@@ -1,0 +1,163 @@
+
+************* Preparing the environment for Debugger Extensions Gallery repositories **************
+   ExtensionRepository : Implicit
+   UseExperimentalFeatureForNugetShare : true
+   AllowNugetExeUpdate : true
+   NonInteractiveNuget : true
+   AllowNugetMSCredentialProviderInstall : true
+   AllowParallelInitializationOfLocalRepositories : true
+
+   EnableRedirectToV8JsProvider : false
+
+   -- Configuring repositories
+      ----> Repository : LocalInstalled, Enabled: true
+      ----> Repository : UserExtensions, Enabled: true
+
+>>>>>>>>>>>>> Preparing the environment for Debugger Extensions Gallery repositories completed, duration 0.016 seconds
+
+************* Waiting for Debugger Extensions Gallery to Initialize **************
+
+>>>>>>>>>>>>> Waiting for Debugger Extensions Gallery to Initialize completed, duration 0.265 seconds
+   ----> Repository : UserExtensions, Enabled: true, Packages count: 0
+   ----> Repository : LocalInstalled, Enabled: true, Packages count: 30
+
+Microsoft (R) Windows Debugger Version 10.0.26100.9457 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+*** wait with pending attach
+Symbol search path is: *** Invalid ***
+****************************************************************************
+* Symbol loading may be unreliable without a symbol search path.           *
+* Use .symfix to have the debugger choose a symbol path.                   *
+* After setting your symbol path, use .reload to refresh symbol locations. *
+****************************************************************************
+Executable search path is: 
+WARNING: Process 8168 is not attached as a debuggee
+         The process can be examined but debug events will not be received
+.........
+(1fe8.11e8): Wake debugger - code 80000007 (first chance)
+
++------------------------------------------------------------------------+
+| This target supports Hardware-enforced Stack Protection. A HW based    |
+| "Shadow Stack" may be available to assist in debugging and analysis.   |
+| See aka.ms/userhsp for more info.                                      |
+|                                                                        |
+| dps @ssp                                                               |
+|                                                                        |
++------------------------------------------------------------------------+
+
+*** WARNING: Unable to verify timestamp for D:\a\nona\nona\work\http-startup\retained\reference-stress\nona-http.exe
+nona_http+0x1678:
+00007ff6`c2c51678 4c8b0df1c97300  mov     r9,qword ptr [nona_http+0x73e070 (00007ff6`c338e070)] ds:00007ff6`c338e070=0000000000000100
+0:000> cdb: Reading initial command '.echo STARTUP_SNAPSHOT_BEGIN; lm; ~* r; ~* kv; .echo STARTUP_SNAPSHOT_END; qd'
+STARTUP_SNAPSHOT_BEGIN
+start             end                 module name
+00007ff6`c2c50000 00007ff6`c3571000   nona_http T (no symbols)           
+00007ff9`b97a0000 00007ff9`b983e000   apphelp    (deferred)             
+00007ff9`bb4a0000 00007ff9`bb4d4000   IPHLPAPI   (deferred)             
+00007ff9`bcc40000 00007ff9`bcd8b000   ucrtbase   (deferred)             
+00007ff9`bcd90000 00007ff9`bd17d000   KERNELBASE   (deferred)             
+00007ff9`bebf0000 00007ff9`becb9000   KERNEL32   (deferred)             
+00007ff9`bed50000 00007ff9`bedce000   ws2_32     (deferred)             
+00007ff9`bf990000 00007ff9`bfaa8000   RPCRT4     (deferred)             
+00007ff9`bfb40000 00007ff9`bfda4000   ntdll      (deferred)             
+rax=0000000024986f54 rbx=0000000000000000 rcx=00000156c0adfbf8
+rdx=00000156c0ad0000 rsi=0000000000000000 rdi=0000000000000000
+rip=00007ff6c2c51678 rsp=0000003e521fd6e0 rbp=0000003e521fd918
+ r8=00000156c06dd150  r9=000000000000003f r10=00000156c0cb0000
+r11=9e3779b97f4a7c15 r12=0000000000000000 r13=0000000000000000
+r14=0000000000000000 r15=0000000000000000
+iopl=0         nv up ei pl nz ac pe cy
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00000213
+nona_http+0x1678:
+00007ff6`c2c51678 4c8b0df1c97300  mov     r9,qword ptr [nona_http+0x73e070 (00007ff6`c338e070)] ds:00007ff6`c338e070=0000000000000100
+rax=00000000000001e6 rbx=00000156c06a2c00 rcx=00000000000000b0
+rdx=00000156c06a2880 rsi=0000000000000001 rdi=00000156c06a04d0
+rip=00007ff9bfca5f74 rsp=0000003e531ffb68 rbp=0000000000000000
+ r8=0000000000000010  r9=0000003e531ffbc8 r10=00000000000000b0
+r11=00000000000000b0 r12=0000000000000000 r13=00007ff9bfbbf840
+r14=00007ff9bfbc65a0 r15=00007ff9bfbc3bd0
+iopl=0         nv up ei pl zr na po nc
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00000246
+ntdll!NtWaitForWorkViaWorkerFactory+0x14:
+00007ff9`bfca5f74 c3              ret
+rax=00000000000001e6 rbx=00000156c06a6820 rcx=00000000000000b0
+rdx=00000156c06a64a0 rsi=0000000000000001 rdi=00000156c06a04d0
+rip=00007ff9bfca5f74 rsp=0000003e541ff828 rbp=0000000000000000
+ r8=0000000000000010  r9=0000003e541ff888 r10=00000000000000b0
+r11=00000000000000b0 r12=0000000000000000 r13=00007ff9bfbbf840
+r14=00007ff9bfbc65a0 r15=00007ff9bfbc3bd0
+iopl=0         nv up ei pl zr na po nc
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00000246
+ntdll!NtWaitForWorkViaWorkerFactory+0x14:
+00007ff9`bfca5f74 c3              ret
+rax=00000000000001e6 rbx=00000156c06a7e30 rcx=00000000000000b0
+rdx=00000156c06a7ab0 rsi=0000000000000001 rdi=00000156c06a04d0
+rip=00007ff9bfca5f74 rsp=0000003e551ff618 rbp=0000000000000000
+ r8=0000000000000010  r9=0000003e551ff678 r10=00000000000000b0
+r11=00000000000000b0 r12=0000000000000000 r13=00007ff9bfbbf840
+r14=00007ff9bfbc65a0 r15=00007ff9bfbc3bd0
+iopl=0         nv up ei pl zr na po nc
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00000246
+ntdll!NtWaitForWorkViaWorkerFactory+0x14:
+00007ff9`bfca5f74 c3              ret
+
+.  0  Id: 1fe8.11e8 Suspend: 0 Teb: 0000003e`511f7000 Unfrozen
+Child-SP          RetAddr               : Args to Child                                                           : Call Site
+0000003e`521fd1f0 00007ff6`c2cc5a0d     : 00000000`00000000 00007ff6`c2cc56bb 00000156`c0690000 00000156`00000000 : nona_http+0x75612
+0000003e`521fd230 00007ff6`c2ccbbc3     : 00000000`00000000 00007ff6`c2c7127e 00000000`00000000 0000003e`521fd388 : nona_http+0x75cd1
+0000003e`521fd270 00007ff6`c2f1cbe3     : 00000156`c06ed330 00007ff6`c2cbbc8e 00000156`c0690000 00000156`c0690000 : nona_http+0x7bc9b
+0000003e`521fd2c0 00007ff6`c2f45068     : 00000000`00000070 00007ff6`c2c516de 00000000`00000070 00007ff6`c2cc5622 : nona_http+0x2ccbe3
+0000003e`521fd690 00007ff6`c2c670ca     : 00000000`00000000 00000000`00000049 00000000`00000000 00007ff6`c2ccbb2c : nona_http+0x2f5068
+0000003e`521fd770 00007ff6`c2c65f22     : 00000156`c0b50000 00000000`00000000 00000000`0000004a 00007ff6`c2ccbdad : nona_http+0x170ca
+0000003e`521fd7b0 00007ff6`c2f54e96     : 00000000`00000400 00000000`00000008 0000003e`521fd818 0000003e`521fd7f8 : nona_http+0x15f22
+0000003e`521fd820 00007ff6`c2f61c4e     : 00000000`00000000 00000000`00000000 0000003e`521ff028 00000156`c0a32918 : nona_http+0x304e96
+0000003e`521feca0 00007ff6`c2ff8728     : 0000003e`521fee38 0000003e`521feea8 0000003e`521fef20 00000000`00000000 : nona_http+0x311c4e
+0000003e`521feda0 00007ff6`c2c670ca     : 0000003e`521fee78 00007ff6`c32b7828 00000156`c09bde38 00007ff6`c32b7828 : nona_http+0x3a8728
+0000003e`521fee90 00007ff6`c2c60a58     : 00007ff6`c32b7828 00007ff6`c2c5f86f 00000000`00000000 00007ff6`c2c7127e : nona_http+0x170ca
+0000003e`521feed0 00007ff6`c2c600a0     : 0000003e`521ff0f8 0000003e`521ff140 0000003e`521ff108 00000000`00000000 : nona_http+0x10a58
+0000003e`521ff050 00007ff6`c2c66a45     : 00000000`00000410 00000156`c0a32918 00000156`c0880538 00007ff6`c2c52074 : nona_http+0x100a0
+0000003e`521ff0c0 00007ff6`c2c66904     : 00000000`00000000 00000156`c0690000 0000003e`521ff4e8 00007ff9`bfb5e604 : nona_http+0x16a45
+0000003e`521ff160 00007ff6`c301df18     : 00007ff6`c318f000 00007ff6`c316d398 00000000`00000001 0000003e`521ff518 : nona_http+0x16904
+0000003e`521ff1b0 00007ff6`c2e0f739     : 00007ff6`c327efb8 00000156`c05f0cc0 0000003e`521ff418 00000000`00000000 : nona_http+0x3cdf18
+0000003e`521ff3f0 00007ff6`c2c670ca     : 00000000`00000000 00000000`00000000 00000000`00000070 00000156`c06632b8 : nona_http+0x1bf739
+0000003e`521ff650 00007ff6`c2c95852     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000049 : nona_http+0x170ca
+0000003e`521ff690 00007ff6`c301de7f     : 00000000`00000000 00007ff6`c2cddfb1 00000156`c0663088 00007ff6`c3393008 : nona_http+0x45852
+0000003e`521ff750 00007ff6`c316b4c6     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : nona_http+0x3cde7f
+0000003e`521ff950 00007ff9`bec1dd37     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : nona_http+0x51b4c6
+0000003e`521ffb00 00007ff9`bfb7f2bc     : 00000000`00000000 00000000`00000000 000004f0`fffffb30 000004d0`fffffb30 : KERNEL32!BaseThreadInitThunk+0x17
+0000003e`521ffb30 00000000`00000000     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlUserThreadStart+0x2c
+
+   1  Id: 1fe8.2054 Suspend: 0 Teb: 0000003e`511f9000 Unfrozen
+Child-SP          RetAddr               : Args to Child                                                           : Call Site
+0000003e`531ffb68 00007ff9`bfbc4945     : 00000000`00010003 00000000`00000001 00000156`c06a2c00 00000156`c06a04d0 : ntdll!NtWaitForWorkViaWorkerFactory+0x14
+0000003e`531ffb70 00007ff9`bec1dd37     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlSetThreadSubProcessTag+0x1815
+0000003e`531ffe70 00007ff9`bfb7f2bc     : 00000000`00000000 00000000`00000000 000004f0`fffffb30 000004d0`fffffb30 : KERNEL32!BaseThreadInitThunk+0x17
+0000003e`531ffea0 00000000`00000000     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlUserThreadStart+0x2c
+
+   2  Id: 1fe8.a78 Suspend: 0 Teb: 0000003e`511fb000 Unfrozen
+Child-SP          RetAddr               : Args to Child                                                           : Call Site
+0000003e`541ff828 00007ff9`bfbc4945     : 00000000`00000000 00000000`00000000 00000000`00000001 00000156`c06a04d0 : ntdll!NtWaitForWorkViaWorkerFactory+0x14
+0000003e`541ff830 00007ff9`bec1dd37     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlSetThreadSubProcessTag+0x1815
+0000003e`541ffb30 00007ff9`bfb7f2bc     : 00000000`00000000 00000000`00000000 000004f0`fffffb30 000004d0`fffffb30 : KERNEL32!BaseThreadInitThunk+0x17
+0000003e`541ffb60 00000000`00000000     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlUserThreadStart+0x2c
+
+   3  Id: 1fe8.19d0 Suspend: 0 Teb: 0000003e`511fd000 Unfrozen
+Child-SP          RetAddr               : Args to Child                                                           : Call Site
+0000003e`551ff618 00007ff9`bfbc4945     : 00000000`00000000 00000000`00000000 00000000`00000001 00000156`c06a04d0 : ntdll!NtWaitForWorkViaWorkerFactory+0x14
+0000003e`551ff620 00007ff9`bec1dd37     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlSetThreadSubProcessTag+0x1815
+0000003e`551ff920 00007ff9`bfb7f2bc     : 00000000`00000000 00000000`00000000 000004f0`fffffb30 000004d0`fffffb30 : KERNEL32!BaseThreadInitThunk+0x17
+0000003e`551ff950 00000000`00000000     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlUserThreadStart+0x2c
+STARTUP_SNAPSHOT_END
+quit:
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\ObjectiveC.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'

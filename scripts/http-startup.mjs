@@ -14,6 +14,8 @@ import {
     campaignMs,
     snapshotCommand,
     snapshotEvidence,
+    inspectionCoverage,
+    inspectionSchedule,
     captureText as untrackedCapture,
 } from "./http-startup-plan.mjs";
 import {
@@ -293,6 +295,7 @@ async function inspectBaseline(directory, signal) {
     const manifest = join(directory, "inspection.json");
     save(manifest, receipt);
     const trialFile = join(directory, "trial.json");
+    let start;
     try {
         let trial;
         while (!signal.aborted) {
@@ -303,13 +306,14 @@ async function inspectBaseline(directory, signal) {
             await delay(25, undefined, { signal });
         }
         if (!trial?.pid || signal.aborted) return;
-        const start = Date.parse(trial.startedAt);
+        start = Date.parse(trial.startedAt);
         const cdb = join(
             process.env["ProgramFiles(x86)"] ?? "C:/Program Files (x86)",
             "Windows Kits/10/Debuggers/x64/cdb.exe",
         );
         receipt.pid = trial.pid;
-        for (const seconds of [5, 15, 20, 30, 40, 50]) {
+        for (const targetMs of inspectionSchedule.samples) {
+            const seconds = targetMs / 1000;
             await delay(
                 Math.max(0, start + seconds * 1000 - Date.now()),
                 undefined,
@@ -342,7 +346,9 @@ async function inspectBaseline(directory, signal) {
                 sampling.code === 0 &&
                 !sampling.reason &&
                 !sampling.error &&
-                sampling.dropped.stdout === 0
+                sampling.dropped.stdout === 0 &&
+                sampling.dropped.stderr === 0 &&
+                readFileSync(join(sampleDir, "stderr.log"), "utf8") === ""
             ) {
                 try {
                     sample.data = read(join(sampleDir, "stdout.log"));
@@ -359,16 +365,26 @@ async function inspectBaseline(directory, signal) {
             }
             receipt.samples.push(sample);
             save(manifest, receipt);
-            if (![20, 40].includes(seconds) || signal.aborted) continue;
-            const command = snapshotCommand(trial.pid, start, Date.now());
+            if (
+                !inspectionSchedule.snapshots.includes(targetMs) ||
+                signal.aborted
+            )
+                continue;
+            const snapshotStarted = Date.now();
+            const command = snapshotCommand(trial.pid, start, snapshotStarted);
             const snapshot = {
                 targetMs: seconds * 1000,
-                startElapsedMs: Date.now() - start,
-                startedAt: new Date().toISOString(),
+                startElapsedMs: snapshotStarted - start,
+                startedAt: new Date(snapshotStarted).toISOString(),
                 debugger: cdb,
                 attachMode: receipt.attachMode,
                 status: "unavailable",
                 ...command,
+                unavailableReason: !command
+                    ? "Snapshot cutoff reached"
+                    : !existsSync(cdb)
+                      ? "CDB executable unavailable"
+                      : null,
             };
             receipt.snapshots.push(snapshot);
             save(manifest, receipt);
@@ -392,11 +408,16 @@ async function inspectBaseline(directory, signal) {
                 // Retain raw PCs/module bases regardless of symbol/context errors.
                 Object.assign(
                     snapshot,
-                    snapshotEvidence(raw, snapshot.termination),
+                    snapshotEvidence(
+                        raw,
+                        snapshot.termination,
+                        readFileSync(join(target, "stderr.log"), "utf8"),
+                    ),
                 );
             }
-            snapshot.endedAt = new Date().toISOString();
-            snapshot.endElapsedMs = Date.now() - start;
+            const snapshotEnded = Date.now();
+            snapshot.endedAt = new Date(snapshotEnded).toISOString();
+            snapshot.endElapsedMs = snapshotEnded - start;
             save(manifest, receipt);
         }
         receipt.status = "finished";
@@ -406,7 +427,9 @@ async function inspectBaseline(directory, signal) {
     } finally {
         for (const snapshot of receipt.snapshots) {
             if (!snapshot.endedAt) {
-                snapshot.endedAt = new Date().toISOString();
+                const snapshotEnded = Date.now();
+                snapshot.endedAt = new Date(snapshotEnded).toISOString();
+                snapshot.endElapsedMs = snapshotEnded - start;
                 snapshot.status = "incomplete";
             }
         }
@@ -685,13 +708,24 @@ async function main() {
         "trial-retained-reference",
         "inspection.json",
     );
-    const inspection = existsSync(inspectionFile) ? read(inspectionFile) : null;
-    report.inspectionComplete =
-        inspection?.samples?.some((s) => s.status === "sampled") &&
-        inspection?.snapshots?.length === 2 &&
-        inspection.snapshots.every(
-            (s) => s.status === "raw-context-and-stack-present-unvalidated",
-        );
+    try {
+        const directory = join(output, "trial-retained-reference");
+        report.inspectionCoverage = inspectionCoverage({
+            inspection: existsSync(inspectionFile)
+                ? read(inspectionFile)
+                : null,
+            trial: read(join(directory, "trial.json")),
+            client: readFileSync(join(directory, "client.jsonl"), "utf8"),
+            stdout: readFileSync(join(directory, "stdout.log"), "utf8"),
+            stderr: readFileSync(join(directory, "stderr.log"), "utf8"),
+            endedAt: baseline?.endedAt,
+            expectedSha: provenance.checkout.head,
+        });
+    } catch (error) {
+        report.inspectionCoverage = inspectionCoverage();
+        report.inspectionCoverage.errors.push(String(error));
+    }
+    report.inspectionComplete = report.inspectionCoverage.complete;
     saveReport();
     if (
         report.status !== "attempts-complete" ||
