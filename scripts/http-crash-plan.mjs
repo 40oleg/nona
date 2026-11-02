@@ -49,3 +49,24 @@ export function trialMatrix() {
         });
     return trials;
 }
+
+// The caller selects a fixed partition, never an arbitrary expected subset.
+export function shardPlan(index) {
+    if (typeof index === "string" && /^(?:[1-9]|10)$/.test(index))
+        index = Number(index);
+    if (!Number.isInteger(index) || index < 1 || index > 10)
+        throw Error("Expected shard 1..10");
+    return {
+        index,
+        id: `shard-${String(index).padStart(2, "0")}`,
+        jobIndex: index - 1,
+        jobKey: `windows-${index}`,
+        trials: trialMatrix().slice((index - 1) * 6, index * 6),
+    };
+}
+
+export function diagnosticArgs(args) {
+    if (args.length !== 3 || !args[0] || args[1] !== "--shard")
+        throw Error("Expected output-directory --shard 1..10");
+    return { directory: args[0], shard: shardPlan(args[2]).index };
+}

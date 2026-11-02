@@ -12,6 +12,7 @@
                 "object-annexb",
                 "with",
                 "modules",
+                "compiler-inputs",
                 "npm",
                 "tail-calls",
                 "dynamic-functions",
@@ -408,6 +409,7 @@
                 "http-crash-diagnostic",
                 "http-crash-workflow",
                 "http-crash-acceptance",
+                "http-crash-shards",
                 "http-startup",
                 "ci-changes"
             ]

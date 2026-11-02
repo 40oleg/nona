@@ -228,9 +228,13 @@ export function snapshotEvidence(raw, termination, stderr = "") {
             address +
             ")\\s+(" +
             address +
-            ")\\s+([a-z_][a-z0-9_.-]*)(?:\\s+(?:T\\s+)?\\([^\\r\\n]*\\))?\\s*$",
+            ")\\s+([a-z_][a-z0-9_.-]*)(?:[ \\t]+(?:T[ \\t]+)?\\([^()\\r\\n]*\\)(?:[ \\t]+(\\S.*?))?)?[ \\t]*$",
         "i",
     );
+    // lm may append an unquoted image path after the symbol annotation.
+    // Require a drive-rooted Windows image path; spaces inside names are valid.
+    const imagePath =
+        /^[a-z]:\\(?:[^<>:"/\\|?*\x00-\x1f]+\\)*[^<>:"/\\|?*\x00-\x1f]+\.(?:dll|exe|sys)$/i;
     const frameRow = new RegExp(
         "^\\s*(?:[0-9a-f]{1,3}\\s+)?(" +
             address +
@@ -255,10 +259,20 @@ export function snapshotEvidence(raw, termination, stderr = "") {
             if (modules) {
                 const row = moduleRow.exec(line);
                 if (row) {
-                    const [start, end, module] = row.slice(1);
+                    const [start, end, module, path] = row.slice(1);
                     const lo = addressValue(start),
                         hi = addressValue(end);
                     if (
+                        (path &&
+                            (!imagePath.test(path) ||
+                                path
+                                    .slice(3)
+                                    .split("\\")
+                                    .some(
+                                        (part) =>
+                                            part.trim() !== part ||
+                                            /[. ]$/.test(part),
+                                    ))) ||
                         lo === 0n ||
                         hi <= lo ||
                         moduleBases.some(

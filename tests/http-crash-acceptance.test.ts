@@ -388,3 +388,26 @@ test("strict destroy acceptance rejects corruption of either member, never state
         ),
     );
 });
+
+test("matching deliberate-destroy text does not extend the retained off exception to stress", () => {
+    const campaign = retainedPair();
+    const raw = { ...files };
+    const row = campaign.results[1];
+    row.id = "trial-15";
+    row.gc = "stress";
+    campaign.planned = matrix.planned.filter((p: any) =>
+        ["trial-13", "trial-15"].includes(p.id),
+    );
+    for (const name of [
+        "stdout.log",
+        "stderr.log",
+        "client.jsonl",
+        "termination.json",
+    ])
+        raw[`trial-15/${name}`] = files[`trial-14/${name}`];
+    raw["trial-15/trial.json"] = JSON.stringify(row) + "\n";
+    const result = evaluate(raw, campaign);
+    assert.equal(result.rows[1].rawVerdict, "client-error");
+    assert.equal(result.rows[1].acceptance, "incomplete");
+    assert.equal(result.accepted, false);
+});

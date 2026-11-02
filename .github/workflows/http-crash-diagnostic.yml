@@ -5,6 +5,7 @@ on:
         types: [opened, reopened, synchronize, ready_for_review]
 permissions:
     contents: read
+    actions: read
 env:
     NODE_VERSION: "26.9.0"
     NONA_AUTO_MERGE: "false"
@@ -20,9 +21,14 @@ jobs:
             contains(github.event.pull_request.labels.*.name, 'full-ci')))
         # Deliberately bypass pick-runner.mjs: never use the owner's PC.
         runs-on: windows-2025
-        concurrency:
-            group: http-crash-diagnostic
-            cancel-in-progress: false
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        env:
+            HTTP_CRASH_SHARD: ${{ matrix.shard }}
+            HTTP_CRASH_JOB_INDEX: ${{ strategy.job-index }}
         timeout-minutes: 35
         steps:
             - uses: actions/checkout@v4
@@ -47,7 +53,7 @@ jobs:
             - run: npm ci
             - run: npm run build
             - name: Test diagnostic lifecycle
-              run: node --test --test-concurrency=1 dist/tests/http-crash-workflow.test.js dist/tests/http-crash-diagnostic.test.js
+              run: node --test --test-concurrency=1 dist/tests/http-crash-workflow.test.js dist/tests/http-crash-acceptance.test.js dist/tests/http-crash-shards.test.js dist/tests/http-startup.test.js dist/tests/http-crash-diagnostic.test.js
             - name: Install Windows debugging tools if absent
               shell: pwsh
               timeout-minutes: 8
@@ -63,10 +69,10 @@ jobs:
             - name: Configure per-image full dumps
               run: pwsh -File scripts/http-crash-windows.ps1 setup
             - name: Serial bounded trials (Node control and Nona)
-              run: node scripts/http-crash.mjs
+              run: node scripts/http-crash.mjs work/http-crash --shard ${{ matrix.shard }}
             - name: Retain raw exception, PC, load bases and stack
               if: always()
-              run: pwsh -File scripts/http-crash-windows.ps1 collect
+              run: pwsh -File scripts/http-crash-windows.ps1 collect -Startup602
             - name: Remove diagnostic WER keys
               if: always()
               run: pwsh -File scripts/http-crash-windows.ps1 cleanup
@@ -79,10 +85,70 @@ jobs:
                       "Completed $(@($matrix.results).Count) of $(@($matrix.planned).Count) planned trials. See the artifact for raw evidence. No product fix is established." | Add-Content $env:GITHUB_STEP_SUMMARY
                       foreach ($trial in $matrix.results) { "- $($trial.id): $($trial.runtime)/$($trial.gc), $($trial.state), c=$($trial.concurrency), $($trial.verdict)" | Add-Content $env:GITHUB_STEP_SUMMARY }
                   }
+            - name: Package small raw proof independently of images and dumps
+              if: always()
+              run: node scripts/http-crash-aggregate.mjs pack work/http-crash work/http-crash-proof
+            - name: Upload small raw shard proof
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-crash-proof-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ format('{0}', matrix.shard < 10 && format('0{0}', matrix.shard) || matrix.shard) }}
+                  path: work/http-crash-proof/
+                  if-no-files-found: error
+                  retention-days: 30
             - uses: actions/upload-artifact@v4
               if: always()
               with:
-                  name: http-crash-windows-${{ github.sha }}-${{ github.run_attempt }}
+                  name: http-crash-native-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
                   path: work/http-crash/
-                  if-no-files-found: warn
+                  if-no-files-found: error
+                  retention-days: 30
+    aggregate:
+        if: >-
+            always() && github.repository == '40oleg/nona' &&
+            (github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'pull_request' && github.event.number == 630 &&
+            github.event.pull_request.base.repo.full_name == '40oleg/nona' &&
+            github.event.pull_request.head.repo.full_name == '40oleg/nona' &&
+            contains(github.event.pull_request.labels.*.name, 'full-ci')))
+        needs: windows
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        env:
+            HTTP_CRASH_MATRIX_RESULT: ${{ needs.windows.result }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+            - name: Read current-run artifact identities
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const fs = require('node:fs');
+                      const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                        owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId, per_page: 100
+                      });
+                      fs.mkdirSync('work/http-crash-aggregate/proofs', { recursive: true });
+                      fs.writeFileSync('work/http-crash-aggregate/artifacts.json', JSON.stringify(artifacts));
+            - name: Download only isolated current-attempt proof packages
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: http-crash-proof-${{ github.run_id }}-${{ github.run_attempt }}-*
+                  path: work/http-crash-aggregate/proofs/
+                  merge-multiple: false
+            - name: Revalidate every raw shard and exact57 union
+              if: always()
+              run: node scripts/http-crash-aggregate.mjs evaluate work/http-crash-aggregate work/http-crash-aggregate/report.json
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-crash-aggregate-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: work/http-crash-aggregate/
+                  if-no-files-found: error
                   retention-days: 30

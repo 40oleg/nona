@@ -13,10 +13,10 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { referenceBlob, serverSource } from "./http-crash-fixture.mjs";
 import {
-    diagnosticAcceptance,
+    diagnosticShardAcceptance,
     acceptanceFiles,
 } from "./http-crash-acceptance.mjs";
-import { trialMatrix } from "./http-crash-plan.mjs";
+import { diagnosticArgs, shardPlan } from "./http-crash-plan.mjs";
 export { diagnosticAcceptance } from "./http-crash-acceptance.mjs";
 
 export const hashFile = (file) =>
@@ -447,15 +447,32 @@ async function main() {
         throw new Error(
             "Diagnostics require GitHub-hosted Windows x64 and Node 26",
         );
-    const output = resolve(process.argv[2] ?? "work/http-crash");
+    const selection = diagnosticArgs(process.argv.slice(2));
+    const { trials: matrix, ...shard } = shardPlan(selection.shard);
+    const output = resolve(selection.directory);
     mkdirSync(output, { recursive: true });
     const controller = new AbortController();
     const abort = () => controller.abort();
     const sha = execFileSync("git", ["rev-parse", "HEAD"], {
         encoding: "utf8",
     }).trim();
+    const origin = JSON.parse(
+        readFileSync(join(output, "provenance.json"), "utf8"),
+    );
+    if (
+        !origin.verified ||
+        origin.checkout.head !== sha ||
+        JSON.stringify(origin.shard) !== JSON.stringify(shard)
+    )
+        throw Error(
+            "Verified matching shard provenance required before compilation",
+        );
     const metadata = {
         sha,
+        tree: origin.checkout.tree,
+        shard,
+        globalPlanned: 57,
+        workflowAttempt: process.env.GITHUB_RUN_ATTEMPT,
         nodeVersion: process.version,
         os: process.platform,
         arch: process.arch,
@@ -468,7 +485,6 @@ async function main() {
         symbols:
             "Matching own-function assembly retained; PE function/source map unavailable. CDB supplies loaded module bases and OS symbols.",
     };
-    const matrix = trialMatrix();
     const results = [];
     save(join(output, "matrix.json"), { metadata, planned: matrix, results });
     const campaignTimer = setTimeout(abort, 20 * 60 * 1000);
@@ -514,6 +530,13 @@ async function main() {
                             `Build failed for ${key}; see retained build logs`,
                         );
                     images.set(key, binary);
+                    save(join(output, key, "build", "image.json"), {
+                        sourceHash: hashFile(sourcePath),
+                        imageHash: hashFile(binary),
+                        sha,
+                        tree: metadata.tree,
+                        gc: spec.gc,
+                    });
                 }
                 command = images.get(key);
                 args = [];
@@ -579,13 +602,14 @@ async function main() {
     } catch {
         provenance = null;
     }
-    const acceptance = diagnosticAcceptance(
+    const acceptance = diagnosticShardAcceptance(
         retainedMatrix,
         acceptanceFiles(output, retainedMatrix),
         provenance,
+        selection.shard,
     );
     save(join(output, "acceptance.json"), acceptance);
-    if (!acceptance.accepted) process.exitCode = 1;
+    if (!acceptance.shardAccepted) process.exitCode = 1;
 }
 
 if (

@@ -4,12 +4,21 @@
 
 ### Development
 
+- Partition the unchanged HTTP diagnostic matrix into ten serial hosted shards (nine of six trials and one of three), with strict raw-proof aggregation for the exact 57-trial union. Keep the original timers, failed 45/57 evidence, retained startup pins and stressed-destroy acceptance hold; this repairs collection budgeting and establishes no original cause or product fix. ([#602](https://github.com/40oleg/nona/issues/602))
+
 - Add bounded hosted Windows HTTP crash diagnostics with Node controls, per-trial state/termination evidence and native dump collection. The original 45/57 campaign failed with stressed startup deadlines and interruption. Prepare optional startup-only dispatch through the registered native-platforms workflow, retained-image verification, bounded external CPU/CDB inspection and distinct, strictly paired intentional-destroy acceptance. Isolate startup child environments and require the canonical 57-trial matrix for aggregate acceptance. Preserve raw verdicts and original bounds; hosted causality remains pending and no crash fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))
+
+### Testing
+
+- **HTTP soak infrastructure review.** Add cheap Node decision regressions and hosted Windows/Linux control/failure fixtures, retain startup/interruption evidence, identify source and image provenance, validate all deterministic JSON values and enforce the p99 20% ratio without additive slack. Short controls remain separate from full native acceptance ([#516](https://github.com/40oleg/nona/issues/516)).
+
+- **HTTP server soak test.** `scripts/http-soak.mjs` runs a compiled Nona HTTP server for hours under steady load and checks it stays healthy: no crash, no failed requests, RSS growth within 10%, handles return to baseline, and latency within 20%. A smoke mode runs for 5 minutes; the full test is 180 minutes (configurable). `npm run soak:http -- --smoke` locally or via the `http-soak` GitHub Actions workflow on demand ([#516](https://github.com/40oleg/nona/issues/516)). On win32-x64 it finds a keep-alive stall after large chunked responses ([#601](https://github.com/40oleg/nona/issues/601)) and a crash under concurrent 1 MiB responses ([#602](https://github.com/40oleg/nona/issues/602)); the compiled server does not pass yet.
 
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
 
+- **The CLI protects every file read while compiling or resolving a package.** Outputs can no longer replace imported or required sources, JSON modules, package metadata or explicit icon, manifest and version information files. Canonical paths and file identity also catch symbolic links, links through parent directories and hard links. Refused builds preserve the input files and previous executable and remove temporary output. The protection is shared by the Node.js and native CLIs. ([#614](https://github.com/40oleg/nona/issues/614))
 - **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
 - **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
 - **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))

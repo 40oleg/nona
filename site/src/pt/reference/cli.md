@@ -43,7 +43,7 @@ Cada opção, exceto `--conditions`, pode aparecer uma única vez. Veja [Execut�
 - A entrada é um único arquivo-fonte em UTF-8. Uma entrada do tipo módulo traz junto os módulos que importa, e uma entrada CommonJS os módulos que carrega com `require`, incluindo pacotes npm de `node_modules` ([pacotes npm](/reference/npm)); os módulos embutidos `nona:*` e `node:*` fazem parte do compilador.
 - A entrada pode ser um diretório de pacote: o Nona compila o arquivo indicado pelo campo `"bin"` do seu `package.json` (o único comando, ou o que tem o nome do pacote); caso contrário, o seu `"main"` ou `index.js`.
 - A saída é gravada em um arquivo temporário ao lado e depois renomeada para o lugar certo, de modo que um build com falha nunca deixa um executável pela metade e preserva o anterior.
-- O compilador se recusa a sobrescrever sua própria entrada, inclusive por meio de um link físico ou simbólico.
+- O compilador se recusa a substituir qualquer arquivo lido com sucesso durante a compilação ou a resolução de pacotes: a entrada, os fontes importados ou carregados por `require`, os módulos JSON, os arquivos `package.json` e os arquivos explícitos de `--icon`, `--manifest` ou `--version-info`. Os metadados lidos durante a resolução ficam protegidos mesmo quando seu conteúdo não afeta a escolha do arquivo. Os caminhos canônicos e a identidade dos arquivos protegem links simbólicos, caminhos alternativos por diretórios superiores e links físicos. Uma compilação recusada preserva os arquivos existentes e remove a saída temporária.
 - As saídas para Linux recebem modo `0755`.
 
 ## Cache do runtime

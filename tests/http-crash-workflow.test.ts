@@ -18,11 +18,15 @@ test("diagnostic launch admits draft PR630 only with same-repository full-ci aut
     );
     assert.match(workflow, /workflow_dispatch:/);
     assert.doesNotMatch(workflow, /pull_request_target/);
-    const condition = workflow.match(
-        /windows:\s*\n\s+if: >-\s*\n([\s\S]*?)\n\s+#/,
-    );
-    assert.ok(condition, "the diagnostic job needs an explicit launch guard");
-    const expression = condition[1]!.replace(/\$\{\{|\}\}/g, "").trim();
+    const expressions = ["windows", "aggregate"].map((job) => {
+        const condition = workflow.match(
+            new RegExp(
+                `    ${job}:\\s*\\n\\s+if: >-\\s*\\n([\\s\\S]*?)\\n        (?:#|needs:)`,
+            ),
+        );
+        assert.ok(condition, `${job} needs an explicit launch guard`);
+        return condition[1]!.replace(/\$\{\{|\}\}/g, "").trim();
+    });
     const event = {
         number: 630,
         pull_request: {
@@ -38,14 +42,26 @@ test("diagnostic launch admits draft PR630 only with same-repository full-ci aut
         eventName = "pull_request",
     ) {
         // GitHub's label projection is the only non-JavaScript syntax here.
-        const source = expression.replace(
-            "labels.*.name",
-            "labels.map(label => label.name)",
+        const results = expressions.map((expression) =>
+            runInNewContext(
+                expression.replace(
+                    "labels.*.name",
+                    "labels.map(label => label.name)",
+                ),
+                {
+                    github: { repository, event_name: eventName, event: value },
+                    contains: (values: string[], item: string) =>
+                        values.includes(item),
+                    always: () => true,
+                },
+            ),
         );
-        return runInNewContext(source, {
-            github: { repository, event_name: eventName, event: value },
-            contains: (values: string[], item: string) => values.includes(item),
-        });
+        assert.equal(
+            results[0],
+            results[1],
+            "aggregate must preserve the same authorization even after failed jobs",
+        );
+        return results[0];
     }
     assert.equal(allowed(), true, "draft630 must launch");
     assert.equal(allowed({ ...event, number: 631 }), false);
@@ -62,27 +78,41 @@ test("diagnostic launch admits draft PR630 only with same-repository full-ci aut
     assert.equal(allowed(unlabeled), false);
 });
 
-test("diagnostic shared concurrency belongs only to the guarded Windows job", () => {
-    // Unrelated PRs must not enter the group and replace an admitted pending run.
-    assert.equal(
-        /^concurrency\s*:/m.test(workflow),
-        false,
-        "workflow-level concurrency would let skipped PRs replace authorized pending campaigns",
-    );
+test("diagnostic serial matrix retains every shard without shared pending-slot cancellation", () => {
+    assert.doesNotMatch(workflow, /^\s*concurrency\s*:/m);
     const windowsJob = workflow.match(
         /^    windows:\r?\n((?: {8}[^\r\n]*(?:\r?\n|$)|\r?\n)*)/m,
     )?.[1];
-    assert.ok(windowsJob, "the Windows job must own campaign serialization");
+    assert.ok(windowsJob);
     assert.match(windowsJob, /^ {8}if: >-\r?\n/m);
     assert.match(
         windowsJob,
-        /^ {8}concurrency:\r?\n {12}group: http-crash-diagnostic\r?\n {12}cancel-in-progress: false(?:\r?\n|$)/m,
+        /strategy:\s+fail-fast: false\s+max-parallel: 1\s+matrix:\s+shard: \[1, 2, 3, 4, 5, 6, 7, 8, 9, 10\]/,
     );
     assert.equal(
-        workflow.match(/^\s*group: http-crash-diagnostic\s*$/gm)?.length,
+        workflow.match(
+            /run: node scripts\/http-crash.mjs work\/http-crash --shard \$\{\{ matrix.shard \}\}/g,
+        )?.length,
         1,
-        "only the admitted Windows job may use the shared campaign group",
+        "only the explicit fixed shard path runs in CI",
     );
+    assert.match(
+        workflow,
+        /HTTP_CRASH_JOB_INDEX: \$\{\{ strategy.job-index \}\}/,
+    );
+    assert.match(workflow, /aggregate:\s+if: >-\s+always\(\) &&/);
+    assert.match(workflow, /needs: windows/);
+    assert.match(
+        workflow,
+        /HTTP_CRASH_MATRIX_RESULT: \$\{\{ needs.windows.result \}\}/,
+    );
+    assert.match(
+        workflow,
+        /http-crash-proof-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}-shard-/,
+    );
+    assert.match(workflow, /if-no-files-found: error/);
+    assert.match(workflow, /merge-multiple: false/);
+    assert.match(workflow, /actions: read/);
 });
 
 test("diagnostic checkout uses exact head and full dependency history without persisted credentials", () => {
@@ -94,11 +124,13 @@ test("diagnostic checkout uses exact head and full dependency history without pe
     assert.match(workflow, /fetch-depth: 0/);
     assert.match(workflow, /persist-credentials: false/);
     assert.match(workflow, /run: node scripts\/http-crash-provenance.mjs/);
-    assert.match(workflow, /group: http-crash-diagnostic\s*\n/);
-    assert.match(workflow, /cancel-in-progress: false/);
+    assert.doesNotMatch(workflow, /concurrency:|continue-on-error/);
     assert.match(workflow, /timeout-minutes: 35/);
     assert.match(workflow, /contents: read/);
-    assert.doesNotMatch(workflow, /\bwrite\b|continue-on-error/);
+    assert.doesNotMatch(
+        workflow,
+        /contents: write|actions: write|continue-on-error/,
+    );
     assert.match(workflow, /RUNNER_ENVIRONMENT -ne 'github-hosted'/);
     assert.match(workflow, /RUNNER_OS -ne 'Windows'/);
     assert.match(workflow, /runs-on: windows-2025/);
@@ -125,6 +157,7 @@ test("diagnostic checkout uses exact head and full dependency history without pe
         /uses: actions\/upload-artifact@v4\s+if: always\(\)/,
     );
     assert.match(workflow, /path: work\/http-crash\//);
+    assert.match(workflow, /http-crash-windows.ps1 collect -Startup602/);
 });
 
 test("provenance retains distinct workflow/event/source identities and rejects missing ancestry or mismatched heads", async () => {

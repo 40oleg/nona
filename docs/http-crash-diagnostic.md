@@ -2,10 +2,76 @@
 
 This is a diagnostic deliverable for [#602](https://github.com/40oleg/nona/issues/602),
 not evidence of a product fix. The historical Windows `0xc0000005` was reported
-at `4d75a9d9`; a timeout/cleanup mechanism remains a hypothesis. Keep the issue
+at `4d75a9d9`; its original cause remains unknown. Keep the issue
 open until a fault has been connected to its owning object/state and a reduced
 regression fails before a demonstrated repair. A clean run after #601 is not
 proof that #602 is fixed.
+
+## Canonical 57-trial collection in ten shards
+
+The reviewed collection budget repair replaces the single default 57-trial
+workflow process with **ten serial hosted Windows jobs**: shards 1–9 contain
+six consecutive trials each, and shard 10 contains trials 55–57. Each of the
+19 unchanged configurations keeps its Node / Nona-off / Nona-stress trio on
+one host. IDs, order, source bytes, readiness-before-clients, c32, GC and compile
+options, payload/oracle, four keepalive rounds and all observation windows stay
+unchanged. The CLI requires an explicit fixed selector, for example
+`node scripts/http-crash.mjs work/http-crash --shard 1`; arbitrary subsets and
+implicit unsharded execution are unavailable. The original full57 evaluator
+still rejects a six-trial matrix.
+
+Each process retains the **20-minute** campaign cap; each literal
+`windows-2025` job retains **35 minutes**, Node **26.9.0** and the eight-minute
+SDK step. Startup / child / compile bounds remain **60 / 90 / 120 seconds**;
+reference observation remains **22 seconds**, controlled observation **8.5–15
+seconds**. Six child caps plus four compile caps give a nominal 17-minute timer
+envelope, not a wall-time guarantee for setup, cleanup or I/O. Ten jobs can take
+more than twenty minutes combined. Matrix `max-parallel: 1` and
+`fail-fast: false` let later shards collect evidence after an earlier failure.
+There is no workflow/job concurrency group: its single pending slot can replace
+sibling jobs. The parent must check actual active campaigns before **one**
+manual exact-head dispatch; this workflow provides no cross-run lease.
+
+The integrated full57 campaign must include accepted main
+`ba94164b6573eef306b87a59d0b174630973e364` and pinned #601 dependency
+`47193961f3bf9b69c0177d5522de3db1069447df` as verified ancestors before install
+or build. It records the exact new source SHA/tree, per-image source/image hashes
+and successful build receipts. **This is a new compiler and new image evidence**,
+not the retained compiler/image at `3f199321d8fd543257d04f7680609ca1b459fa9e`.
+The reference blob remains `51e15fbb68eda99909e4afe2fd3f225d8aeed07e`.
+Retained startup sources, compiler/image pins, old diagnostic proofs and startup
+inspector runs remain independent and unchanged. PR630 remains draft at its old
+head until separately reviewed product and current-head hosted acceptance.
+
+Each job always collects exceptions/PC/modules/stacks/dumps through the existing
+`collect -Startup602` path, which omits environment/command-line expansion, and
+always cleans WER keys and attempts partial uploads. A small proof artifact is
+named by run, attempt and shard, separately from large native images/assembly and
+dumps. It contains matrix/acceptance/provenance/runner receipts, actual fixture
+sources, raw trial/termination/client/stdout/stderr files, all attempted build
+logs/receipts and a byte-length/SHA-256 manifest. Missing or failed uploads fail
+the job. A shard receipt can set only `shardAccepted`; `fullAccepted` stays false.
+
+The authorized aggregate runs after all shards even when jobs fail. It downloads
+only the ten exact current-run/current-attempt proof artifacts into isolated
+directories, checks distinct artifact IDs and manifests, and re-evaluates all
+raw evidence. Cached acceptance flags are not evidence. Exact source/tree,
+workflow/event/run/attempt, Node, reference/dependency/main ancestry and source
+bytes must agree. Every trial appears once in canonical order within its owning
+shard, with same-host matching controls and ten preserved runner records; runner
+names need not be globally unique and the aggregate never invents a common host.
+Missing, duplicate, extra, stale, relabelled, corrupt, mixed, interrupted or failed
+proof cannot pass, nor can failed/skipped/cancelled matrix jobs. The aggregate
+writes and uploads a failing report when evidence is incomplete. Forced whole-run
+cancellation can prevent aggregation and never constitutes acceptance.
+
+Full collection may honestly remain red: the six stressed destroy configurations
+still have **no intended-destroy acceptance extension**. Actual matching stressed
+raw proof and separate review must precede any extension. Raw `client-error`
+remains `client-error`; `productFix` remains false. The actual old **45/57 failed**
+campaign is preserved and supplies no new-head acceptance. This change repairs
+evidence collection budgeting; it establishes neither an original cause nor a
+runtime/compiler/product repair. Full/native validation remains hosted only.
 
 ## Hosted evidence and startup follow-up (2026-11-01)
 
@@ -181,8 +247,9 @@ for manual runs), rather than GitHub's synthetic PR merge checkout. See
 [GitHub's PR event and checkout semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request).
 Full history is fetched, credentials are not persisted, and Git must verify
 `47193961f3bf9b69c0177d5522de3db1069447df` as an ancestor before any build or trial,
-including on manual runs. PR and manual campaigns share one concurrency group;
-each run retains the 35-minute job timeout.
+including on manual runs. The current ten-shard workflow described above replaces
+the original single process and shared concurrency group; each Windows shard
+retains the 35-minute job timeout.
 
 It uses `windows-2025` directly, checks both
 `RUNNER_ENVIRONMENT=github-hosted` and Windows identity, and uses Node 26.9.0.
@@ -229,8 +296,9 @@ The workflow always uploads `work/http-crash/`, including after failures:
   function/source map; this workflow does not invent one or require B13.
 - `dumps/`, `dump-index.json`, `windows-fault-events.json`: per-image WER full
   dumps, dump hashes, CDB raw exception context (`.exr -1`, `.ecxr`, registers
-  including fault PC), actual loaded module bases (`lm`, `!peb`), best available
-  stack (`kv`) and `!analyze -v` with Microsoft symbols. Match dump PID to the
+  including fault PC), actual loaded module bases (`lm`), and best available
+  stack (`kv`). The current shard collector uses its existing no-environment
+  `-Startup602` mode; the general collector remains unchanged. Match dump PID to the
   trial PID, then use that trial's binary hash and assembly. Missing dumps for
   a native fault make collection fail as incomplete evidence.
 

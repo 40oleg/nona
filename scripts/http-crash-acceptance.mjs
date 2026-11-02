@@ -4,8 +4,9 @@ import { isDeepStrictEqual } from "node:util";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { trialMatrix } from "./http-crash-plan.mjs";
-import { referenceBlob } from "./http-crash-fixture.mjs";
+import { trialMatrix, shardPlan } from "./http-crash-plan.mjs";
+import { referenceBlob, serverSource } from "./http-crash-fixture.mjs";
+import { dependencyPin, mainPin } from "./http-crash-provenance.mjs";
 
 const sha = (text) => createHash("sha256").update(text).digest("hex");
 const equal = isDeepStrictEqual;
@@ -36,6 +37,7 @@ const lines = (text) => {
 export function acceptanceFiles(directory, matrix) {
     const files = {};
     const names = [
+        "runner.json",
         "reference.mjs",
         "controlled.mjs",
         "controlled-off/build/termination.json",
@@ -50,6 +52,14 @@ export function acceptanceFiles(directory, matrix) {
             "client.jsonl",
         ])
             names.push(`${row.id}/${name}`);
+        if (row.runtime === "nona")
+            for (const name of [
+                "termination.json",
+                "stdout.log",
+                "stderr.log",
+                "image.json",
+            ])
+                names.push(`${row.fixture}-${row.gc}/build/${name}`);
     }
     for (const name of names) {
         try {
@@ -263,8 +273,7 @@ function destroyEvidence(row, files, provenance) {
     return true;
 }
 
-export function diagnosticAcceptance(matrix, files, provenance) {
-    const canonical = trialMatrix();
+function evaluatePlan(matrix, files, provenance, canonical) {
     const results = Array.isArray(matrix?.results) ? matrix.results : [];
     const matchesPlan = (row, plan) =>
         row &&
@@ -411,6 +420,128 @@ export function diagnosticAcceptance(matrix, files, provenance) {
             ),
         productFix: false,
         rows,
+    };
+}
+
+export function diagnosticAcceptance(matrix, files, provenance) {
+    return evaluatePlan(matrix, files, provenance, trialMatrix());
+}
+
+// Additional integrated-campaign contract. Historical raw evaluation above is
+// retained verbatim; these checks do not relabel old proof as a new campaign.
+export function diagnosticShardAcceptance(matrix, files, provenance, index) {
+    const { trials, ...identity } = shardPlan(index);
+    const result = evaluatePlan(matrix, files, provenance, trials);
+    const errors = [];
+    try {
+        const m = matrix.metadata,
+            p = provenance;
+        if (
+            !equal(p.shard, identity) ||
+            !equal(m.shard, identity) ||
+            m.globalPlanned !== 57 ||
+            m.tree !== p.checkout.tree ||
+            !/^[a-f0-9]{40}$/.test(m.tree) ||
+            m.workflowAttempt !== p.workflow.runAttempt ||
+            !/^[1-9][0-9]*$/.test(m.workflowAttempt) ||
+            m.nodeVersion !== "v26.9.0" ||
+            p.runner.os !== "Windows" ||
+            m.runnerImage !== p.runner.image ||
+            m.runnerImageVersion !== p.runner.imageVersion ||
+            p.dependency.commit !== dependencyPin ||
+            p.dependency.isAncestor !== true ||
+            p.dependency.exitCode !== 0 ||
+            p.dependency.error !== null ||
+            p.main.commit !== mainPin ||
+            p.main.isAncestor !== true ||
+            p.main.exitCode !== 0 ||
+            p.main.error !== null
+        )
+            throw Error("Integrated shard provenance mismatch");
+        const runner = parse(files["runner.json"]);
+        if (
+            runner.name !== m.runnerName ||
+            runner.environment !== m.runnerEnvironment ||
+            runner.image !== m.runnerImage ||
+            runner.imageVersion !== m.runnerImageVersion ||
+            !runner.os
+        )
+            throw Error("Runner receipt mismatch");
+        for (const row of matrix.results) {
+            if (
+                files[`${row.fixture}.mjs`] !==
+                serverSource(row.fixture === "reference")
+            )
+                throw Error("Fixture source differs from exact checkout");
+            if (row.state === "queued-timeout" && row.workload.completed !== 0)
+                throw Error("Paused peers cannot have completed responses");
+            const l = row.limits,
+                t = row.termination;
+            const timeout =
+                Number(row.settings.keepAliveTimeout) +
+                Number(
+                    row.settings.keepAliveTimeoutBuffer === "undefined"
+                        ? 0
+                        : row.settings.keepAliveTimeoutBuffer,
+                ) +
+                1500;
+            const observation =
+                row.fixture === "reference"
+                    ? 22000
+                    : Math.min(15000, Math.max(8500, timeout));
+            if (
+                !Number.isFinite(timeout) ||
+                l.startupMs !== 60000 ||
+                l.hardMs !== 90000 ||
+                l.rounds !== (row.state === "keepalive" ? 4 : 1) ||
+                l.observationMs !== observation ||
+                !Number.isFinite(t.elapsedMs) ||
+                t.elapsedMs < observation ||
+                t.elapsedMs >= 90000
+            )
+                throw Error("Changed or incomplete observation/deadline");
+            if (row.runtime === "nona") {
+                const prefix = `${row.fixture}-${row.gc}/build/`;
+                const build = parse(files[prefix + "termination.json"]);
+                const image = parse(files[prefix + "image.json"]);
+                if (
+                    build.code !== 0 ||
+                    build.signal !== null ||
+                    build.reason !== null ||
+                    build.error !== null ||
+                    build.dropped?.stdout !== 0 ||
+                    build.dropped?.stderr !== 0 ||
+                    !Number.isFinite(build.elapsedMs) ||
+                    build.elapsedMs < 0 ||
+                    build.elapsedMs >= 120000 ||
+                    files[prefix + "stdout.log"] !== "" ||
+                    files[prefix + "stderr.log"] !== "" ||
+                    !equal(image, {
+                        sourceHash: row.sourceHash,
+                        imageHash: row.imageHash,
+                        sha: m.sha,
+                        tree: m.tree,
+                        gc: row.gc,
+                    })
+                )
+                    throw Error("Missing/corrupt compiler/image receipt");
+            }
+        }
+    } catch (error) {
+        errors.push(error.message);
+    }
+    return {
+        scope: "shard",
+        shard: identity,
+        shardAccepted: result.accepted && errors.length === 0,
+        fullAccepted: false,
+        globalPlanned: 57,
+        shardPlanned: trials.length,
+        completed: matrix?.completed ?? 0,
+        interrupted: matrix?.interrupted !== false,
+        productFix: false,
+        rows: result.rows,
+        errors,
     };
 }
 

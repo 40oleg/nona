@@ -3,8 +3,10 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { shardPlan } from "./http-crash-plan.mjs";
 
 export const dependencyPin = "47193961f3bf9b69c0177d5522de3db1069447df";
+export const mainPin = "ba94164b6573eef306b87a59d0b174630973e364";
 const repository = "40oleg/nona";
 const shaPattern = /^[0-9a-f]{40}$/;
 
@@ -42,15 +44,15 @@ function git(env, ...args) {
     return execFileSync("git", args, { encoding: "utf8", env }).trim();
 }
 
-export function dependencyStatus(head, env) {
+export function dependencyStatus(head, env, pin = dependencyPin) {
     if (!shaPattern.test(head)) throw new Error("Expected exact head SHA");
     const result = spawnSync(
         "git",
-        ["merge-base", "--is-ancestor", dependencyPin, head],
+        ["merge-base", "--is-ancestor", pin, head],
         { encoding: "utf8", env },
     );
     return {
-        commit: dependencyPin,
+        commit: pin,
         isAncestor: result.status === 0,
         exitCode: result.status,
         error: result.error?.message ?? (result.stderr.trim() || null),
@@ -64,10 +66,13 @@ export function collectProvenance(env, event, childEnv) {
         event,
         { head, tree: git(childEnv, "rev-parse", "HEAD^{tree}") },
         dependencyStatus(head, childEnv),
+        env.HTTP_CRASH_SHARD
+            ? dependencyStatus(head, childEnv, mainPin)
+            : undefined,
     );
 }
 
-export function provenanceRecord(env, event, checkout, dependency) {
+export function provenanceRecord(env, event, checkout, dependency, main) {
     const { head, tree } = checkout;
     const expectedHead =
         env.GITHUB_EVENT_NAME === "pull_request"
@@ -89,6 +94,37 @@ export function provenanceRecord(env, event, checkout, dependency) {
         errors.push("Missing exact workflow SHA");
     if (!dependency.isAncestor)
         errors.push("Pinned #601 dependency is not a verified ancestor");
+    let shard;
+    if (env.HTTP_CRASH_SHARD !== undefined) {
+        try {
+            const { trials, ...identity } = shardPlan(env.HTTP_CRASH_SHARD);
+            shard = identity;
+            if (String(shard.jobIndex) !== env.HTTP_CRASH_JOB_INDEX)
+                errors.push("Shard strategy job-index mismatch");
+        } catch {
+            errors.push("Invalid fixed shard selector");
+        }
+        if (
+            main?.commit !== mainPin ||
+            main?.isAncestor !== true ||
+            main?.exitCode !== 0 ||
+            main?.error !== null
+        )
+            errors.push("Integrated current main ancestry required");
+        if (!shaPattern.test(tree ?? "")) errors.push("Missing checkout tree");
+        if (
+            dependency.commit !== dependencyPin ||
+            dependency.exitCode !== 0 ||
+            dependency.error !== null
+        )
+            errors.push("Invalid pinned dependency receipt");
+        for (const key of ["RUNNER_NAME", "ImageOS", "ImageVersion"])
+            if (typeof env[key] !== "string" || env[key].length === 0)
+                errors.push(`Missing hosted identity: ${key}`);
+        for (const key of ["GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"])
+            if (!/^[1-9][0-9]*$/.test(env[key] ?? ""))
+                errors.push(`Missing workflow identity: ${key}`);
+    }
     return {
         repository: env.GITHUB_REPOSITORY,
         event: {
@@ -109,9 +145,13 @@ export function provenanceRecord(env, event, checkout, dependency) {
             name: env.RUNNER_NAME,
             environment: env.RUNNER_ENVIRONMENT,
             os: env.RUNNER_OS,
+            ...(shard
+                ? { image: env.ImageOS, imageVersion: env.ImageVersion }
+                : {}),
         },
         checkout: { expectedHead, head, tree },
         dependency,
+        ...(env.HTTP_CRASH_SHARD !== undefined ? { shard, main } : {}),
         accepted601Controls,
         errors,
         verified: errors.length === 0,

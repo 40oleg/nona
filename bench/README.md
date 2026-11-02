@@ -76,6 +76,31 @@ native PE server can be driven by `http/client.mjs` (Node.js), which is slower
 than the servers, so it is a correctness check, not a throughput
 measurement; no Windows load generator is part of the repository.
 
+## HTTP soak test (`scripts/http-soak.mjs`)
+
+Load commands below belong on GitHub-hosted runners under the current owner
+constraints. On the owner's PC use only
+`node --test --test-concurrency=1 scripts/http-soak.test.mjs` at inherited
+below-normal priority. The separate `http-soak-control.yml` workflow runs short
+Node integration/failure fixtures on hosted Windows/Linux, with no native build.
+Those fixtures skip on local/self-hosted machines and retain failure evidence.
+A Node control or short smoke cannot establish native three-hour acceptance;
+the full native baseline still waits for #601, #602 and #615.
+
+```
+npm run build
+npm run soak:http -- --smoke              # 5 minutes
+npm run soak:http                          # 3 hours (180 minutes)
+NONA_SOAK_MINUTES=60 npm run soak:http    # custom duration
+```
+
+Long-duration health test: runs for 3 hours (or less with `NONA_SOAK_MINUTES`)
+under steady load with 32 concurrent connections (customizable with
+`NONA_SOAK_CONNECTIONS`), sampling memory, handles and latency every minute.
+Checks that RSS growth is within 10%, p99 latency is stable, handles return to
+baseline, and no crashes or failed requests occur. See `docs/network.md` for
+details and the GitHub Actions workflow in `.github/workflows/http-soak.yml`.
+
 ## Profiling
 
 `node scripts/profile-runtime.mjs <script> [--scale s] [--group]` runs a script compiled for Linux x64 under QEMU's execution trace and prints how many instructions each runtime routine and compiled function executed (Linux x64 host; needs `qemu-user` and `binutils`). The trace takes about 20 bytes per instruction, so keep profiled runs to a few hundred million instructions. [docs/simd.md](../docs/simd.md) describes the method and shows results.

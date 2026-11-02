@@ -1047,6 +1047,196 @@ function retainedInspection() {
     return fixture;
 }
 
+const f407Inspector = JSON.parse(
+    readFileSync("tests/fixtures/http-startup/f407-inspection.json", "utf8"),
+);
+const f407Cdb = readFileSync(
+    "tests/fixtures/http-startup/f407-cdb20.stdout.txt",
+    "utf8",
+);
+function f407Inspection(raw = f407Cdb) {
+    const fixture = structuredClone(f407Inspector);
+    Object.assign(
+        fixture.inspection.snapshots[0],
+        api.snapshotEvidence(
+            raw,
+            fixture.inspection.snapshots[0].termination,
+            fixture.snapshotStderr,
+        ),
+    );
+    return fixture;
+}
+
+test("f407 CDB20 accepts the verbatim export-symbols image-path row and maps all four PCs", () => {
+    assert.equal(
+        createHash("sha256").update(f407Cdb).digest("hex"),
+        "928f23e67c6b122467fd21551531ceb30ec8af2116aca065d410373ae2e7c9d8",
+    );
+    assert.equal(f407Inspector.provenance.originalJobConclusion, "failure");
+    const parsed = f407Inspection().inspection.snapshots[0];
+    assert.equal(parsed.status, "raw-context-and-stack-present-unvalidated");
+    assert.equal(parsed.moduleBases.length, 9);
+    assert.equal(parsed.rawThreads.length, 4);
+    assert.equal(parsed.rawStackFrames.length, 46);
+    assert.deepEqual(parsed.relativePCs, [
+        { pc: "00007ff6a1a21762", module: "nona_http", offset: "0x1762" },
+        ...Array.from({ length: 3 }, () => ({
+            pc: "00007ffbf5e05f74",
+            module: "ntdll",
+            offset: "0x165f74",
+        })),
+    ]);
+});
+
+test("f407 lm suffix variants stay bounded to image paths and genuine table context", () => {
+    const row = f407Cdb
+        .split(/\r?\n/)
+        .find((line) => line.includes("ntdll      (export symbols)"))!;
+    const path = String.raw`C:\Windows\SYSTEM32\ntdll.dll`;
+    assert.ok(row.endsWith(path));
+    // Synthetic format controls; only the original row above is hosted evidence.
+    for (const replacement of [
+        row.replace("(export symbols)", "(deferred)"),
+        row.replace(
+            path,
+            String.raw`C:\Program Files (x86)\Windows Kits\ntdll.dll`,
+        ),
+        row.replace(/\s+C:\\.*$/, ""),
+    ]) {
+        const parsed = f407Inspection(f407Cdb.replace(row, replacement))
+            .inspection.snapshots[0];
+        assert.equal(
+            parsed.status,
+            "raw-context-and-stack-present-unvalidated",
+        );
+        assert.equal(parsed.moduleBases.length, 9);
+        assert.ok(parsed.relativePCs.every((p: any) => p.module !== null));
+    }
+    for (const badPath of [
+        "ntdll.dll",
+        String.raw`C:ntdll.dll`,
+        String.raw`C:\Windows\..\ntdll.dll`,
+        String.raw`C:\Windows\.\ntdll.dll`,
+        String.raw`C:\Windows\\ntdll.dll`,
+        String.raw`C:\Windows \ntdll.dll`,
+        String.raw`C:\Windows.\ntdll.dll`,
+        String.raw`C:\Windows\ntdll.dll:stream`,
+        String.raw`C:\Windows\*.dll`,
+        String.raw`C:\Windows\ntdll.txt`,
+        String.raw`C:\Windows\ntdll.dll extra`,
+        String.raw`C:\Windows\ntdll.dll (deferred)`,
+        '"' + path + '"',
+        path.replace("SYSTEM32", "SYS\u0000TEM32"),
+    ]) {
+        const parsed = f407Inspection(
+            f407Cdb.replace(row, row.replace(path, badPath)),
+        ).inspection.snapshots[0];
+        assert.equal(parsed.status, "incomplete", badPath);
+    }
+    const withoutRow = f407Cdb.replace(row, "");
+    for (const raw of [
+        withoutRow.replace(
+            "STARTUP_SNAPSHOT_END",
+            row + "\nSTARTUP_SNAPSHOT_END",
+        ),
+        f407Cdb.replace(
+            "start             end                 module name",
+            "not an lm table",
+        ),
+        f407Cdb.replace(
+            row,
+            row.replace("00007ffb`f5ca0000", "00000000`00000000"),
+        ),
+        f407Cdb.replace(
+            row,
+            row.replace("00007ffb`f5f04000", "00007ffb`f5ca0000"),
+        ),
+        f407Cdb.replace(
+            row,
+            row.replace("00007ffb`f5ca0000", "00007ffb`f5950000"),
+        ),
+        f407Cdb.replace(
+            row,
+            row.replace("00007ffb`f5ca0000", "07ffb`f5ca0000"),
+        ),
+        f407Cdb.replace(
+            row,
+            row + "\n00007ffc`00000000 00007ffc`00001000 mov rcx,r10",
+        ),
+        f407Cdb.replace(
+            row,
+            row + "\n00000014`5dbfd440 00007ffb`f5e05f74 ntdll!ret",
+        ),
+        f407Cdb.replace("rip=00007ffbf5e05f74", "rip=0000000112345678"),
+        f407Cdb.replace(/^00000014`5ebf[^\n]+$/gm, ""),
+    ]) {
+        assert.notEqual(raw, f407Cdb, "control must alter the capture");
+        assert.equal(
+            f407Inspection(raw).inspection.snapshots[0].status,
+            "incomplete",
+        );
+    }
+});
+
+test("f407 post-hoc coverage keeps original failure and strict actual clock, due, drop and corruption controls", () => {
+    assert.equal(api.inspectionCoverage(f407Inspector).complete, false);
+    const f = f407Inspection();
+    const coverage = api.inspectionCoverage(f);
+    assert.equal(coverage.complete, true);
+    assert.equal(coverage.boundary.elapsedMs, 36288);
+    assert.deepEqual(
+        coverage.samples.map((s: any) => [s.targetMs, s.status]),
+        [
+            [5000, "captured"],
+            [15000, "captured"],
+            [20000, "captured"],
+            [30000, "captured"],
+            [40000, "not-due"],
+            [50000, "not-due"],
+        ],
+    );
+    assert.deepEqual(
+        coverage.snapshots.map((s: any) => [s.targetMs, s.status]),
+        [
+            [20000, "captured"],
+            [40000, "not-due"],
+        ],
+    );
+    for (const mutate of [
+        (f: any) => f.inspection.snapshots.pop(),
+        (f: any) => f.inspection.samples.pop(),
+        (f: any) => f.inspection.snapshots[0].startElapsedMs++,
+        (f: any) => f.inspection.snapshots[0].endElapsedMs++,
+        (f: any) => f.inspection.snapshots[0].termination.dropped.stdout++,
+        (f: any) => f.inspection.samples[0].termination.dropped.stderr++,
+    ]) {
+        const corrupted = structuredClone(f);
+        mutate(corrupted);
+        assert.equal(api.inspectionCoverage(corrupted).complete, false);
+    }
+    const term = f.inspection.snapshots[0].termination;
+    for (const [raw, termination, stderr] of [
+        [f407Cdb, { ...term, code: 1 }, ""],
+        [f407Cdb, { ...term, reason: "deadline" }, ""],
+        [f407Cdb, { ...term, dropped: { stdout: 0, stderr: 1 } }, ""],
+        [f407Cdb, term, "Unable to read memory"],
+        [
+            f407Cdb.replace(
+                "STARTUP_SNAPSHOT_END",
+                "Unable to get context\nSTARTUP_SNAPSHOT_END",
+            ),
+            term,
+            "",
+        ],
+        [f407Cdb.replace(/^STARTUP_SNAPSHOT_END$/m, ""), term, ""],
+    ] as const) {
+        assert.equal(
+            api.snapshotEvidence(raw, termination, stderr).status,
+            "incomplete",
+        );
+    }
+});
+
 test("retained CDB20 accepts real unnumbered per-thread kv frames and only genuine lm modules", () => {
     const parsed = api.snapshotEvidence(
         retainedCdb,
@@ -1551,8 +1741,23 @@ test("retained CDB fixture keeps the hash-verified stdout bytes", () => {
 });
 
 test("hosted report uses due coverage instead of unconditional two snapshots with only in-memory IO", async () => {
-    for (const missingDue of [false, true]) {
-        const f = missingDue ? scheduledInspector(45000) : retainedInspection();
+    for (const [f, missingDue, complete] of [
+        [retainedInspection(), false, true],
+        [scheduledInspector(45000), true, false],
+        [f407Inspection(), false, true],
+        [structuredClone(f407Inspector), false, false],
+        [f407Inspection(), true, false],
+        [
+            f407Inspection(
+                f407Cdb.replace(
+                    String.raw`C:\Windows\SYSTEM32\ntdll.dll`,
+                    "relative.dll",
+                ),
+            ),
+            false,
+            false,
+        ],
+    ] as const) {
         if (missingDue) f.inspection.snapshots.pop();
         let saved: any;
         const fakeProcess: any = {
@@ -1612,11 +1817,20 @@ test("hosted report uses due coverage instead of unconditional two snapshots wit
             },
         );
         await driver();
-        assert.equal(saved.inspectionComplete, !missingDue);
-        assert.equal(fakeProcess.exitCode, missingDue ? 1 : undefined);
+        assert.equal(saved.inspectionComplete, complete);
+        assert.equal(fakeProcess.exitCode, complete ? undefined : 1);
+        assert.equal(saved.results[0].rawVerdict, f.trial.verdict);
+        assert.equal(saved.results[0].imageHash, api.retained.imageHash);
+        if (missingDue && f.expectedSha === f407Inspector.expectedSha)
+            assert.equal(
+                saved.inspectionCoverage.snapshots[0].status,
+                "missing-due",
+            );
         assert.equal(
             saved.inspectionCoverage.snapshots[1].status,
-            missingDue ? "missing-due" : "not-due",
+            missingDue && f.expectedSha !== f407Inspector.expectedSha
+                ? "missing-due"
+                : "not-due",
         );
     }
 });
