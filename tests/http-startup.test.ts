@@ -6,6 +6,7 @@ import {
     mkdirSync,
     writeFileSync,
     copyFileSync,
+    realpathSync,
     rmSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -443,7 +444,49 @@ test("capture helper excludes credential and arbitrary env at the real tiny-chil
     }
 });
 
-test("installer workflow reaches the checked-in ps1 through the allowlist with an extensionless Actions runscript", () => {
+function assertHelperFile(actual: string, expected: string) {
+    // PowerShell expands 8.3 aliases that Node's tmpdir() can retain.
+    // Resolve both existing files; keep raw paths in assertion diagnostics.
+    assert.equal(
+        realpathSync.native(actual),
+        realpathSync.native(expected),
+        JSON.stringify({ actual, expected }),
+    );
+}
+
+test("helper file identity accepts host aliases and rejects a different file with identical basename and body", (t) => {
+    const directory = mkdtempSync(join(tmpdir(), "nona-helper-identity-"));
+    try {
+        mkdirSync(join(directory, "scripts"));
+        mkdirSync(join(directory, "other"));
+        const expected = join(directory, "scripts/http-startup-install.ps1");
+        const other = join(directory, "other/http-startup-install.ps1");
+        writeFileSync(expected, "# harmless identical helper fixture\n");
+        copyFileSync(expected, other);
+        const canonical = realpathSync.native(expected);
+        assertHelperFile(canonical, expected);
+        assertHelperFile(expected, canonical);
+        assert.throws(() => assertHelperFile(other, expected), {
+            code: "ERR_ASSERTION",
+        });
+        t.diagnostic(
+            JSON.stringify({
+                expected,
+                canonical,
+                other,
+                shortAliasExercised:
+                    /~\d+[\\/]/.test(expected) && expected !== canonical,
+            }),
+        );
+    } finally {
+        assert.ok(
+            directory.startsWith(join(tmpdir(), "nona-helper-identity-")),
+        );
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test("installer workflow reaches the checked-in ps1 through the allowlist with an extensionless Actions runscript", (t) => {
     const step = readFileSync(".github/workflows/native-platforms.yml", "utf8")
         .split(
             "            - name: Install Windows debugging tools if absent (same SDK as original collector)",
@@ -543,10 +586,14 @@ writeFileSync('child.json', JSON.stringify({ args: process.argv.slice(2), env: p
         const installer = JSON.parse(
             readFileSync(join(directory, "child.json"), "utf8"),
         );
-        assert.equal(
-            helper.helper,
-            join(directory, "scripts/http-startup-install.ps1"),
+        const expectedHelper = join(
+            directory,
+            "scripts/http-startup-install.ps1",
         );
+        t.diagnostic(
+            JSON.stringify({ actual: helper.helper, expected: expectedHelper }),
+        );
+        assertHelperFile(helper.helper, expectedHelper);
         assert.deepEqual(helper.args, []);
         assert.deepEqual(installer.args, [
             "installer-fixture",
