@@ -347,6 +347,14 @@ build and catchable interruption failures also write failure receipts with the
 original error/code, child logs and any partial samples. In-progress reports are
 explicitly incomplete until final criteria have been evaluated.
 
+Premature response aborts, errors and closes settle each request once as a
+failure; `/slow` counts as a deliberate successful abort only after the client
+has received its configured byte threshold. An interrupted statistics response
+returns no statistics. This lets workers drain and child cleanup finish before
+the final JSON/Markdown criteria are written, retaining the server's original
+exit code (including an unexpected zero) and stderr. A failed configured run
+returns a nonzero driver status ([#636](https://github.com/40oleg/nona/issues/636)).
+
 `summary.pass` describes only the configured run. `summary.acceptancePass` also
 requires a native server with a known measured source commit and image hash,
 at least 180 minutes, the 10-minute warm-up, 30-minute comparison windows,
@@ -394,7 +402,7 @@ and compiler entry-point hash. A custom duration must exceed its warm-up: settin
 Cheap checks (no server, native compiler or load):
 
 ```sh
-node --test --test-concurrency=1 scripts/http-soak.test.mjs
+node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs
 ```
 
 The separate `http-soak-control.yml` workflow runs these checks and short real
