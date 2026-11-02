@@ -248,3 +248,68 @@ missing staging/root/pause contracts; it is not a native regression receipt.
 serial BelowNormal checks, exact commands/source diff and remaining hosted gates.
 No local native build, emission, execution, GC/load campaign or full suite is
 used. No production runtime/compiler file changes or GitHub mutations are made.
+
+## Platform probe phase-copy correction
+
+The next actual [Darwin x64 full-CI failure](https://github.com/40oleg/nona/actions/runs/41412837359/job/125169585857)
+checked out merge `13370f93a902e1a80aed824b36f48937440eba09`, combining PR head
+`33ccdbf8bbc477bed83e50b1b8e126bfc49407c3` with main
+`ba94164b6573eef306b87a59d0b174630973e364`. On Node 26.9.0, all twelve explicit
+phase tests passed. The separate `event-probes.test` failed its exact stdout
+assertion for `event-timeout-liveness`: it printed `timeout TimeoutError`,
+`live true false`, then `unexpected`. Earlier in the same job, the manifest's
+execution of that stale probe passed. The parent's original raw log remains at
+`research/release035/632-darwin-x64-fullci-failure.log`, SHA256
+`ff2409ac3bfbb53deeb203ffa65e27734d7582f9678a5533be9631df5a55cc0a`.
+This exposes a missed independent fixture copy; it does not prove the failed
+native process's timer phase or a production cause.
+
+The active [pure probe definitions](../tests/probes/event-probe-sources.ts) now
+map **both** reviewed `timeoutContracts` bodies and exact expectations into
+`event-timeout-future-unref` and `event-timeout-all-due`. Strong retention, the
+guarded 1100 ms setup pause, original timer delays and exact two/three-line
+contracts come directly from the unchanged helper. The four other event probe
+definitions are unchanged. The compiler-facing wrapper re-exports the existing
+source API; compiler, native linking, GC stress and execution bounds are unchanged.
+
+The stale platform source was distinct: it registered the 1000 ms signal before
+the 1 ms signal and used `earlier` rather than `early`. Its complete template
+value, including leading/trailing LF, is preserved verbatim in
+[platform-original.mjs](../tests/fixtures/abort-timeout/platform-original.mjs),
+SHA256 `1a8060f020b54cff97c0c8a62c1f3e733ae563c24cd0653e56a2060838c0bc75`.
+It was extracted from `tests/probes/event-probes.ts` at the PR head above;
+that original TS file's raw-byte SHA256 is
+`e3d054cf04143c196b14f617121e2945660b045df147c3c92ba553b610417d75`.
+Prettier excludes both historical inputs. The original `912309...` fixture,
+historical diagnostics, raw results and historical v0.34 changelog stay intact.
+No additional published diagnostic workflow is introduced.
+
+Source inspection accounts for the timeout coverage separately:
+
+| Consumer                                  | Actual coverage after this correction                                                                                                                                                                                                                                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `events.test.ts`                          | Unchanged twelve future/all-due × IR/default/full × GC off/on hosted cases; its independent immediate-exit case has no referenced timer.                                                                                                                                                                             |
+| `event-probes.test.ts`                    | Both phase probes plus four other event probes, native host, GC stress, exact stdout.                                                                                                                                                                                                                                |
+| `event-probes-source.test.ts`             | Node oracles for all six definitions, plus all six compiled for each of eight targets under GC stress; hosted only for compilation.                                                                                                                                                                                  |
+| Platform manifest builder/runner          | Dynamic map over every event probe for seven build targets; six event entries per selected target, replacing five. No fixed count/name filter; each expected file and manifest row retains its exact expectation. The native platform workflow runs these and the Events suite separately.                           |
+| `events-timeout-source.test.ts`           | Six existing source-clock controls: immediate exit, timeout while referenced, last-reference exit, clearing the reference, same-phase already-due dispatch and validation. These use the real source with a fake clock and small Node oracles; they are not a third native copy of the original 1/1000/20 assertion. |
+| `events-timeout-phase-source.test.mjs`    | Existing helper/root/pause/negative controls plus the actual six-entry probe list, delayed-entry behavior for both platform phases, strong-root and pause checks, early-break rejection, exact real Node phase oracles and both historical byte hashes.                                                              |
+| Scalar source tests and diagnostic script | Original fixture remains independent; original/plain/scalar/trace, explicit future/all-due and referenced negative diagnostic coverage remain unchanged.                                                                                                                                                             |
+
+The bounded local red at `work/review/platform-probe632-red.txt` imports the
+extracted, unchanged stale definitions and fails three checks: both phase
+registrations are missing and the six-entry list is incomplete. Its historical
+phase control passes. Green/review receipts use the corresponding
+`platform-probe632-green.txt` and `platform-probe632-review.txt` paths. Local
+checks remain serial and BelowNormal, using pure modules/source/mocks and tiny
+Node processes. The pure module's one emitted-JS helper import is resolved to
+its TS source only during the no-build source test import; the compiler-facing
+module is never imported locally.
+
+This continuation uses own claim `6574225830`, marker
+`nona-review632-01a1918d-20261102-platform-probe-contract`. Parent independent
+review, normal publication on the same PR #633 with required labels/milestone
+verified before push, all twelve hosted contracts and actual native platform
+full CI on the new head remain mandatory. Existing accepted main work is
+preserved. Issue #632 remains unresolved, and #612 stays held out of the queue
+until #632 is fully accepted.

@@ -4,6 +4,7 @@ build/
 work/
 # Historical #632 input: exact bytes are evidence, SHA-pinned by the probe/tests.
 tests/fixtures/abort-timeout/original.mjs
+tests/fixtures/abort-timeout/platform-original.mjs
 node_modules/
 package-lock.json
 site/package-lock.json

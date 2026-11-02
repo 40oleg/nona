@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Split timeout liveness coverage into explicit future-unref and all-due phase contracts, with hosted public default/full and IR checks under GC off/on and a referenced negative control. Retain the original fixture and strict four-revision experiment as manual diagnostics. The Darwin ARM64 cause and native acceptance remain unresolved; PR #624 stays held ([#632](https://github.com/40oleg/nona/issues/632)).
+- Split timeout liveness coverage into explicit future-unref and all-due phase contracts, with hosted public default/full and IR checks under GC off/on and a referenced negative control. Native platform event probes share both contracts. Retain the original fixture and strict four-revision experiment as manual diagnostics. The Darwin ARM64 cause and native acceptance remain unresolved; PR #624 stays held ([#632](https://github.com/40oleg/nona/issues/632)).
 
 ### Testing
 

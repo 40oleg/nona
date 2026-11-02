@@ -17,6 +17,7 @@ on:
             - tests/events-timeout-scalar-source.test.mjs
             - tests/events-timeout-phase-source.test.mjs
             - tests/helpers/abort-timeout-fixture.ts
+            - tests/probes/event-probe-sources.ts
             - tests/fixtures/abort-timeout/**
             - src/**
             - tests/events.test.ts

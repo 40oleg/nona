@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { constants, setPriority } from "node:os";
+import { registerHooks } from "node:module";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
 import {
@@ -13,6 +14,28 @@ import {
     timeoutExpected,
     timeoutAllDueExpected,
 } from "./helpers/abort-timeout-fixture.ts";
+
+// Resolve the pure module's emitted-JS import to its TS source for this no-build
+// control only. The compiler/native probe module is never imported here.
+const sourcesUrl = new URL("./probes/event-probe-sources.ts", import.meta.url);
+const hooks = registerHooks({
+    resolve(specifier, context, nextResolve) {
+        return nextResolve(
+            context.parentURL === sourcesUrl.href &&
+                specifier === "../helpers/abort-timeout-fixture.js"
+                ? new URL("./helpers/abort-timeout-fixture.ts", import.meta.url)
+                      .href
+                : specifier,
+            context,
+        );
+    },
+});
+let eventProbeSources;
+try {
+    ({ eventProbeSources } = await import(sourcesUrl.href));
+} finally {
+    hooks.deregister();
+}
 
 setPriority(0, constants.priority.PRIORITY_BELOW_NORMAL);
 const read = (path) =>
@@ -271,4 +294,89 @@ test("native diagnostic refuses a non-hosted process before any compilation", ()
     assert.equal(child.status, 1);
     assert.equal(child.stdout, "");
     assert.match(child.stderr, /AssertionError/);
+});
+
+test("platform probe list contains both timeout phases and preserves the other event probes", () => {
+    assert.deepEqual(
+        eventProbeSources.map((probe) => probe.name),
+        [
+            "event-timeout-future-unref",
+            "event-timeout-all-due",
+            "event-buffer-cancellation",
+            "event-abort-disposal",
+            "event-cancellation",
+            "event-async-context",
+        ],
+    );
+    assert.equal(new Set(eventProbeSources.map((probe) => probe.name)).size, 6);
+});
+
+for (const [name, expected] of [
+    ["future-unref", "timeout TimeoutError\nlive true false\n"],
+    ["all-due", "timeout TimeoutError\nlive true false\nunexpected\n"],
+])
+    test(
+        "actual platform timeout phase survives delayed entry and matches Node: " +
+            name,
+        () => {
+            const probe = eventProbeSources.find(
+                (probe) => probe.name === "event-timeout-" + name,
+            );
+            assert.ok(probe, "missing platform phase: " + name);
+            assert.equal(probe.expected, expected);
+            for (const entry of [0, 1100]) {
+                const result = run(probe.source, { entry });
+                assert.equal(result.stdout, expected);
+                if (name === "future-unref") {
+                    assert.equal(result.exits.length, 1);
+                    runInNewContext("later = undefined", result.context);
+                    assert.throws(
+                        () => result.exits[0](),
+                        /retained timeout signal/,
+                    );
+                } else {
+                    assert.throws(
+                        () => run(probe.source, { pause: 0 }),
+                        /all-due setup pause/,
+                    );
+                    const broken = timers.replace(
+                        "                drain();\n            }\n            if (immediateHead",
+                        "                drain();\n                if (referenced === 0) break;\n            }\n            if (immediateHead",
+                    );
+                    assert.notEqual(broken, timers);
+                    assert.notEqual(
+                        run(probe.source, { source: broken }).stdout,
+                        expected,
+                    );
+                }
+            }
+            const child = spawnSync(
+                process.execPath,
+                ["--input-type=module", "-e", probe.source],
+                { encoding: "utf8", timeout: 10000, windowsHide: true },
+            );
+            assert.equal(child.error, undefined);
+            assert.equal(child.status, 0, child.stderr);
+            assert.equal(child.signal, null);
+            assert.equal(child.stderr, "");
+            assert.equal(child.stdout, expected);
+        },
+    );
+
+test("distinct historical platform input stays byte-pinned and exposes its phase-dependent output", () => {
+    const bytes = readFileSync(
+        new URL(
+            "./fixtures/abort-timeout/platform-original.mjs",
+            import.meta.url,
+        ),
+    );
+    assert.equal(
+        createHash("sha256").update(bytes).digest("hex"),
+        "1a8060f020b54cff97c0c8a62c1f3e733ae563c24cd0653e56a2060838c0bc75",
+    );
+    assert.equal(run(bytes.toString()).stdout, timeoutExpected);
+    assert.equal(
+        run(bytes.toString(), { entry: 1100 }).stdout,
+        timeoutAllDueExpected,
+    );
 });
