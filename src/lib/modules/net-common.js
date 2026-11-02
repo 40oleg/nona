@@ -1030,7 +1030,12 @@ export class Socket extends Readable {
             this._fd < 0 ||
             this._destroyed
         ) {
-            return this.write(sliceBytes(bytes, 0, length), callback);
+            const pending = sliceBytes(bytes, 0, length);
+            // Terminal public-write paths only accept function callbacks.
+            // Keep their existing behavior; live writes retain the HTTP owner.
+            if (this._writeEnded || this._destroyed)
+                return this.write(pending, callback);
+            return this.write(pending, undefined, callback);
         }
         let n = sys.send(this._fd, bytes, length);
         if (n === EINTR) n = EAGAIN;

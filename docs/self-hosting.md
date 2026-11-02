@@ -32,11 +32,16 @@ The initial driver accepts `<input> <output> <target>`. It is a bootstrap probe.
 Passing `--cli` to the bootstrap and verifier instead builds the original CLI,
 with private original SHA-256/UUID/file-URL adapters and an embedded fingerprint
 of the prepared compiler sources. This builds the standalone distribution CLI.
-The verifier checks help, version,
-warm cache, executable permissions and source overwrite refusal as well as
-stage 2. Additional jobs execute the complete native CLI on Windows/Linux ARM64,
+The verifier checks help, version, warm cache, executable permissions and
+overwrite refusal for every consumed source, JSON module, package metadata
+and explicit resource file, including hard-link and symbolic-link aliases.
+Refusal checks compare SHA-256 hashes of the original files and previous
+executable and check that no temporary output remains. Resources are compiled
+with an explicit Windows target on every host without running the PE output.
+These checks accompany stage 2. Additional jobs execute the complete native CLI on Windows/Linux ARM64,
 both macOS CPUs and both BSD guests. BSD smoke checks run without Node installed,
-including module/RegExp output, hard-link/symlink overwrite refusal and warm
+including module/RegExp output, transitive dependency overwrite refusal through
+direct paths, hard links and symbolic links, temporary output cleanup and warm
 cache image identity. Distribution artifacts are published only after the
 corresponding host validation succeeds.
 
