@@ -37,6 +37,7 @@ import {
     NodeModuleHost,
     hostFileSystem,
     hasModuleSyntax,
+    type FileReadObserver,
 } from "./frontend/commonjs.js";
 import {
     withBuiltinModules,
@@ -86,6 +87,8 @@ export interface CompileOptions {
     unhandledRejections?: "throw" | "ignore";
     module?: boolean;
     moduleHost?: ModuleHost;
+    /** Observe successful disk reads by the default Node host (native paths, excluding virtual modules and entry overrides). */
+    onReadFile?: FileReadObserver;
     scriptPrelude?: string;
     realms?: number;
     agents?: string[];
@@ -146,10 +149,11 @@ export function nodeModuleHost(
     target: Target,
     entry?: { fileName: string; source: string },
     conditions?: readonly string[],
+    onReadFile?: FileReadObserver,
 ): NodeModuleHost {
     const builtins = builtinSpecifiers(target);
     return new NodeModuleHost(
-        hostFileSystem({ readFileSync, statSync, realpathSync }),
+        hostFileSystem({ readFileSync, statSync, realpathSync }, onReadFile),
         {
             isBuiltin: (specifier) => builtins.has(specifier),
             ...(entry
@@ -478,13 +482,12 @@ function compileOnTarget(
         // parts are linked; agents share one runtime with the main program.
         const moduleHost =
             options.moduleHost ??
-            (options.conditions?.length
-                ? nodeModuleHost(
-                      options.target,
-                      { fileName: options.fileName, source },
-                      options.conditions,
-                  )
-                : undefined);
+            nodeModuleHost(
+                options.target,
+                { fileName: options.fileName, source },
+                options.conditions,
+                options.onReadFile,
+            );
         // Coverage and call statistics count every call: no call is inlined.
         // NONA_NO_INLINE=1 disables the inliner (#235) to measure its effect.
         const lowering: LowerOptions = {
