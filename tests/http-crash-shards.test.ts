@@ -254,6 +254,103 @@ const expected = {
 const run = (packages: any[], jobResult = "success") =>
     aggregate.aggregateAcceptance(packages, expected, jobResult);
 
+test("failed-startup null settings report each trial and do not hide later source/build corruption", () => {
+    const p = proof();
+    // Actual shard01 shape: no output/settings/requests, SIGKILL deadline at 60s.
+    for (const index of [2, 5]) {
+        const row = p.matrix.results[index]!;
+        const pid = index === 2 ? 6196 : 7412;
+        Object.assign(row, {
+            pid,
+            settings: null,
+            verdict: "startup-timeout",
+            elapsedMs: 60016,
+            workload: {
+                requests: 0,
+                completed: 0,
+                wrongOutput: 0,
+                errors: 0,
+                hangs: 0,
+            },
+            termination: {
+                pid,
+                code: null,
+                signal: "SIGKILL",
+                hex: null,
+                reason: "deadline",
+                error: null,
+                elapsedMs: 60015,
+                dropped: { stdout: 0, stderr: 0 },
+            },
+        });
+        delete (row as any).timeoutWindowCovered;
+        p.files[`${row.id}/trial.json`] = json(row);
+        p.files[`${row.id}/termination.json`] = json(row.termination);
+        p.files[`${row.id}/stdout.log`] = "";
+        p.files[`${row.id}/client.jsonl`] =
+            json({ ms: 1, event: "spawn", pid }) +
+            json({ ms: 60016, event: "termination", ...row.termination });
+    }
+    p.files["controlled.mjs"] += "// corruption after trial-3\n";
+    p.matrix.results[2]!.limits.hardMs = 90001;
+    p.files["trial-3/trial.json"] = json(p.matrix.results[2]);
+    Object.assign(p.matrix.counts, {
+        "observed-no-fault": 4,
+        "startup-timeout": 2,
+    });
+    p.files["controlled-off/build/termination.json"] = json({ code: 1 });
+    const before = json(p.matrix);
+    const result = acceptance.diagnosticShardAcceptance(
+        p.matrix,
+        p.files,
+        p.provenance,
+        1,
+    );
+    assert.equal(result.shardAccepted, false);
+    assert.equal(result.fullAccepted, false);
+    assert.equal(
+        acceptance.diagnosticAcceptance(p.matrix, p.files, p.provenance)
+            .accepted,
+        false,
+    );
+    for (const id of ["trial-3", "trial-6"])
+        assert.ok(
+            result.errors.some(
+                (e: string) =>
+                    e.includes(id) &&
+                    e.includes("Missing/malformed settings") &&
+                    e.includes("startup-timeout"),
+            ),
+            result.errors.join("; "),
+        );
+    assert.ok(
+        result.errors.some(
+            (e: string) =>
+                e.includes("trial-4") && e.includes("Fixture source"),
+        ),
+    );
+    assert.ok(
+        result.errors.some(
+            (e: string) =>
+                e.includes("trial-5") && e.includes("compiler/image"),
+        ),
+    );
+    assert.ok(
+        result.errors.some(
+            (e: string) =>
+                e.includes("trial-3") &&
+                e.includes("Changed or incomplete observation/deadline"),
+        ),
+    );
+    assert.equal(
+        result.errors.some((e: string) =>
+            /Cannot read properties|TypeError/.test(e),
+        ),
+        false,
+    );
+    assert.equal(json(p.matrix), before);
+});
+
 test("fixed shard selector covers 57 unchanged trials in complete trios and rejects arbitrary selectors", () => {
     assert.equal(typeof plan.shardPlan, "function");
     const shards = Array.from({ length: 10 }, (_, i) => plan.shardPlan(i + 1));

@@ -5,7 +5,11 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
     $env:RUNNER_OS -ne 'Windows' -or $env:GITHUB_REPOSITORY -ne '40oleg/nona' -or
     $env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -or $env:STARTUP_MODE -ne 'startup-602' -or
     $env:GITHUB_SHA -ne $env:STARTUP_EXPECTED_SHA -or $env:GITHUB_REF -notmatch '^refs/heads/issue-602-startup-[a-zA-Z0-9._-]+$') {
-    throw 'Hosted startup artifact access only'
+    if ($env:STARTUP_MODE -ne 'env-602') { throw 'Hosted startup artifact access only' }
+    # Separate admission; never impersonate legacy startup mode. This verifies
+    # the fixed pre-token receipt, exact driver/event/workflow and src ancestry.
+    & node scripts/http-startup-env-boundary.mjs --admit-helper
+    if ($LASTEXITCODE -ne 0) { throw 'Rejected env-602 artifact provenance' }
 }
 $root = [IO.Path]::GetFullPath($Output)
 $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd('\') + '\'

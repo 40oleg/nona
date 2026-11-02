@@ -7,6 +7,93 @@ open until a fault has been connected to its owning object/state and a reduced
 regression fails before a demonstrated repair. A clean run after #601 is not
 proof that #602 is fixed.
 
+## Bounded environment count versus volume diagnostic
+
+The distinct **`env-602`** option in `native-platforms.yml` prepares six serial
+trials on one literal GitHub-hosted `windows-2025` x64 runner with Node **26.9.0**.
+It is source preparation only: the parent must retain all ten outcomes of campaign
+**41431845892** and verify that campaign is authoritatively terminal before any
+new dispatch. PR630 stays draft at `3f199321d8fd543257d04f7680609ca1b459fa9e`.
+No dispatch, product cause/fix, full57, merge or release acceptance follows from
+these source changes.
+
+The fixed order is **base Node, base Nona stress, many Node, many Nona stress,
+few Node, few Nona stress**. All use the original reference source, original
+listeners/keepalive, c32, four rounds, 64 KiB × 16 chunk payload, selected-port
+protocol and 22-second observation. Startup/hard child limits remain 60/90 seconds;
+the campaign/job limits remain 20/35 minutes. Six child caps give nine nominal
+minutes, not an absolute wall-time guarantee for restoration, I/O and cleanup.
+There is no compiler invocation, rebuild, SDK setup or live CDB sampling here.
+
+The driver must descend `8fdac26b6460227deb8cd87e109d10f4f4b01680` and accepted
+main `ba94164b6573eef306b87a59d0b174630973e364`, preserving the exact 8fd `src`
+subtree, including no working-tree changes or extra untracked source files. Its
+HEAD/tree/src identity is separate from the retained image producer at original
+3f/tree `054e3768db264be6728a0bc530d5ba0a4078349f`. The existing restore path keeps
+the original run **41337528064**, artifact **13099115124**, ZIP SHA-256
+`2e60c99f112f3140b9da9ae91e48add5b948b178f0fb82be88a9eeadc423327e`, provenance,
+ZIP inventory/path/size/link/overwrite protections, original successful build
+receipt and assembly. Reference source SHA-256 stays
+`bd8e4abac8b6cde1af33a8dd717882ab34a0e894243fd8bb2e75c04b4d380eda` and must
+equal current `serverSource(true)` bytes. Native stress image SHA-256 stays
+`23bfce34206002318c362f7c285eef3dc3547901113b8146fd9e8f7153a770d7`.
+
+Before restoration `GH_TOKEN` injection, guarded `--verify` writes an exclusive
+`work/http-startup/env-boundary-provenance.json` receipt bound to repository,
+owner/manual event/inputs, temp ref, exact driver/workflow SHA/ref, run/attempt,
+runner and source ancestry. It records **aggregate counts and UTF16 units only**,
+never parent key names, values, credentials, environment dictionaries or secret
+hashes. This measures current logical aggregate pressure; it does not reconstruct
+an old OS environment. A separate `env-owner.json` records the executing driver.
+
+`env602-utf16-v1` defines block units as `1 + sum(key.length + 1 + value.length + 1)`
+(final NUL, equals signs and entry NULs), using JavaScript UTF16 `string.length`, case
+canonicalization and final trusted DIAG overrides. Base is the unchanged
+`startupChildEnv` allowlist plus those original DIAG settings. Let its metrics be
+Bk/Bu and the saved parent metrics Pk/Pu. Many generates K = Pk − Bk synthetic
+case-unique ASCII keys and exactly U = Pu − Bu added units. Few generates exactly
+**one** synthetic key with the **same U**, including names, equals and NULs. All
+real base entries are identical in all conditions. Missing, nonfinite, fractional,
+negative, colliding/aliased/invalid names, K ≤ 1, U ≤ 0, insufficient name headroom,
+over 256 synthetic keys or over 32767 total UTF16 units reject the experiment.
+There is no clipping, fallback or caller-supplied padding. Children receive only
+the safe base, internally generated padding and trusted DIAG flags. Generated
+environments go directly to `runTrial`; restoration helpers use the old sanitizer.
+
+Artifact and cleanup helpers separately admit env-602 through the verified receipt;
+the legacy `startup-602` admission and unchanged-src gate stay intact. No mode is
+spoofed. Cleanup admits only exact recorded Node/reference, retained native/port,
+or inventory/extraction helper commands, checking PID, parent PID, recorded exact
+creation time, executable/name and internally compared command identity. It never
+serializes live command lines or environments. Bounded registration queries and
+cancellation fallback cover both trial runtimes and restore helpers. Reused/foreign
+identities stay untouched and make cleanup fail. There are no process-name sweeps.
+
+Only env-602 gets a run-ID/run-attempt-unique **top-level** concurrency group;
+full/push/PR/legacy grouping stays unchanged. Every normal job excludes env-602,
+and the old startup job admits only startup-602. The new job has read-only
+contents/actions permissions and no shared job group or self-hosted runner.
+
+`env-boundary.json` is incremental and always uploaded with partial raw streams,
+provenance, hashes, aggregate/condition metrics, fixed order, wall/trial timings,
+completed/missing conditions and cleanup receipts. Existing raw client events
+give a readiness **upper bound** at the first request, not an invented exact
+ready timestamp. The strong oracle requires settings/ready, all 128 correct
+responses, full request/socket/termination lifecycle, status/chunked bytes, clean
+stderr, no dropped output, original workload and the full observation window.
+Every timeout/fault/wrong output/operational error or missing raw evidence stays
+failing/nonzero; later planned trials are still attempted unless interrupted.
+`productFix:false` and `full57Accepted:false` always remain. A single fixed-order
+many/few difference is conditional sensitivity evidence, not definitive historical
+cause or native GC/helper ownership.
+
+Shard reporting now names each null/malformed-settings trial and its raw failure
+reason, and independently checks source, build and timing evidence for later rows.
+It invents no settings and changes no raw ordinary/destroy verdicts, original
+full57 plan/holds or stressed-destroy acceptance policy. Local checks use only
+small serial pure Node/VM/fake-child/source, syntax, format and strict no-emit
+validation; HTTP/native/compiler/build/full suites remain hosted.
+
 ## Canonical 57-trial collection in ten shards
 
 The reviewed collection budget repair replaces the single default 57-trial

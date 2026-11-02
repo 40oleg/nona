@@ -4,6 +4,8 @@
 
 ### Development
 
+- Prepare a bounded six-trial hosted environment count versus volume diagnostic using the exact retained HTTP source and stress image, with separate driver provenance, safe generated child environments and exact owned-child cleanup. Report null-settings startup failures per trial without hiding later source/build/timing corruption. Preserve all raw failures, full57 holds and legacy startup guards; no product cause or fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))
+
 - Partition the unchanged HTTP diagnostic matrix into ten serial hosted shards (nine of six trials and one of three), with strict raw-proof aggregation for the exact 57-trial union. Keep the original timers, failed 45/57 evidence, retained startup pins and stressed-destroy acceptance hold; this repairs collection budgeting and establishes no original cause or product fix. ([#602](https://github.com/40oleg/nona/issues/602))
 
 - Add bounded hosted Windows HTTP crash diagnostics with Node controls, per-trial state/termination evidence and native dump collection. The original 45/57 campaign failed with stressed startup deadlines and interruption. Prepare optional startup-only dispatch through the registered native-platforms workflow, retained-image verification, bounded external CPU/CDB inspection and distinct, strictly paired intentional-destroy acceptance. Isolate startup child environments and require the canonical 57-trial matrix for aggregate acceptance. Preserve raw verdicts and original bounds; hosted causality remains pending and no crash fix is claimed. ([#602](https://github.com/40oleg/nona/issues/602))

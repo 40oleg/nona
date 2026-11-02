@@ -9,11 +9,11 @@ on:
             diagnostic_mode:
                 description: Optional isolated diagnostic; full preserves the normal platform jobs
                 type: choice
-                options: [full, startup-602]
+                options: [full, startup-602, env-602]
                 default: full
                 required: false
             diagnostic_sha:
-                description: Exact reviewed temporary issue-602-startup-* commit (startup mode only)
+                description: Exact reviewed temporary issue-602-startup-* commit (diagnostic modes only)
                 type: string
                 required: false
     # On a pull request only the browser compiler runs; the platform jobs run
@@ -29,11 +29,12 @@ concurrency:
     # running build finishes and a newer merge replaces the pending one, so a
     # burst of merges is checked once, on its last commit (#353). check.yml
     # still checks every commit of main (#42).
-    group: native-platforms-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+    # env-602 alone uses a run/attempt-unique group; it cannot evict another mode.
+    group: ${{ inputs.diagnostic_mode == 'env-602' && format('native-platforms-env602-{0}-{1}', github.run_id, github.run_attempt) || format('native-platforms-{0}', github.event_name == 'pull_request' && github.head_ref || github.ref) }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     browser-compiler:
-        if: inputs.diagnostic_mode != 'startup-602'
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602'
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -60,7 +61,7 @@ jobs:
         name: Windows x64 full regression (manual)
         # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
         # for manually dispatched full-platform runs as well.
-        if: inputs.diagnostic_mode != 'startup-602' && github.event_name == 'workflow_dispatch'
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && github.event_name == 'workflow_dispatch'
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
@@ -73,7 +74,7 @@ jobs:
             - run: npm run compare
     linux-regression:
         name: Linux x64 compiler and example regression
-        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -87,7 +88,7 @@ jobs:
             - run: npm run compare:linux
     loaders:
         name: ${{ matrix.target }} native and portable suites
-        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         strategy:
             fail-fast: false
             matrix:
@@ -162,7 +163,7 @@ jobs:
                   path: work/platform-probes
     linux-distributions:
         name: Linux userspace ${{ matrix.image }}
-        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -272,9 +273,49 @@ jobs:
                   path: work/http-startup/
                   if-no-files-found: warn
                   retention-days: 30
+    http-env-602:
+        name: Optional environment count versus volume diagnostic (no product acceptance)
+        if: github.repository == '40oleg/nona' && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'env-602' && startsWith(github.ref, 'refs/heads/issue-602-startup-') && inputs.diagnostic_sha == github.sha && github.workflow_sha == github.sha && github.workflow_ref == format('40oleg/nona/.github/workflows/native-platforms.yml@{0}', github.ref)
+        runs-on: windows-2025
+        permissions:
+            contents: read
+            actions: read
+        timeout-minutes: 35
+        env:
+            STARTUP_MODE: ${{ inputs.diagnostic_mode }}
+            STARTUP_EXPECTED_SHA: ${{ inputs.diagnostic_sha }}
+            NONA_AUTO_MERGE: "false"
+            NONA_AUTO_RELEASE: "false"
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ${{ github.sha }}
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  architecture: x64
+            - name: Verify driver and capture aggregate before token injection
+              run: node scripts/http-startup-env-boundary.mjs --verify
+            - name: Six serial same-host conditions using exact original artifact (no rebuild)
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node scripts/http-startup-env-boundary.mjs
+            - name: Cleanup exact owned Node, native and restore children
+              if: always()
+              run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-startup-cleanup.ps1
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-env-602-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: work/http-startup/
+                  if-no-files-found: warn
+                  retention-days: 30
     bsd-loaders:
         name: ${{ matrix.os }} x64 guest VM on Ubuntu host
-        if: inputs.diagnostic_mode != 'startup-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false

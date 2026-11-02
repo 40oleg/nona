@@ -411,6 +411,7 @@
                 "http-crash-acceptance",
                 "http-crash-shards",
                 "http-startup",
+                "http-startup-env-boundary",
                 "ci-changes"
             ]
         }

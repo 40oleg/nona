@@ -433,9 +433,9 @@ export function diagnosticShardAcceptance(matrix, files, provenance, index) {
     const { trials, ...identity } = shardPlan(index);
     const result = evaluatePlan(matrix, files, provenance, trials);
     const errors = [];
+    const m = matrix?.metadata;
     try {
-        const m = matrix.metadata,
-            p = provenance;
+        const p = provenance;
         if (
             !equal(p.shard, identity) ||
             !equal(m.shard, identity) ||
@@ -467,16 +467,58 @@ export function diagnosticShardAcceptance(matrix, files, provenance, index) {
             !runner.os
         )
             throw Error("Runner receipt mismatch");
-        for (const row of matrix.results) {
+    } catch (error) {
+        errors.push(error.message);
+    }
+    for (const row of Array.isArray(matrix?.results) ? matrix.results : []) {
+        const check = (validate) => {
+            try {
+                validate();
+            } catch (error) {
+                errors.push(`${row?.id ?? "unknown trial"}: ${error.message}`);
+            }
+        };
+        check(() => {
             if (
                 files[`${row.fixture}.mjs`] !==
                 serverSource(row.fixture === "reference")
             )
                 throw Error("Fixture source differs from exact checkout");
+        });
+        check(() => {
             if (row.state === "queued-timeout" && row.workload.completed !== 0)
                 throw Error("Paused peers cannot have completed responses");
+        });
+        check(() => {
             const l = row.limits,
                 t = row.termination;
+            if (
+                !l ||
+                !t ||
+                l.startupMs !== 60000 ||
+                l.hardMs !== 90000 ||
+                l.rounds !== (row.state === "keepalive" ? 4 : 1) ||
+                !Number.isFinite(l.observationMs) ||
+                l.observationMs <= 0 ||
+                (row.fixture === "reference" && l.observationMs !== 22000) ||
+                !Number.isFinite(t.elapsedMs) ||
+                t.elapsedMs < l.observationMs ||
+                t.elapsedMs >= 90000
+            )
+                throw Error("Changed or incomplete observation/deadline");
+        });
+        check(() => {
+            if (
+                !row.settings ||
+                typeof row.settings !== "object" ||
+                typeof row.settings.keepAliveTimeout !== "string" ||
+                !/^\d+$/.test(row.settings.keepAliveTimeout) ||
+                typeof row.settings.keepAliveTimeoutBuffer !== "string" ||
+                !/^(undefined|\d+)$/.test(row.settings.keepAliveTimeoutBuffer)
+            )
+                throw Error(
+                    `Missing/malformed settings (${row.verdict}; ${row.termination?.reason ?? "no termination"})`,
+                );
             const timeout =
                 Number(row.settings.keepAliveTimeout) +
                 Number(
@@ -491,15 +533,11 @@ export function diagnosticShardAcceptance(matrix, files, provenance, index) {
                     : Math.min(15000, Math.max(8500, timeout));
             if (
                 !Number.isFinite(timeout) ||
-                l.startupMs !== 60000 ||
-                l.hardMs !== 90000 ||
-                l.rounds !== (row.state === "keepalive" ? 4 : 1) ||
-                l.observationMs !== observation ||
-                !Number.isFinite(t.elapsedMs) ||
-                t.elapsedMs < observation ||
-                t.elapsedMs >= 90000
+                row.limits?.observationMs !== observation
             )
                 throw Error("Changed or incomplete observation/deadline");
+        });
+        check(() => {
             if (row.runtime === "nona") {
                 const prefix = `${row.fixture}-${row.gc}/build/`;
                 const build = parse(files[prefix + "termination.json"]);
@@ -519,16 +557,14 @@ export function diagnosticShardAcceptance(matrix, files, provenance, index) {
                     !equal(image, {
                         sourceHash: row.sourceHash,
                         imageHash: row.imageHash,
-                        sha: m.sha,
-                        tree: m.tree,
+                        sha: m?.sha,
+                        tree: m?.tree,
                         gc: row.gc,
                     })
                 )
                     throw Error("Missing/corrupt compiler/image receipt");
             }
-        }
-    } catch (error) {
-        errors.push(error.message);
+        });
     }
     return {
         scope: "shard",

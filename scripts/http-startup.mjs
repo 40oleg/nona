@@ -108,7 +108,7 @@ function verify(output) {
     return provenance;
 }
 
-async function restore(output, signal) {
+export async function restore(output, signal, capture = captureText) {
     const headers = {
         Authorization: `Bearer ${process.env.GH_TOKEN}`,
         Accept: "application/vnd.github+json",
@@ -160,7 +160,7 @@ async function restore(output, signal) {
     if (hashFile(archive) !== retained.zipHash)
         throw Error("Original ZIP digest mismatch");
     const inventoryDir = join(output, "zip-inventory");
-    let result = await captureText(
+    let result = await capture(
         "pwsh",
         [
             "-NoProfile",
@@ -184,7 +184,7 @@ async function restore(output, signal) {
         read(join(inventoryDir, "stdout.log")),
     );
     save(join(output, "zip-inventory.json"), entries);
-    result = await captureText(
+    result = await capture(
         "pwsh",
         [
             "-NoProfile",
