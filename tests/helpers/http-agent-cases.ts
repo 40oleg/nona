@@ -543,12 +543,16 @@ class IdleAgent extends http.Agent {
 `;
 
 function idleTimeout(staged: boolean): string {
+    // Isolate the client's 200ms idle timeout from the independent server
+    // keep-alive expiry, which may already be overdue under forced GC.
+    // Keep the rationale outside the generated, hosted-tested program.
     return String.raw`import http from 'node:http';
 ${staged ? idleAgent : ""}
 const agent = new ${staged ? "IdleAgent" : "http.Agent"}({ keepAlive: true, maxSockets: 1, maxTotalSockets: 1, timeout: 200 });
 const peers = [], requests = [];
 let connections = 0, cleaning = false;
 const server = http.createServer((req, res) => res.end(req.url));
+server.keepAliveTimeout = 0;
 server.on('connection', socket => { peers.push(socket); connections++; });
 function cleanup() {
   if (cleaning) return;

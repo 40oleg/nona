@@ -6,10 +6,19 @@
 
 - **HTTP Agents wake queued origins when socket capacity is released.** Closing or detaching a connection now services eligible requests across origins while respecting `maxSockets` and `maxTotalSockets`. Queued cancellation drops unsent payloads and connection options without opening a connection; terminal events and assigned write callbacks retain Node.js ordering, including when the socket or Agent is destroyed. Connection creation errors remove the failed request so subsequent valid requests can proceed. ([#616](https://github.com/40oleg/nona/issues/616))
 
+### Testing
+
+- **HTTP soak infrastructure review.** Add cheap Node decision regressions and hosted Windows/Linux control/failure fixtures, retain startup/interruption evidence, identify source and image provenance, validate all deterministic JSON values and enforce the p99 20% ratio without additive slack. Short controls remain separate from full native acceptance ([#516](https://github.com/40oleg/nona/issues/516)).
+
+- **HTTP server soak test.** `scripts/http-soak.mjs` runs a compiled Nona HTTP server for hours under steady load and checks it stays healthy: no crash, no failed requests, RSS growth within 10%, handles return to baseline, and latency within 20%. A smoke mode runs for 5 minutes; the full test is 180 minutes (configurable). `npm run soak:http -- --smoke` locally or via the `http-soak` GitHub Actions workflow on demand ([#516](https://github.com/40oleg/nona/issues/516)). On win32-x64 it finds a keep-alive stall after large chunked responses ([#601](https://github.com/40oleg/nona/issues/601)) and a crash under concurrent 1 MiB responses ([#602](https://github.com/40oleg/nona/issues/602)); the compiled server does not pass yet.
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes
 
+- **The CLI protects every file read while compiling or resolving a package.** Outputs can no longer replace imported or required sources, JSON modules, package metadata or explicit icon, manifest and version information files. Canonical paths and file identity also catch symbolic links, links through parent directories and hard links. Refused builds preserve the input files and previous executable and remove temporary output. The protection is shared by the Node.js and native CLIs. ([#614](https://github.com/40oleg/nona/issues/614))
+- **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
+- **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
 - **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 - **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))

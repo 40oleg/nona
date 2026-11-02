@@ -59,6 +59,32 @@ remove the failed request from the queue, so later valid requests can proceed.
 `Agent.destroy()` destroys current pooled sockets; the Agent can subsequently be
 used again, and eligible queued requests can receive new sockets.
 
+The [#616 idle-timeout witness](../tests/helpers/http-agent-cases.ts) disables
+the server's independent keep-alive expiry before listening, so it tests the
+client's 200 ms idle timeout without requiring that deadline to precede a server
+deadline already overdue under forced GC. Both the normal Node oracle and staged
+native program retain their complete output and replacement-connection assertions.
+This fixture does not validate default-server expiry. Existing HTTP witnesses,
+including server keep-alive configuration in
+[`tests/http.test.ts`](../tests/http.test.ts), remain unchanged.
+
+The [preserved diagnostic protocol](https://github.com/40oleg/nona/blob/1619e503d9c65f9eeab845a177e92a870dc61428/docs/http-agent-idle-diagnostic.md)
+and [Linux run 41417655809](https://github.com/40oleg/nona/actions/runs/41417655809/job/125185336895)
+retain the failed original/scalar/trace cases and the successful uninstrumented
+server-expiry isolation. The isolated stressed input is exactly the original
+2240-byte input plus `server.keepAliveTimeout = 0;` and its newline: 2269 bytes,
+SHA-256 `39b252fd7cad09b0b578c4be1e1e144009a558b4fb867753d05d627a90ef9fbc`.
+Its matching Node control uses identical bytes. The trace captures both response
+finishes and an overdue 6000 ms peer deadline before the client deadline; the
+separate Node baseline/delayed pair establishes timing sufficiency. The original
+uninstrumented native phase remains unobserved, and no production Agent, runtime
+or compiler cause or fix is proved. The diagnostic job failed its original-case
+comparison; it is not a green full-suite result. Windows isolation was still
+queued at the last reviewed snapshot. All 32 stressed native witnesses, four
+normal controls and required current-head CI on both hosts after main integration
+remain mandatory before PR #631 is ready, merged or #616 closed. T07 requirements
+remain unchanged.
+
 Performance: the server parses request heads, copies bodies, folds header
 names and writes responses with native helpers (`src/runtime/http-native.ts`);
 a request creates its `IncomingMessage` and `ServerResponse` as base-class
@@ -230,6 +256,188 @@ Stated plainly, for the TLS client and the `https` module:
 - **Client only.** `tls.createServer` and `https.createServer` throw, and there
   is no `fetch` over `https:` yet.
 - **Platforms.** win32-x64 and linux-x64 only.
+
+## Soak test
+
+The [`scripts/http-soak.mjs`](../scripts/http-soak.mjs) test runs a compiled
+Nona HTTP server for hours under steady load and checks that it stays healthy
+(#516). It compiles `bench/http/soak-server.mjs` (or runs it under Node.js if
+set with `NONA_SOAK_SERVER`), applies steady load with 32 concurrent connections
+(configurable with `NONA_SOAK_CONNECTIONS`), and samples memory, handles and
+latency every minute (configurable). The routes exercise the server: small text
+responses, JSON, 1 MB chunked bodies, echoed request bodies (POST), slow clients
+that disconnect mid-response, keep-alive and close requests, and error routes:
+a 404, and `/throw`, which throws from a queued microtask so that the process
+`uncaughtException` listener answers with a 500. The load mix is: 35% text, 28% JSON, 5% big, 12% echo, 10% close,
+4% slow, 3% missing (404), 3% throw (500); `NONA_SOAK_MIX=route=weight,...`
+isolates a route.
+
+The run completes when the load window expires, or crashes. A smoke mode
+(`--smoke`) runs for 5 minutes; a full run is 180
+minutes by default (configurable with `NONA_SOAK_MINUTES`). The warm-up is 10
+minutes (1 with `--smoke`, customizable with `NONA_SOAK_WARMUP_MINUTES`); the
+pass criteria compare the last 30 minutes of load against the first 30 minutes
+after warm-up (or a quarter of the load window if shorter).
+
+**Metrics sampled every minute:**
+
+- RSS: resident set size (Linux `/proc`; from stats on other platforms) and
+  the peak RSS from `process.resourceUsage()`
+- Heap: used, total, external (from `process.memoryUsage()`). There are no GC
+  statistics: Nona has no `node:v8` module and its `PerformanceObserver`
+  records no `gc` entries, so collections are not counted.
+- Open handles: sockets, file descriptors, active resources
+- Throughput: requests per second
+- Latency: p50, p99 (1%-wide histogram buckets from 1 µs to minutes)
+- Errors: crashed, failed requests (other than deliberate 404/500), socket errors
+
+RSS includes resident code, allocator retention and caches; it is not a live-heap
+measurement. Heap and external-memory figures are reported separately using the
+server runtime's own counters, without interpreting Nona counters as V8 GC
+statistics. Unsupported counters remain `null`. Shared-runner timing and cache
+noise can fail a short control's RSS/p99 criteria; the report retains that failure
+without relaxing the budgets. Such a control still checks request correctness,
+sampling and lifecycle behavior.
+
+The quiescent baseline is sampled one second after readiness, before load.
+After workers finish, their keep-alive agents are destroyed and the server settles
+for eight seconds before the post-load sample. Both statistics requests briefly
+occupy a socket/resource; the fixed handle slack below accounts for that sampling
+overhead. Available counters are compared individually; no supported handle
+counter means the handle criterion cannot pass.
+
+**Pass criteria:**
+
+- No crash or early exit
+- No failed requests (deliberate 404/500 and aborted slow clients excluded)
+- RSS growth after warm-up < 10%
+- Handles return to the baseline within slack (2 extra sockets, 4 fds, 2
+  resources)
+- p99 latency in the last 30 min ≤ 1.2 times the first 30 min after warm-up,
+  with no additive allowance
+- Complete load duration, at least two nonempty samples per comparison window
+  and at least the configured number of samples covering each window; every
+  configured route must have a successful request
+
+The test writes `soak-report/http-soak.{json,md}` (pass/fail, raw samples, all
+failures and their reasons); the server executable is built into
+`bench/results/`. When the server crashes, failed requests of the last 2
+seconds before its exit are listed separately as consequences of the crash and
+do not count as failed requests. The crash itself always fails the run. Startup,
+build and catchable interruption failures also write failure receipts with the
+original error/code, child logs and any partial samples. In-progress reports are
+explicitly incomplete until final criteria have been evaluated.
+
+`summary.pass` describes only the configured run. `summary.acceptancePass` also
+requires a native server with a known measured source commit and image hash,
+at least 180 minutes, the 10-minute warm-up, 30-minute comparison windows,
+sampling at least once per minute and successful coverage of all eight routes.
+A short Node control, smoke, incomplete run or workload excluding `/big` cannot
+satisfy native three-hour acceptance.
+
+### Running locally
+
+On the owner's PC, run only the cheap Node decision/source checks below, with
+test concurrency 1 and inherited below-normal priority. Native compilation,
+HTTP control integration and all load/soak runs belong on GitHub-hosted runners.
+The following load commands are for hosted runners or other explicitly permitted
+development machines:
+
+```sh
+npm run build
+npm run soak:http -- --smoke                              # 5 minutes
+npm run soak:http                                          # 3 hours
+NONA_SOAK_MINUTES=30 npm run soak:http                     # 30 minutes
+NONA_SOAK_CONNECTIONS=256 npm run soak:http -- --smoke    # 256 connections
+NONA_SOAK_MIX=json=1 npm run soak:http -- --smoke          # JSON only
+```
+
+The server is built for the host platform (win32-x64 or linux-x64).
+`NONA_SOAK_SERVER` selects another server instead: a prebuilt executable, or a
+`.mjs` file, which runs under Node.js as the reference (oracle) for the
+figures:
+
+```sh
+NONA_SOAK_SERVER=bench/http/soak-server.mjs npm run soak:http -- --smoke
+```
+
+Reports identify `server.kind` (`node` or `native`), absolute server/source paths,
+SHA-256 hashes of the source or native image, Node executable/runtime identity,
+checkout commit/dirty state and machine details. Node controls have no native
+target. A prebuilt external image's source commit is unknown unless supplied as
+`NONA_SOAK_SOURCE_COMMIT`; that assertion is explicitly labelled unverified and
+does not qualify the external image for native acceptance.
+The built-in build records the measured checkout commit, workload source hash
+and compiler entry-point hash. A custom duration must exceed its warm-up: setting
+`NONA_SOAK_MINUTES=5` alone is invalid with the default 10-minute warm-up; use
+`--smoke` instead.
+
+Cheap checks (no server, native compiler or load):
+
+```sh
+node --test --test-concurrency=1 scripts/http-soak.test.mjs
+```
+
+The separate `http-soak-control.yml` workflow runs these checks and short real
+Node controls/failure fixtures on GitHub-hosted Windows and Linux for relevant
+PR changes, including draft PRs. It checks out the exact PR head, uses read-only
+permissions and cancels obsolete runs per PR. JSON/Markdown reports and driver
+logs are retained for 30 days even on failure. The end-to-end fixture suite
+skips outside GitHub-hosted Actions; it does not compile Nona or establish native
+acceptance. Run its hosted entry point with:
+
+```sh
+node --test --test-concurrency=1 scripts/http-soak-hosted.test.mjs
+```
+
+### Latest result
+
+**The compiled Nona server has not passed the smoke run yet.** On win32-x64
+(Windows 11, i7-13620H, commit 4d75a9d9, 2026-10-27) the test finds two
+defects, both in the 1 MiB chunked `/big` route:
+
+- [#601](https://github.com/40oleg/nona/issues/601): after a chunked response
+  larger than about 320 KiB, the next request on the same keep-alive connection
+  is never answered. With the default mix all 32 load connections stall within
+  seconds and every later request on them times out.
+- [#602](https://github.com/40oleg/nona/issues/602): with 32 connections on
+  `/big` (`NONA_SOAK_MIX=big=1`) the server exits with an access violation
+  (`0xc0000005`) about 5 seconds into the load.
+
+Without `/big`
+(`NONA_SOAK_MIX=text=1,json=1,echo=1,close=1,missing=1,throw=1`, and
+separately `slow=1,text=3`) short runs with 32 connections have no crash, no
+failed requests, and sockets back to the baseline; the first mix ran at about
+11,000 req/s with a p99 of 7 ms and an RSS of 23 MB. These runs were 30
+seconds long, so they say nothing yet about leaks or slowdown over hours.
+
+No full native three-hour baseline is retained. The first full-mix hosted run
+still waits for #601, #602 and #615; the infrastructure follow-up remains
+Part of #516. New Windows/Linux control workflow evidence is pending publication
+and hosted execution by the parent harness.
+
+**Oracle baseline (Node.js server, not Nona):** a 5-minute smoke run of
+`NONA_SOAK_SERVER=bench/http/soak-server.mjs` on the same machine, 32
+connections: 1,005,647 requests at 3,349.7 req/s, RSS 51.3 MB at the baseline
+and 93.4 MB at the end (2.4% growth after warm-up), p99 latency 15.55 ms in the
+first minute after warm-up and 14.65 ms in the last minute, handles back to the
+baseline. This historical control used the former p99 allowance; it is not
+native acceptance or validation of the revised infrastructure.
+
+### Workflow
+
+A GitHub Actions workflow (`.github/workflows/http-soak.yml`) runs the soak test
+on demand (`workflow_dispatch`):
+
+```
+gh workflow run http-soak.yml -f minutes=180 -f connections=32
+```
+
+Inputs: `minutes` (duration, default 180), `connections` (optional). The workflow
+runs on `ubuntu-latest` with a job timeout of `minutes` + 30 (210 minutes by
+default; GitHub-hosted runners stop any job at 360 minutes, so `minutes` can be
+at most 330), uploads the report artifact (the two report files), and appends
+the Markdown summary to the job summary.
 
 ## Event loop
 
