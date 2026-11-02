@@ -6,6 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import {
     appendFileSync,
     chmodSync,
+    existsSync,
     mkdirSync,
     readFileSync,
     readdirSync,
@@ -14,8 +15,8 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { makePlan } from "./http-agent-idle-sources.mjs";
-export { makePlan };
+import { makePlan, makeTimingPair } from "./http-agent-idle-sources.mjs";
+export { makePlan, makeTimingPair };
 
 export const SOURCE_PIN = "7b4b56cc7eb644870dd2cc270d82a0815618b8ae";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -309,9 +310,14 @@ function checkRun(run, verifyFiles) {
     assert.equal(run.stderr.bytes, 0);
 }
 
-export function validateReport(report, verifyFiles = false, plan) {
-    assert.equal(report.schema, 1);
+export function validateReport(report, verifyFiles = false, plan, timingPlan) {
+    assert.equal(report.schema, 2);
     assert.equal(report.complete, true);
+    assert.equal(report.budget.nativeCases, 4);
+    assert.equal(report.budget.nodeControls, 7);
+    assert.equal(report.budget.originalNodeControls, 5);
+    assert.equal(report.budget.supplementaryNodeControls, 2);
+    validateTimingPair(report.supplementary, verifyFiles, timingPlan);
     assert.equal(report.identity.sourcePin, SOURCE_PIN);
     assert.match(report.identity.head, /^[a-f0-9]{40}$/);
     assert.match(report.identity.tree, /^[a-f0-9]{40}$/);
@@ -383,7 +389,11 @@ async function loadPlan() {
     const plan = makePlan(witness, agentProgram);
     assert.equal(sha(plan[0].source), originalHashes[0]);
     assert.equal(sha(plan[1].source), originalHashes[1]);
-    return { plan, expected: witness.expected.join("\n") + "\n" };
+    return {
+        plan,
+        timingPlan: makeTimingPair(witness, agentProgram),
+        expected: witness.expected.join("\n") + "\n",
+    };
 }
 
 function compiledInventory() {
@@ -572,6 +582,9 @@ export function compare(entry, expected) {
                 assert.ok(
                     rows.every((row, i) => i === 0 || row[1] >= rows[i - 1][1]),
                 );
+                // Retain every parsed raw row even if required-event validation
+                // fails. Missing code2 still fails the complete comparison.
+                observation.trace = rows;
                 for (const code of [1, 2, 4, 5, 6, 7, 9, 10, 13])
                     assert.ok(
                         rows.some((row) => row[0] === code),
@@ -581,7 +594,6 @@ export function compare(entry, expected) {
                     rows.some((row) => row[0] === 1 && row[2] === 6000),
                     "Missing default peer arm",
                 );
-                observation.trace = rows;
             }
             observation.matchesOriginalExpected = base === normalizedExpected;
             assert.equal(base, normalizedExpected);
@@ -592,16 +604,262 @@ export function compare(entry, expected) {
     return { ok: failure === null, error: failure, observations };
 }
 
+const timingIds = [
+    "node-native-stress-baseline",
+    "node-native-stress-prearm-hold",
+];
+const timingKind = "supplementary-native-stress-source-wrapper";
+const timingExpected =
+    "body /first false\nidle\ntimed out 1 true\nbody /second false\nreplacement true 2\n";
+
+// Completeness is independent of the predicted delayed counter. Require full
+// transport/output evidence; retain the actual counter and prediction result.
+// This never changes compare() or the four original native acceptance checks.
+export function compareTimingPair(runs, expected) {
+    const observations = [];
+    let failure =
+        runs.length === 2
+            ? null
+            : { message: "Expected exactly two supplementary Node runs" };
+    for (const [i, run] of runs.entries()) {
+        try {
+            assert.equal(run.id, timingIds[i]);
+            checkRun(run, true);
+            const text = readFileSync(run.stdout.path, "utf8").replaceAll(
+                "\r\n",
+                "\n",
+            );
+            const suffix =
+                /\ndiagnostic scalar (true|false) (true|false)\ndiagnostic timing (not-run|timed-out) ((?:0|[1-9]\d*)(?:\.\d+)?)\n(?![\s\S])/.exec(
+                    text,
+                );
+            assert.ok(
+                suffix,
+                "Missing/malformed supplementary scalar/timing evidence",
+            );
+            const base = text.slice(0, suffix.index + 1);
+            const elapsedMs = Number(suffix[4]);
+            assert.ok(Number.isFinite(elapsedMs));
+            assert.equal(suffix[3], i === 0 ? "not-run" : "timed-out");
+            assert.ok(
+                i === 0
+                    ? elapsedMs === 0
+                    : elapsedMs >= 7000 && elapsedMs < 60000,
+            );
+            const count = /^timed out (0|[1-9]\d*) true$/m.exec(base);
+            assert.ok(count, "Missing/malformed actual timeout counter");
+            const timedOut = Number(count[1]);
+            assert.ok(Number.isSafeInteger(timedOut));
+            const normalizedExpected = expected.replaceAll("\r\n", "\n");
+            assert.equal(normalizedExpected, timingExpected);
+            const observation = {
+                id: run.id,
+                base,
+                timedOut,
+                scalar: {
+                    destroyedBeforeArm: suffix[1] === "true",
+                    freeBeforeArm: suffix[2] === "true",
+                },
+                hold: { result: suffix[3], elapsedMs },
+                matchesOriginalExpected: base === normalizedExpected,
+                matchesPrediction:
+                    base ===
+                    normalizedExpected.replace(
+                        "timed out 1 true\n",
+                        "timed out 0 true\n",
+                    ),
+            };
+            observations.push(observation);
+            // Every other original byte, including replacement true2, is exact.
+            // Do not accept an alternative connection count or discard output.
+            assert.equal(
+                base.replace(
+                    /^timed out (?:0|[1-9]\d*) true$/m,
+                    "timed out 1 true",
+                ),
+                normalizedExpected,
+            );
+            if (i === 0)
+                assert.equal(observation.matchesOriginalExpected, true);
+        } catch (error) {
+            failure ??= errorRecord(error);
+        }
+    }
+    return {
+        ok: failure === null,
+        error: failure,
+        observations,
+        hypothesisConfirmed:
+            failure === null &&
+            observations.length === 2 &&
+            observations.every(
+                (o) => !o.scalar.destroyedBeforeArm && o.scalar.freeBeforeArm,
+            ) &&
+            observations[0].matchesOriginalExpected &&
+            observations[1].matchesPrediction,
+    };
+}
+
+export function validateTimingPair(pair, verifyFiles = false, plan) {
+    assert.equal(pair.kind, timingKind);
+    assert.equal(pair.complete, true);
+    assert.equal(pair.replacementOracle, false);
+    assert.equal(pair.expected, timingExpected);
+    assert.equal(pair.runs.length, 2);
+    checkBlob(pair.nativeSource, verifyFiles);
+    assert.equal(pair.nativeSource.sha256, originalHashes[0]);
+    assert.ok(pair.nativeSource.bytes > 0);
+    pair.runs.forEach((run, i) => {
+        assert.equal(run.id, timingIds[i]);
+        assert.equal(run.kind, timingKind);
+        assert.equal(run.engine, "node");
+        assert.equal(run.actualGC, false);
+        assert.equal(run.boundMs, 60000);
+        assert.equal(run.cleanupWatchdogMs, null);
+        assert.equal(run.holdMs, i === 0 ? 0 : 7000);
+        assert.equal(run.nativeSourceSha256, pair.nativeSource.sha256);
+        assert.match(run.executableSha256, /^[a-f0-9]{64}$/);
+        checkRun(run, verifyFiles);
+        checkBlob(run.source, verifyFiles);
+        assert.ok(run.source.bytes > 0 && run.stdout.bytes > 0);
+        if (plan) assert.equal(run.source.sha256, sha(plan[i].source));
+    });
+    assert.equal(pair.comparison.ok, true);
+    assert.equal(pair.comparison.error, null);
+    assert.equal(pair.comparison.observations.length, 2);
+    pair.comparison.observations.forEach((observation, i) => {
+        assert.equal(observation.id, timingIds[i]);
+        assert.ok(
+            Number.isSafeInteger(observation.timedOut) &&
+                observation.timedOut >= 0,
+        );
+        assert.equal(
+            observation.base,
+            timingExpected.replace(
+                "timed out 1 true\n",
+                "timed out " + observation.timedOut + " true\n",
+            ),
+        );
+        assert.equal(typeof observation.scalar.destroyedBeforeArm, "boolean");
+        assert.equal(typeof observation.scalar.freeBeforeArm, "boolean");
+        assert.equal(
+            observation.hold.result,
+            i === 0 ? "not-run" : "timed-out",
+        );
+        const elapsed = observation.hold.elapsedMs;
+        assert.ok(
+            Number.isFinite(elapsed) &&
+                (i === 0 ? elapsed === 0 : elapsed >= 7000 && elapsed < 60000),
+        );
+        assert.equal(
+            observation.matchesOriginalExpected,
+            observation.base === timingExpected,
+        );
+        assert.equal(
+            observation.matchesPrediction,
+            observation.base ===
+                timingExpected.replace(
+                    "timed out 1 true\n",
+                    "timed out 0 true\n",
+                ),
+        );
+        if (i === 0) assert.equal(observation.matchesOriginalExpected, true);
+    });
+    // This field refers ONLY to the supplementary timing prediction. It never
+    // confirms the cause of an original uninstrumented native execution.
+    const observations = pair.comparison.observations;
+    assert.equal(
+        pair.comparison.hypothesisConfirmed,
+        observations.every(
+            (o) => !o.scalar.destroyedBeforeArm && o.scalar.freeBeforeArm,
+        ) &&
+            observations[0].matchesOriginalExpected &&
+            observations[1].matchesPrediction,
+    );
+    if (verifyFiles)
+        assert.deepEqual(
+            pair.comparison,
+            compareTimingPair(pair.runs, pair.expected),
+        );
+    return true;
+}
+
+// Also callable for the single explicitly authorized local Node pair. No compiler
+// imports, retries, GC changes, fixture edits or altered native/Node deadlines.
+export async function runTimingPair(plan, expected, directory) {
+    assert.equal(plan.length, 2);
+    assert.equal(
+        existsSync(directory),
+        false,
+        "Pair evidence already exists; no retry/overwrite",
+    );
+    mkdirSync(directory, { recursive: true });
+    const nativePath = join(directory, "native-stress-source.mjs");
+    assert.equal(plan[0].nativeSource, plan[1].nativeSource);
+    assert.equal(sha(plan[0].nativeSource), originalHashes[0]);
+    writeFileSync(nativePath, plan[0].nativeSource);
+    const pair = {
+        kind: timingKind,
+        replacementOracle: false,
+        complete: false,
+        purpose:
+            "One supplementary Node timing intervention; not evidence of the original native root cause",
+        expected,
+        nativeSource: blob(nativePath),
+        runs: [],
+        comparison: null,
+    };
+    const save = () => json(join(directory, "pair.json"), pair);
+    save();
+    const nodeHash = blob(process.execPath).sha256;
+    for (const [i, control] of plan.entries()) {
+        assert.equal(control.id, timingIds[i]);
+        assert.equal(control.kind, timingKind);
+        assert.equal(control.boundMs, 60000);
+        const cwd = join(directory, control.id);
+        mkdirSync(cwd);
+        const path = join(cwd, "main.mjs");
+        writeFileSync(path, control.source);
+        const run = await supervise(
+            process.execPath,
+            [path],
+            cwd,
+            control.id,
+            control.boundMs,
+        );
+        Object.assign(run, {
+            kind: timingKind,
+            engine: "node",
+            actualGC: false,
+            source: blob(path),
+            nativeSourceSha256: pair.nativeSource.sha256,
+            executableSha256: nodeHash,
+            holdMs: control.holdMs,
+            cleanupWatchdogMs: control.cleanupWatchdogMs,
+        });
+        json(join(cwd, control.id + ".receipt.json"), run);
+        pair.runs.push(run);
+        save();
+    }
+    pair.comparison = compareTimingPair(pair.runs, expected);
+    pair.complete = pair.comparison.ok;
+    save();
+    validateTimingPair(pair, true, plan);
+    return pair;
+}
+
 async function campaign() {
     const report = {
-        schema: 1,
+        schema: 2,
         complete: false,
         purpose:
             "One attempt per case; discriminating evidence only, no causal conclusion or full-CI readiness",
         budget: {
             attemptsPerCase: 1,
             nativeCases: 4,
-            nodeControls: 5,
+            nodeControls: 7,
+            originalNodeControls: 5,
+            supplementaryNodeControls: 2,
             buildBoundMs: 180000,
             jobMinutes: 45,
         },
@@ -612,7 +870,7 @@ async function campaign() {
     try {
         report.identity = identity();
         save();
-        const { plan, expected } = await loadPlan();
+        const { plan, timingPlan, expected } = await loadPlan();
         json(
             join(output, "plan.json"),
             plan.map((item) => ({
@@ -634,6 +892,21 @@ async function campaign() {
                     cleanupWatchdogMs: item.requestedGC ? null : 6000,
                     nodeCleanupWatchdogMs: 6000,
                 },
+            })),
+        );
+        json(
+            join(output, "supplementary-plan.json"),
+            timingPlan.map((control) => ({
+                id: control.id,
+                kind: control.kind,
+                sourceSha256: sha(control.source),
+                nativeSourceSha256: sha(control.nativeSource),
+                holdMs: control.holdMs,
+                boundMs: control.boundMs,
+                cleanupWatchdogMs: control.cleanupWatchdogMs,
+                clientIdleMs: 200,
+                serverKeepAliveMs: 5000,
+                serverBufferMs: 1000,
             })),
         );
         const nodeHash = blob(process.execPath).sha256;
@@ -730,8 +1003,19 @@ async function campaign() {
                 save();
             }
         }
+        // Run once even if an original comparison failed; never replace it.
+        try {
+            report.supplementary = await runTimingPair(
+                timingPlan,
+                expected,
+                join(output, "supplementary"),
+            );
+        } catch (error) {
+            report.supplementaryError = errorRecord(error);
+        }
+        save();
         report.complete = true;
-        validateReport(report, true, plan);
+        validateReport(report, true, plan, timingPlan);
         save();
     } catch (error) {
         report.complete = false;

@@ -25,7 +25,7 @@ firstSocket.setTimeout(200);`,
     );
 }
 
-function chronology(source) {
+function chronology(source, nativeFinishListener = false) {
     // Allocate once, before any networking. No socket/request/response is stored
     // in the trace. Fixed numeric slots are emitted only after cleanup.
     source = replaceOnce(
@@ -55,10 +55,19 @@ function record(code, a, b) {
         `socket.setTimeout(0);
     record(6, socket.destroyed ? 1 : 0, socket._deadline === undefined ? -1 : socket._deadline);`,
     );
+    // Keep the existing Node emit observer byte-for-byte. Only the native
+    // diagnostic needs a listener to enter Nona's hasListener-gated finish path.
     source = replaceOnce(
         source,
         "const server = http.createServer((req, res) => res.end(req.url));",
-        `const server = http.createServer((req, res) => {
+        nativeFinishListener
+            ? `const server = http.createServer((req, res) => {
+  // Nona _sent gates finish scheduling on hasListener. This added listener
+  // changes that fast path and adds allocation/forced-GC work: diagnostic only.
+  res.on('finish', () => record(2, 0, 0));
+  res.end(req.url);
+});`
+            : `const server = http.createServer((req, res) => {
   const responseEmit = res.emit;
   res.emit = function(event) {
     if (event === 'finish') record(2, 0, 0);
@@ -149,6 +158,45 @@ for (let i = 0; i < used; i += 4)
     );
 }
 
+// Separate supplementary Node pair, never an oracle replacement or native case.
+// Both wrap the EXACT native-stress staged source (including its existing no-op
+// cleanupWatchdog). Scalar snapshots hold only primitives. The sole intervention
+// is a non-CPU synchronous hold after readiness/idle and before client arming.
+export function makeTimingPair(witness, agentProgram) {
+    if (!witness || witness.id !== "idle-timeout" || !witness.stressSource)
+        throw new Error("Missing original idle-timeout witness");
+    const nativeSource = agentProgram(witness, true, "on").source;
+    let baseline = scalar(nativeSource);
+    baseline = replaceOnce(
+        baseline,
+        "import http from 'node:http';",
+        `import http from 'node:http';
+const holdCell = new Int32Array(new SharedArrayBuffer(4));
+let holdResult = 'not-run', holdElapsed = 0;`,
+    );
+    baseline += "console.log('diagnostic timing', holdResult, holdElapsed);\n";
+    const delayed = replaceOnce(
+        baseline,
+        "armDestroyed = firstSocket.destroyed;",
+        `const holdStarted = performance.now();
+holdResult = Atomics.wait(holdCell, 0, 0, 7000);
+holdElapsed = performance.now() - holdStarted;
+if (holdResult !== 'timed-out' || !Number.isFinite(holdElapsed) || holdElapsed < 7000 || holdElapsed >= 60000)
+  throw new Error('Invalid supplementary synchronous hold');
+armDestroyed = firstSocket.destroyed;`,
+    );
+    return [
+        { id: "node-native-stress-baseline", source: baseline, holdMs: 0 },
+        { id: "node-native-stress-prearm-hold", source: delayed, holdMs: 7000 },
+    ].map((entry) => ({
+        ...entry,
+        nativeSource,
+        boundMs: 60000,
+        cleanupWatchdogMs: null,
+        kind: "supplementary-native-stress-source-wrapper",
+    }));
+}
+
 export function makePlan(witness, agentProgram) {
     if (!witness || witness.id !== "idle-timeout" || !witness.stressSource)
         throw new Error("Missing original idle-timeout witness");
@@ -192,7 +240,7 @@ export function makePlan(witness, agentProgram) {
             id: "trace-stress",
             requestedGC: true,
             selection: "on",
-            source: chronology(stress),
+            source: chronology(stress, true),
             nativeBoundMs: 180000,
             controls: [control("node-trace", chronology(stagedNode))],
         },

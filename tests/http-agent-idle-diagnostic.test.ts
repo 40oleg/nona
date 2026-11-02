@@ -5,11 +5,203 @@ import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import { EventEmitter } from "node:events";
 
 const load = () =>
     import(
         pathToFileURL(resolve("scripts/http-agent-idle-diagnostic.mjs")).href
     );
+
+test("idle diagnostic finish observer reaches actual hasListener-gated _sent once per response", async () => {
+    const d = await load();
+    const { agentCases } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-cases.ts")).href
+    );
+    const { agentProgram } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-policy.ts")).href
+    );
+    const witness = agentCases.find(
+        (c: { id: string }) => c.id === "idle-timeout",
+    );
+    const tracePlan = d.makePlan(witness, agentProgram)[3];
+    const source = tracePlan.source;
+    const httpSource = readFileSync("src/lib/modules/http.js", "utf8");
+    const method = httpSource
+        .split("    _sent(error) {")
+        .at(-1)!
+        .split("    _afterFinish()")[0]!;
+    const hasListener = httpSource
+        .split("function hasListener(emitter, type) {")[1]!
+        .split("\n}")[0]!;
+    const sent = Function(
+        "later",
+        "function hasListener(emitter, type) {" +
+            hasListener +
+            "\n}\nreturn ({ _sent(error) {" +
+            method +
+            "})._sent;",
+    )((res: EventEmitter) => res.emit("finish"));
+    const codes: number[] = [];
+    const observe = (
+        handler: (req: { url: string }, res: EventEmitter) => void,
+    ) => {
+        const response = Object.assign(new EventEmitter(), {
+            socket: null,
+            _connection: null,
+            writableFinished: false,
+            end() {
+                sent.call(this);
+            },
+        });
+        handler({ url: "/first" }, response);
+        return response.writableFinished;
+    };
+    const makeHandler = (program: string) =>
+        Function(
+            "http",
+            "record",
+            "return " +
+                program
+                    .split("const server = ")[1]!
+                    .split("server.on('connection'")[0]!,
+        )({ createServer: (callback: unknown) => callback }, (code: number) =>
+            codes.push(code),
+        );
+    // Preserve and execute the existing Node emit observer against the pinned
+    // native gate: it cannot observe finish without an actual listener.
+    assert.equal(observe(makeHandler(tracePlan.controls[0].source)), true);
+    assert.equal(codes.length, 0);
+    const handler = makeHandler(source);
+    observe(handler);
+    assert.deepEqual(codes, [2]);
+    observe(handler);
+    assert.deepEqual(
+        codes,
+        [2, 2],
+        "one finish observation per response, no double emission",
+    );
+});
+
+test("idle diagnostic supplementary timing pair preserves staged native wrapper and differs only by guarded hold", async () => {
+    const d = await load();
+    assert.equal(typeof d.makeTimingPair, "function");
+    const { agentCases } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-cases.ts")).href
+    );
+    const { agentProgram } = await import(
+        pathToFileURL(resolve("tests/helpers/http-agent-policy.ts")).href
+    );
+    const witness = agentCases.find(
+        (c: { id: string }) => c.id === "idle-timeout",
+    );
+    const pair = d.makeTimingPair(witness, agentProgram);
+    assert.deepEqual(
+        pair.map((entry: { id: string }) => entry.id),
+        ["node-native-stress-baseline", "node-native-stress-prearm-hold"],
+    );
+    for (const entry of pair) {
+        assert.equal(entry.boundMs, 60000);
+        assert.equal(entry.cleanupWatchdogMs, null);
+        assert.match(
+            entry.source,
+            /^function cleanupWatchdog\(callback\) \{ return undefined; \}/,
+        );
+        assert.doesNotMatch(entry.source, /setTimeout\(callback, 6000\)/);
+        assert.match(
+            entry.source,
+            /await first.done;\nawait new Promise\(resolve => setImmediate\(resolve\)\);\nconsole.log\('idle'\);/,
+        );
+    }
+    assert.equal(pair[0].holdMs, 0);
+    assert.equal(pair[1].holdMs, 7000);
+    const delayed = pair[1].source;
+    const hold = delayed.slice(
+        delayed.indexOf("const holdStarted"),
+        delayed.indexOf("armDestroyed = firstSocket.destroyed;"),
+    );
+    assert.equal(delayed.replace(hold, ""), pair[0].source);
+    assert.match(hold, /Atomics.wait\(holdCell, 0, 0, 7000\)/);
+    assert.match(hold, /holdResult !== 'timed-out'/);
+    assert.match(hold, /holdElapsed < 7000/);
+    assert.doesNotMatch(hold, /while|for\s*\(|setTimeout/);
+});
+
+test("idle diagnostic supplementary parser retains both actual outcomes and rejects missing duplicate incomplete or extra evidence", async () => {
+    const d = await load();
+    assert.equal(typeof d.compareTimingPair, "function");
+    const dir = mkdtempSync(join(tmpdir(), "idle616-pair-parser-"));
+    const expected =
+        "body /first false\nidle\ntimed out 1 true\nbody /second false\nreplacement true 2\n";
+    const output = (count: number, delayed: boolean) =>
+        expected.replace("timed out 1", "timed out " + count) +
+        "diagnostic scalar false true\n" +
+        (delayed
+            ? "diagnostic timing timed-out 7000.5\n"
+            : "diagnostic timing not-run 0\n");
+    try {
+        const baseline = outputReceipt(
+            dir,
+            "node-native-stress-baseline",
+            output(1, false),
+        );
+        const delayed = outputReceipt(
+            dir,
+            "node-native-stress-prearm-hold",
+            output(0, true),
+        );
+        const before = structuredClone([baseline, delayed]);
+        const observed = d.compareTimingPair([baseline, delayed], expected);
+        assert.equal(observed.ok, true);
+        assert.equal(observed.hypothesisConfirmed, true);
+        assert.deepEqual(
+            observed.observations.map((o: { timedOut: number }) => o.timedOut),
+            [1, 0],
+        );
+        assert.deepEqual([baseline, delayed], before);
+        const unconfirmed = outputReceipt(dir, delayed.id, output(1, true));
+        const actual = d.compareTimingPair([baseline, unconfirmed], expected);
+        assert.equal(
+            actual.ok,
+            true,
+            "a prediction is not an acceptance criterion",
+        );
+        assert.equal(actual.hypothesisConfirmed, false);
+        assert.equal(actual.observations[1].timedOut, 1);
+        for (const runs of [
+            [],
+            [baseline],
+            [baseline, baseline],
+            [delayed, baseline],
+            [baseline, delayed, delayed],
+        ])
+            assert.equal(d.compareTimingPair(runs, expected).ok, false);
+        for (const text of [
+            output(0, true).replace("timed-out", "not-equal"),
+            output(0, true).replace("7000.5", "5999"),
+            output(0, true).replace("7000.5", "NaN"),
+            output(0, true).replace("replacement true 2", "replacement true 3"),
+            output(0, true) + "extra\n",
+            output(0, true).replace("diagnostic scalar false true\n", ""),
+            output(0, true).slice(0, -1),
+        ]) {
+            const malformed = outputReceipt(dir, delayed.id, text);
+            assert.equal(
+                d.compareTimingPair([baseline, malformed], expected).ok,
+                false,
+            );
+        }
+        const incomplete = {
+            ...delayed,
+            pipes: { ...delayed.pipes, stdoutClosed: false },
+        };
+        assert.equal(
+            d.compareTimingPair([baseline, incomplete], expected).ok,
+            false,
+        );
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
+});
 
 // Exercise the real comparator without native compilation or network access.
 // Each mock has complete process provenance and actual, hash-checked raw files.
@@ -261,6 +453,12 @@ test("idle diagnostic observer suffixes accept only complete scalar and trace ou
             ["overflow", trace.replace("trace 9 false", "trace 9 true")],
             ["duplicate header", "diagnostic trace 9 false\n" + trace],
             ["unknown event", trace.replace("trace 4 3", "trace 11 3")],
+            [
+                "required finish missing",
+                trace
+                    .replace("trace 2 2 0 0\n", "")
+                    .replace("trace 9 false", "trace 8 false"),
+            ],
             ["nonfinite", trace.replace("trace 4 3", "trace 4 NaN")],
             ["backwards time", trace.replace("trace 4 3", "trace 4 1")],
             ["extra field", trace.replace("trace 4 3 1 0", "trace 4 3 1 0 0")],
@@ -589,9 +787,75 @@ test("idle diagnostic rejects empty, partial, malformed, skipped and wrong-selec
             stderrClosed: true,
         },
     };
+    const supplementaryReceipt = (id: string, holdMs: number) => ({
+        ...receipt,
+        id,
+        kind: "supplementary-native-stress-source-wrapper",
+        engine: "node",
+        actualGC: false,
+        boundMs: 60000,
+        holdMs,
+        cleanupWatchdogMs: null,
+        nativeSourceSha256:
+            "3a56740f611c7b8c983180cd1f47f5fd86a2748a9eeb53f591cbb8ad721ca764",
+        executableSha256: hash,
+        source: artifact,
+    });
     const fixture = {
-        schema: 1,
+        schema: 2,
         complete: true,
+        budget: {
+            nativeCases: 4,
+            nodeControls: 7,
+            originalNodeControls: 5,
+            supplementaryNodeControls: 2,
+        },
+        supplementary: {
+            kind: "supplementary-native-stress-source-wrapper",
+            replacementOracle: false,
+            complete: true,
+            expected:
+                "body /first false\nidle\ntimed out 1 true\nbody /second false\nreplacement true 2\n",
+            nativeSource: {
+                ...artifact,
+                sha256: "3a56740f611c7b8c983180cd1f47f5fd86a2748a9eeb53f591cbb8ad721ca764",
+            },
+            runs: [
+                supplementaryReceipt("node-native-stress-baseline", 0),
+                supplementaryReceipt("node-native-stress-prearm-hold", 7000),
+            ],
+            comparison: {
+                ok: true,
+                error: null,
+                observations: [
+                    {
+                        id: "node-native-stress-baseline",
+                        base: "body /first false\nidle\ntimed out 1 true\nbody /second false\nreplacement true 2\n",
+                        timedOut: 1,
+                        scalar: {
+                            destroyedBeforeArm: false,
+                            freeBeforeArm: true,
+                        },
+                        hold: { result: "not-run", elapsedMs: 0 },
+                        matchesOriginalExpected: true,
+                        matchesPrediction: false,
+                    },
+                    {
+                        id: "node-native-stress-prearm-hold",
+                        base: "body /first false\nidle\ntimed out 1 true\nbody /second false\nreplacement true 2\n",
+                        timedOut: 1,
+                        scalar: {
+                            destroyedBeforeArm: false,
+                            freeBeforeArm: true,
+                        },
+                        hold: { result: "timed-out", elapsedMs: 7000 },
+                        matchesOriginalExpected: true,
+                        matchesPrediction: false,
+                    },
+                ],
+                hypothesisConfirmed: false,
+            },
+        },
         identity: {
             sourcePin: d.SOURCE_PIN,
             head: "a".repeat(40),
@@ -652,6 +916,50 @@ test("idle diagnostic rejects empty, partial, malformed, skipped and wrong-selec
     };
     assert.equal(d.compare({ runs: [] }, "expected\n").ok, false);
     assert.doesNotThrow(() => d.validateReport(fixture));
+    const { supplementary: _pair, ...missingPair } = fixture;
+    assert.throws(() => d.validateReport(missingPair));
+    for (const change of [
+        (pair: typeof fixture.supplementary) => pair.runs.pop(),
+        (pair: typeof fixture.supplementary) =>
+            pair.runs.push(structuredClone(pair.runs[0]!)),
+        (pair: typeof fixture.supplementary) => {
+            pair.runs[1]!.id = pair.runs[0]!.id;
+        },
+        (pair: typeof fixture.supplementary) => {
+            pair.complete = false;
+        },
+        (pair: typeof fixture.supplementary) => {
+            pair.runs[1]!.pipes = {
+                ...pair.runs[1]!.pipes,
+                stdoutClosed: false,
+            };
+        },
+        (pair: typeof fixture.supplementary) => {
+            pair.runs[1]!.boundMs = 61000;
+        },
+        (pair: typeof fixture.supplementary) =>
+            pair.comparison.observations.pop(),
+        (pair: typeof fixture.supplementary) => {
+            pair.comparison.observations[1]!.id =
+                pair.comparison.observations[0]!.id;
+        },
+        (pair: typeof fixture.supplementary) => {
+            pair.comparison.hypothesisConfirmed = true;
+        },
+        (pair: typeof fixture.supplementary) => {
+            pair.comparison.observations[1]!.hold.elapsedMs = 6999;
+        },
+    ]) {
+        const report = structuredClone(fixture);
+        change(report.supplementary);
+        assert.throws(() => d.validateReport(report));
+    }
+    for (const budget of [
+        { ...fixture.budget, nodeControls: 5 },
+        { ...fixture.budget, originalNodeControls: 4 },
+        { ...fixture.budget, supplementaryNodeControls: 1 },
+    ])
+        assert.throws(() => d.validateReport({ ...fixture, budget }));
     for (const change of [
         (r: any) => r.cases.pop(),
         (r: any) => r.cases[0].runs.pop(),
