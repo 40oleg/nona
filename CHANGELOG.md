@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Initial Windows process environment folding scales linearly.** A temporary membership index avoids repeatedly folding earlier names while preserving initial spelling, values, ordering, descriptors and inherited enumerable suppression. Environment parsing, POSIX behavior and the mutation/Proxy path are unchanged. This source correction alone does not establish a native startup timing improvement or resolve the HTTP acceptance work in #602 ([#638](https://github.com/40oleg/nona/issues/638)).
+
 ### Testing
 
 - **HTTP soak driver completes interrupted responses.** Premature response aborts, errors and closes settle pending requests and statistics reads, allowing workers and child cleanup to finish and write final JSON/Markdown criteria with the original server exit code and stderr. Deliberate slow-client aborts remain successful; failed runs return a nonzero driver status ([#636](https://github.com/40oleg/nona/issues/636)).
