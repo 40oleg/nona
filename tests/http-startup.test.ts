@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import {
+    readFileSync,
+    mkdtempSync,
+    mkdirSync,
+    writeFileSync,
+    copyFileSync,
+    rmSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -435,6 +443,275 @@ test("capture helper excludes credential and arbitrary env at the real tiny-chil
     }
 });
 
+test("installer workflow reaches the checked-in ps1 through the allowlist with an extensionless Actions runscript", () => {
+    const step = readFileSync(".github/workflows/native-platforms.yml", "utf8")
+        .split(
+            "            - name: Install Windows debugging tools if absent (same SDK as original collector)",
+        )[1]!
+        .split("            - name:")[0]!;
+    const shell = step.match(/^              shell: (.+)$/m)![1]!;
+    const directory = mkdtempSync(join(tmpdir(), "nona-shell-pure-"));
+    try {
+        mkdirSync(join(directory, "scripts"));
+        mkdirSync(join(directory, "a", "_temp"), { recursive: true });
+        copyFileSync(
+            "scripts/http-startup-env.mjs",
+            join(directory, "scripts/http-startup-env.mjs"),
+        );
+        // Only the external installer is replaced; the workflow command, wrapper,
+        // PowerShell -File boundary and inherited child environment are real.
+        writeFileSync(
+            join(directory, "scripts/http-startup-install.ps1"),
+            `
+@{ helper = $PSCommandPath; args = @($args); env = [Environment]::GetEnvironmentVariables() } | ConvertTo-Json -Depth 4 -Compress | Set-Content helper.json
+& node scripts/fake-installer.mjs 'installer-fixture' 'argument with spaces'
+exit $LASTEXITCODE
+`,
+        );
+        writeFileSync(
+            join(directory, "scripts/fake-installer.mjs"),
+            `
+import { writeFileSync } from 'node:fs';
+writeFileSync('child.json', JSON.stringify({ args: process.argv.slice(2), env: process.env }));
+`,
+        );
+        const custom = shell.includes("{0}");
+        const run = custom
+            ? "throw 'harmless inline fixture must not be executed'"
+            : step.match(/^              run: (.+)$/m)![1]!;
+        if (!custom) {
+            assert.equal(shell, "pwsh");
+            assert.equal(
+                run,
+                "node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-startup-install.ps1",
+            );
+        }
+        // Mirrors the failing D:\a\_temp\GUID shape: deliberately no .ps1.
+        const runscript = join(
+            directory,
+            "a",
+            "_temp",
+            "e3749b79-a938-496a-9df2-30372f5e43e7",
+        );
+        writeFileSync(runscript, run);
+        const childEnv = {
+            ...startupChildEnv(process.env),
+            ...env,
+            PORT: "43210",
+            GH_TOKEN: "innocuous-test-sentinel",
+            GITHUB_TOKEN: "innocuous-test-sentinel",
+            ACTIONS_RUNTIME_TOKEN: "innocuous-test-sentinel",
+            ACTIONS_ID_TOKEN_REQUEST_TOKEN: "innocuous-test-sentinel",
+            ARBITRARY_WITHOUT_SECRET_NAME: "innocuous-test-sentinel",
+            UNKNOWN_VENDOR_CREDENTIAL: "innocuous-test-sentinel",
+            NODE_OPTIONS: "--trace-warnings",
+        };
+        const launch = () =>
+            spawnSync(
+                custom ? process.execPath : "pwsh",
+                custom
+                    ? shell
+                          .split(" ")
+                          .slice(1)
+                          .map((arg) => (arg === "{0}" ? runscript : arg))
+                    : // Ordinary pwsh compiles the run body. Its inner -File argument
+                      // must be the checked-in helper, independent of the outer name.
+                      [
+                          "-NoProfile",
+                          "-Command",
+                          "$ErrorActionPreference = 'Stop';\n" +
+                              readFileSync(runscript, "utf8") +
+                              "\nif (Test-Path variable:\\LASTEXITCODE) { exit $LASTEXITCODE }",
+                      ],
+                {
+                    cwd: directory,
+                    env: childEnv,
+                    encoding: "utf8",
+                    windowsHide: true,
+                    timeout: 10000,
+                },
+            );
+        const result = launch();
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        const helper = JSON.parse(
+            readFileSync(join(directory, "helper.json"), "utf8").replace(
+                /^\uFEFF/,
+                "",
+            ),
+        );
+        const installer = JSON.parse(
+            readFileSync(join(directory, "child.json"), "utf8"),
+        );
+        assert.equal(
+            helper.helper,
+            join(directory, "scripts/http-startup-install.ps1"),
+        );
+        assert.deepEqual(helper.args, []);
+        assert.deepEqual(installer.args, [
+            "installer-fixture",
+            "argument with spaces",
+        ]);
+        for (const received of [helper.env, installer.env]) {
+            assert.equal(received.PORT, "43210");
+            assert.equal(received.GITHUB_SHA, head);
+            assert.equal(
+                Object.values(received).includes("innocuous-test-sentinel"),
+                false,
+            );
+            for (const key of [
+                "GH_TOKEN",
+                "GITHUB_TOKEN",
+                "ACTIONS_RUNTIME_TOKEN",
+                "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+                "ARBITRARY_WITHOUT_SECRET_NAME",
+                "UNKNOWN_VENDOR_CREDENTIAL",
+                "NODE_OPTIONS",
+            ])
+                assert.equal(
+                    Object.keys(received).some(
+                        (name) => name.toUpperCase() === key,
+                    ),
+                    false,
+                    key,
+                );
+            assert.equal(received._NT_SYMBOL_PATH, "");
+            assert.equal(received._NT_ALT_SYMBOL_PATH, "");
+        }
+        writeFileSync(
+            join(directory, "scripts/http-startup-install.ps1"),
+            "throw 'harmless helper failure'",
+        );
+        const failed = launch();
+        assert.equal(failed.error, undefined);
+        assert.equal(failed.status, 1, failed.stdout + failed.stderr);
+        assert.match(failed.stderr, /harmless helper failure/);
+    } finally {
+        assert.ok(directory.startsWith(join(tmpdir(), "nona-shell-pure-")));
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test("installer helper preserves SDK arguments, timeout, cleanup and actual failures without running setup", () => {
+    const directory = mkdtempSync(join(tmpdir(), "nona-install-pure-"));
+    try {
+        // Fail closed: every installer-facing command is a local function.
+        // The actual helper runs unchanged; no SDK/network/registry IO.
+        const fixture = join(directory, "fixture.ps1");
+        writeFileSync(
+            fixture,
+            `
+param([string]$Helper)
+$ErrorActionPreference = 'Continue'
+function Test-Path { param($LiteralPath) $global:fixtureSeen602.cdb = $LiteralPath; return $global:fixtureMode602 -eq 'present' }
+function Invoke-WebRequest { param($Uri, $OutFile) $global:fixtureSeen602.download = @($Uri, $OutFile); if ($global:fixtureMode602 -eq 'download-error') { Write-Error 'fake download failed' } }
+function Start-Process {
+    param($FilePath, $WindowStyle, $ArgumentList, [switch]$PassThru)
+    $global:fixtureSeen602.start = @($FilePath, $WindowStyle, $ArgumentList, $PassThru.IsPresent)
+    if ($global:fixtureMode602 -eq 'launch-error') { Write-Error 'fake launch failed' }
+    $p = [pscustomobject]@{ Id = 42; HasExited = $global:fixtureMode602 -ne 'timeout'; ExitCode = $(if ($global:fixtureMode602 -eq 'failure') { 7 } elseif ($global:fixtureMode602 -eq 'reboot') { 3010 } else { 0 }) }
+    $p | Add-Member ScriptMethod WaitForExit { param($Milliseconds) $global:fixtureSeen602.wait = $Milliseconds; return $this.HasExited }
+    return $p
+}
+function Stop-Process { param($Id, [switch]$Force) $global:fixtureSeen602.stop = @($Id, $Force.IsPresent) }
+$results = foreach ($global:fixtureMode602 in @('present', 'success', 'reboot', 'failure', 'timeout', 'download-error', 'launch-error')) {
+    $global:fixtureSeen602 = @{ mode = $global:fixtureMode602 }
+    try { & $Helper; $global:fixtureSeen602.ok = $true } catch { $global:fixtureSeen602.ok = $false; $global:fixtureSeen602.error = $_.Exception.Message }
+    $global:fixtureSeen602
+}
+ConvertTo-Json -InputObject @($results) -Depth 5 -Compress
+`,
+        );
+        const result = spawnSync(
+            process.execPath,
+            [
+                "scripts/http-startup-env.mjs",
+                "pwsh",
+                "-NoProfile",
+                "-File",
+                fixture,
+                "-Helper",
+                resolve("scripts/http-startup-install.ps1"),
+            ],
+            {
+                env: startupChildEnv(process.env),
+                encoding: "utf8",
+                windowsHide: true,
+                timeout: 10000,
+            },
+        );
+        assert.equal(result.error, undefined);
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        const rows: {
+            mode: string;
+            ok: boolean;
+            error?: string;
+            cdb: string;
+            download?: string[];
+            start?: unknown[];
+            wait?: number;
+            stop?: unknown[];
+        }[] = JSON.parse(result.stdout);
+        assert.deepEqual(
+            rows.map((row) => [row.mode, row.ok]),
+            [
+                ["present", true],
+                ["success", true],
+                ["reboot", true],
+                ["failure", false],
+                ["timeout", false],
+                ["download-error", false],
+                ["launch-error", false],
+            ],
+            result.stdout,
+        );
+        for (const row of rows) {
+            assert.equal(
+                row.cdb,
+                process.env["ProgramFiles(x86)"] +
+                    "\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe",
+            );
+            if (row.mode === "present") {
+                assert.equal(row.download, undefined);
+                assert.equal(row.start, undefined);
+                continue;
+            }
+            assert.deepEqual(row.download, [
+                "https://go.microsoft.com/fwlink/?linkid=2196241",
+                "work/http-startup/winsdksetup.exe",
+            ]);
+            if (row.mode === "download-error") {
+                assert.equal(row.start, undefined);
+                assert.match(row.error!, /fake download failed/);
+                continue;
+            }
+            assert.deepEqual(row.start, [
+                "work/http-startup/winsdksetup.exe",
+                "Hidden",
+                "/features OptionId.WindowsDesktopDebuggers /quiet /norestart",
+                true,
+            ]);
+            if (row.mode === "launch-error") {
+                assert.equal(row.wait, undefined);
+                assert.match(row.error!, /fake launch failed/);
+                continue;
+            }
+            assert.equal(row.wait, 420000);
+            if (row.mode === "timeout") {
+                assert.deepEqual(row.stop, [42, true]);
+                assert.match(row.error!, /SDK installation timed out/);
+            } else {
+                assert.equal(row.stop, undefined);
+                if (row.mode === "failure")
+                    assert.match(row.error!, /SDK installation failed: 7/);
+            }
+        }
+    } finally {
+        assert.ok(directory.startsWith(join(tmpdir(), "nona-install-pure-")));
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
 // Execute the real driver bodies with in-memory IO and child boundaries replaced.
 // No main entry, compiler import, TCP socket, native image or debugger can run.
 function pureBody(file: string, keepEntry = false) {
@@ -670,7 +947,7 @@ test("workflow helper wrapper and guarded compiler Git query isolate their actua
         .split("    bsd-loaders:")[0]!;
     assert.match(
         workflow,
-        /shell: node scripts\/http-startup-env\.mjs pwsh -NoProfile -File \{0\}/,
+        /shell: pwsh\s+timeout-minutes: 8\s+run: node scripts\/http-startup-env\.mjs pwsh -NoProfile -File scripts\/http-startup-install\.ps1/,
     );
     for (const line of workflow
         .split("\n")

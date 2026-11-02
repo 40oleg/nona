@@ -247,20 +247,9 @@ jobs:
             - name: Pure diagnostic regressions only (serial)
               run: node --test --test-concurrency=1 dist/tests/http-crash-acceptance.test.js dist/tests/http-startup.test.js
             - name: Install Windows debugging tools if absent (same SDK as original collector)
-              shell: node scripts/http-startup-env.mjs pwsh -NoProfile -File {0}
+              shell: pwsh
               timeout-minutes: 8
-              run: |
-                  $cdb = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
-                  if (-not (Test-Path -LiteralPath $cdb)) {
-                      Invoke-WebRequest 'https://go.microsoft.com/fwlink/?linkid=2196241' -OutFile work/http-startup/winsdksetup.exe
-                      $installer = Start-Process -FilePath work/http-startup/winsdksetup.exe -WindowStyle Hidden -ArgumentList '/features OptionId.WindowsDesktopDebuggers /quiet /norestart' -PassThru
-                      try {
-                          if (-not $installer.WaitForExit(420000)) { throw 'SDK installation timed out' }
-                          if ($installer.ExitCode -notin @(0,3010)) { throw "SDK installation failed: $($installer.ExitCode)" }
-                      } finally { if (-not $installer.HasExited) { Stop-Process -Id $installer.Id -Force } }
-                  }
-                  # Missing debugger is recorded by the bounded inspector; it is
-                  # incomplete evidence and never a sampled-stack claim.
+              run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-startup-install.ps1
             - name: Configure original per-image fault collector unchanged
               run: node scripts/http-startup-env.mjs pwsh -NoProfile -File scripts/http-crash-windows.ps1 setup -Output work/http-startup
             - name: One attempt per startup probe, retained reference first
