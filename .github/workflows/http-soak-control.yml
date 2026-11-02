@@ -1,0 +1,57 @@
+name: http soak control
+
+on:
+    pull_request:
+        paths:
+            - "scripts/http-soak*.mjs"
+            - "scripts/fixtures/http-soak*.mjs"
+            - "bench/http/soak-server.mjs"
+            - ".github/workflows/http-soak*.yml"
+            - "docs/network.md"
+            - "bench/README.md"
+            - "package.json"
+            - "package-lock.json"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: http-soak-control-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    node-control:
+        # Literal hosted runners; never use the repository's overflow router.
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 8
+        env:
+            EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ env.EXPECTED_HEAD }}
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            - name: Verify exact head and hosted runner
+              shell: bash
+              run: |
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
+                  test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+            - name: Cheap decision and report regressions
+              run: node --test --test-concurrency=1 scripts/http-soak.test.mjs
+            - name: Real Node control and failure fixtures (no native compilation)
+              run: node --test --test-concurrency=1 scripts/http-soak-hosted.test.mjs
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-soak-control-${{ matrix.os }}-${{ env.EXPECTED_HEAD }}
+                  path: soak-control-report/
+                  if-no-files-found: warn
+                  retention-days: 30
