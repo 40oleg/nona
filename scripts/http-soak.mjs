@@ -407,6 +407,7 @@ async function main() {
                 res.on("data", (c) => chunks.push(c));
                 res.on("error", (e) => settle(`response error ${e.code || e}`));
                 res.on("aborted", () => settle("response aborted"));
+                res.on("close", () => settle("response closed before end"));
                 res.on("end", () => {
                     const body = Buffer.concat(chunks);
                     if (route === "echo") {
@@ -450,6 +451,15 @@ async function main() {
             const req = http.get(
                 { host: "127.0.0.1", port, path: "/slow", agent: false },
                 (res) => {
+                    // A peer can disappear before our deliberate threshold abort.
+                    // Settle that worker too, so main can drain it and report the crash.
+                    res.on("error", (e) =>
+                        settle(`response error ${e.code || e}`),
+                    );
+                    res.on("aborted", () => settle("response aborted"));
+                    res.on("close", () =>
+                        settle("response closed before the abort"),
+                    );
                     if (res.statusCode !== 200) {
                         settle(`status ${res.statusCode}`);
                         req.destroy();
@@ -463,7 +473,6 @@ async function main() {
                             req.destroy();
                         }
                     });
-                    res.on("error", () => {});
                     res.on("end", () => settle("ended before the abort"));
                 },
             );
@@ -499,6 +508,8 @@ async function main() {
                     const chunks = [];
                     res.on("data", (c) => chunks.push(c));
                     res.on("error", () => done(null));
+                    res.on("aborted", () => done(null));
+                    res.on("close", () => done(null));
                     res.on("end", () => {
                         try {
                             done(JSON.parse(Buffer.concat(chunks).toString()));
