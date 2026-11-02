@@ -6,6 +6,8 @@
 
 ### Testing
 
+- **HTTP soak driver completes interrupted responses.** Premature response aborts, errors and closes settle pending requests and statistics reads, allowing workers and child cleanup to finish and write final JSON/Markdown criteria with the original server exit code and stderr. Deliberate slow-client aborts remain successful; failed runs return a nonzero driver status ([#636](https://github.com/40oleg/nona/issues/636)).
+
 - **HTTP soak infrastructure review.** Add cheap Node decision regressions and hosted Windows/Linux control/failure fixtures, retain startup/interruption evidence, identify source and image provenance, validate all deterministic JSON values and enforce the p99 20% ratio without additive slack. Short controls remain separate from full native acceptance ([#516](https://github.com/40oleg/nona/issues/516)).
 
 - **HTTP server soak test.** `scripts/http-soak.mjs` runs a compiled Nona HTTP server for hours under steady load and checks it stays healthy: no crash, no failed requests, RSS growth within 10%, handles return to baseline, and latency within 20%. A smoke mode runs for 5 minutes; the full test is 180 minutes (configurable). `npm run soak:http -- --smoke` locally or via the `http-soak` GitHub Actions workflow on demand ([#516](https://github.com/40oleg/nona/issues/516)). On win32-x64 it finds a keep-alive stall after large chunked responses ([#601](https://github.com/40oleg/nona/issues/601)) and a crash under concurrent 1 MiB responses ([#602](https://github.com/40oleg/nona/issues/602)); the compiled server does not pass yet.
