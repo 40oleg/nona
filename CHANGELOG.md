@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add public `compile()` timeout liveness coverage and a focused hosted exact-revision comparison with Node 26 controls and buffered timer-phase traces for the unresolved Darwin ARM64 investigation. PR #624 remains held pending native mechanism and repair evidence ([#632](https://github.com/40oleg/nona/issues/632)).
+- Split timeout liveness coverage into explicit future-unref and all-due phase contracts, with hosted public default/full and IR checks under GC off/on and a referenced negative control. Retain the original fixture and strict four-revision experiment as manual diagnostics. The Darwin ARM64 cause and native acceptance remain unresolved; PR #624 stays held ([#632](https://github.com/40oleg/nona/issues/632)).
 
 ## v0.34.0 — 2026-10-31
 

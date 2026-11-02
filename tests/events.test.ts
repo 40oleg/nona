@@ -1,28 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { eventsModuleSource } from "../src/runtime/events-module-source.js";
 import { compile } from "../src/compiler.js";
 import { runModulesOnHost } from "./helpers/host.js";
-import { removeTemporaryDirectory } from "./helpers/cleanup.js";
 import { requireHostTarget } from "../src/target.js";
+import {
+    timeoutImports,
+    timeoutContracts,
+} from "./helpers/abort-timeout-fixture.js";
 
 const cases: [string, string][] = [
     [
         "timeout signals do not keep the process alive",
         `
 AbortSignal.timeout(1000).addEventListener('abort',()=>console.log('unexpected'));console.log('done');
-`,
-    ],
-    [
-        "timeout cancellation fires while an ordinary timer remains active",
-        `
-const early=AbortSignal.timeout(1),later=AbortSignal.timeout(1000);
-early.addEventListener('abort',()=>console.log('timeout',early.reason.name));later.addEventListener('abort',()=>console.log('unexpected'));
-setTimeout(()=>console.log('live',early.aborted,later.aborted),20);
 `,
     ],
     [
@@ -213,63 +208,131 @@ for (const [name, body] of cases) {
     );
 }
 
-// Keep the original module imports, delays, event order and GC request. The
-// module-to-IR oracle above always links the full runtime; these exercise the
-// public compiler's selected-runtime path as well (#632).
-for (const fullRuntime of [false, true]) {
-    test(`events public compile: timeout liveness (fullRuntime=${fullRuntime})`, () => {
-        const body = cases.find(
-            ([name]) =>
-                name ===
-                "timeout cancellation fires while an ordinary timer remains active",
-        )![1];
-        const source = imports + body;
-        const directory = mkdtempSync(join(tmpdir(), "nona-events-timeout-"));
-        try {
-            const entry = join(directory, "main.mjs");
-            writeFileSync(entry, source);
-            const oracle = spawnSync(process.execPath, [entry], {
-                encoding: "utf8",
-                timeout: 10000,
-                windowsHide: true,
-                cwd: directory,
+// The explicit contracts run through all three paths, with and without GC.
+// Host timing/GC experiments belong to Actions; the source tests use a fake clock.
+for (const { name, body, expected } of timeoutContracts)
+    for (const gcStress of [false, true])
+        for (const path of ["ir", "default", "full"] as const) {
+            test(`events timeout phase: ${name} (${path}, gcStress=${gcStress})`, () => {
+                assert.equal(
+                    process.env.GITHUB_ACTIONS,
+                    "true",
+                    "hosted timing experiment only",
+                );
+                assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
+                assert.notEqual(
+                    process.env.NONA_GC_STRESS,
+                    "off",
+                    "must not silently disable the GC-on controls",
+                );
+                const source = timeoutImports + body;
+                const outputRoot = join(process.cwd(), "work", "abort-timeout");
+                mkdirSync(outputRoot, { recursive: true });
+                const directory = mkdtempSync(
+                    join(outputRoot, `${name}-${path}-gc${gcStress}-`),
+                );
+                const retain = (file: string, value: unknown) =>
+                    writeFileSync(
+                        join(directory, file),
+                        JSON.stringify(value, null, 2) + "\n",
+                    );
+                writeFileSync(join(directory, "main.mjs"), source);
+                retain("metadata.json", {
+                    name,
+                    path,
+                    gcStress,
+                    expected,
+                    sourceSha256: createHash("sha256")
+                        .update(source)
+                        .digest("hex"),
+                    revision: process.env.GITHUB_SHA,
+                    node: process.version,
+                    platform: process.platform,
+                    arch: process.arch,
+                });
+                if (path === "ir") {
+                    const { native, oracle, oracleStatus } = runModulesOnHost(
+                        { "main.mjs": source },
+                        "main.mjs",
+                        { gcStress },
+                    );
+                    retain("results.json", { native, oracle, oracleStatus });
+                    assert.equal(oracleStatus, 0);
+                    assert.equal(oracle, expected);
+                    assert.equal(native.error, undefined);
+                    assert.equal(native.status, 0, native.stderr);
+                    assert.equal(native.stderr, "");
+                    assert.equal(native.stdout, expected);
+                    return;
+                }
+                try {
+                    const entry = join(directory, "main.mjs");
+                    writeFileSync(entry, source);
+                    const oracle = spawnSync(process.execPath, [entry], {
+                        encoding: "utf8",
+                        timeout: 10000,
+                        windowsHide: true,
+                        cwd: directory,
+                    });
+                    retain("oracle.json", {
+                        status: oracle.status,
+                        signal: oracle.signal,
+                        error: oracle.error?.message ?? null,
+                        stdout: oracle.stdout,
+                        stderr: oracle.stderr,
+                    });
+                    assert.equal(oracle.error, undefined);
+                    assert.equal(oracle.status, 0, oracle.stderr);
+                    assert.equal(oracle.stderr, "");
+                    assert.equal(oracle.stdout, expected);
+                    const compiled = compile(source, {
+                        fileName: entry,
+                        target: requireHostTarget(),
+                        module: true,
+                        gcStress,
+                        fullRuntime: path === "full",
+                    });
+                    retain(
+                        "compile.json",
+                        compiled.ok
+                            ? {
+                                  ok: true,
+                                  imageSha256: createHash("sha256")
+                                      .update(compiled.image)
+                                      .digest("hex"),
+                              }
+                            : compiled,
+                    );
+                    assert.ok(
+                        compiled.ok,
+                        compiled.ok ? "" : JSON.stringify(compiled.diagnostics),
+                    );
+                    const executable = join(
+                        directory,
+                        process.platform === "win32" ? "image.exe" : "image",
+                    );
+                    writeFileSync(executable, compiled.image);
+                    chmodSync(executable, 0o755);
+                    const native = spawnSync(executable, [], {
+                        encoding: "utf8",
+                        timeout: 180000,
+                        windowsHide: true,
+                        cwd: directory,
+                    });
+                    retain("native.json", {
+                        status: native.status,
+                        signal: native.signal,
+                        error: native.error?.message ?? null,
+                        stdout: native.stdout,
+                        stderr: native.stderr,
+                    });
+                    assert.equal(native.error, undefined);
+                    assert.equal(native.status, 0, native.stderr);
+                    assert.equal(native.stdout, oracle.stdout);
+                    assert.equal(native.stderr, oracle.stderr);
+                } catch (error) {
+                    retain("failure.json", { error: String(error) });
+                    throw error;
+                }
             });
-            assert.equal(oracle.error, undefined);
-            assert.equal(oracle.status, 0, oracle.stderr);
-            assert.equal(oracle.stderr, "");
-            assert.equal(
-                oracle.stdout,
-                "timeout TimeoutError\nlive true false\n",
-            );
-            const compiled = compile(source, {
-                fileName: entry,
-                target: requireHostTarget(),
-                module: true,
-                gcStress: true,
-                fullRuntime,
-            });
-            assert.ok(
-                compiled.ok,
-                compiled.ok ? "" : JSON.stringify(compiled.diagnostics),
-            );
-            const executable = join(
-                directory,
-                process.platform === "win32" ? "image.exe" : "image",
-            );
-            writeFileSync(executable, compiled.image);
-            chmodSync(executable, 0o755);
-            const native = spawnSync(executable, [], {
-                encoding: "utf8",
-                timeout: 180000,
-                windowsHide: true,
-                cwd: directory,
-            });
-            assert.equal(native.error, undefined);
-            assert.equal(native.status, 0, native.stderr);
-            assert.equal(native.stdout, oracle.stdout);
-            assert.equal(native.stderr, oracle.stderr);
-        } finally {
-            removeTemporaryDirectory(directory);
         }
-    });
-}

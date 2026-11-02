@@ -16,9 +16,9 @@ const read = (path) =>
     );
 const timers = read("src/lib/runtime/timers.js");
 const events = read("src/lib/runtime/events.js");
-const body = read("tests/events.test.ts").match(
-    /"timeout cancellation fires while an ordinary timer remains active",\s*`([^`]+)`/u,
-)[1];
+// Historical scalar schema describes the ORIGINAL 1/1000/20 registration order.
+const original = read("tests/fixtures/abort-timeout/original.mjs");
+const body = original.slice(original.indexOf("\n") + 1);
 const expected = "timeout TimeoutError\nlive true false\n";
 
 function run(text, atEntry, inCallback) {

@@ -4,14 +4,16 @@
 // Local: node scripts/diagnose-abort-timeout.mjs
 // Hosted, after npm ci and npm run build (run serially; retain all artifacts):
 //   node scripts/diagnose-abort-timeout.mjs --native
-//   node scripts/diagnose-abort-timeout.mjs --native --trace
-//   node scripts/diagnose-abort-timeout.mjs --native --scalar
+//   node scripts/diagnose-abort-timeout.mjs --native --case=original --trace
+//   node scripts/diagnose-abort-timeout.mjs --native --case=original --scalar
 //   node scripts/diagnose-abort-timeout.mjs --native --no-stress
 // Run each on main 23c5c90d, head 9fd6dc4e, merge dbeb6c23 and the candidate.
-// .github/workflows/abort-timeout-investigation.yml runs that comparison on PRs.
+// Add --case=original for the historical four-revision MANUAL comparison.
+// PR CI judges the explicit future/all-due contracts instead; historical failures
+// remain failures and are never reclassified using either new contract.
 // Copy both diagnostic scripts into old hosted checkouts; do not transplant selector code.
 // Upload work/abort-timeout even on failure. Two passing attempts do not resolve
-// #632; retain the original stressed Events suite and PR624's release hold.
+// #632; retain original failed evidence and PR624's release hold.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -31,6 +33,13 @@ import {
     parseScalar,
     scalarFormat,
 } from "./abort-timeout-scalar.mjs";
+import {
+    timeoutImports,
+    timeoutFuture,
+    timeoutAllDue,
+    timeoutExpected,
+    timeoutAllDueExpected,
+} from "../tests/helpers/abort-timeout-fixture.ts";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const args = process.argv.slice(2);
@@ -38,12 +47,23 @@ assert(
     args.every(
         (arg) =>
             ["--native", "--trace", "--scalar", "--no-stress"].includes(arg) ||
-            /^--attempts=[1-8]$/u.test(arg),
+            /^--attempts=[1-8]$/u.test(arg) ||
+            /^--case=(?:original|future-unref|all-due|future-referenced)$/u.test(
+                arg,
+            ),
     ),
 );
 const native = args.includes("--native");
 const traced = args.includes("--trace");
 const scalar = args.includes("--scalar");
+const caseArgs = args.filter((arg) => arg.startsWith("--case="));
+assert.ok(caseArgs.length <= 1);
+const contract = caseArgs[0]?.slice("--case=".length) ?? "future-unref";
+const negative = contract === "future-referenced";
+assert.ok(
+    !(scalar || traced) || contract === "original",
+    "Historical observers describe only the pinned original fixture",
+);
 assert.ok(!(traced && scalar), "Separate scalar and verbose native images");
 const attemptArgs = args.filter((arg) => arg.startsWith("--attempts="));
 assert.ok(attemptArgs.length <= 1);
@@ -65,13 +85,12 @@ const mode = native
     : "source";
 const outputRoot = join(root, "work", "abort-timeout");
 mkdirSync(outputRoot, { recursive: true });
-const output = mkdtempSync(join(outputRoot, mode + "-"));
+const output = mkdtempSync(join(outputRoot, contract + "-" + mode + "-"));
 const read = (path) =>
     readFileSync(join(root, path), "utf8").replace(/\r\n?/g, "\n");
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const save = (name, value) => writeFileSync(join(output, name), value);
 const json = (name, value) => save(name, JSON.stringify(value, null, 2) + "\n");
-const testSource = read("tests/events.test.ts");
 save(
     "events.fixture.test.ts",
     readFileSync(join(root, "tests/events.test.ts")),
@@ -81,17 +100,31 @@ save(
     "abort-timeout-scalar.mjs",
     readFileSync(new URL("./abort-timeout-scalar.mjs", import.meta.url)),
 );
-const body = testSource.match(
-    /"timeout cancellation fires while an ordinary timer remains active",\s*`([^`]+)`/u,
-)?.[1];
-const imports = testSource
-    .match(/const imports = `([^`]+)`;/u)?.[1]
-    .replaceAll("\\n", "\n");
-assert(
-    body && imports,
-    "The original events fixture must remain available verbatim",
+const original = readFileSync(
+    join(root, "tests/fixtures/abort-timeout/original.mjs"),
 );
-const source = imports + body;
+assert.equal(
+    hash(original),
+    "912309ce70d7e31624f54c19f233fb3a8f91fcce0db9a3578d34c9e30256e27f",
+    "Original fixture bytes changed",
+);
+save("original.mjs", original);
+save(
+    "abort-timeout-fixture.ts",
+    readFileSync(join(root, "tests/helpers/abort-timeout-fixture.ts")),
+);
+const body =
+    contract === "original"
+        ? original.toString().slice(original.indexOf(10) + 1)
+        : contract === "all-due"
+          ? timeoutAllDue
+          : timeoutFuture;
+const source =
+    contract === "original" ? original.toString() : timeoutImports + body;
+const expected =
+    contract === "all-due" || negative
+        ? timeoutAllDueExpected
+        : timeoutExpected;
 save("main.mjs", source);
 const timers = read("src/lib/runtime/timers.js");
 const events = read("src/lib/runtime/events.js");
@@ -167,6 +200,21 @@ __nonaPromiseDrainJobs = (function (loop) {
 }
 const instrumented = instrument(timers);
 const scalarTimers = instrumentScalar(timers);
+// Diagnostic generated-source mutation only: tracked production sources and the
+// staged fixture remain unchanged. Only the 1000 ms timeout becomes referenced.
+const referencedTimers = timers.replace(
+    "referenced: !unreferenced,",
+    "referenced: !unreferenced || d === 1000,",
+);
+assert.notEqual(referencedTimers, timers, "Unique referenced mutation anchor");
+const effectiveTimers = traced
+    ? instrumented
+    : scalar
+      ? scalarTimers
+      : negative
+        ? referencedTimers
+        : timers;
+save("timers.effective.js", effectiveTimers);
 save("timers.traced.js", instrumented);
 save("timers.scalar.js", scalarTimers);
 json("scalar-format.json", scalarFormat);
@@ -230,6 +278,14 @@ const metadata = {
     scalar,
     attempts,
     requestedGcStress: stress,
+    contract,
+    expected,
+    originalContract:
+        "historical-two-line-assertion; phase of failed plain attempt UNOBSERVED",
+    negativeControl: negative
+        ? "only delay1000 referenced in diagnostic generated timers; Node held by one supplemental ref"
+        : null,
+    setupPauseMs: contract === "all-due" ? 1100 : 0,
     linking:
         "compileModuleToIR -> generate (default fullRuntimeLink) -> linkHost",
     hashes: {},
@@ -251,13 +307,15 @@ for (const path of [
 ])
     metadata.hashes[path] = hash(read(path));
 metadata.hashes.fixture = hash(source);
+metadata.hashes.originalFixtureBytes = hash(original);
+metadata.hashes.phaseFixture = hash(
+    readFileSync(join(root, "tests/helpers/abort-timeout-fixture.ts")),
+);
 metadata.hashes.probe = hash(readFileSync(fileURLToPath(import.meta.url)));
 metadata.hashes.scalarTooling = hash(
     readFileSync(new URL("./abort-timeout-scalar.mjs", import.meta.url)),
 );
-metadata.hashes.effectiveTimers = hash(
-    traced ? instrumented : scalar ? scalarTimers : timers,
-);
+metadata.hashes.effectiveTimers = hash(effectiveTimers);
 json("metadata.json", metadata);
 
 function execute(name, executable, argv, timeout, required = true) {
@@ -282,14 +340,20 @@ function execute(name, executable, argv, timeout, required = true) {
     }
     return result;
 }
+// Actual Node negative control keeps the retained late signal reachable and
+// permits its actual AbortSignal callback to fire; no synthetic output line.
+const nodeNegative = negative
+    ? `const createTimeout=AbortSignal.timeout;AbortSignal.timeout=function(delay){const signal=createTimeout(delay);if(delay===1000)setTimeout(()=>{if(!signal.aborted)throw new Error('late signal lost')},delay);return signal;};\n`
+    : "";
+save("oracle.mjs", nodeNegative + source);
 const oracle = execute(
-    "node-original",
+    "node-" + contract,
     process.execPath,
-    [join(output, "main.mjs")],
+    [join(output, "oracle.mjs")],
     10000,
 ).stdout;
-assert.equal(oracle, "timeout TimeoutError\nlive true false\n");
-if (!native) {
+assert.equal(oracle, expected);
+if (!native && contract === "original") {
     // Supplementary control: no timing assertions in the original are changed.
     save(
         "all-due.mjs",
@@ -348,7 +412,7 @@ if (!native) {
                 : "timeout TimeoutError\nlive true false\n",
         );
     }
-} else {
+} else if (native) {
     // Change only the generated prelude, before importing any compiler modules.
     // Restore it even after a failed compile/run; never edit the tracked runtime.
     const generatedPath = join(root, "dist/src/lib/sources.generated.js");
@@ -358,14 +422,14 @@ if (!native) {
     const pattern = /^export const runtimeTimers = ("(?:[^"\\]|\\.)*");$/mu;
     assert.equal(JSON.parse(generated.match(pattern)?.[1] ?? "null"), timers);
     try {
-        if (traced || scalar)
+        if (traced || scalar || negative)
             writeFileSync(
                 generatedPath,
                 generated.replace(
                     pattern,
                     () =>
                         "export const runtimeTimers = " +
-                        JSON.stringify(traced ? instrumented : scalarTimers) +
+                        JSON.stringify(effectiveTimers) +
                         ";",
                 ),
             );
@@ -403,6 +467,8 @@ if (!native) {
                 completedAttempts: outcomes.length,
                 matchesOracle: matches,
                 outcomes,
+                contract,
+                expected,
                 hold: "PR624 remains held; PR633 stays draft Part of #632 until hosted causal and failing-versus-fixed proof is reviewed",
             });
         report();
@@ -463,7 +529,8 @@ if (!native) {
         });
         throw error;
     } finally {
-        if (traced || scalar) writeFileSync(generatedPath, generated);
+        if (traced || scalar || negative)
+            writeFileSync(generatedPath, generated);
     }
 }
 console.log("Retained diagnostics:", output);

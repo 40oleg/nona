@@ -1,9 +1,9 @@
 # AbortSignal timeout investigation (#632)
 
-Status: **unresolved; PR #624 remains held**. This branch adds public compiler
-coverage and a runnable hosted comparison. It does not establish a Darwin root
-cause or claim a runtime repair. Use `Part of #632`, not `Closes #632`, until the
-remaining native evidence and repair are reviewed.
+Status: **unresolved; PR #624 remains held; PR #633 remains draft**. This branch
+repairs the fixture's phase contracts and prepares hosted discriminating controls.
+It does not establish a native root cause or claim native acceptance. Use
+`Part of #632`, not `Closes #632`, until the remaining evidence is reviewed.
 
 ## Exact revisions and existing evidence
 
@@ -42,29 +42,76 @@ has ZIP SHA256 `08126448b692cd44dc9fef6a147372ec87e3044d783a790193af38a2b0821e2a
 Preserve this completed run, its failure and all raw outcomes when adding newer
 evidence; a passing scalar run cannot supersede the causal question.
 
+The newer [hosted comparison](https://github.com/40oleg/nona/actions/runs/41331470725)
+retains candidate macOS artifact `13106980859` (ZIP SHA256
+`7424e85f87ac9e54752e32943ff0d628c4f3527e66072f31021ba365e789dfc5`)
+at actual source `598e57fa7a5bf14433e3fee28b7541a3d42f6bc6`. Plain GC stress
+has **one failure and one pass**; normal/plain and stress/scalar each have two
+passes; stress/trace has two failures. Main23 artifact `13105466687` (ZIP SHA256
+`e0568b8505aa8569eaed1c8d77033e269474ab145bdf2534c6869c02aa48b7dc`)
+has all eight attempts passing. Shared original fixture, generated JS, timers and
+events source hashes match. Native binary identity has not been proved.
+The failed plain candidate's first phase remains **UNOBSERVED**. Scalar passes
+and trace failures do not supply the missing observation. These results and the
+earlier failed trace experiment remain historical failures, without relabeling.
+
 ## What the controls distinguish
 
-The original `1/1000/20` ms fixture prints exactly:
+The original `1/1000/20` ms fixture normally prints:
 
 ```text
 timeout TimeoutError
 live true false
 ```
 
-Node 26.9.0 also prints `unexpected` when a supplementary `Atomics.wait` after
-registration holds the initial loop until all three timers are due. The source
+The parent's actual Node 26.9.0 receipt records two lines normally and three
+lines, including `unexpected`, after a 1100 ms `Atomics.wait` following the same
+registration and original delays. Creating the later timer inside the final
+referenced callback prints two lines even after that setup pause. The source
 clock control agrees. Advancing the source clock only during the last referenced
 callback does not admit the later deadline into the existing phase snapshot.
 These controls rule out stopping every timer phase immediately when its last
 reference disappears as a compatible general repair. They do **not** establish
 which condition occurred in the failing native executable.
 
-`tests/events.test.ts` now runs the unchanged complete imported fixture through
-public `compile()` with `fullRuntime=false` and `true`, requesting GC stress in
-both. Each asserts the Node status and exact two-line output before comparing the
-native result byte for byte. These cases have not yet demonstrated an unfixed
-native failure, so they are coverage pending regression proof, not evidence of a
-completed fix. The existing module-to-IR oracle remains intact.
+The old assertion that an unref timeout never fires is therefore not an
+unconditional Node contract once its deadline is already due. This justifies
+explicit fixture contracts, but does not explain the failed plain native attempt.
+An early break when the last reference disappears is still an incompatible
+production change and is not implemented here.
+
+[The current fixture helper](../tests/helpers/abort-timeout-fixture.ts) defines:
+
+- **Future-unref:** keep the 1 ms early timeout and 20 ms last referenced
+  callback; create the 1000 ms unref timeout inside that callback. Store the
+  signal in an outer `let later` captured by a process exit listener, keeping it
+  strongly reachable through exit. The exit listener reads the binding and
+  throws if missing. Require exactly the two lines above and process exit without
+  the late callback. No deadline is widened and no output is filtered.
+- **All-due:** keep the original registration order and 1/1000/20 ms values,
+  then intentionally block setup using one finite 1100 ms `Atomics.wait`.
+  Require its `timed-out` return and a measured elapsed time of at least 1100 ms;
+  failure of either guard fails the fixture. Require exactly the two lines above
+  followed by `unexpected`. This guards against a break on the last reference.
+- **Referenced negative (diagnostic only):** make only the 1000 ms native timer
+  referenced in generated diagnostic source, with the staged fixture unchanged.
+  It must stay alive and print all three lines. The actual Node counterpart adds
+  one ordinary referenced timer to keep the retained signal alive until its real
+  abort callback fires. It does not synthesize the third output line. The native
+  mutation is restored in `finally`; tracked runtime sources are never modified.
+
+These native timing/GC experiments run only in Actions, with no platform skips.
+Local controls use the real timer/events source and a fake clock; tiny actual
+Node controls use `Atomics.wait`, without CPU busy-waiting. The delay, order,
+strong root, exact lines, pause guards, early-break mutation and referenced
+negative controls have source tests. None is evidence of a native fix.
+
+[The original source](../tests/fixtures/abort-timeout/original.mjs) is retained
+as exact LF bytes, independently of the active fixture. Its SHA256 is
+`912309ce70d7e31624f54c19f233fb3a8f91fcce0db9a3578d34c9e30256e27f`.
+The probe and tests assert the raw-byte hash and copy it unchanged into each
+diagnostic directory as `original.mjs`. Prettier excludes this evidence file.
+No capture depends on extracting the active fixture from `events.test.ts`.
 
 ## Supplementary scalar observations
 
@@ -109,66 +156,64 @@ findings. These are deterministic source controls, not native acceptance tests.
 
 ## Hosted path and completion gate
 
-After the harness publishes this branch as a PR with `full-ci` and `gc-stress`,
-`.github/workflows/abort-timeout-investigation.yml` runs on the PR event without
-requiring a new workflow on main. It checks all four revisions on hosted Darwin
-ARM64, Windows x64 and Linux x64 with Node 26.9.0. Matrix concurrency is one;
-within each job commands and native processes run serially.
+On normal PR events, `.github/workflows/abort-timeout-investigation.yml` checks
+the candidate on hosted macOS ARM64, Windows x64 and Linux x64, pinned to Node
+26.9.0, with matrix concurrency one and serial native processes. The Events suite
+also contains these assertions for ordinary CI: future-unref and all-due each
+run through public default/full `compile()` and module-to-IR with GC off/on
+(twelve tests). `events` is in the always-GC manifest so ordinary PR routing
+cannot silently turn the GC-on requests off. Explicit GC-off requests remain off.
+The fixture tests reject a global GC-off override and require a hosted runner.
 
-For each revision, the probe compiles the original module fixture with full
-runtime and GC stress, then separately with scalar observations, buffered traces
-and without stress. Each mode defaults to two independent native processes.
-Mismatches, stderr, nonzero exits, timeouts and invalid scalar evidence fail the
-job; subsequent requested attempts, later modes and artifact upload still run.
-An incremental comparison report preserves completed outcomes if a job is
-interrupted. The non-stressed mode supplements
-the original stressed mode. The candidate also runs the two public compiler
-cases. Artifacts retain fixture/runtime/generated sources, commit/tree, runner
-configuration, commands, executable hashes, complete stdout/stderr, statuses and
-verbose/scalar schemas, effective generated source/hash, parsed observations
-and findings. Source controls retain their TAP report and both controlled
-outcomes too. No existing CI assertion or platform coverage is disabled.
+Each public path retains source, expected lines, source hash, platform/Node/commit,
+compile/image hash and complete Node/native results under `work/abort-timeout`.
+The IR helper keeps its existing execution conventions; the tests retain its
+returned results, and the separate probe retains plain future/all-due IR images
+and complete process receipts. Hosted negative controls run with GC on and off.
+Probe metadata names the contract, exact expected output, setup pause, original
+raw-byte SHA, effective timer/generated source SHA and image SHA. Every run gets
+a new directory. Artifact upload always runs; failures remain job failures.
+No `continue-on-error`, acceptance of either two or three lines, suppression of
+`unexpected`, wider native timeout, GC bypass or skipped platform is used.
 
-For a coordinator-reviewed **hosted-only** campaign, `--attempts=N` accepts
-integers 1 through 8 (default 2). Set the workflow's `ABORT_TIMEOUT_ATTEMPTS`
-before publication to apply the same fixed count to original/plain and scalar;
-verbose and GC-off controls stay at two. Alternatively, in the same pinned
-hosted checkout, use `node scripts/diagnose-abort-timeout.mjs --native --attempts=8`
-and `node scripts/diagnose-abort-timeout.mjs --native --scalar --attempts=8`.
-The probe attempts the entire fixed count regardless of earlier success/failure;
-the count is never extended until green. Existing process/job time limits still
-apply; an interrupted campaign is incomplete proof. Native hosted/Node guards
-remain mandatory.
-The modes compile separate images and are sequential, so matched counts are
-observational comparisons, not simultaneous measurements of one execution.
+The **historical four-revision experiment is manual**: dispatch the workflow with
+`historical=true` on the reviewed branch. It still pins main23c5c90, failing624head,
+failing624merge and the candidate on all three platforms, `max-parallel: 1`.
+Only diagnostic tooling and pinned fixtures are copied to historical checkouts;
+no selector/runtime patch is transplanted. The original/plain, scalar, trace and
+GC-off modes retain their strict historical two-line comparison. An extra line
+still fails that experiment even if it might be Node-compatible under all-due
+conditions. The report names that historical assertion and does not infer phase
+timing from a mismatch. Later modes and uploads run after failures, while the
+job stays failed. Existing completed failures and artifacts are never replaced.
 
-The matrix still pins main23c5c90, failing624head, the actual failing624merge and
-the candidate across all three platforms, with `max-parallel: 1`, reports on
-failure and no automatic cancellation. The parent alone coordinates any
-superseding of **unstarted** older jobs with a recorded reason. This worker
-does not cancel or rerun jobs or discard executed failed evidence.
+Explicit commands after a hosted build (serially):
 
-The worker cannot run unpublished candidate code on GitHub-hosted runners while
-obeying this turn's prohibition on pushes and PR creation. Local Node/source
-checks cannot replace those runs. Required remaining work:
+```sh
+node scripts/diagnose-abort-timeout.mjs --native --case=future-unref --attempts=1
+node scripts/diagnose-abort-timeout.mjs --native --case=all-due --attempts=1
+node scripts/diagnose-abort-timeout.mjs --native --case=future-referenced --attempts=1
+node scripts/diagnose-abort-timeout.mjs --native --case=future-referenced --no-stress --attempts=1
+node scripts/diagnose-abort-timeout.mjs --native --case=original
+node scripts/diagnose-abort-timeout.mjs --native --case=original --scalar
+node scripts/diagnose-abort-timeout.mjs --native --case=original --trace
+node scripts/diagnose-abort-timeout.mjs --native --case=original --no-stress
+```
 
-- Obtain scalar/plain comparisons on the pinned failing head/actual merge and
-  other matrix revisions. Inspect scheduled versus admitted deadlines, each
-  admission's phase and counts, with verbose I/O evidence as supplementary
-  context. Account for observer perturbation and successful plain outcomes.
-- Establish whether an original plain failure is legitimate all-due behavior
-  or violates deadline, root, clock or liveness state. Report causal evidence
-  before choosing a production or fixture-staging repair. Staged success alone
-  cannot establish the original cause. If the defect belongs to #624, document
-  that dependency and repair it there instead of copying selector changes here.
-- Demonstrate a meaningful native public-API regression failing before the
-  repair and passing afterward, preserving the original delays, event order,
-  exact output and GC stress assertions.
-- Validate the repair on hosted Darwin ARM64, Windows and Linux, then have the
-  coordinator decide whether the evidence clears #624's release hold. Passing
-  attempts alone do not dismiss the original failure.
+Historical `--attempts=N` still accepts 1..8, default two, and runs the entire
+fixed count regardless of outcomes. Interrupted campaigns remain incomplete;
+counts are never extended until green. Native compilation/execution is guarded
+by `GITHUB_ACTIONS=true`, `RUNNER_ENVIRONMENT=github-hosted` and Node 26.9.0.
+Scalar/trace modes are restricted to `--case=original`, whose schema they describe.
 
-## Local review validation
+The parent alone owns PR #633 publication, label/milestone readback, hosted
+runs and integration. Remaining acceptance includes reviewed hosted contracts
+and negative controls across all three platforms, full platform/CI evidence,
+and final main integration. The failed plain original's phase/cause remains an
+independent unresolved question; staged success cannot answer it. No #612
+production patch is included. PR #624 stays held and issue #632 remains open.
+
+## Historical local review validation
 
 The scalar continuation starts at pinned PR #633 head
 `3e2aa12aaceead0d6db7df0b62b63a4dbb425fdd` under claim `6561236354`.
@@ -191,3 +236,15 @@ belongs to the previous continuation. The updated hosted scalar path and native
 public witnesses remain pending, so PR #624 stays held, PR #633 stays draft
 `Part of #632`, and no native red/green acceptance or production/fixture repair
 is claimed.
+
+## Phase-contract continuation
+
+This continuation starts at `d73286fd4f6143e391383fd1b65dfdf4178869f4` under own
+claim `6571889171`. It reads the parent's phase findings and actual Node receipt
+without modifying root research outputs. `work/phase632-red.txt` retains the
+original-body baseline: six failures and one pass, no skips. That red exposes
+missing staging/root/pause contracts; it is not a native regression receipt.
+`work/phase632-green.txt` and `work/phase632-review.txt` record the final tiny
+serial BelowNormal checks, exact commands/source diff and remaining hosted gates.
+No local native build, emission, execution, GC/load campaign or full suite is
+used. No production runtime/compiler file changes or GitHub mutations are made.
