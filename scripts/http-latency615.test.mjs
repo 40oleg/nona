@@ -2022,3 +2022,104 @@ test("workflow nonce validation writes only a validated distinct artifact and fi
         assert.equal(bad.writes.length, 0);
     }
 });
+
+test("diagnostic runner context belongs only to the actual coordinator step env", async () => {
+    // Reuse the installed formatter's YAML AST to distinguish mapping scopes.
+    // This narrow regression is not GitHub's workflow/expression parser.
+    // Context rule supplied by the parent plan:
+    // https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#context-availability
+    const { __debug } = await import("prettier");
+    const coordinator = "One instrumented nativeA, Node, nativeB triad";
+    const runnerExpression = "${{ runner.environment }}";
+    function field(mapping, key) {
+        if (!mapping) return undefined;
+        assert.equal(mapping.type, "mapping");
+        const matches = mapping.children.filter(
+            (item) => item.children[0].children[0]?.value === key,
+        );
+        assert.ok(matches.length <= 1, `duplicate ${key}`);
+        return matches[0]?.children[1].children[0];
+    }
+    async function checkScope(yaml) {
+        const { ast } = await __debug.parse(yaml, { parser: "yaml" });
+        assert.equal(ast.children.length, 1);
+        const body = ast.children[0].children.find(
+            (node) => node.type === "documentBody",
+        ).children[0];
+        const job = field(field(body, "jobs"), "latency615-triad");
+        assert.ok(job, "actual diagnostic job required");
+        const jobEnv = field(job, "env");
+        assert.ok(jobEnv, "diagnostic job env required");
+        assert.doesNotMatch(
+            yaml.slice(
+                jobEnv.position.start.offset,
+                jobEnv.position.end.offset,
+            ),
+            /\$\{\{[^}]*\brunner\s*\./,
+            "runner context is unavailable in diagnostic job-level env",
+        );
+        assert.equal(field(jobEnv, "NONA_RUNNER_ENVIRONMENT"), undefined);
+        const steps = field(job, "steps");
+        assert.equal(steps.type, "sequence");
+        let coordinatorCount = 0;
+        for (const item of steps.children) {
+            const step = item.children[0];
+            const env = field(step, "env");
+            const binding = field(env, "NONA_RUNNER_ENVIRONMENT");
+            if (field(step, "name")?.value === coordinator) {
+                coordinatorCount++;
+                assert.equal(
+                    field(step, "run")?.value,
+                    "node scripts/http-latency615.mjs",
+                );
+                assert.equal(binding?.value, runnerExpression);
+                assert.equal(
+                    field(env, "GH_TOKEN")?.value,
+                    "${{ github.token }}",
+                );
+            } else assert.equal(binding, undefined, "coordinator-only binding");
+        }
+        assert.equal(coordinatorCount, 1);
+    }
+    const fixture = [
+        "jobs:",
+        "    latency615-triad:",
+        "        env:",
+        "            DIAGNOSTIC_MODE: ${{ inputs.diagnostic_mode }}",
+        "        steps:",
+        `            - name: ${coordinator}`,
+        "              run: node scripts/http-latency615.mjs",
+        "              env:",
+        "                  GH_TOKEN: ${{ github.token }}",
+        `                  NONA_RUNNER_ENVIRONMENT: ${runnerExpression}`,
+        "",
+    ].join("\n");
+    await checkScope(fixture);
+    await assert.rejects(
+        checkScope(
+            fixture.replace(
+                "        steps:",
+                `            NONA_RUNNER_ENVIRONMENT: ${runnerExpression}\n        steps:`,
+            ),
+        ),
+        /runner context is unavailable in diagnostic job-level env/,
+    );
+    await assert.rejects(
+        checkScope(
+            fixture +
+                "            - name: Other step\n              env:\n" +
+                `                  NONA_RUNNER_ENVIRONMENT: ${runnerExpression}\n`,
+        ),
+        /coordinator-only binding/,
+    );
+    await assert.rejects(
+        checkScope(fixture.replace(runnerExpression, "github-hosted")),
+        /Expected values to be strictly equal/,
+    );
+    await checkScope(
+        readFileSync(
+            new URL("../.github/workflows/http-keepalive.yml", import.meta.url),
+            "utf8",
+        ),
+    );
+});

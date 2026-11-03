@@ -136,7 +136,6 @@ jobs:
             EXPECTED_WORKFLOW_ID: ${{ inputs.expected_workflow_id }}
             SOURCE_IDENTITY_SHA256: ${{ inputs.source_identity_sha256 }}
             DISPATCH_NONCE: ${{ inputs.dispatch_nonce }}
-            NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -154,6 +153,7 @@ jobs:
               run: node scripts/http-latency615.mjs
               env:
                   GH_TOKEN: ${{ github.token }}
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
             - name: Retain diagnostic observations (product acceptance remains false)
               if: always() && steps.admission-path.outcome == 'success'
               uses: actions/upload-artifact@v4
