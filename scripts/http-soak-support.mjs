@@ -107,21 +107,105 @@ export function evaluateRun({
         .filter(({ s }) => s.phase === "load");
     // After a crash the windows would overlap: the RSS and latency criteria are
     // not evaluated (and fail).
-    const fullRun = crash === null && loadSeconds >= config.minutes * 60;
+    const fullRun =
+        crash === null &&
+        Number.isFinite(loadSeconds) &&
+        loadSeconds >= config.minutes * 60;
     const missing = fullRun
         ? "not enough samples"
         : "not evaluated: the run ended early";
-    const headWindow = loadSamples.filter(
+    // Only floating-point roundoff, not sampling or performance slack.
+    const epsilon = Number.EPSILON * Math.max(1, loadSeconds) * 8;
+    const bounds = ({ s }) => ({
+        start: s.intervalStart ?? s.t - config.sampleSeconds,
+        end: s.intervalEnd ?? s.t,
+        explicit: s.intervalStart !== undefined && s.intervalEnd !== undefined,
+    });
+    const validHistogram = (h) => {
+        if (
+            !h ||
+            !Number.isSafeInteger(h.n) ||
+            h.n < 0 ||
+            h.counts?.length !== BUCKETS
+        )
+            return false;
+        let total = 0;
+        for (let i = 0; i < BUCKETS; i++) {
+            const count = h.counts[i];
+            // Bins use Uint32 storage; validate before any merge can coerce them.
+            if (!Number.isSafeInteger(count) || count < 0 || count > 0xffffffff)
+                return false;
+            total += count;
+            if (!Number.isSafeInteger(total)) return false;
+        }
+        return total === h.n;
+    };
+    let observationsValid = true;
+    const comparisonSamples = loadSamples.filter((entry, i) => {
+        const { s, h } = entry;
+        const { start, end, explicit } = bounds(entry);
+        const previous = i > 0 ? bounds(loadSamples[i - 1]) : null;
+        const validBounds =
+            Number.isFinite(start) &&
+            Number.isFinite(end) &&
+            start >= 0 &&
+            end > start &&
+            end <= loadSeconds + epsilon &&
+            (i !== loadSamples.length - 1 ||
+                end + epsilon >= config.minutes * 60) &&
+            // A single missing/null boundary is not legacy complete evidence.
+            (explicit
+                ? s.intervalStart !== null && s.intervalEnd !== null
+                : s.intervalStart === undefined && s.intervalEnd === undefined);
+        const contiguous = previous
+            ? !explicit ||
+              !previous.explicit ||
+              Math.abs(start - previous.end) <= epsilon
+            : !explicit || start <= epsilon;
+        const complete = end + epsilon >= start + config.sampleSeconds;
+        const terminalPartial =
+            s.observation === "terminal-partial" &&
+            fullRun &&
+            explicit &&
+            i === loadSamples.length - 1 &&
+            previous?.explicit &&
+            start < config.minutes * 60 &&
+            end >= config.minutes * 60 &&
+            end <= loadSeconds + epsilon &&
+            !complete;
+        observationsValid &&=
+            validBounds &&
+            contiguous &&
+            validHistogram(h) &&
+            Number.isFinite(s.t) &&
+            (terminalPartial ||
+                (complete &&
+                    (s.observation === undefined ||
+                        s.observation === "complete")));
+        // Never filter by histogram emptiness. Unknown/malformed observations
+        // invalidate coverage; legacy evidence is eligible only when complete.
+        return !terminalPartial;
+    });
+    const headWindow = comparisonSamples.filter(
         ({ s }) =>
             fullRun &&
             (s.intervalStart ?? s.t - config.sampleSeconds) >= warmup &&
             (s.intervalEnd ?? s.t) <= warmup + windowSeconds + 1,
     );
-    const tailWindow = loadSamples.filter(
+    // A clipped snapshot closes accounting, not a comparison window. Anchor
+    // that window at the preceding complete boundary so full/smoke runs still
+    // require their original number of complete observations. The coverage
+    // checks below remain relative to the actual load end, including its gap.
+    const comparisonEndSeconds =
+        comparisonSamples.length < loadSamples.length &&
+        comparisonSamples.length
+            ? bounds(comparisonSamples.at(-1)).end
+            : loadSeconds;
+    const tailWindow = comparisonSamples.filter(
         ({ s }) =>
             fullRun &&
             (s.intervalStart ?? s.t - config.sampleSeconds) >=
-                loadSeconds - windowSeconds - 1,
+                comparisonEndSeconds - windowSeconds - 1,
     );
     const expectedSamples = Math.max(
         2,
@@ -134,12 +218,14 @@ export function evaluateRun({
         window.every(
             ({ s, h }, i) =>
                 Number.isFinite(s.rss) &&
+                validHistogram(h) &&
                 h.n > 0 &&
                 (i === 0 ||
                     s.t - window[i - 1].s.t <= config.sampleSeconds + 1),
         );
     const coverage =
         fullRun &&
+        observationsValid &&
         covered(headWindow, warmup, warmup + windowSeconds) &&
         covered(tailWindow, loadSeconds - windowSeconds, loadSeconds);
     const criteria = [];
@@ -206,8 +292,15 @@ export function evaluateRun({
         `baseline + ${config.limits.socketSlack} sockets, + ${config.limits.fdSlack} fds, + ${config.limits.resourceSlack} resources`,
     );
 
-    const p99Head = quantile(merge(headWindow.map(({ h }) => h)), 0.99);
-    const p99Tail = quantile(merge(tailWindow.map(({ h }) => h)), 0.99);
+    // Missing histogram evidence fails coverage, while still producing a report.
+    const p99Head = quantile(
+        merge(headWindow.map(({ h }) => h).filter(validHistogram)),
+        0.99,
+    );
+    const p99Tail = quantile(
+        merge(tailWindow.map(({ h }) => h).filter(validHistogram)),
+        0.99,
+    );
     const p99Growth =
         p99Head && p99Tail !== null ? p99Tail / p99Head - 1 : null;
     criterion(
@@ -218,7 +311,7 @@ export function evaluateRun({
         p99Growth === null
             ? missing
             : `${p99Head.toFixed(2)} → ${p99Tail.toFixed(2)} ms (${p99Growth >= 0 ? "+" : ""}${(p99Growth * 100).toFixed(1)}%)`,
-        `last ${+config.windowMinutes.toFixed(2)} min ≤ first ${+config.windowMinutes.toFixed(2)} min after warm-up + ${config.limits.p99Growth * 100}%`,
+        `last complete ${+config.windowMinutes.toFixed(2)} min ≤ first ${+config.windowMinutes.toFixed(2)} min after warm-up + ${config.limits.p99Growth * 100}%`,
     );
 
     const pass = criteria.every((c) => c.pass);
@@ -231,6 +324,7 @@ export function evaluateRun({
     const summary = {
         pass,
         loadSeconds: Math.round(loadSeconds),
+        comparisonEndSeconds,
         requests: totalRequests,
         ok: counters.ok,
         deliberate: counters.deliberate,

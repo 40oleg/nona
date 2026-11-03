@@ -6,6 +6,8 @@
 
 ### Testing
 
+- **HTTP soak comparison intervals.** Preserve deadline-clipped final snapshots and all request accounting while distinguishing terminal partials from complete RSS/latency observations. Keep complete-window sample minimums and strict performance limits; empty complete intervals, gaps, missing snapshots and early/crashed runs still fail ([#640](https://github.com/40oleg/nona/issues/640)).
+
 - **HTTP soak driver completes interrupted responses.** Premature response aborts, errors and closes settle pending requests and statistics reads, allowing workers and child cleanup to finish and write final JSON/Markdown criteria with the original server exit code and stderr. Deliberate slow-client aborts remain successful; failed runs return a nonzero driver status ([#636](https://github.com/40oleg/nona/issues/636)).
 
 - **HTTP soak infrastructure review.** Add cheap Node decision regressions and hosted Windows/Linux control/failure fixtures, retain startup/interruption evidence, identify source and image provenance, validate all deterministic JSON values and enforce the p99 20% ratio without additive slack. Short controls remain separate from full native acceptance ([#516](https://github.com/40oleg/nona/issues/516)).
@@ -16,6 +18,7 @@
 
 ### Fixes
 
+- **Native distributions preserve third-party notices.** Compiler packages and release archives include `THIRD_PARTY_NOTICES.md`, with the shared cube-root implementation's SunPro/Bruce D. Evans notice, corrected numeric-runtime attribution and the full Unicode License V3 for generated Unicode 17 data imported by RegExp and Intl support. Release verification extracts the ZIP and tar.gz files and checks their layout, checksums, required files and exact `LICENSE` and notice bytes before publication; the installation and distribution guidance lists the files to retain with generated programs. ([#618](https://github.com/40oleg/nona/issues/618))
 - **The CLI protects every file read while compiling or resolving a package.** Outputs can no longer replace imported or required sources, JSON modules, package metadata or explicit icon, manifest and version information files. Canonical paths and file identity also catch symbolic links, links through parent directories and hard links. Refused builds preserve the input files and previous executable and remove temporary output. The protection is shared by the Node.js and native CLIs. ([#614](https://github.com/40oleg/nona/issues/614))
 - **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
 - **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
