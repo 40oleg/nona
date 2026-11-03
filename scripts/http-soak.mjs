@@ -547,12 +547,13 @@ async function main() {
     const samples = receipt.samples;
     const histograms = [];
     let lastSampleAt = 0;
-    async function sample(phase) {
+    async function sample(phase, terminal = false) {
         const now = performance.now();
         const seconds = lastSampleAt ? (now - lastSampleAt) / 1000 : 0;
         const intervalStart =
             loadStart && lastSampleAt ? (lastSampleAt - loadStart) / 1000 : 0;
         const intervalEnd = loadStart ? (now - loadStart) / 1000 : 0;
+        const complete = now >= lastSampleAt + config.sampleSeconds * 1000;
         lastSampleAt = now;
         const current = interval;
         interval = {
@@ -571,6 +572,10 @@ async function main() {
             t: Math.round(elapsedSeconds()),
             intervalStart,
             intervalEnd,
+            ...(phase === "load" && {
+                observation:
+                    terminal && !complete ? "terminal-partial" : "complete",
+            }),
             rss: rssProc ?? stats?.memory?.rss ?? null,
             rssStats: stats?.memory?.rss ?? null,
             maxRss: stats?.maxRss ?? null,
@@ -638,7 +643,9 @@ async function main() {
         while (performance.now() < next && crash === null)
             await sleep(Math.min(1000, next - performance.now()));
         if (crash !== null) break;
-        await sample("load");
+        // The deadline can clip the last interval. Keep its raw accounting,
+        // but identify it separately from complete comparison observations.
+        await sample("load", next === endAt);
     }
     running = false;
     await Promise.all(workers);

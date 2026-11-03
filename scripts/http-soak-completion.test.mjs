@@ -29,6 +29,523 @@ const driver = readFileSync(
     "utf8",
 );
 
+// Execute the real collector AND scheduling loop. Virtual intervals carry one
+// latency observation, except the clipped last interval, which has only a
+// deliberate slow abort. The final boundary matches #640's uploaded report;
+// preceding timings and histograms here are synthetic, not recovered raw data.
+async function collectBoundary(
+    config = readConfig(
+        {
+            NONA_SOAK_MINUTES: "0.15",
+            NONA_SOAK_WARMUP_MINUTES: "0.02",
+            NONA_SOAK_SAMPLE_SECONDS: "0.2",
+        },
+        false,
+    ),
+    driftMs = null,
+) {
+    let now = 1000;
+    let ticks = 0;
+    const replayBoundary = config.minutes === 0.15 && driftMs === null;
+    const interval = () => ({
+        requests: 0,
+        deliberate: 0,
+        failed: 0,
+        hist: newHistogram(),
+    });
+    const baseline = {
+        rss: 1000000,
+        openSockets: 1,
+        fds: 10,
+        activeResources: 2,
+    };
+    const context = {
+        config,
+        receipt: { samples: [] },
+        interval: interval(),
+        performance: { now: () => now },
+        loadStart: 1000,
+        elapsedSeconds: () => (now - 1000) / 1000,
+        fetchStats: async () => ({ memory: { rss: 1000000 }, ...baseline }),
+        procRss: () => 1000000,
+        procFds: () => 10,
+        newHistogram,
+        quantile,
+        console: { log() {} },
+        writeFailureReceipt() {},
+        outDir: "unused",
+        crash: null,
+        fail() {
+            assert.fail("unexpected statistics failure");
+        },
+        workers: [],
+        agents: [],
+        running: true,
+        sleep: async (ms) => {
+            ticks++;
+            // Drift accumulates before the deadline, just as in the real run.
+            now = replayBoundary
+                ? 1000 + (ticks <= 44 ? ticks * (8953.2504 / 44) : 9000.3675)
+                : now + ms + (driftMs ?? 0);
+            context.interval.requests++;
+            if (replayBoundary && ticks === 45) context.interval.deliberate++;
+            else record(context.interval.hist, 1);
+        },
+    };
+    const sampling = driver.slice(
+        driver.indexOf("    const samples = receipt.samples;"),
+        driver.indexOf("    // --- Run "),
+    );
+    const loop = driver.slice(
+        driver.indexOf("    const endAt = loadStart"),
+        driver.indexOf('    receipt.phase = "settle";'),
+    );
+    return runInNewContext(
+        `(async () => {
+        ${sampling}
+        lastSampleAt = loadStart;
+        ${loop}
+        return { samples, histograms, loadSeconds };
+    })()`,
+        context,
+    );
+}
+
+function boundaryEvidence(
+    collected,
+    config = readConfig(
+        {
+            NONA_SOAK_MINUTES: "0.15",
+            NONA_SOAK_WARMUP_MINUTES: "0.02",
+            NONA_SOAK_SAMPLE_SECONDS: "0.2",
+        },
+        false,
+    ),
+) {
+    return {
+        ...collected,
+        config,
+        crash: null,
+        counters: {
+            ok: collected.histograms.reduce((n, h) => n + h.n, 0),
+            deliberate: {
+                missing: 0,
+                throw: 0,
+                slowAborted: collected.samples.reduce(
+                    (n, s) => n + s.deliberate,
+                    0,
+                ),
+            },
+            failed: 0,
+            failures: {},
+            nearCrash: {},
+        },
+        baseline: { openSockets: 1, fds: 10, activeResources: 2 },
+        after: { openSockets: 1, fds: 10, activeResources: 2 },
+    };
+}
+
+test("terminal partial from the real collector preserves raw accounting and is not a comparison observation", async () => {
+    const collected = await collectBoundary();
+    const e = boundaryEvidence(collected);
+    const result = evaluateRun(e);
+    assert.equal(
+        result.criteria.find((c) => c.name === "comparison sample coverage")
+            .pass,
+        true,
+    );
+    assert.equal(result.summary.pass, true);
+    assert.equal(collected.samples.length, 45);
+    const last = collected.samples.at(-1);
+    assert.ok(Math.abs(last.intervalStart - 8.9532504) < 1e-12);
+    assert.ok(Math.abs(last.intervalEnd - 9.0003675) < 1e-12);
+    assert.equal(last.observation, "terminal-partial");
+    assert.equal(last.requests, 1);
+    assert.equal(last.deliberate, 1);
+    assert.equal(last.failed, 0);
+    assert.equal(last.p99, null);
+    assert.equal(collected.histograms.at(-1).n, 0);
+    assert.equal(
+        collected.samples.reduce((n, s) => n + s.requests, 0),
+        45,
+    );
+    assert.equal(result.summary.requests, 45);
+    assert.equal(result.summary.deliberate.slowAborted, 1);
+});
+
+test("nonempty terminal partial is excluded from both latency and RSS comparisons", async () => {
+    const e = boundaryEvidence(await collectBoundary());
+    record(e.histograms.at(-1), 1000);
+    e.samples.at(-1).rss = 1000000000;
+    const result = evaluateRun(e);
+    assert.equal(result.summary.pass, true);
+    assert.equal(result.summary.p99Tail, 1.008);
+    assert.equal(result.summary.rssTail, 1000000);
+});
+
+// Synthetic malformed evidence, not recovered bins from a hosted report.
+// Removing bin validation must fail coverage even for an excluded snapshot.
+for (const observation of ["complete", "terminal-partial"]) {
+    for (const [name, mutate] of [
+        [
+            "actual Uint32Array count/n mismatch",
+            (h) => {
+                assert.ok(h.counts instanceof Uint32Array);
+                for (let i = 0; i < h.counts.length; i++) h.counts[i] *= 2;
+                assert.equal(h.n, 1);
+                assert.equal(
+                    h.counts.reduce((sum, count) => sum + count, 0),
+                    2,
+                );
+            },
+        ],
+        ["zero n with a nonzero bin", (h) => (h.n = 0)],
+        ["n greater than bin sum", (h) => (h.n = 2)],
+        ["missing n", (h) => delete h.n],
+        ["string n", (h) => (h.n = "1")],
+        ["fractional n", (h) => (h.n = 1.5)],
+        ["negative n", (h) => (h.n = -1)],
+        ["NaN n", (h) => (h.n = NaN)],
+        ["infinite n", (h) => (h.n = Infinity)],
+        ["unsafe n", (h) => (h.n = Number.MAX_SAFE_INTEGER + 1)],
+        ["missing counts", (h) => delete h.counts],
+        ["missing bin", (h) => delete h.counts[1999]],
+        ["sparse counts", (h) => (h.counts = new Array(2000))],
+        ["string bin", (h) => (h.counts[1999] = "0")],
+        ["fractional bin", (h) => (h.counts[1999] = 0.5)],
+        ["negative bin", (h) => (h.counts[1999] = -1)],
+        ["NaN bin", (h) => (h.counts[1999] = NaN)],
+        ["infinite bin", (h) => (h.counts[1999] = Infinity)],
+        ["null bin", (h) => (h.counts[1999] = null)],
+        ["bigint bin", (h) => (h.counts[1999] = 0n)],
+        [
+            "negative bins with matching total",
+            (h) => {
+                h.counts[1998] = -1;
+                h.counts[1999] = 1;
+            },
+        ],
+        [
+            "fractional bins with matching total",
+            (h) => {
+                h.counts.fill(0);
+                h.counts[1998] = 0.5;
+                h.counts[1999] = 0.5;
+            },
+        ],
+        [
+            "bin above Uint32 representation bound with matching n",
+            (h) => {
+                h.counts.fill(0);
+                h.counts[1999] = 0x100000000;
+                h.n = 0x100000000;
+            },
+        ],
+        [
+            "unsafe bin total with matching unsafe n",
+            (h) => {
+                h.counts.fill(0);
+                h.counts[0] = Number.MAX_SAFE_INTEGER;
+                h.counts[1999] = 1;
+                h.n = Number.MAX_SAFE_INTEGER + 1;
+            },
+        ],
+    ]) {
+        test(`malformed ${observation} histogram: ${name} fails closed without crashing reporting`, async () => {
+            const e = boundaryEvidence(await collectBoundary());
+            const index =
+                observation === "complete" ? 40 : e.histograms.length - 1;
+            const h = e.histograms[index];
+            if (h.n === 0) record(h, 1);
+            if (name !== "actual Uint32Array count/n mismatch")
+                h.counts = Array.from(h.counts);
+            mutate(h);
+            let result;
+            assert.doesNotThrow(() => (result = evaluateRun(e)));
+            for (const criterion of [
+                "comparison sample coverage",
+                "p99 latency stable",
+                "RSS growth after warm-up",
+            ]) {
+                assert.equal(
+                    result.criteria.find((c) => c.name === criterion).pass,
+                    false,
+                    criterion,
+                );
+            }
+            assert.equal(result.summary.pass, false);
+            assert.doesNotThrow(() => JSON.stringify(result));
+        });
+    }
+}
+
+for (const [name, mutate] of [
+    [
+        "complete empty interval",
+        (e) => {
+            e.histograms[40] = newHistogram();
+            e.samples[40].p99 = null;
+        },
+    ],
+    [
+        "missing complete interval despite sufficient sample count",
+        (e) => {
+            e.samples.splice(40, 1);
+            e.histograms.splice(40, 1);
+        },
+    ],
+    [
+        "missing initial raw interval",
+        (e) => {
+            e.samples.shift();
+            e.histograms.shift();
+        },
+    ],
+    [
+        "missing terminal raw snapshot",
+        (e) => {
+            e.samples.pop();
+            e.histograms.pop();
+        },
+    ],
+    [
+        "gap before terminal partial",
+        (e) => {
+            e.samples.at(-1).intervalStart += 0.01;
+        },
+    ],
+    [
+        "overlapping complete intervals",
+        (e) => {
+            e.samples[40].intervalStart -= 0.01;
+        },
+    ],
+    [
+        "short nonterminal interval with latency",
+        (e) => {
+            e.samples[40].intervalEnd -= 0.1;
+        },
+    ],
+    [
+        "unmarked terminal partial",
+        (e) => {
+            delete e.samples.at(-1).observation;
+        },
+    ],
+    [
+        "terminal partial called complete",
+        (e) => {
+            e.samples.at(-1).observation = "complete";
+        },
+    ],
+    [
+        "complete interval called terminal partial",
+        (e) => {
+            e.samples[40].observation = "terminal-partial";
+        },
+    ],
+    [
+        "unknown observation kind",
+        (e) => {
+            e.samples[40].observation = "unknown";
+        },
+    ],
+    [
+        "missing terminal boundary",
+        (e) => {
+            delete e.samples.at(-1).intervalEnd;
+        },
+    ],
+    [
+        "null terminal boundary",
+        (e) => {
+            e.samples.at(-1).intervalEnd = null;
+        },
+    ],
+    [
+        "nonfinite complete boundary",
+        (e) => {
+            e.samples[40].intervalEnd = NaN;
+        },
+    ],
+    [
+        "missing histogram",
+        (e) => {
+            e.histograms[40] = undefined;
+        },
+    ],
+    [
+        "malformed histogram",
+        (e) => {
+            e.histograms[40] = { n: 1 };
+        },
+    ],
+    [
+        "unknown RSS",
+        (e) => {
+            e.samples[40].rss = null;
+        },
+    ],
+    [
+        "early completion",
+        (e) => {
+            e.loadSeconds = 8.99;
+        },
+    ],
+    [
+        "unknown load duration",
+        (e) => {
+            e.loadSeconds = Infinity;
+        },
+    ],
+    [
+        "comparison end too far before actual load end",
+        (e) => {
+            e.loadSeconds = 12;
+        },
+    ],
+    [
+        "clean early child exit",
+        (e) => {
+            e.crash = { code: 0, signal: null };
+        },
+    ],
+    [
+        "crashed child",
+        (e) => {
+            e.crash = { code: 17, signal: null };
+        },
+    ],
+]) {
+    test(`${name} still fails comparison coverage with a terminal partial`, async () => {
+        const e = boundaryEvidence(await collectBoundary());
+        mutate(e);
+        const result = evaluateRun(e);
+        assert.equal(
+            result.criteria.find((c) => c.name === "comparison sample coverage")
+                .pass,
+            false,
+        );
+        assert.equal(result.summary.pass, false);
+    });
+}
+
+test("terminal request failures are retained even though their partial interval is excluded", async () => {
+    const e = boundaryEvidence(await collectBoundary());
+    e.samples.at(-1).failed = 1;
+    e.counters.failed = 1;
+    e.counters.failures = { "text: wrong body": 1 };
+    const result = evaluateRun(e);
+    assert.equal(
+        result.criteria.find((c) => c.name === "comparison sample coverage")
+            .pass,
+        true,
+    );
+    assert.equal(
+        result.criteria.find((c) => c.name === "no failed requests").pass,
+        false,
+    );
+    assert.equal(result.summary.failed, 1);
+    assert.equal(result.summary.requests, 46);
+    assert.equal(e.samples.at(-1).failed, 1);
+    assert.equal(result.summary.pass, false);
+});
+
+for (const [name, config, want, minimum] of [
+    ["default", readConfig({}, false), "30/30 samples", 30],
+    ["smoke", readConfig({}, true), "6/6 samples", 6],
+]) {
+    test(`${name} complete windows retain sample counts and reject a missing observation`, async () => {
+        const collected = await collectBoundary(config);
+        const e = boundaryEvidence(collected, config);
+        assert.equal(e.samples.at(-1).observation, "complete");
+        assert.equal(evaluateRun(e).summary.pass, true);
+        const coverage = evaluateRun(e).criteria.find(
+            (c) => c.name === "comparison sample coverage",
+        );
+        assert.equal(coverage.value, want);
+        assert.equal(
+            coverage.limit,
+            `at least ${minimum} complete samples per window`,
+        );
+        // Older evidence with genuinely complete intervals remains eligible.
+        for (const s of e.samples) delete s.observation;
+        assert.equal(evaluateRun(e).summary.pass, true);
+        const lastHistogram = e.histograms.at(-1);
+        e.histograms[e.histograms.length - 1] = newHistogram();
+        assert.equal(
+            evaluateRun(e).summary.pass,
+            false,
+            "a full-duration final empty observation must fail",
+        );
+        e.histograms[e.histograms.length - 1] = lastHistogram;
+        const index = name === "default" ? 15 : 8;
+        e.samples.splice(index, 1);
+        e.histograms.splice(index, 1);
+        const result = evaluateRun(e);
+        assert.equal(
+            result.criteria.find((c) => c.name === "comparison sample coverage")
+                .pass,
+            false,
+        );
+        assert.equal(result.summary.pass, false);
+    });
+    test(`${name} clock drift still provides the required complete comparison windows`, async () => {
+        const e = boundaryEvidence(
+            await collectBoundary(config, 0.0001),
+            config,
+        );
+        const result = evaluateRun(e);
+        assert.equal(e.samples.at(-1).observation, "terminal-partial");
+        assert.equal(
+            result.criteria.find((c) => c.name === "comparison sample coverage")
+                .value,
+            want,
+        );
+        assert.equal(result.summary.pass, true);
+    });
+}
+
+test("short windows still require two complete samples after excluding a nonempty terminal partial", async () => {
+    const config = readConfig(
+        {
+            NONA_SOAK_MINUTES: "0.006",
+            NONA_SOAK_WARMUP_MINUTES: "0",
+            NONA_SOAK_SAMPLE_SECONDS: "0.2",
+        },
+        false,
+    );
+    const e = boundaryEvidence(await collectBoundary(config), config);
+    assert.equal(e.samples.length, 2);
+    assert.equal(e.samples.at(-1).observation, "terminal-partial");
+    assert.ok(e.histograms.at(-1).n > 0);
+    const result = evaluateRun(e);
+    const coverage = result.criteria.find(
+        (c) => c.name === "comparison sample coverage",
+    );
+    assert.equal(coverage.value, "1/1 samples");
+    assert.equal(coverage.limit, "at least 2 complete samples per window");
+    assert.equal(coverage.pass, false);
+    assert.equal(result.summary.pass, false);
+});
+
+test("a short run ending on a full sampling boundary keeps its final observation", async () => {
+    const config = readConfig(
+        {
+            NONA_SOAK_MINUTES: "0.15",
+            NONA_SOAK_WARMUP_MINUTES: "0.02",
+            NONA_SOAK_SAMPLE_SECONDS: "0.2",
+        },
+        false,
+    );
+    const e = boundaryEvidence(await collectBoundary(config, 0), config);
+    assert.equal(e.samples.length, 45);
+    assert.equal(e.samples.at(-1).observation, "complete");
+    assert.equal(evaluateRun(e).summary.pass, true);
+    e.histograms[e.histograms.length - 1] = newHistogram();
+    assert.equal(evaluateRun(e).summary.pass, false);
+});
+
 // Execute the driver's actual load-generator functions, including their counters
 // and worker loop. Only the network boundary is fake; no listener or load starts.
 function loadGenerator() {
@@ -382,6 +899,16 @@ for (const mode of [17, 0, "healthy", "wrong-body"]) {
             assert.notEqual(report.summary.after, null);
             assert.equal(report.summary.pass, mode === "healthy");
             assert.equal(result.exitCode, mode === "healthy" ? 0 : 1);
+            const load = report.samples.filter((s) => s.phase === "load");
+            assert.ok(
+                load.every((s) =>
+                    ["complete", "terminal-partial"].includes(s.observation),
+                ),
+            );
+            assert.equal(
+                report.samples.reduce((n, s) => n + s.requests, 0),
+                report.summary.requests,
+            );
             if (mode === "wrong-body")
                 assert.ok(report.summary.failures["text: wrong body"] > 0);
         }

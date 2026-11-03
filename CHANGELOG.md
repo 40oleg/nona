@@ -4,6 +4,8 @@
 
 ### Testing
 
+- **HTTP soak comparison intervals.** Preserve deadline-clipped final snapshots and all request accounting while distinguishing terminal partials from complete RSS/latency observations. Keep complete-window sample minimums and strict performance limits; empty complete intervals, gaps, missing snapshots and early/crashed runs still fail ([#640](https://github.com/40oleg/nona/issues/640)).
+
 - **HTTP soak driver completes interrupted responses.** Premature response aborts, errors and closes settle pending requests and statistics reads, allowing workers and child cleanup to finish and write final JSON/Markdown criteria with the original server exit code and stderr. Deliberate slow-client aborts remain successful; failed runs return a nonzero driver status ([#636](https://github.com/40oleg/nona/issues/636)).
 
 - **HTTP soak infrastructure review.** Add cheap Node decision regressions and hosted Windows/Linux control/failure fixtures, retain startup/interruption evidence, identify source and image provenance, validate all deterministic JSON values and enforce the p99 20% ratio without additive slack. Short controls remain separate from full native acceptance ([#516](https://github.com/40oleg/nona/issues/516)).
