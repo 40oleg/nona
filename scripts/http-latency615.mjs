@@ -331,13 +331,22 @@ export class CounterBridge {
         script,
         env,
         record,
-        { spawnChild = spawn, requestTimeoutMs = 2000 } = {},
+        {
+            spawnChild = spawn,
+            requestTimeoutMs = 2000,
+            now = () => performance.now(),
+            wallNow = () => Date.now(),
+        } = {},
     ) {
+        this.now = now;
         this.requestTimeoutMs = requestTimeoutMs;
         this.sequence = 0;
         this.pending = null;
         this.failure = null;
         this.stopState = "running";
+        this.readiness = "starting";
+        this.admission = null;
+        this.observerIdentity = null;
         this.record = (value) => {
             try {
                 record(value);
@@ -346,8 +355,9 @@ export class CounterBridge {
             }
         };
         this.buffer = "";
-        this.healthy = true;
+        this.healthy = false;
         this.queue = Promise.resolve();
+        this.spawnBefore = wallNow();
         this.child = spawnChild(
             path.join(
                 env.SystemRoot,
@@ -370,6 +380,7 @@ export class CounterBridge {
                 stdio: ["pipe", "pipe", "pipe"],
             },
         );
+        this.spawnAfter = wallNow();
         this.observed = observeChild(this.child, {
             data: (name, b) => {
                 this.record({ kind: "bridge." + name, raw: b.toString() });
@@ -392,7 +403,7 @@ export class CounterBridge {
                             "unmatched bridge response",
                         );
                         const p = this.pending;
-                        const received = performance.now();
+                        const received = this.now();
                         this.record({
                             kind: "bridge.response",
                             send: p.send,
@@ -400,6 +411,94 @@ export class CounterBridge {
                             value,
                         });
                         if (this.failure) return;
+                        if (p.op === "hello") {
+                            assert.ok(
+                                received < this.admission.deadline,
+                                "observer admission deadline",
+                            );
+                            assert.equal(
+                                value.ok,
+                                true,
+                                "observer hello rejected",
+                            );
+                            const h = value.hello;
+                            assert.ok(h, "observer hello required");
+                            assert.equal(
+                                h.protocol,
+                                "nona-latency615-observer",
+                                "observer protocol",
+                            );
+                            assert.equal(
+                                h.version,
+                                1,
+                                "observer protocol version",
+                            );
+                            assert.ok(
+                                Number.isSafeInteger(h.pid) && h.pid > 0,
+                                "observer PID",
+                            );
+                            assert.equal(
+                                h.pid,
+                                this.child.pid,
+                                "observer spawned PID",
+                            );
+                            assert.equal(
+                                typeof h.creationTicks,
+                                "string",
+                                "observer creation ticks string",
+                            );
+                            assert.match(h.creationTicks, /^[1-9][0-9]{17}$/);
+                            assert.equal(typeof h.creationUtc, "string");
+                            assert.match(
+                                h.creationUtc,
+                                /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z$/,
+                            );
+                            const utcMs = Date.parse(
+                                h.creationUtc.slice(0, 23) + "Z",
+                            );
+                            assert.ok(
+                                Number.isSafeInteger(utcMs),
+                                "observer creation UTC",
+                            );
+                            assert.equal(
+                                new Date(utcMs).toISOString(),
+                                h.creationUtc.slice(0, 23) + "Z",
+                            );
+                            const ticks = BigInt(h.creationTicks);
+                            assert.equal(
+                                ticks,
+                                621355968000000000n +
+                                    BigInt(utcMs) * 10000n +
+                                    BigInt(h.creationUtc.slice(23, 27)),
+                                "observer creation UTC/ticks binding",
+                            );
+                            assert.ok(
+                                this.spawnBefore <= this.spawnAfter &&
+                                    utcMs >= this.spawnBefore &&
+                                    utcMs <= this.spawnAfter,
+                                "observer creation outside spawned bracket",
+                            );
+                            assert.equal(
+                                h.identity,
+                                `${h.pid}/${h.creationTicks}`,
+                                "observer creation identity",
+                            );
+                            assert.equal(
+                                typeof h.powershellVersion,
+                                "string",
+                                "observed PowerShell version required",
+                            );
+                            assert.match(
+                                h.powershellVersion,
+                                /^\d+\.\d+(?:\.\d+){0,2}$/,
+                            );
+                            this.observerIdentity = h.identity;
+                        }
+                        assert.equal(
+                            value.observer?.identity,
+                            this.observerIdentity,
+                            "observer reply identity binding",
+                        );
                         this.pending = null;
                         if (p.op === "stop" && value.ok === true)
                             this.stopState = "acknowledged";
@@ -472,10 +571,13 @@ export class CounterBridge {
     fail(error) {
         this.failure ??= error;
         this.healthy = false;
+        if (this.readiness === "starting" && this.admission)
+            this.admission.error ??= errorInfo(this.failure);
+        this.readiness = "failed";
         this.pending?.reject(this.failure);
         this.pending = null;
     }
-    assertLive() {
+    checkLive() {
         if (
             !this.failure &&
             (this.observed.receipt.errors.length ||
@@ -488,34 +590,129 @@ export class CounterBridge {
         )
             this.fail(Error("observer is not live"));
         if (this.failure) throw this.failure;
+        assert.equal(this.stopState, "running", "observer not running");
+    }
+    assertLive() {
+        this.checkLive();
         assert.ok(
-            this.healthy && this.stopState === "running",
-            "observer not running",
+            this.healthy && this.readiness === "ready",
+            "observer not ready",
         );
     }
+    async admit(started, deadline = started + BUDGET.total) {
+        if (this.failure) throw this.failure;
+        assert.equal(
+            this.admission,
+            null,
+            "observer admission already attempted",
+        );
+        const begin = this.now();
+        this.admission = {
+            started: begin,
+            deadline: Math.min(
+                started + BUDGET.preflight,
+                deadline - BUDGET.observer - BUDGET.report - BUDGET.headroom,
+            ),
+            spawn: {
+                pid: this.child.pid,
+                before: this.spawnBefore,
+                after: this.spawnAfter,
+            },
+            ack: null,
+        };
+        try {
+            assert.ok(
+                Number.isFinite(this.admission.deadline) &&
+                    begin < this.admission.deadline,
+                "observer admission budget exhausted",
+            );
+            const ack = await this.query("hello");
+            this.checkLive();
+            assert.ok(
+                this.now() < this.admission.deadline,
+                "observer admission deadline",
+            );
+            this.admission.ack = ack;
+            this.admission.validated = this.now();
+            this.admission.elapsedMs = this.admission.validated - begin;
+            this.record({ kind: "bridge.ready", admission: this.admission });
+            this.checkLive();
+            assert.ok(
+                this.now() < this.admission.deadline,
+                "observer admission deadline",
+            );
+            this.admission.readyAt = this.now();
+            // A parsed ACK admits only this observer. Workload ownership,
+            // counters and cleanup still require their existing proofs.
+            this.readiness = "ready";
+            this.healthy = true;
+            return ack;
+        } catch (e) {
+            this.fail(e);
+            throw this.failure;
+        }
+    }
     request(op, fields = {}) {
+        assert.ok(
+            ["register", "sample", "terminate", "stop"].includes(op),
+            "fixed observer operation",
+        );
+        return this.query(op, fields);
+    }
+    query(op, fields = {}) {
         const result = this.queue.then(async () => {
-            this.assertLive();
+            if (op === "hello") this.checkLive();
+            else this.assertLive();
             assert.ok(!this.pending, "observer pending query");
             const sequence = ++this.sequence,
-                send = performance.now();
+                send = this.now();
+            const allowed =
+                op === "hello"
+                    ? this.admission.deadline - send
+                    : this.requestTimeoutMs;
+            if (op === "hello" && !(allowed > 0)) {
+                this.fail(Error("observer admission budget exhausted"));
+                throw this.failure;
+            }
             const command = { sequence, op, ...fields };
             this.record({ kind: "bridge.request", send, command });
             if (this.failure) throw this.failure;
+            if (op === "hello" && this.now() >= this.admission.deadline) {
+                this.fail(Error("observer admission deadline before write"));
+                throw this.failure;
+            }
             if (op === "stop") this.stopState = "requested";
             const response = new Promise((resolve, reject) => {
                 this.pending = { sequence, send, op, resolve, reject };
                 this.child.stdin.write(JSON.stringify(command) + "\n", (e) => {
                     if (e) {
                         this.fail(e);
+                    } else {
+                        this.record({
+                            kind: "bridge.write",
+                            sequence,
+                            op,
+                            mono: this.now(),
+                        });
                     }
                 });
             });
             try {
+                const timeout =
+                    op === "hello"
+                        ? this.admission.deadline - this.now()
+                        : allowed;
+                if (op === "hello" && !(timeout > 0)) {
+                    this.fail(Error("observer admission deadline after write"));
+                    // Consume the pending rejection (or an already buffered
+                    // reply) without creating any new wait past the deadline.
+                    await response.catch(() => {});
+                    throw this.failure;
+                }
                 const r = await bounded(
                     response,
-                    this.requestTimeoutMs,
-                    "observer query",
+                    timeout,
+                    op === "hello" ? "observer admission" : "observer query",
                 );
                 assert.equal(r.ok, true, JSON.stringify(r));
                 return r;
@@ -543,6 +740,7 @@ export class CounterBridge {
             assert.equal(this.observed.receipt.exit.code, 0);
             assert.equal(this.observed.receipt.exit.signal, null);
             this.stopState = "closed";
+            this.readiness = "closed";
             return result;
         } catch (e) {
             this.fail(e);
@@ -1351,6 +1549,7 @@ export async function main(env = process.env) {
                 JSON.stringify(e) + "\n",
             ),
         );
+        await bridge.admit(started, deadline);
         const context = {
             env,
             output,
@@ -1379,7 +1578,9 @@ export async function main(env = process.env) {
             arms: ["nativeA", "node", "nativeB"].map((name) => ({
                 name,
                 status: "not-started",
-                reason: "admission/preflight failure",
+                reason: bridge?.admission?.error
+                    ? "observer admission failure"
+                    : "admission/preflight failure",
             })),
         };
     } finally {
@@ -1417,6 +1618,7 @@ export async function main(env = process.env) {
             arms: [],
         };
         summary.observerReceipt = bridge?.observed.receipt ?? null;
+        summary.observerAdmission = bridge?.admission ?? null;
         summary.errors = failures;
         const reportStarted = performance.now();
         summary.elapsedMs = performance.now() - started;

@@ -5,7 +5,9 @@ $owned = @{}
 $lastSequence = 0
 $frequency = [Diagnostics.Stopwatch]::Frequency
 $self = [Diagnostics.Process]::GetCurrentProcess()
-$selfIdentity = ([string]$self.Id) + '/' + ([string]$self.StartTime.ToUniversalTime().Ticks)
+$selfCreation = $self.StartTime.ToUniversalTime()
+$selfIdentity = ([string]$self.Id) + '/' + ([string]$selfCreation.Ticks)
+$helloComplete = $false
 function ObserverPoint {
     $point = [ordered]@{identity=$selfIdentity; available=$false; totalMs=$null; userMs=$null; privilegedMs=$null; error=$null}
     try {
@@ -43,7 +45,13 @@ while ($null -ne ($line = [Console]::ReadLine())) {
         $reply.sequence = $command.sequence
         if ($command.sequence -ne ($lastSequence + 1) -or $command.sequence -gt 1000) { throw 'sequence/cap' }
         $lastSequence = $command.sequence
+        if (-not $helloComplete -and $command.op -cne 'hello') { throw 'hello required' }
         switch -Exact ($command.op) {
+            'hello' {
+                if ($helloComplete -or $command.sequence -ne 1) { throw 'hello already attempted' }
+                $reply.hello = [ordered]@{protocol='nona-latency615-observer'; version=1; pid=$self.Id; identity=$selfIdentity; creationUtc=$selfCreation.ToString('o'); creationTicks=([string]$selfCreation.Ticks); powershellVersion=$PSVersionTable.PSVersion.ToString()}
+                $helloComplete = $true
+            }
             'register' {
                 if ($owned.Count -ge 6 -or $owned.ContainsKey($command.key) -or $command.key -notmatch '^(nativeA|node|nativeB)\.(harness|server)$') { throw 'ownership key/count' }
                 if ($command.pid -le 0 -or $command.before -gt $command.after -or ($command.after - $command.before) -gt 10000) { throw 'spawn bracket' }

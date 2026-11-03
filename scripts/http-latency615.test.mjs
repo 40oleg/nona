@@ -484,6 +484,542 @@ class FakeChild extends EventEmitter {
         this.signalCode = null;
     }
 }
+// Literal self identity: PID 123, 2023-11-14T22:13:20.0050000Z.
+const observerHello = (sequence = 1) => ({
+    sequence,
+    ok: true,
+    hello: {
+        protocol: "nona-latency615-observer",
+        version: 1,
+        pid: 123,
+        identity: "123/638355968000050000",
+        creationUtc: "2023-11-14T22:13:20.0050000Z",
+        creationTicks: "638355968000050000",
+        powershellVersion: "5.1.20348.2849",
+    },
+    observer: { identity: "123/638355968000050000" },
+});
+const observerReply = (q) => ({
+    sequence: q.sequence,
+    ok: true,
+    observer: { identity: "123/638355968000050000" },
+});
+async function microtasks() {
+    for (let i = 0; i < 30; i++) await Promise.resolve();
+}
+function readinessFixture(record = () => {}) {
+    const source = readFileSync(
+        new URL("./http-latency615.mjs", import.meta.url),
+        "utf8",
+    );
+    const child = new FakeChild(),
+        timers = new Map(),
+        records = [],
+        commands = [];
+    child.stdin = new PassThrough();
+    child.stdin.on("data", (b) => commands.push(JSON.parse(b)));
+    // The readiness controls drive write completion explicitly, without a
+    // nextTick or operating-system pipe scheduling assumption.
+    child.stdin.write = (b, callback) => {
+        child.stdin.emit("data", b);
+        callback();
+        return true;
+    };
+    let mono = 100,
+        wallCalls = 0;
+    const sandbox = vm.createContext({
+        assert,
+        Date,
+        path: { join: (...xs) => xs.join("/") },
+        systemEnvironment: s.systemEnvironment,
+        observeChild: c.observeChild,
+        parseJson: s.parseJson,
+        errorInfo: c.errorInfo,
+        BUDGET: s.BUDGET,
+        performance: { now: () => mono },
+        setTimeout: (fn, ms) => {
+            const id = {};
+            timers.set(id, { fn, ms });
+            return id;
+        },
+        clearTimeout: (id) => timers.delete(id),
+    });
+    vm.runInContext(
+        source.slice(
+            source.indexOf("function bounded("),
+            source.indexOf("const pause ="),
+        ) +
+            source
+                .slice(
+                    source.indexOf("export class CounterBridge"),
+                    source.indexOf("// Exact hosted retrieval"),
+                )
+                .replace("export class", "class") +
+            "\nthis.CounterBridge = CounterBridge;",
+        sandbox,
+    );
+    const bridge = new sandbox.CounterBridge(
+        "inert.ps1",
+        { SystemRoot: "C:\\Windows" },
+        (r) => {
+            records.push(r);
+            record(r);
+        },
+        {
+            spawnChild: () => child,
+            now: () => mono,
+            wallNow: () => 1700000000000 + (wallCalls++ ? 10 : 0),
+        },
+    );
+    return {
+        bridge,
+        child,
+        timers,
+        records,
+        commands,
+        time: (value) => {
+            mono = value;
+        },
+        reply: (value = observerHello()) =>
+            child.stdout.emit(
+                "data",
+                Buffer.from(JSON.stringify(value) + "\n"),
+            ),
+    };
+}
+async function probeHostedArm(bridge) {
+    const source = readFileSync(
+        new URL("./http-latency615.mjs", import.meta.url),
+        "utf8",
+    );
+    let spawns = 0;
+    const sandbox = vm.createContext({
+        assert,
+        path: { join: (...xs) => xs.join("/") },
+        createOwnedDirectory: (_, p) => p,
+        performance: { now: () => 100 },
+        Date,
+        identity: () => ({ vm: "same" }),
+        readFileSync: (p) => p,
+        sha256: (p) => p,
+        verifyNative: () => {},
+        PINS: { fixture: "fixture" },
+        json: () => {},
+        writeFileSync: () => {},
+        errorInfo: c.errorInfo,
+        process: { execPath: "inert-node" },
+        armEnvironment: () => ({}),
+        spawn: () => {
+            spawns++;
+            throw Error("injected spawn boundary");
+        },
+        clearInterval: () => {},
+        clearTimeout: () => {},
+        settleOwnedArm: async () => {
+            throw Error("no registered workload");
+        },
+    });
+    vm.runInContext(
+        source
+            .slice(
+                source.indexOf("async function hostedArm("),
+                source.indexOf("export async function settleOwnedArm("),
+            )
+            .concat("\nthis.hostedArm = hostedArm;"),
+        sandbox,
+    );
+    const result = await sandbox.hostedArm(
+        {
+            bridge,
+            env: {},
+            output: "owned",
+            stage: "stage",
+            driver: "driver",
+            driverHash: "driver",
+            native: "native",
+            fixture: "fixture",
+            initialIdentity: { vm: "same" },
+        },
+        "node",
+        { latestSpawnAt: 200, armMs: 480000, cleanupMs: 20000 },
+    );
+    return { spawns, result };
+}
+test("observer spawn alone cannot admit queries or an actual hosted arm", async () => {
+    const f = readinessFixture();
+    assert.throws(() => f.bridge.assertLive(), /ready/);
+    await assert.rejects(f.bridge.request("sample"), /ready/);
+    assert.equal(f.commands.length, 0);
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+});
+test("delayed partial hello gates actual arm spawn and retains observed identity/version/timing", async () => {
+    const f = readinessFixture();
+    const admission = f.bridge.admit(0);
+    await microtasks();
+    assert.equal(f.commands.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(f.commands[0])), {
+        sequence: 1,
+        op: "hello",
+    });
+    assert.equal([...f.timers.values()][0].ms, 59900);
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+    const bytes = JSON.stringify(observerHello()) + "\n";
+    f.child.stdout.emit("data", Buffer.from(bytes.slice(0, -1)));
+    f.time(3500); // More than the steady-state query bound, still original preflight.
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+    assert.throws(() => f.bridge.assertLive(), /ready/);
+    f.child.stdout.emit("data", Buffer.from("\n"));
+    const ack = await admission;
+    assert.equal(ack.hello.powershellVersion, "5.1.20348.2849");
+    assert.equal(f.bridge.admission.elapsedMs, 3400);
+    assert.equal(f.bridge.admission.deadline, 60000);
+    assert.equal(
+        f.bridge.admission.ack.hello.identity,
+        "123/638355968000050000",
+    );
+    assert.ok(
+        f.records.some((r) => r.kind === "bridge.write" && r.sequence === 1),
+    );
+    assert.ok(f.records.some((r) => r.kind === "bridge.ready"));
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 1);
+    await assert.rejects(f.bridge.admit(0), /already/);
+    assert.equal(f.commands.length, 1, "one hello only");
+});
+for (const mode of [
+    "marker",
+    "version",
+    "sequence",
+    "empty",
+    "wrong-pid",
+    "wrong-identity",
+    "numeric-ticks",
+    "wrong-creation",
+    "outside-bracket",
+    "observer-mismatch",
+    "missing-version",
+    "failed",
+    "malformed",
+    "late",
+    "duplicate",
+])
+    test(`observer admission rejects ${mode} ACK permanently before any workload`, async () => {
+        const f = readinessFixture(),
+            ack = observerHello();
+        const pending = f.bridge.admit(0);
+        const rejected = assert.rejects(pending);
+        await microtasks();
+        if (mode === "marker") ack.hello.protocol = "other";
+        if (mode === "version") ack.hello.version = 2;
+        if (mode === "sequence") ack.sequence = 2;
+        if (mode === "empty") ack.hello.identity = "";
+        if (mode === "wrong-pid") ack.hello.pid = 124;
+        if (mode === "wrong-identity")
+            ack.hello.identity = "123/arbitrary-nonempty";
+        if (mode === "numeric-ticks")
+            ack.hello.creationTicks = 638355968000050000;
+        if (mode === "wrong-creation")
+            ack.hello.creationUtc = "2023-11-14T22:13:20.0060000Z";
+        if (mode === "outside-bracket") {
+            ack.hello.creationUtc = "2023-11-14T22:13:20.0110000Z";
+            ack.hello.creationTicks = "638355968000110000";
+            ack.hello.identity = ack.observer.identity =
+                "123/638355968000110000";
+        }
+        if (mode === "observer-mismatch") ack.observer.identity = "other";
+        if (mode === "missing-version") delete ack.hello.powershellVersion;
+        if (mode === "failed") ack.ok = false;
+        if (mode === "late") f.time(60000);
+        if (mode === "malformed")
+            f.child.stdout.emit("data", Buffer.from("broken JSON\n"));
+        else if (mode === "duplicate")
+            f.child.stdout.emit(
+                "data",
+                Buffer.from((JSON.stringify(ack) + "\n").repeat(2)),
+            );
+        else f.reply(ack);
+        await rejected;
+        const failure = f.bridge.failure;
+        assert.ok(failure);
+        assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+        f.reply();
+        await assert.rejects(f.bridge.request("sample"), (e) => e === failure);
+        await assert.rejects(f.bridge.stop(), (e) => e === failure);
+        await assert.rejects(f.bridge.admit(0), (e) => e === failure);
+        assert.equal(f.commands.length, 1);
+        assert.equal(f.bridge.healthy, false);
+    });
+test("missing hello expires only the remaining original preflight and never revives", async () => {
+    const f = readinessFixture();
+    f.time(59990);
+    const pending = f.bridge.admit(0),
+        rejected = assert.rejects(pending, /deadline/);
+    await microtasks();
+    const timer = [...f.timers.values()][0];
+    assert.equal(timer.ms, 10);
+    timer.fn();
+    await rejected;
+    const failure = f.bridge.failure;
+    f.reply();
+    assert.equal(f.bridge.failure, failure);
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+    assert.equal(f.timers.size, 0);
+});
+test("expired preflight and overall finalization reserves cannot restart admission budget", async () => {
+    for (const [now, deadline, expected] of [
+        [60000, 1680000, null],
+        [100, 110100, null],
+        [100, 111000, 900],
+    ]) {
+        const f = readinessFixture();
+        f.time(now);
+        const pending = f.bridge.admit(0, deadline);
+        const rejected = assert.rejects(pending);
+        await microtasks();
+        if (expected !== null) {
+            assert.equal([...f.timers.values()][0].ms, expected);
+            f.time(1000);
+            f.reply(); // Reject parsed ACK even if timer has not fired.
+        }
+        await rejected;
+        assert.equal(f.commands.length, expected === null ? 0 : 1);
+        assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+    }
+});
+for (const mode of [
+    "exit",
+    "close",
+    "stdout.end",
+    "stdout.close",
+    "stderr.end",
+    "stderr.close",
+    "error",
+    "stdout.error",
+    "stderr.error",
+    "stdin.error",
+])
+    test(`observer ${mode} during admission is sticky and prevents workload admission`, async () => {
+        const f = readinessFixture(),
+            pending = f.bridge.admit(0);
+        const rejected = assert.rejects(pending);
+        await microtasks();
+        const [target, kind] = mode.split(".");
+        const emitter = kind ? f.child[target] : f.child;
+        emitter.emit(
+            kind ?? target,
+            ...(mode.includes("error")
+                ? [Error("injected admission error")]
+                : [0, null]),
+        );
+        await rejected;
+        const failure = f.bridge.failure;
+        f.reply();
+        await assert.rejects(f.bridge.request("sample"), (e) => e === failure);
+        assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+        assert.equal(f.commands.length, 1);
+    });
+test("post-ready replies keep the bound identity and the normal 2000ms deadline", async () => {
+    for (const mode of ["timeout", "changed-identity"]) {
+        const f = readinessFixture(),
+            admission = f.bridge.admit(0);
+        await microtasks();
+        f.reply();
+        await admission;
+        const pending = f.bridge.request("sample"),
+            rejected = assert.rejects(pending);
+        await microtasks();
+        assert.equal([...f.timers.values()][0].ms, 2000);
+        if (mode === "timeout") [...f.timers.values()][0].fn();
+        else
+            f.reply({
+                sequence: 2,
+                ok: true,
+                observer: { identity: "123/638355968000050001" },
+            });
+        await rejected;
+        assert.equal(f.bridge.healthy, false);
+        assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+        assert.equal(f.commands.length, 2);
+    }
+});
+test("hello request recording cannot consume the deadline and still write a command", async () => {
+    const f = readinessFixture((r) => {
+        if (r.kind === "bridge.request") f.time(60000);
+    });
+    const pending = f.bridge.admit(0),
+        rejected = assert.rejects(pending, /deadline|budget/);
+    await microtasks();
+    assert.equal(f.commands.length, 0, "no write after the absolute deadline");
+    for (const timer of f.timers.values()) timer.fn();
+    await rejected;
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+});
+test("hello write completion consumes the same remaining deadline", async () => {
+    const f = readinessFixture((r) => {
+        if (r.kind === "bridge.write") f.time(59990);
+    });
+    const pending = f.bridge.admit(0),
+        rejected = assert.rejects(pending, /deadline/);
+    await microtasks();
+    assert.equal([...f.timers.values()][0].ms, 10);
+    for (const timer of f.timers.values()) timer.fn();
+    await rejected;
+});
+test("ready evidence recording cannot promote an expired admission", async () => {
+    const f = readinessFixture((r) => {
+        if (r.kind === "bridge.ready") f.time(60000);
+    });
+    const pending = f.bridge.admit(0),
+        rejected = assert.rejects(pending, /deadline/);
+    await microtasks();
+    f.reply();
+    await rejected;
+    assert.equal(f.bridge.healthy, false);
+    assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+});
+test("hello write callback errors and admission record errors retain their first failure", async () => {
+    for (const mode of ["write", "record"]) {
+        const original = Object.assign(
+            Error("admission " + mode + " failure"),
+            { code: "EIO" },
+        );
+        const f = readinessFixture((r) => {
+            if (mode === "record" && r.kind === "bridge.ready") throw original;
+        });
+        if (mode === "write")
+            f.child.stdin.write = (_, cb) => {
+                cb(original);
+                return false;
+            };
+        const pending = f.bridge.admit(0),
+            rejected = assert.rejects(pending, (e) => e === original);
+        await microtasks();
+        if (mode === "record") f.reply();
+        await rejected;
+        assert.equal(f.bridge.failure, original);
+        assert.equal(f.bridge.admission.error.code, "EIO");
+        f.reply();
+        assert.equal((await probeHostedArm(f.bridge)).spawns, 0);
+    }
+});
+test("main admission boundary awaits hello and retains failed admission as an incomplete experiment", async () => {
+    const source = readFileSync(
+        new URL("./http-latency615.mjs", import.meta.url),
+        "utf8",
+    );
+    // Execute main's actual observer/triad/catch/finalization tail. All earlier
+    // retrieval/materialization is excluded; every external boundary is inert.
+    const tail = source.slice(
+        source.indexOf("        bridge = new CounterBridge(observer"),
+        source.indexOf("// Kept at module scope"),
+    );
+    for (const valid of [true, false]) {
+        const f = readinessFixture(),
+            saved = new Map();
+        let triads = 0,
+            kills = 0;
+        f.child.kill = () => {
+            kills++;
+            fakeObserverClose(f.child, 1);
+            return true;
+        };
+        f.child.stdin.on("finish", () => fakeObserverClose(f.child));
+        f.child.stdin.on("data", (b) => {
+            const q = JSON.parse(b);
+            if (q.op === "stop")
+                queueMicrotask(() => f.reply(observerReply(q)));
+        });
+        const sandbox = vm.createContext({
+            assert,
+            BUDGET: s.BUDGET,
+            performance: { now: () => 100 },
+            CounterBridge: class {
+                constructor() {
+                    return f.bridge;
+                }
+            },
+            observer: "inert.ps1",
+            stage: "stage",
+            driver: "driver",
+            native: "native",
+            fixture: "fixture",
+            initialIdentity: {},
+            patch: { sha256: "unchanged" },
+            path: { join: (...xs) => xs.join("/"), relative: (_, p) => p },
+            appendFileSync: () => {},
+            pause: () => {},
+            runTriad: async () => {
+                triads++;
+                return {
+                    accepted: false,
+                    experimentComplete: false,
+                    exitCode: 1,
+                    arms: [],
+                };
+            },
+            hostedArm: () => {
+                throw Error("not reached by injected triad");
+            },
+            errorInfo: c.errorInfo,
+            bounded: (p) => p,
+            existsSync: () => true,
+            awaitlessReaddir: () => [],
+            json: (p, value) => saved.set(p, JSON.parse(JSON.stringify(value))),
+            console: { log: () => {} },
+        });
+        vm.runInContext(
+            "async function main(env = {}) { const started = 0, deadline = 1680000; let output = 'owned', bridge, summary; const failures = []; try {\n" +
+                tail +
+                "\nthis.main = main;",
+            sandbox,
+        );
+        const completion = sandbox.main();
+        await microtasks();
+        assert.equal(triads, 0, "main must await observer acknowledgement");
+        assert.equal(f.commands.length, 1);
+        if (valid) f.reply();
+        else
+            f.reply({
+                ...observerHello(),
+                hello: { ...observerHello().hello, identity: "wrong" },
+            });
+        assert.equal(
+            await completion,
+            1,
+            "source readiness never grants experiment acceptance",
+        );
+        const summary = saved.get("owned/summary.json");
+        assert.equal(summary.experimentComplete, false);
+        assert.equal(summary.accepted, false);
+        assert.equal(triads, valid ? 1 : 0);
+        assert.equal(kills, valid ? 0 : 1);
+        if (valid) {
+            assert.equal(summary.observerAdmission.ack.hello.pid, 123);
+            assert.equal(summary.observerReceipt.complete, true);
+            assert.equal(f.bridge.stopState, "closed");
+        } else {
+            assert.equal(summary.arms.length, 3);
+            assert.ok(
+                summary.arms.every(
+                    (a) =>
+                        a.status === "not-started" &&
+                        a.reason === "observer admission failure",
+                ),
+            );
+            assert.ok(
+                summary.observerAdmission.error.message.includes("identity"),
+            );
+            assert.ok(
+                summary.errors.some((e) => e.message.includes("identity")),
+            );
+            assert.equal(
+                f.bridge.healthy,
+                false,
+                "fallback settlement cannot acknowledge stop",
+            );
+            assert.notEqual(f.bridge.stopState, "closed");
+        }
+    }
+});
 test("process receipts distinguish error, OS exit, stream closure and actual close", async () => {
     assert.equal(typeof c.observeChild, "function");
     const child = new FakeChild(),
@@ -785,8 +1321,11 @@ test("persistent counter bridge rejects unmatched replies without a second proce
             child.stdout.emit(
                 "data",
                 Buffer.from(
-                    JSON.stringify({ sequence: q.sequence + 1, ok: true }) +
-                        "\n",
+                    JSON.stringify(
+                        q.op === "hello"
+                            ? observerHello(q.sequence)
+                            : { ...observerReply(q), sequence: q.sequence + 1 },
+                    ) + "\n",
                 ),
             ),
         );
@@ -802,8 +1341,10 @@ test("persistent counter bridge rejects unmatched replies without a second proce
                 return child;
             },
             requestTimeoutMs: 20,
+            wallNow: () => 1700000000005,
         },
     );
+    await bridge.admit(performance.now());
     await assert.rejects(
         bridge.request("sample", { keys: ["nativeA.harness"] }),
     );
@@ -1278,12 +1819,29 @@ test("late stream/process errors invalidate a previously closed receipt; byte ca
 test("observer stdin errors are retained and reject the pending query without escaping", async () => {
     const child = new FakeChild();
     child.stdin = new PassThrough();
+    child.stdin.on("data", (b) =>
+        queueMicrotask(() =>
+            child.stdout.emit(
+                "data",
+                Buffer.from(
+                    JSON.stringify(observerHello(JSON.parse(b).sequence)) +
+                        "\n",
+                ),
+            ),
+        ),
+    );
     const bridge = new c.CounterBridge(
         "inert.ps1",
         { SystemRoot: "C:\\Windows" },
         () => {},
-        { spawnChild: () => child, requestTimeoutMs: 20 },
+        {
+            spawnChild: () => child,
+            requestTimeoutMs: 20,
+            wallNow: () => 1700000000005,
+        },
     );
+    await bridge.admit(performance.now());
+    child.stdin.removeAllListeners("data");
     const pending = bridge.request("sample", { keys: ["nativeA.harness"] });
     await Promise.resolve();
     assert.doesNotThrow(() =>
@@ -1298,18 +1856,23 @@ test("observer stdin errors are retained and reject the pending query without es
 
 // The only observer is an EventEmitter; replies/lifecycle events are synchronous
 // or microtasks. No process, observer script, clock delay or workload is run.
-function fakeBridge(record = () => {}) {
+async function fakeBridge(record = () => {}) {
     const child = new FakeChild(),
         commands = [];
+    let admitted = false;
     child.stdin = new PassThrough();
     child.stdin.on("data", (b) => {
         const q = JSON.parse(b);
-        commands.push(q);
+        if (q.op !== "hello") commands.push(q);
         queueMicrotask(() =>
             child.stdout.emit(
                 "data",
                 Buffer.from(
-                    JSON.stringify({ sequence: q.sequence, ok: true }) + "\n",
+                    JSON.stringify(
+                        q.op === "hello"
+                            ? observerHello(q.sequence)
+                            : observerReply(q),
+                    ) + "\n",
                 ),
             ),
         );
@@ -1317,9 +1880,17 @@ function fakeBridge(record = () => {}) {
     const bridge = new c.CounterBridge(
         "inert.ps1",
         { SystemRoot: "C:\\Windows" },
-        record,
-        { spawnChild: () => child, requestTimeoutMs: 50 },
+        (r) => {
+            if (admitted) record(r);
+        },
+        {
+            spawnChild: () => child,
+            requestTimeoutMs: 50,
+            wallNow: () => 1700000000005,
+        },
     );
+    await bridge.admit(performance.now());
+    admitted = true;
     return { bridge, child, commands };
 }
 function fakeObserverClose(child, code = 0) {
@@ -1333,7 +1904,7 @@ function fakeObserverClose(child, code = 0) {
 }
 test("idle observer exit and close latch failure and cannot be waived by later stop", async () => {
     for (const kind of ["exit", "close"]) {
-        const { bridge, child, commands } = fakeBridge();
+        const { bridge, child, commands } = await fakeBridge();
         await bridge.request("sample", { keys: ["nativeA.harness"] });
         child.emit(kind, 0, null);
         assert.equal(bridge.healthy, false, kind + " with no pending query");
@@ -1360,12 +1931,13 @@ test("observer record sink failure is sticky even if later writes succeed", asyn
             code: "ENOSPC",
         });
         let failOnce = true;
-        const { bridge, child } = fakeBridge((r) => {
+        const { bridge, child } = await fakeBridge((r) => {
             if (r.kind === failingKind && failOnce) {
                 failOnce = false;
                 throw original;
             }
         });
+        if (failingKind === "bridge.lifecycle") child.stdout.emit("end");
         await assert.rejects(bridge.request("sample"), (e) => e === original);
         assert.equal(bridge.healthy, false, failingKind);
         assert.equal(bridge.failure, original);
@@ -1378,7 +1950,7 @@ test("observer record sink failure is sticky even if later writes succeed", asyn
 });
 test("idle observer process and stream errors retain the original failure details", async () => {
     for (const target of ["process", "stdout", "stderr"]) {
-        const { bridge, child, commands } = fakeBridge();
+        const { bridge, child, commands } = await fakeBridge();
         await bridge.request("sample");
         const original = Object.assign(
             new Error("idle " + target + " failure"),
@@ -1397,7 +1969,7 @@ test("idle observer process and stream errors retain the original failure detail
     }
 });
 test("only acknowledged requested stop permits zero-exit complete observer shutdown", async () => {
-    const { bridge, child } = fakeBridge();
+    const { bridge, child } = await fakeBridge();
     child.stdin.on("finish", () => fakeObserverClose(child));
     await bridge.request("sample");
     await bridge.stop();
@@ -1411,7 +1983,7 @@ test("only acknowledged requested stop permits zero-exit complete observer shutd
 for (const early of ["exit", "stderr", "exit-and-stderr"])
     test(`requested stop accepts buffered stdout ACK after ${early} delivery`, async () => {
         const records = [];
-        const { bridge, child } = fakeBridge((r) => records.push(r));
+        const { bridge, child } = await fakeBridge((r) => records.push(r));
         await bridge.request("sample");
         child.stdin.removeAllListeners("data");
         records.length = 0;
@@ -1433,10 +2005,7 @@ for (const early of ["exit", "stderr", "exit-and-stderr"])
                 if (early.includes("stderr")) stderr();
                 child.stdout.emit(
                     "data",
-                    Buffer.from(
-                        JSON.stringify({ sequence: q.sequence, ok: true }) +
-                            "\n",
-                    ),
+                    Buffer.from(JSON.stringify(observerReply(q)) + "\n"),
                 );
                 // Data always precedes its own EOF; no stdin.finish handshake.
                 child.stdout.emit("end");
@@ -1447,7 +2016,7 @@ for (const early of ["exit", "stderr", "exit-and-stderr"])
             });
         });
         const result = await bridge.stop();
-        assert.equal(result.sequence, 2);
+        assert.equal(result.sequence, 3); // hello, sample, stop
         assert.equal(result.ok, true);
         assert.equal(bridge.failure, null);
         assert.equal(bridge.healthy, true);
@@ -1467,7 +2036,7 @@ for (const early of ["exit", "stderr", "exit-and-stderr"])
     });
 test("stop without acknowledgement or with bad exit/pipes never becomes expected healthy shutdown", async () => {
     for (const mode of ["unacknowledged", "bad-exit", "missing-pipes"]) {
-        const { bridge, child } = fakeBridge();
+        const { bridge, child } = await fakeBridge();
         if (mode === "unacknowledged") {
             child.stdin.removeAllListeners("data");
             child.stdin.on("data", () =>
@@ -1503,7 +2072,7 @@ test("provisional stop events never waive bad ACKs, exit status or sticky errors
         const original = Object.assign(new Error(mode + " failure"), {
             code: "EIO",
         });
-        const { bridge, child } = fakeBridge((r) => {
+        const { bridge, child } = await fakeBridge((r) => {
             records.push(r);
             if (mode === "record-error" && r.event?.kind === "stderr.end")
                 throw original;
@@ -1531,6 +2100,7 @@ test("provisional stop events never waive bad ACKs, exit status or sticky errors
                         mode === "malformed"
                             ? "invalid JSON\n"
                             : JSON.stringify({
+                                  ...observerReply(q),
                                   sequence:
                                       q.sequence +
                                       (mode === "unmatched" ? 1 : 0),
@@ -1572,7 +2142,7 @@ test("provisional stop events never waive bad ACKs, exit status or sticky errors
 test("idle pipe terminal events cannot be made provisional by a later stop", async () => {
     for (const name of ["stdout", "stderr"])
         for (const kind of ["end", "close"]) {
-            const { bridge, child, commands } = fakeBridge();
+            const { bridge, child, commands } = await fakeBridge();
             await bridge.request("sample");
             child[name].emit(kind);
             const failure = bridge.failure;
@@ -1599,6 +2169,7 @@ test("requested stop deadlines reject late ACK and missing close without clearin
             observeChild: c.observeChild,
             parseJson: s.parseJson,
             errorInfo: c.errorInfo,
+            BUDGET: s.BUDGET,
             performance,
             setTimeout: (fn, ms) => {
                 timers.set(ms, fn);
@@ -1624,8 +2195,22 @@ test("requested stop deadlines reject late ACK and missing close without clearin
             "inert.ps1",
             { SystemRoot: "C:\\Windows" },
             (r) => records.push(r),
-            { spawnChild: () => child },
+            { spawnChild: () => child, wallNow: () => 1700000000005 },
         );
+        child.stdin.on("data", (b) =>
+            queueMicrotask(() =>
+                child.stdout.emit(
+                    "data",
+                    Buffer.from(
+                        JSON.stringify(observerHello(JSON.parse(b).sequence)) +
+                            "\n",
+                    ),
+                ),
+            ),
+        );
+        await bridge.admit(performance.now());
+        child.stdin.removeAllListeners("data");
+        records.length = 0;
         let command;
         child.stdin.on("data", (b) => {
             command = JSON.parse(b);
@@ -1639,6 +2224,7 @@ test("requested stop deadlines reject late ACK and missing close without clearin
                         "data",
                         Buffer.from(
                             JSON.stringify({
+                                ...observerReply(command),
                                 sequence: command.sequence,
                                 ok: true,
                             }) + "\n",
@@ -1665,10 +2251,7 @@ test("requested stop deadlines reject late ACK and missing close without clearin
         if (phase === "ACK") {
             child.stdout.emit(
                 "data",
-                Buffer.from(
-                    JSON.stringify({ sequence: command.sequence, ok: true }) +
-                        "\n",
-                ),
+                Buffer.from(JSON.stringify(observerReply(command)) + "\n"),
             );
             child.stdout.emit("end");
             child.stdout.emit("close");
@@ -1699,7 +2282,7 @@ test("actual next hosted arm refuses idle observer loss before any harness spawn
         source.indexOf("export async function settleOwnedArm("),
     );
     for (const kind of ["exit", "close", "live"]) {
-        const { bridge, child } = fakeBridge();
+        const { bridge, child } = await fakeBridge();
         await bridge.request("sample");
         if (kind !== "live") child.emit(kind, 0, null);
         let harnessSpawns = 0;
