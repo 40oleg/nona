@@ -344,6 +344,7 @@
                 "process-builtin-native",
                 "process-builtin-source",
                 "process-darwin-bridge-source",
+                "process-environment-source",
                 "process-fatal-source",
                 "process-finalization-source",
                 "process-metadata-source",

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Initial Windows process environment folding scales linearly.** A temporary membership index avoids repeatedly folding earlier names while preserving initial spelling, values, ordering, descriptors and inherited enumerable suppression. Environment parsing, POSIX behavior and the mutation/Proxy path are unchanged. This source correction alone does not establish a native startup timing improvement or resolve the HTTP acceptance work in #602 ([#638](https://github.com/40oleg/nona/issues/638)).
+
 ### Testing
 
 - **HTTP soak comparison intervals.** Preserve deadline-clipped final snapshots and all request accounting while distinguishing terminal partials from complete RSS/latency observations. Keep complete-window sample minimums and strict performance limits; empty complete intervals, gaps, missing snapshots and early/crashed runs still fail ([#640](https://github.com/40oleg/nona/issues/640)).
