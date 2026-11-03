@@ -254,8 +254,11 @@ measurement. Heap and external-memory figures are reported separately using the
 server runtime's own counters, without interpreting Nona counters as V8 GC
 statistics. Unsupported counters remain `null`. Shared-runner timing and cache
 noise can fail a short control's RSS/p99 criteria; the report retains that failure
-without relaxing the budgets. Such a control still checks request correctness,
-sampling and lifecycle behavior.
+without relaxing the budgets. Explicit `--smoke` mode treats only p99 as a
+non-gating smoke observation, retaining its measured values and original criterion
+verdict. RSS, correctness, crash, resource, complete-sample and route-coverage
+criteria still gate smoke correctness. A short run without `--smoke` keeps p99
+gating ([#642](https://github.com/40oleg/nona/issues/642)).
 
 The quiescent baseline is sampled one second after readiness, before load.
 After workers finish, their keep-alive agents are destroyed and the server settles
@@ -315,6 +318,24 @@ sampling at least once per minute and successful coverage of all eight routes.
 A short Node control, smoke, incomplete run or workload excluding `/big` cannot
 satisfy native three-hour acceptance.
 
+For explicit smoke, `summary.originalPass` records the verdict of all original
+criteria, including p99, while `summary.pass` and the driver exit status describe
+smoke correctness. The p99 criterion keeps its actual `pass` value and is marked
+`gating: false` with an observation in JSON, Markdown and console output. Native
+three-hour acceptance still requires the strict p99 20% ratio with no additive
+allowance, RSS growth below 10%, all eight routes and the existing provenance.
+
+The pinned legacy driver used by `scripts/http-soak-check.mjs` keeps its original
+JSON, Markdown, process exits and events. The wrapper records a separate
+`verification.json` smoke correctness decision for its exact five-minute,
+`big=1`, one-connection smoke. An original exit 1 qualifies only for a proven
+sole p99 failure after validating the final reports, full criterion output,
+completion receipt and original JavaScript/process exits. Missing, malformed or
+contradictory evidence, unknown or duplicate criteria, other failures, exceptions
+and incomplete execution fail. Final native-child cleanup remains in force.
+This policy does not change historical failed reports or demonstrate a native
+performance improvement; mandatory three-hour native acceptance remains pending.
+
 ### Running locally
 
 On the owner's PC, run only the cheap Node decision/source checks below, with
@@ -355,7 +376,7 @@ and compiler entry-point hash. A custom duration must exceed its warm-up: settin
 Cheap checks (no server, native compiler or load):
 
 ```sh
-node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs
+node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs scripts/http-soak-smoke-policy.test.mjs
 ```
 
 The separate `http-soak-control.yml` workflow runs these checks and short real

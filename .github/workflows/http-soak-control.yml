@@ -45,7 +45,7 @@ jobs:
                   test "$RUNNER_ENVIRONMENT" = github-hosted
                   test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
             - name: Cheap decision and report regressions
-              run: node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs
+              run: node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs scripts/http-soak-smoke-policy.test.mjs
             - name: Real Node control and failure fixtures (no native compilation)
               run: node --test --test-concurrency=1 scripts/http-soak-hosted.test.mjs
             - uses: actions/upload-artifact@v4

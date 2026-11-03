@@ -14,6 +14,10 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hostedIdentity } from "./http-keepalive-check.mjs";
+import {
+    instrumentLegacyCompletion,
+    legacyCorrectnessSmoke,
+} from "./http-soak-smoke-policy.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(root, "work", "http-601-soak-source");
@@ -89,7 +93,7 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
         2,
         "soak diagnostic import changed",
     );
-    const instrumented = original
+    const instrumented = instrumentLegacyCompletion(original)
         .replace(
             importMarker,
             "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
@@ -99,7 +103,7 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
     writeFileSync(join(out, "http-soak.executed.mjs"), instrumented);
     report.executedHarnessSha256 = hash(instrumented);
     report.diagnostics =
-        "Raw server stdout/stderr, spawn/error/exit events and a harness JavaScript exit marker only; workload and pass criteria unchanged.";
+        "Raw server stdout/stderr, spawn/error/exit events, original JavaScript exit and final driver completion/error receipts; original workload, reports and pass criteria unchanged. A separate smoke correctness decision defers only p99.";
     const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
     const args = [
         join(root, "dist", "cli.js"),
@@ -150,6 +154,10 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
         "server.stdout.log",
         "server.stderr.log",
         "server-events.jsonl",
+        "harness.stdout.log",
+        "harness.stderr.log",
+        "driver-completion.json",
+        "driver-errors.jsonl",
     ])
         writeFileSync(join(out, name), "");
     child = spawn(
@@ -231,22 +239,26 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
         clearTimeout(timeout);
     }
     assert.ifError(report.spawnError);
-    assert.deepEqual(
-        report.exit,
-        { code: 0, signal: null },
-        "original soak harness returned failure",
-    );
-    const soak = JSON.parse(readFileSync(join(out, "http-soak.json"), "utf8"));
-    assert.equal(soak.summary.failed, 0, "soak recorded failed requests");
-    assert.ok(
-        soak.summary.ok >= 100,
-        "soak must complete at least 100 responses",
-    );
-    assert.equal(soak.summary.pass, true, "original soak pass criteria failed");
-    assert.equal(soak.crash, null);
-    assert.deepEqual(soak.mix, { big: 1 });
-    assert.equal(soak.config.connections, 1);
-    report.pass = true;
+    report.correctnessSmoke = legacyCorrectnessSmoke({
+        json: readFileSync(join(out, "http-soak.json"), "utf8"),
+        markdown: readFileSync(join(out, "http-soak.md"), "utf8"),
+        stdout: readFileSync(join(out, "harness.stdout.log"), "utf8"),
+        stderr: readFileSync(join(out, "harness.stderr.log"), "utf8"),
+        exit: report.exit,
+        events: report.events,
+        serverEvents: readFileSync(join(out, "server-events.jsonl"), "utf8")
+            .trim()
+            .split(/\r?\n/)
+            .map((line) => JSON.parse(line)),
+        jsExit: JSON.parse(
+            readFileSync(join(out, "harness-exit.json"), "utf8"),
+        ),
+        completion: JSON.parse(
+            readFileSync(join(out, "driver-completion.json"), "utf8"),
+        ),
+        driverErrors: readFileSync(join(out, "driver-errors.jsonl"), "utf8"),
+    });
+    report.pass = report.correctnessSmoke.pass;
 } catch (error) {
     report.failure = errorInfo(error);
     console.error(error.stack || error);
