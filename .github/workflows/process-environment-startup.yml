@@ -1,0 +1,142 @@
+name: Process environment startup 638
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+        paths:
+            - "src/lib/runtime/process*.js"
+            - "tests/process-environment-source.test.ts"
+            - "tests/suites.json"
+            - "scripts/process-environment-startup*.mjs"
+            - "docs/issue-638-startup-comparison.md"
+            - ".github/workflows/process-environment-startup.yml"
+            - "package.json"
+            - "package-lock.json"
+    workflow_dispatch:
+        inputs:
+            candidate:
+                description: Full candidate commit, equal to the selected nona/issue-638 branch head
+                required: true
+                type: string
+            candidate_blob:
+                description: Full process.js Git blob at the candidate commit
+                required: true
+                type: string
+            pairs:
+                description: Predetermined counterbalanced pairs
+                type: choice
+                options: ["2", "4"]
+                default: "2"
+
+permissions:
+    contents: read
+
+# Preserve every attempt, including partial failures. Never cancel an active
+# comparison to start a newer head; each runner gets only one serial plan.
+concurrency:
+    group: process-env-638-${{ github.run_id }}-${{ github.run_attempt }}
+    cancel-in-progress: false
+
+jobs:
+    comparison:
+        if: >-
+            github.repository == '40oleg/nona' && github.repository_owner == '40oleg' &&
+            ((github.event_name == 'pull_request' && github.event.pull_request.number == 639 &&
+            github.event.pull_request.user.login == '40oleg' &&
+            github.event.pull_request.head.repo.full_name == '40oleg/nona' &&
+            github.event.pull_request.head.repo.owner.login == '40oleg' &&
+            github.event.pull_request.head.ref == 'nona/issue-638' &&
+            github.event.pull_request.base.ref == 'main') ||
+            (github.event_name == 'workflow_dispatch' && github.actor == '40oleg' &&
+            github.ref == 'refs/heads/nona/issue-638' && inputs.candidate == github.sha))
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 150
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                runner: [windows-latest, ubuntu-24.04]
+        defaults:
+            run:
+                shell: pwsh
+        env:
+            NONA_CANDIDATE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.candidate }}
+            NONA_PAIRS: ${{ github.event_name == 'pull_request' && '2' || inputs.pairs }}
+        steps:
+            - name: Initialize partial evidence and require hosted execution
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  New-Item -ItemType Directory evidence -ErrorAction Stop | Out-Null
+                  if ($env:NONA_RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'GitHub-hosted only' }
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            - uses: actions/checkout@v4
+              id: candidate-source
+              with:
+                  repository: 40oleg/nona
+                  ref: ${{ env.NONA_CANDIDATE }}
+                  path: candidate
+                  persist-credentials: false
+            - uses: actions/checkout@v4
+              id: baseline-source
+              with:
+                  repository: 40oleg/nona
+                  ref: cbd9d287fd2cdd3b5e65bdc592d88e91b3fab876
+                  path: old
+                  persist-credentials: false
+            - name: Admit event and verify exact candidate source before dependency execution
+              id: admission
+              working-directory: candidate
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  node scripts/process-environment-startup.mjs --admit ../evidence/admission.json 1> ../evidence/admission.stdout.log 2> ../evidence/admission.stderr.log
+                  $status = $LASTEXITCODE
+                  $status | Set-Content ../evidence/admission.exit.txt
+                  exit $status
+            - name: Pure source, boundary and callback controls
+              id: pure
+              working-directory: candidate
+              run: |
+                  node --test --test-concurrency=1 scripts/process-environment-startup.test.mjs tests/process-environment-source.test.ts 1> ../evidence/pure.stdout.log 2> ../evidence/pure.stderr.log
+                  $status = $LASTEXITCODE
+                  $status | Set-Content ../evidence/pure.exit.txt
+                  exit $status
+            - name: Install baseline dependencies
+              if: ${{ !cancelled() && steps.admission.outcome == 'success' && steps.pure.outcome == 'success' }}
+              run: |
+                  npm --prefix old ci 1> evidence/baseline-deps.stdout.log 2> evidence/baseline-deps.stderr.log
+                  $status = $LASTEXITCODE
+                  $status | Set-Content evidence/baseline-deps.exit.txt
+                  exit $status
+            - name: Install candidate dependencies
+              if: ${{ !cancelled() && steps.admission.outcome == 'success' && steps.pure.outcome == 'success' }}
+              run: |
+                  npm --prefix candidate ci 1> evidence/candidate-deps.stdout.log 2> evidence/candidate-deps.stderr.log
+                  $status = $LASTEXITCODE
+                  $status | Set-Content evidence/candidate-deps.exit.txt
+                  exit $status
+            - name: Same-machine serial native comparison and sanitized Node controls
+              if: ${{ !cancelled() && steps.admission.outcome == 'success' && steps.pure.outcome == 'success' && steps.baseline-source.outcome == 'success' }}
+              env:
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+                  CANDIDATE_PIN: ${{ steps.admission.outputs.candidate }}
+                  CANDIDATE_BLOB: ${{ steps.admission.outputs.blob }}
+                  PAIRS: ${{ steps.admission.outputs.pairs }}
+              run: |
+                  node candidate/scripts/process-environment-startup.mjs --baseline cbd9d287fd2cdd3b5e65bdc592d88e91b3fab876 --candidate "$env:CANDIDATE_PIN" --candidate-process-blob "$env:CANDIDATE_BLOB" --baseline-root old --candidate-root candidate --pairs "$env:PAIRS" --out evidence/comparison 1> evidence/driver.stdout.log 2> evidence/driver.stderr.log
+                  $status = $LASTEXITCODE
+                  $status | Set-Content evidence/driver.exit.txt
+                  exit $status
+            - name: Preserve complete and partial raw evidence
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: process-env-638-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      evidence/
+                      candidate/work/review/638-repair/
+                  if-no-files-found: error
+                  retention-days: 30
