@@ -319,6 +319,20 @@ counter means the handle criterion cannot pass.
   and at least the configured number of samples covering each window; every
   configured route must have a successful request
 
+Load snapshots identify each observation as `complete` or `terminal-partial`.
+The deadline can clip the last sampling interval; that partial snapshot stays
+in the raw report with all requests, deliberate aborts and failures, but is
+excluded from RSS and latency comparisons regardless of whether it has latency
+observations. The last complete comparison window ends at the preceding complete
+boundary, recorded as `summary.comparisonEndSeconds`; its coverage must still
+reach the actual load end within the existing sampling tolerance. Sample-count
+minimums and performance limits are unchanged; explicit interval boundaries must
+be contiguous. Empty complete comparison intervals, missing snapshots, gaps,
+early exits and crashes fail. Older evidence
+without the new marker remains eligible only for genuinely complete intervals;
+old reports did not record the new metadata
+([#640](https://github.com/40oleg/nona/issues/640)).
+
 The test writes `soak-report/http-soak.{json,md}` (pass/fail, raw samples, all
 failures and their reasons); the server executable is built into
 `bench/results/`. When the server crashes, failed requests of the last 2
