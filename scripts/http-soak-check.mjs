@@ -14,6 +14,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hostedIdentity } from "./http-keepalive-check.mjs";
+import { patchDriver } from "./http-latency615-support.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(root, "work", "http-601-soak-source");
@@ -58,15 +59,17 @@ try {
         sourceCommit,
         "unexpected #516 source revision",
     );
-    const original = readFileSync(source, "utf8");
+    const original = readFileSync(source);
     report.originalHarnessSha256 = hash(original);
     report.serverSourceSha256 = hash(readFileSync(serverSource));
-    // Add raw logs and process event records only. Preserve an exact original
-    // beside the executed copy, and reject a changed insertion point.
+    // Apply the accepted, byte-pinned lossless observer before wrapper logging.
+    // It owns raw stdout/stderr; keep the wrapper's event/exit cleanup receipts.
     writeFileSync(join(out, "http-soak.original.mjs"), original);
+    const lossless = patchDriver(original);
+    const driver = lossless.source.toString("utf8");
     const marker = "let stopping = false;";
     assert.equal(
-        original.split(marker).length,
+        driver.split(marker).length,
         2,
         "soak diagnostic insertion point changed",
     );
@@ -78,18 +81,16 @@ function __diagEvent(event, value) {
     __diagAppendFileSync(__diagOut + "/server-events.jsonl", JSON.stringify({sequence: ++__diagSequence, time: new Date().toISOString(), event, ...value}) + "\\n");
 }
 __diagEvent("spawn", {pid: child.pid, serverPath});
-child.stdout.on("data", chunk => __diagAppendFileSync(__diagOut + "/server.stdout.log", chunk));
-child.stderr.on("data", chunk => __diagAppendFileSync(__diagOut + "/server.stderr.log", chunk));
 child.on("error", error => __diagEvent("error", {name: error.name, code: error.code, message: error.message, stack: error.stack}));
 child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code > 255 ? "0x" + code.toString(16) : undefined}));
 `;
     const importMarker = "import { mkdirSync,";
     assert.equal(
-        original.split(importMarker).length,
+        driver.split(importMarker).length,
         2,
         "soak diagnostic import changed",
     );
-    const instrumented = original
+    const instrumented = driver
         .replace(
             importMarker,
             "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
@@ -98,8 +99,22 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
     writeFileSync(source, instrumented);
     writeFileSync(join(out, "http-soak.executed.mjs"), instrumented);
     report.executedHarnessSha256 = hash(instrumented);
+    writeFileSync(
+        join(out, "http-soak.patch.json"),
+        JSON.stringify(
+            {
+                sourceCommit,
+                originalSha256: report.originalHarnessSha256,
+                losslessSha256: lossless.sha256,
+                executedSha256: report.executedHarnessSha256,
+                recipe: lossless.recipe,
+            },
+            null,
+            2,
+        ) + "\n",
+    );
     report.diagnostics =
-        "Raw server stdout/stderr, spawn/error/exit events and a harness JavaScript exit marker only; workload and pass criteria unchanged.";
+        "Accepted lossless intervals, selections, CPU and phase/process/pipe receipts plus raw server logs and wrapper cleanup receipts; diagnostic only, workload and pass criteria unchanged.";
     const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
     const args = [
         join(root, "dist", "cli.js"),
