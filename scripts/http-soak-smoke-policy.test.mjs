@@ -8,9 +8,119 @@ import { createHash } from "node:crypto";
 import { runInNewContext } from "node:vm";
 import { evaluateRun, newHistogram, record } from "./http-soak-support.mjs";
 import { readConfig, acceptancePass } from "./http-soak-evidence.mjs";
+import {
+    patchDriver,
+    unpatchDriver,
+    sha256,
+} from "./http-latency615-support.mjs";
 
 const policyUrl = new URL("./http-soak-smoke-policy.mjs", import.meta.url);
 const policy = existsSync(policyUrl) ? await import(policyUrl) : {};
+
+test("actual hosted control provisions the exact bounded pin before the smoke and wrapper suites", async () => {
+    const yaml = readFileSync(
+        new URL("../.github/workflows/http-soak-control.yml", import.meta.url),
+        "utf8",
+    );
+    const provision =
+        /            - name: Provision pinned inert soak source\n[\s\S]*?              run: \|\n([\s\S]*?)(?=            - )/.exec(
+            yaml.replaceAll("\r\n", "\n"),
+        );
+    assert.ok(provision, "hosted smoke tests need the pinned fixture first");
+    const script = provision[1].replace(/^                  /gm, "");
+    const body = /^node --input-type=module <<'NODE'\n([\s\S]*)\nNODE\n$/.exec(
+        script,
+    )?.[1];
+    assert.ok(body, "execute the actual provisioning JavaScript");
+    const cheap = yaml.indexOf("- name: Cheap decision and report regressions");
+    assert.ok(provision.index < cheap);
+    const command = yaml.slice(cheap).split(/\r?\n/)[1].trim();
+    assert.equal(
+        command,
+        "run: node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs scripts/http-soak-smoke-policy.test.mjs scripts/http-soak-check.test.mjs",
+    );
+    const original = readFileSync(process.env.LATENCY615_TEST_INPUT);
+    for (const mode of [
+        "valid",
+        "unavailable",
+        "short",
+        "oversized",
+        "wrong-pin",
+        "network-error",
+    ]) {
+        const writes = new Map(),
+            requests = [];
+        let timeout;
+        const bytes =
+            mode === "short"
+                ? original.subarray(1)
+                : mode === "oversized"
+                  ? Buffer.concat([original, Buffer.from("x")])
+                  : mode === "wrong-pin"
+                    ? Buffer.from(original).fill(0)
+                    : original;
+        const execute = () =>
+            runInNewContext(
+                `(async () => {${body.replace(/^import[\s\S]*?;\n/gm, "")}})()`,
+                {
+                    assert,
+                    createHash,
+                    resolve,
+                    Buffer,
+                    process: { env: { GITHUB_ENV: "ENV" } },
+                    AbortSignal: {
+                        timeout(ms) {
+                            timeout = ms;
+                            return "deadline";
+                        },
+                    },
+                    fetch: async (url, options) => {
+                        requests.push({ url, options });
+                        if (mode === "network-error")
+                            throw Error("unavailable network");
+                        return {
+                            ok: mode !== "unavailable",
+                            status: mode === "unavailable" ? 503 : 200,
+                            body: (async function* () {
+                                yield bytes.subarray(0, 100);
+                                yield bytes.subarray(100);
+                            })(),
+                        };
+                    },
+                    mkdirSync() {},
+                    writeFileSync: (p, value) => writes.set(p, value),
+                    appendFileSync: (p, value) =>
+                        writes.set(p, (writes.get(p) ?? "") + value),
+                },
+            );
+        if (mode === "valid") {
+            await execute();
+            const fixture = resolve("soak-control-report/http-soak.ab5.mjs");
+            assert.deepEqual(writes.get(fixture), original);
+            assert.equal(
+                writes.get("ENV"),
+                `LATENCY615_TEST_INPUT=${fixture}\n`,
+            );
+        } else {
+            await assert.rejects(execute);
+            assert.equal(
+                writes.size,
+                0,
+                "failed pin must not publish a fixture or environment",
+            );
+        }
+        assert.equal(timeout, 20000);
+        assert.equal(requests.length, 1, "no retry or alternate source");
+        assert.equal(
+            requests[0].url,
+            "https://raw.githubusercontent.com/40oleg/nona/ab5ea083d793e0a665fde8b0a4b33bc1fa67208e/scripts/http-soak.mjs",
+        );
+        assert.deepEqual(JSON.parse(JSON.stringify(requests[0].options)), {
+            redirect: "error",
+            signal: "deadline",
+        });
+    }
+});
 
 test("actual hosted build-failure staging copies the complete driver import graph before spawn", async () => {
     const source = readFileSync(
@@ -328,7 +438,18 @@ async function wrapper(f = legacyFixture()) {
         new URL("./http-soak-check.mjs", import.meta.url),
         "utf8",
     );
-    const files = new Map();
+    // Match filesystem separator aliases for the wrapper's slash-normalized env.
+    const files = new (class extends Map {
+        get(p) {
+            return super.get(String(p).replaceAll("\\", "/"));
+        }
+        set(p, value) {
+            return super.set(String(p).replaceAll("\\", "/"), value);
+        }
+        has(p) {
+            return super.has(String(p).replaceAll("\\", "/"));
+        }
+    })();
     const path = (name) => join(resolve("work/http-601/soak"), name);
     for (const [name, contents] of Object.entries({
         "http-soak.json": f.json,
@@ -354,10 +475,12 @@ async function wrapper(f = legacyFixture()) {
         kill: (...args) => kills.push(args),
     };
     let pending;
-    const tiny =
-        'import { mkdirSync, readFileSync, writeFileSync } from "node:fs";\nlet stopping = false;\nprocess.exit(pass ? 0 : 1);\n';
+    let builds = 0;
+    let spawns = 0;
+    const original = readFileSync(process.env.LATENCY615_TEST_INPUT);
     const context = {
         ...policy,
+        patchDriver,
         assert,
         createHash,
         dirname,
@@ -375,7 +498,8 @@ async function wrapper(f = legacyFixture()) {
             files.set(p, (files.get(p) ?? "") + String(s)),
         readFileSync: (p) => {
             if (files.has(String(p))) return files.get(String(p));
-            if (String(p).endsWith("http-soak.mjs")) return tiny;
+            if (String(p).endsWith("http-soak.mjs"))
+                return f.sourceBytes ?? original;
             if (
                 String(p).endsWith("soak-server.mjs") ||
                 String(p).endsWith("cli.js") ||
@@ -384,39 +508,64 @@ async function wrapper(f = legacyFixture()) {
                 return "tiny owned fixture";
             throw new Error("unavailable fixture: " + p);
         },
-        spawnSync: (cmd) =>
-            cmd === "git"
+        spawnSync: (cmd) => {
+            if (cmd !== "git") builds++;
+            return cmd === "git"
                 ? {
                       status: 0,
                       stdout: "ab5ea083d793e0a665fde8b0a4b33bc1fa67208e\n",
                   }
-                : { status: 0 },
-        spawn() {
-            pending = Promise.resolve().then(() => {
-                files.set(path("harness-exit.json"), JSON.stringify(f.jsExit));
-                files.set(
-                    path("driver-completion.json"),
-                    JSON.stringify(f.completion),
-                );
-                files.set(path("driver-errors.jsonl"), f.driverErrors);
-                files.set(
-                    path("server-events.jsonl"),
-                    f.serverEvents ??
-                        '{"event":"spawn","pid":123}\n{"event":"exit","code":0,"signal":null}\n',
-                );
-                child.stdout.emit(
-                    "data",
-                    f.stdout.replaceAll("OUT", resolve("work/http-601/soak")),
-                );
-                child.stderr.emit("data", f.stderr);
-                child.exitCode = f.exit.code;
-                child.signalCode = f.exit.signal;
-                if (f.spawnError)
-                    child.emit("error", new Error("late child error"));
-                const exitEvent = f.exitEvent ?? f.exit;
-                child.emit("exit", exitEvent.code, exitEvent.signal);
-                child.emit("close", f.exit.code, f.exit.signal);
-            });
+                : { status: 0 };
+        },
+        spawn(command, args, options) {
+            spawns++;
+            pending = Promise.resolve()
+                .then(async () => {
+                    if (f.runDriver)
+                        await f.runDriver(
+                            files.get(path("http-soak.executed.mjs")),
+                            files,
+                            path,
+                            options.env,
+                        );
+                    if (!f.runDriver) {
+                        files.set(
+                            path("harness-exit.json"),
+                            JSON.stringify(f.jsExit),
+                        );
+                        files.set(
+                            path("driver-completion.json"),
+                            JSON.stringify(f.completion),
+                        );
+                        files.set(path("driver-errors.jsonl"), f.driverErrors);
+                        files.set(
+                            path("server-events.jsonl"),
+                            f.serverEvents ??
+                                '{"event":"spawn","pid":123}\n{"event":"exit","code":0,"signal":null}\n',
+                        );
+                    }
+                    child.stdout.emit(
+                        "data",
+                        f.stdout.replaceAll(
+                            "OUT",
+                            resolve("work/http-601/soak"),
+                        ),
+                    );
+                    child.stderr.emit("data", f.stderr);
+                    child.exitCode = f.exit.code;
+                    child.signalCode = f.exit.signal;
+                    if (f.spawnError)
+                        child.emit("error", new Error("late child error"));
+                    const exitEvent = f.exitEvent ?? f.exit;
+                    child.emit("exit", exitEvent.code, exitEvent.signal);
+                    child.emit("close", f.exit.code, f.exit.signal);
+                })
+                .catch((error) => {
+                    child.emit("error", error);
+                    child.exitCode = 1;
+                    child.emit("exit", 1, null);
+                    child.emit("close", 1, null);
+                });
             return child;
         },
     };
@@ -432,8 +581,270 @@ async function wrapper(f = legacyFixture()) {
         kills,
         originalJson: files.get(path("http-soak.json")),
         originalMarkdown: files.get(path("http-soak.md")),
+        executed: files.get(path("http-soak.executed.mjs")),
+        patch: files.has(path("http-soak.patch.json"))
+            ? JSON.parse(files.get(path("http-soak.patch.json")))
+            : undefined,
+        builds,
+        spawns,
     };
 }
+
+for (const mode of ["complete", "before-exit", "during-exit"])
+    test(`joint wrapper preserves byte-pinned observer and original sampling with ${mode} completion`, async () => {
+        const f = legacyFixture();
+        const original = readFileSync(process.env.LATENCY615_TEST_INPUT);
+        f.runDriver = async (source, files, path, env) => {
+            let now = 1000;
+            const proc = new EventEmitter();
+            const native = new EventEmitter();
+            native.pid = 123;
+            native.stdout = new EventEmitter();
+            native.stderr = new EventEmitter();
+            const append = (p, value) =>
+                files.set(
+                    p,
+                    p.endsWith("server.stdout.log")
+                        ? Buffer.concat([
+                              Buffer.from(files.get(p) ?? ""),
+                              Buffer.from(value),
+                          ])
+                        : (files.get(p) ?? "") + value,
+                );
+            const write = (p, value) => {
+                files.set(p, String(value));
+                if (mode === "before-exit" && p === path("http-soak.md"))
+                    throw new Error("report-written-then-late-exception");
+            };
+            let stdout = "";
+            Object.assign(proc, {
+                env,
+                pid: 456,
+                cpuUsage: () => ({ user: 12, system: 3 }),
+                stdout: { write: (value) => (stdout += value) },
+                exit(code) {
+                    if (mode === "during-exit")
+                        throw new Error("after completion receipt");
+                    f.exit = { code, signal: null };
+                    this.emit("exit", code);
+                },
+            });
+            const section = (start, end) =>
+                source.slice(source.indexOf(start), source.indexOf(end));
+            const hook = (id) =>
+                section(
+                    `/* latency615:${id}:begin */`,
+                    `/* latency615:${id}:end */`,
+                );
+            const ctx = {
+                Buffer,
+                structuredClone,
+                process: proc,
+                performance: { now: () => now, timeOrigin: 1700000000000 },
+                outDir: dirname(path("http-soak.json")),
+                join,
+                child: native,
+                serverPath: "inert-server",
+                smoke: true,
+                os: {
+                    release: () => "inert",
+                    cpus: () => [],
+                    totalmem: () => 1024,
+                },
+                gitCommit: () => "inert",
+                target: "inert",
+                serverLog: [],
+                mix: [["big", 1]],
+                readFileSync: (p) => files.get(p),
+                writeFileSync: write,
+                __l615Append: append,
+                __l615Write: write,
+                __diagAppendFileSync: append,
+                console: { log: (value) => (stdout += value + "\n") },
+                fetchStats: async () => ({
+                    memory: { rss: 1000000 },
+                    openSockets: 1,
+                    activeResources: 2,
+                    errors: 0,
+                    uncaught: 0,
+                }),
+                procRss: () => 1000000,
+                procFds: () => 10,
+            };
+            // Only pure original functions and inserted observer hooks execute.
+            // No import, request, worker, timer, compiler or native process runs.
+            const setup =
+                source.slice(0, source.indexOf("import {")) +
+                hook("runtime") +
+                section("function envNumber", "const PATHS") +
+                section("const BUCKET_BASE", "function sleep") +
+                section("const counters = {", "let jsonLength") +
+                "let loadStart = 0, crash = null; function elapsedSeconds() { return loadStart ? (performance.now()-loadStart)/1000 : 0; }\n" +
+                section("const samples = [];", "// --- Run") +
+                "const __l615SpawnBefore = 999;\n" +
+                hook("server") +
+                section("const __diagOut", "let stopping = false;");
+            // Keep lexical declarations in one persistent VM for the original sampler.
+            const { createContext, runInContext } = await import("node:vm");
+            const sandbox = createContext(ctx);
+            runInContext(setup + "\nvar baseline, after;", sandbox);
+            native.stdout.emit("data", Buffer.from([0, 255, 10]));
+            native.stderr.emit("data", Buffer.from("raw stderr\n"));
+            await runInContext(
+                'sample("baseline").then(s => baseline = s)',
+                sandbox,
+            );
+            now = 2000;
+            runInContext(
+                "loadStart = 2000; lastSampleAt = loadStart;\n" + hook("start"),
+                sandbox,
+            );
+            for (let i = 1; i <= 30; i++) {
+                now = 2000 + i * 10000;
+                const bin = i > 24 ? 842 : 818;
+                runInContext(
+                    `interval.requests = 10; interval.hist.n = 10; interval.hist.counts[${bin}] = 10; counters.ok += 10;`,
+                    sandbox,
+                );
+                await runInContext('sample("load")', sandbox);
+            }
+            runInContext(
+                "var loadSeconds = 300;\n" +
+                    hook("stop") +
+                    hook("drained") +
+                    hook("settle"),
+                sandbox,
+            );
+            now = 310000;
+            await runInContext('sample("after").then(s => after = s)', sandbox);
+            runInContext(hook("kill"), sandbox);
+            native.emit("exit", 0, null);
+            for (const stream of [native.stdout, native.stderr]) {
+                stream.emit("end");
+                stream.emit("close");
+            }
+            native.emit("close", 0, null);
+            try {
+                runInContext(
+                    source.slice(source.indexOf("// --- Criteria")),
+                    sandbox,
+                );
+            } catch (error) {
+                proc.emit("uncaughtExceptionMonitor", error);
+                proc.emit("exit", 1);
+            }
+            f.json = files.get(path("http-soak.json"));
+            f.markdown = files.get(path("http-soak.md"));
+            f.completion = JSON.parse(
+                files.get(path("driver-completion.json")) || "null",
+            );
+            f.jsExit = JSON.parse(files.get(path("harness-exit.json")));
+            f.stdout = stdout;
+            f.driverErrors = files.get(path("driver-errors.jsonl"));
+            const telemetry = JSON.parse(files.get(path("telemetry.json")));
+            const rows = files
+                .get(path("intervals.jsonl"))
+                .trim()
+                .split("\n")
+                .map(JSON.parse);
+            assert.equal(rows.length, 32);
+            assert.equal(rows[1].histogram.counts[818], 10);
+            assert.equal(rows[30].histogram.counts[842], 10);
+            assert.deepEqual(rows[1].cpu, { mono: 12000, user: 12, system: 3 });
+            assert.deepEqual(telemetry.headIndices, [7, 8, 9, 10, 11, 12]);
+            assert.deepEqual(
+                telemetry.tailIndices,
+                [24, 25, 26, 27, 28, 29, 30],
+            );
+            assert.equal(telemetry.pass, false);
+            if (mode === "before-exit") assert.equal(f.completion, null);
+            else {
+                assert.equal(f.completion.code, 1);
+                assert.equal(f.completion.json, f.json);
+                assert.equal(f.completion.markdown, f.markdown);
+            }
+            assert.equal(
+                Buffer.from(files.get(path("server.stdout.log"))).toString(
+                    "hex",
+                ),
+                "00ff0a",
+            );
+            assert.equal(files.get(path("server.stderr.log")), "raw stderr\n");
+            const kinds = files
+                .get(path("events.jsonl"))
+                .trim()
+                .split("\n")
+                .map((line) => JSON.parse(line).kind);
+            for (const kind of [
+                "server.exit",
+                "server.close",
+                "server.stdout.end",
+                "server.stdout.close",
+                "server.stderr.end",
+                "server.stderr.close",
+                "harness.jsExit",
+            ])
+                assert.ok(kinds.includes(kind), kind);
+        };
+        const result = await wrapper(f);
+        assert.equal(
+            result.code,
+            mode === "complete" ? 0 : 1,
+            JSON.stringify(result.verification.failure),
+        );
+        if (mode === "complete")
+            assert.equal(
+                result.verification.correctnessSmoke.originalPass,
+                false,
+            );
+        else
+            assert.match(
+                f.driverErrors,
+                /late-exception|after completion receipt/,
+            );
+        assert.equal(JSON.parse(result.originalJson).summary.pass, false);
+        const observed = patchDriver(original);
+        const composed = policy.instrumentLegacyCompletion(
+            observed.source.toString(),
+        );
+        // Remove wrapper logging, then recover every observer byte and the raw pin.
+        const start = result.executed.indexOf("\nconst __diagOut");
+        const end = result.executed.indexOf("let stopping = false;", start);
+        const withoutLogging = (
+            result.executed.slice(0, start) + result.executed.slice(end)
+        ).replace(
+            "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
+            "import { mkdirSync,",
+        );
+        assert.equal(withoutLogging, composed);
+        assert.deepEqual(
+            unpatchDriver(observed.source, result.patch.recipe),
+            original,
+        );
+        assert.equal(result.patch.losslessSha256, sha256(observed.source));
+        assert.equal(result.patch.executedSha256, sha256(result.executed));
+    });
+
+test("actual joint wrapper rejects changed raw byte pins before build or driver spawn", async () => {
+    const original = readFileSync(process.env.LATENCY615_TEST_INPUT, "utf8");
+    for (const sourceBytes of [
+        Buffer.from(original + "\n"),
+        Buffer.from(original.replace('big: "/big"', 'big: "/bad"')),
+        Buffer.from(original.replace("p99Growth: 0.2", "p99Growth: 0.9")),
+    ]) {
+        const f = legacyFixture();
+        f.sourceBytes = sourceBytes;
+        const result = await wrapper(f);
+        assert.equal(result.code, 1);
+        assert.match(
+            result.verification.failure.message,
+            /original bytes|original source pin/,
+        );
+        assert.equal(result.builds, 0);
+        assert.equal(result.spawns, 0);
+        assert.equal(result.executed, undefined);
+    }
+});
 
 test("real legacy wrapper accepts completed p99-only smoke without rewriting original pass/exit", async () => {
     const f = legacyFixture();
@@ -486,6 +897,7 @@ for (const [name, mutate] of [
     ["wrong duration", (f) => (f.report.config.minutes = 4)],
     ["wrong mix", (f) => (f.report.mix = { text: 1 })],
     ["wrong concurrency", (f) => (f.report.config.connections = 2)],
+    ["changed p99 ratio", (f) => (f.report.config.limits.p99Growth = 0.9)],
     ["RSS contradiction", (f) => (f.report.summary.rssTail = 1100000)],
     ["resource contradiction", (f) => (f.report.summary.after.fds = 15)],
     ["failed requests contradiction", (f) => (f.report.summary.failed = 1)],

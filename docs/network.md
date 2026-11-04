@@ -43,6 +43,67 @@ server has a `clientError` listener; parse errors carry the llhttp codes
 
 `https:` requests are made with [`node:https`](#nodehttps), which runs this client over TLS.
 
+### Write backpressure
+
+TCP sockets and HTTP outgoing messages use a 16 KiB write high-water mark.
+Stop producing when `write()` returns `false`, then resume on `drain`; also
+handle terminal `error`/`close` events. HTTP counts corked chunks, encoded
+output waiting for socket assignment, and its active socket's queued bytes.
+`writableNeedDrain` records an outstanding false write until drain or terminal
+cleanup, even when a partial send leaves fewer than 16 KiB queued. Auto-cork
+flushes on a later microtask and cannot let a synchronous producer keep
+appending while returning `true`. Explicit corks must eventually be uncorked
+by the caller. A destroyed message never emits a later drain.
+
+For HTTPS, the TLS socket carries this obligation from pending plaintext
+through encrypted records on its raw TCP socket. A raw write can return
+`true` for a partial tail below 16 KiB while HTTP still owes a drain from
+its larger corked write. TLS arms the raw transport's notification and
+forwards it only after both queues empty; HTTP waits for that obligation
+to clear. Successful queued completions precede this drain. An immediate
+send can notify drain before its deferred callback, as before.
+
+The high-water mark is a flow-control threshold, not a hard memory cap. For
+`N` concurrent producers that stop at the first false write, maximum encoded
+write size `C`, and bounded HTTP header/framing overhead `F` per producer,
+the logical pending-byte envelope is conservatively `N * (16384 + C + F)`.
+If each producer additionally holds at most one in-flight request/body of
+size `R`, include `N * R` in its application-owned storage. Declare these
+limits together: unlimited requests, oversized writes, retained backing
+buffers or ignoring false invalidate that envelope. Kernel buffers, read
+arenas, object/callback overhead, temporary encoding/copy storage and the
+reusable output arena are additional memory; RSS alone cannot measure the
+write queues or establish that their owners were released.
+
+For TLS application records, add 22 bytes per record of at most 16 KiB
+plaintext (five-byte header, content type, sixteen-byte authentication tag).
+For a bounded batch of plaintext `B`, this adds `22 * ceil(B / 16384)`;
+separately account for handshake/certificate input and any key-update records.
+The plaintext waiting for the handshake obeys the same producer limit;
+unlimited pre-handshake writes still invalidate it.
+
+The focused regression uses one 1 MiB data response at a time (three
+sequential requests on a keep-alive connection), one independent probe, 4 KiB
+writes and at most 256 bytes of response framing/header allowance. It checks
+the data producer's pending bytes against `16384 + 4096 + 256`, exact body
+bytes, false/drain transitions, completion counts, and empty queues after
+production stops. Scripted syscall tests separately cover partial sends,
+EAGAIN/EINTR, queued completions, nested corking, socket assignment and
+terminal cleanup. A small compiled adapter retains a queued completion owner
+under forced GC, separately from ordinary native HTTP allocation tests.
+
+The HTTPS fixture uses two sequential 160 KiB uploads on one keep-alive
+connection, 20 KiB writes, at most 1 KiB HTTP framing/header allowance and
+one independent probe. It checks exact content and status, completions,
+finish/close counts, progress, reuse and empty message/TLS/raw queues. Nona
+keeps the one-chunk allowance above. Node 26.9.0's cork can accept an
+oversized first chunk and return false on the next: the observed queue
+was 41,074 bytes at a 16 KiB HWM. The shared oracle therefore checks Node
+against `HWM + 2*C + F`, plus TLS record expansion, while retaining Nona's
+stricter `HWM + C + F` assertion. These are declared fixture envelopes,
+not universal memory caps. See the [verification record](issue-615-verification.md)
+for the deterministic failure and pending hosted native/GC evidence.
+
 Performance: the server parses request heads, copies bodies, folds header
 names and writes responses with native helpers (`src/runtime/http-native.ts`);
 a request creates its `IncomingMessage` and `ServerResponse` as base-class
