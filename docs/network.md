@@ -439,6 +439,20 @@ and incomplete execution fail. Final native-child cleanup remains in force.
 This policy does not change historical failed reports or demonstrate a native
 performance improvement; mandatory three-hour native acceptance remains pending.
 
+For completed legacy smoke, the wrapper classifies only exact Node
+`TimeoutNegativeWarning` timer-clamp blocks whose PID matches `harness.spawn`.
+The delay must be a canonical finite negative number; Node clamps it to 1 ms
+([Node 26.9.0 timers](https://nodejs.org/download/release/v26.9.0/docs/api/timers.html#settimeoutcallback-delay-args)).
+The pinned sampling loop can cross its next deadline between its clock check and
+sleep calculation. Parsed warnings appear as `correctnessSmoke.warningObservations`
+in the separate decision, with their name, PID, delay and clamped delay. Raw stderr
+bytes, reports and original exits remain intact. Empty stderr retains its existing
+behavior; unknown, malformed, mixed or trailing diagnostics and missing or wrong
+warning PIDs fail. Recognized warnings still require every completion, exit,
+exception-ledger, request, memory, resource, coverage, p99-observation and cleanup
+check to succeed. Historical failed runs keep their original status
+([#644](https://github.com/40oleg/nona/issues/644)).
+
 ### Running locally
 
 On the owner's PC, run only the cheap Node decision/source checks below, with

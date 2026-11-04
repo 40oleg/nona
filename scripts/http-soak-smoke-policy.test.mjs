@@ -433,6 +433,194 @@ function legacyFixture(p99Pass = false) {
     };
 }
 
+// Exact diagnostic from run 41805702600, job 126492051483 (parent log).
+// Synthetic report/process receipts below are not recovered artifact evidence.
+function timerClampWarning(pid = 3237, delay = "-0.0005299999902490526") {
+    return (
+        `(node:${pid}) TimeoutNegativeWarning: ${delay} is a negative number.\n` +
+        "Timeout duration was set to 1.\n" +
+        "(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    );
+}
+
+function legacyInput() {
+    return {
+        ...legacyFixture(true),
+        events: [
+            { event: "harness.spawn", pid: 3237 },
+            { event: "harness.exit", code: 0, signal: null },
+            { event: "harness.close", code: 0, signal: null },
+        ],
+        serverEvents: [
+            { event: "spawn", pid: 123 },
+            { event: "exit", code: 0, signal: null },
+        ],
+    };
+}
+
+test("completed all-PASS legacy report accepts the exact driver timer warning as an observation", () => {
+    const input = legacyInput();
+    input.stderr = timerClampWarning();
+    const before = structuredClone(input);
+    const result = policy.legacyCorrectnessSmoke(input);
+    assert.equal(result.pass, true);
+    assert.equal(result.originalPass, true);
+    assert.equal(result.acceptancePass, false);
+    assert.deepEqual(result.warningObservations, [
+        {
+            name: "TimeoutNegativeWarning",
+            pid: 3237,
+            delay: -0.0005299999902490526,
+            clampedDelay: 1,
+        },
+    ]);
+    assert.deepEqual(input, before, "raw stderr and reports remain unchanged");
+});
+
+test("legacy timer observations consume complete canonical blocks with LF or CRLF", () => {
+    for (const newline of ["\n", "\r\n"]) {
+        const input = legacyInput();
+        input.stderr = (
+            timerClampWarning() +
+            [
+                "-1",
+                "-0.5",
+                "-1e-7",
+                "-1e+21",
+                "-5e-324",
+                "-1.7976931348623157e+308",
+            ]
+                .map(
+                    (delay) => timerClampWarning(3237, delay).split("(Use ")[0],
+                )
+                .join("")
+        ).replaceAll("\n", newline);
+        const before = structuredClone(input);
+        const result = policy.legacyCorrectnessSmoke(input);
+        assert.equal(result.warningObservations.length, 7);
+        assert.deepEqual(
+            result.warningObservations.map((w) => w.delay),
+            [
+                -0.0005299999902490526,
+                -1,
+                -0.5,
+                -1e-7,
+                -1e21,
+                -5e-324,
+                -Number.MAX_VALUE,
+            ],
+        );
+        assert.deepEqual(input, before);
+    }
+    const input = legacyInput();
+    delete input.events[0].pid;
+    assert.deepEqual(
+        policy.legacyCorrectnessSmoke(input).warningObservations,
+        [],
+    );
+});
+
+for (const delay of [
+    "NaN",
+    "Infinity",
+    "-Infinity",
+    "0",
+    "-0",
+    "1",
+    "0.5",
+    "+1",
+    "-01",
+    "-.5",
+    "-1.0",
+    "-1e3",
+    "-1E-7",
+    "-1e-07",
+    "-1e21",
+    "-1e309",
+    "-1e-999",
+    "-0x1",
+    " -1",
+    "-1 ",
+    "-1junk",
+    "-0.50000000000000001",
+]) {
+    test(`legacy timer warning rejects invalid or noncanonical delay ${JSON.stringify(delay)}`, () => {
+        const input = legacyInput();
+        input.stderr = timerClampWarning(3237, delay);
+        assert.throws(() => policy.legacyCorrectnessSmoke(input));
+    });
+}
+
+for (const [name, stderr] of [
+    ["wrong PID", timerClampWarning(123)],
+    ["missing PID", timerClampWarning("")],
+    ["zero PID", timerClampWarning(0)],
+    ["noncanonical PID", timerClampWarning("03237")],
+    ["unsafe PID", timerClampWarning("9007199254740993")],
+    [
+        "other warning",
+        timerClampWarning().replace(
+            "TimeoutNegativeWarning",
+            "TimeoutOverflowWarning",
+        ),
+    ],
+    [
+        "error name",
+        timerClampWarning().replace("TimeoutNegativeWarning", "Error"),
+    ],
+    ["unknown stderr", "unknown diagnostic\n"],
+    ["incomplete clamp", timerClampWarning().split("Timeout duration")[0]],
+    ["wrong clamp", timerClampWarning().replace("set to 1.", "set to 0.")],
+    [
+        "wrong hint",
+        timerClampWarning().replace(
+            "node --trace-warnings",
+            "node --trace-uncaught",
+        ),
+    ],
+    ["truncated hint", timerClampWarning().slice(0, -3)],
+    ["missing final newline", timerClampWarning().slice(0, -1)],
+    ["leading whitespace", " " + timerClampWarning()],
+    ["trailing whitespace", timerClampWarning() + " "],
+    ["trailing blank line", timerClampWarning() + "\n"],
+    [
+        "duplicate hint",
+        timerClampWarning() + timerClampWarning().split("\n")[2] + "\n",
+    ],
+    ["NUL byte", timerClampWarning() + "\0"],
+    [
+        "genuine preceding error",
+        "Error: request failed\n" + timerClampWarning(),
+    ],
+    [
+        "late exception",
+        timerClampWarning() + "Error: late exception\n    at driver.mjs:1:1\n",
+    ],
+    [
+        "mixed warning",
+        timerClampWarning() + "(node:3237) DeprecationWarning: failure\n",
+    ],
+    [
+        "malformed second block",
+        timerClampWarning() + timerClampWarning().replace("number.", "number!"),
+    ],
+]) {
+    test(`legacy timer warning fails closed on ${name}`, () => {
+        const input = legacyInput();
+        input.stderr = stderr;
+        assert.throws(() => policy.legacyCorrectnessSmoke(input));
+    });
+}
+
+for (const pid of [undefined, null, 0, -1, "3237", 3237.5, NaN, Infinity]) {
+    test(`legacy timer warning requires a valid harness spawn PID: ${String(pid)}`, () => {
+        const input = legacyInput();
+        input.events[0].pid = pid;
+        input.stderr = timerClampWarning();
+        assert.throws(() => policy.legacyCorrectnessSmoke(input));
+    });
+}
+
 async function wrapper(f = legacyFixture()) {
     const source = readFileSync(
         new URL("./http-soak-check.mjs", import.meta.url),
@@ -581,6 +769,7 @@ async function wrapper(f = legacyFixture()) {
         kills,
         originalJson: files.get(path("http-soak.json")),
         originalMarkdown: files.get(path("http-soak.md")),
+        originalStderr: files.get(path("harness.stderr.log")),
         executed: files.get(path("http-soak.executed.mjs")),
         patch: files.has(path("http-soak.patch.json"))
             ? JSON.parse(files.get(path("http-soak.patch.json")))
@@ -593,6 +782,7 @@ async function wrapper(f = legacyFixture()) {
 for (const mode of ["complete", "before-exit", "during-exit"])
     test(`joint wrapper preserves byte-pinned observer and original sampling with ${mode} completion`, async () => {
         const f = legacyFixture();
+        f.stderr = timerClampWarning(456);
         const original = readFileSync(process.env.LATENCY615_TEST_INPUT);
         f.runDriver = async (source, files, path, env) => {
             let now = 1000;
@@ -865,6 +1055,50 @@ test("real legacy wrapper accepts completed p99-only smoke without rewriting ori
     assert.equal((await wrapper(legacyFixture(true))).code, 0);
 });
 
+test("actual wrapper records timer warnings and preserves raw reports, stderr and exits", async () => {
+    for (const p99Pass of [true, false]) {
+        const f = legacyFixture(p99Pass);
+        f.stderr = timerClampWarning(456);
+        const before = structuredClone(f);
+        const result = await wrapper(f);
+        assert.equal(
+            result.code,
+            0,
+            JSON.stringify(result.verification.failure),
+        );
+        assert.equal(
+            result.verification.correctnessSmoke.originalPass,
+            p99Pass,
+        );
+        assert.equal(
+            result.verification.correctnessSmoke.acceptancePass,
+            false,
+        );
+        assert.equal(result.verification.exit.code, p99Pass ? 0 : 1);
+        assert.deepEqual(
+            result.verification.correctnessSmoke.warningObservations,
+            [
+                {
+                    name: "TimeoutNegativeWarning",
+                    pid: 456,
+                    delay: -0.0005299999902490526,
+                    clampedDelay: 1,
+                },
+            ],
+        );
+        assert.equal(result.originalJson, f.json);
+        assert.equal(result.originalMarkdown, f.markdown);
+        assert.deepEqual(
+            Buffer.from(result.originalStderr),
+            Buffer.from(f.stderr),
+        );
+        assert.deepEqual(f, before);
+    }
+    const f = legacyFixture(true);
+    f.stderr = timerClampWarning(); // Actual FakeChild PID is 456, not 3237.
+    assert.equal((await wrapper(f)).code, 1);
+});
+
 test("legacy rounded terminal timestamp remains legitimate completed evidence", async () => {
     const f = legacyFixture();
     f.completion.loadSeconds = 300.7;
@@ -961,22 +1195,25 @@ for (const [name, mutate] of [
     ["wrong completion report", (f) => (f.completion.json = "{}")],
     ["missing Markdown", (f) => (f.markdown = "")],
     ["truncated final stdout", (f) => (f.stdout = "FAIL")],
-    ["late stderr exception", (f) => (f.stderr = "Error: late exception\n")],
+    ["late stderr exception", (f) => (f.stderr += "Error: late exception\n")],
     [
         "late exception receipt",
         (f) => (f.driverErrors = '{"name":"Error","message":"late"}\n'),
     ],
 ]) {
     test(`real legacy wrapper fails closed: ${name}`, async () => {
-        const f = legacyFixture();
-        mutate(f);
-        // Consistent receipts isolate report validation from transport validation.
-        if (!name.includes("report") && name !== "malformed report") {
-            f.json = JSON.stringify(f.report);
-            if (f.completion && name !== "wrong completion report")
-                f.completion.json = f.json;
+        for (const stderr of ["", timerClampWarning(456)]) {
+            const f = legacyFixture();
+            f.stderr = stderr;
+            mutate(f);
+            // Consistent receipts isolate report validation from transport validation.
+            if (!name.includes("report") && name !== "malformed report") {
+                f.json = JSON.stringify(f.report);
+                if (f.completion && name !== "wrong completion report")
+                    f.completion.json = f.json;
+            }
+            assert.equal((await wrapper(f)).code, 1, `stderr: ${stderr}`);
         }
-        assert.equal((await wrapper(f)).code, 1);
     });
 }
 
@@ -1077,6 +1314,7 @@ test("actual current final decision returns smoke correctness status and reports
 
 test("real wrapper final native orphan cleanup remains effective on rejected smoke", async () => {
     const f = legacyFixture();
+    f.stderr = timerClampWarning(456);
     f.serverEvents = '{"event":"spawn","pid":123}\n';
     const result = await wrapper(f);
     assert.equal(result.code, 1);

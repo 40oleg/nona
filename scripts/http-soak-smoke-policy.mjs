@@ -50,6 +50,41 @@ ${terminal}`,
     );
 }
 
+// Recognize only Node's finite negative timer clamp, never arbitrary logging.
+// Consume complete blocks without modifying the wrapper's raw stderr evidence.
+function legacyWarningObservations(stderr, driverPid) {
+    if (stderr === "") return [];
+    assert.equal(typeof stderr, "string");
+    assert.ok(Number.isSafeInteger(driverPid) && driverPid > 0);
+    const block =
+        /\(node:([1-9]\d*)\) TimeoutNegativeWarning: ([^\r\n]+) is a negative number\.(\r?\n)Timeout duration was set to 1\.\3(?:\(Use `node --trace-warnings \.\.\.` to show where the warning was created\)\3)?/y;
+    const observations = [];
+    let offset = 0;
+    while (offset < stderr.length) {
+        block.lastIndex = offset;
+        const match = block.exec(stderr);
+        assert.ok(match, "unrecognized driver stderr diagnostic");
+        assert.equal(
+            match[1],
+            String(driverPid),
+            "warning PID differs from driver",
+        );
+        const delay = Number(match[2]);
+        assert.ok(
+            Number.isFinite(delay) && delay < 0 && String(delay) === match[2],
+            "warning delay is not a canonical finite negative number",
+        );
+        observations.push({
+            name: "TimeoutNegativeWarning",
+            pid: driverPid,
+            delay,
+            clampedDelay: 1,
+        });
+        offset = block.lastIndex;
+    }
+    return observations;
+}
+
 // Called by the actual wrapper after close, before its unchanged final cleanup.
 // Invalid or contradictory evidence throws; it can never become a smoke pass.
 export function legacyCorrectnessSmoke({
@@ -130,7 +165,10 @@ export function legacyCorrectnessSmoke({
     assert.equal(completion.code, code);
     assert.equal(completion.json, json);
     assert.equal(completion.markdown, markdown);
-    assert.equal(stderr, "", "driver stderr is not clean");
+    const warningObservations = legacyWarningObservations(
+        stderr,
+        events[0].pid,
+    );
     assert.equal(driverErrors, "", "driver raised an uncaught exception");
     assert.ok(
         Number.isFinite(completion.loadSeconds) &&
@@ -258,6 +296,7 @@ export function legacyCorrectnessSmoke({
         pass: true,
         originalPass,
         acceptancePass: false,
+        warningObservations,
         p99: {
             ...criteria[4],
             gating: false,
