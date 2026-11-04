@@ -12,6 +12,103 @@ import { readConfig, acceptancePass } from "./http-soak-evidence.mjs";
 const policyUrl = new URL("./http-soak-smoke-policy.mjs", import.meta.url);
 const policy = existsSync(policyUrl) ? await import(policyUrl) : {};
 
+test("actual hosted build-failure staging copies the complete driver import graph before spawn", async () => {
+    const source = readFileSync(
+        new URL("./http-soak-hosted.test.mjs", import.meta.url),
+        "utf8",
+    );
+    const staged = new Map();
+    const visited = new Set();
+    const stopped = new Error("staged graph checked; never spawn a driver");
+    let hostedTest;
+    let reachedSpawn = false;
+    function checkGraph(file) {
+        const path = resolve(file);
+        if (visited.has(path)) return;
+        assert.ok(staged.has(path), `missing staged module: ${path}`);
+        visited.add(path);
+        // Follow imports in the actual copied bytes, including transitive imports.
+        const imports = staged
+            .get(path)
+            .matchAll(
+                /\b(?:import|export)\s+(?:[^"'`;]*?\s+from\s*)?["']([^"']+)["']/g,
+            );
+        for (const [, specifier] of imports) {
+            if (specifier.startsWith("node:")) continue;
+            assert.ok(specifier.startsWith("."), specifier);
+            checkGraph(resolve(dirname(path), specifier));
+        }
+    }
+    // Run the real registration and only its build-failure callback. All copies
+    // stay in memory; the spawn sentinel stops before driver/report execution.
+    runInNewContext(source.replace(/^import\s+[\s\S]*?;\r?\n/gm, ""), {
+        assert,
+        join,
+        resolve,
+        process: {
+            env: {
+                GITHUB_ACTIONS: "true",
+                RUNNER_ENVIRONMENT: "github-hosted",
+            },
+            execPath: "never-executed-node",
+        },
+        test: (name, options, callback) => {
+            assert.equal(options.skip, false);
+            hostedTest = callback;
+        },
+        mkdirSync() {},
+        copyFileSync: (from, to) =>
+            staged.set(
+                resolve(to),
+                readFileSync(
+                    new URL(
+                        `../${from.replaceAll("\\", "/")}`,
+                        import.meta.url,
+                    ),
+                    "utf8",
+                ),
+            ),
+        spawn: (command, args, options) => {
+            reachedSpawn = true;
+            assert.equal(options.env.SOAK_FIXTURE, "build-failure");
+            assert.equal(options.env.NONA_SOAK_SERVER, "");
+            const driver = args[2];
+            assert.equal(
+                resolve(driver),
+                resolve(
+                    "soak-control-report/build-failure/stage/scripts/http-soak.mjs",
+                ),
+            );
+            checkGraph(driver);
+            assert.ok(
+                visited.has(
+                    resolve(dirname(driver), "http-soak-smoke-policy.mjs"),
+                ),
+                "support must reach the actual staged policy dependency",
+            );
+            assert.ok(
+                staged.has(
+                    resolve(dirname(driver), "../bench/http/soak-server.mjs"),
+                ),
+            );
+            throw stopped;
+        },
+    });
+    assert.equal(typeof hostedTest, "function");
+    await assert.rejects(
+        hostedTest({
+            test: async (mode, options, callback) => {
+                if (mode === "build-failure") await callback();
+            },
+        }),
+        (error) => {
+            assert.equal(error, stopped);
+            return true;
+        },
+    );
+    assert.equal(reachedSpawn, true);
+});
+
 function evidence(smoke = true, tail = 2) {
     const config = readConfig({}, smoke);
     const step = config.sampleSeconds;
