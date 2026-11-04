@@ -84,6 +84,23 @@ the four artifacts and run
 `node scripts/test-timings.mjs --write test-timings-*.json` to refresh
 `tests/timings.json`. A new test file without an entry counts as the mean.
 
+Within its assigned shard, the literal `http-agent` file runs alone after the
+other files in its GC cohort ([#616](https://github.com/40oleg/nona/issues/616)).
+Its child receives `NONA_TEST_CONCURRENCY=1` and `--test-concurrency=1`; peers
+keep Node's default concurrency or the explicit runner override. Shard
+assignment, exclusions, `--list` membership and GC selection stay unchanged.
+Agent source checks and retained-context controls remain ordinary peers.
+Every phase runs even if an earlier phase fails; the shard returns the first
+nonzero exit status.
+
+Ordinary phases retain `test-timings-<n>.json` and, in marked mode,
+`test-timings-<n>-stress.json`. The isolated phase adds `-http-agent` before
+`.json` to its cohort's report name. The existing upload and merge glob
+`work/test-timings-<n>*.json` collects them all without overwriting a phase.
+This resource policy preserves native fixtures, Node oracles, exact expected
+output and the 180000ms execution bound. The historical Windows timeout cause
+remains unknown; full hosted native validation is still required.
+
 ## Test262 directory jobs on pull requests
 
 The eight `windows-<group>-test262` jobs of `check` run on every push to

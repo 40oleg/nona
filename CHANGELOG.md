@@ -12,9 +12,13 @@
 
 ### Testing
 
+- **Windows HTTP Agent witnesses run in an isolated shard phase.** Run the already-assigned `http-agent` file alone after its GC-cohort peers, keeping shard membership, peer concurrency, GC selection, native fixtures, Node oracles and execution bounds. Preserve separate timing reports and execute every phase before returning the first failure. Full hosted native validation remains pending; the historical timeout cause is unknown ([#616](https://github.com/40oleg/nona/issues/616)).
+
 - **Completed legacy HTTP smoke recognizes Node timer-clamp diagnostics.** Record only exact `TimeoutNegativeWarning` blocks with canonical finite negative delays and the actual driver PID as separate correctness observations. Preserve raw stderr, reports, exits and historical failures; reject other diagnostics and retain every existing correctness gate and native acceptance requirement ([#644](https://github.com/40oleg/nona/issues/644)).
 
 - **Explicit HTTP smoke correctness policy.** Defer only p99 for explicit smoke runs while retaining measurements and the original failed criterion. Keep every other gate and strict three-hour native acceptance unchanged. The pinned legacy wrapper validates final reports and driver completion before recording a separate correctness decision; original reports and exits remain intact. Historical failures remain historical, with no performance improvement claimed ([#642](https://github.com/40oleg/nona/issues/642)).
+
+- Split timeout liveness coverage into explicit future-unref and all-due phase contracts, with hosted public default/full and IR checks under GC off/on and a referenced negative control. Native platform event probes share both contracts. Retain the original fixture and strict four-revision experiment as manual diagnostics. The Darwin ARM64 cause and native acceptance remain unresolved; PR #624 stays held ([#632](https://github.com/40oleg/nona/issues/632)).
 
 - **HTTP soak comparison intervals.** Preserve deadline-clipped final snapshots and all request accounting while distinguishing terminal partials from complete RSS/latency observations. Keep complete-window sample minimums and strict performance limits; empty complete intervals, gaps, missing snapshots and early/crashed runs still fail ([#640](https://github.com/40oleg/nona/issues/640)).
 
