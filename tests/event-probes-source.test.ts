@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { eventProbeSources, eventProbes } from "./probes/event-probes.js";
+import { eventProbeSources } from "./probes/event-probe-sources.js";
+import { eventProbes } from "./probes/event-probes.js";
 
 for (const probe of eventProbeSources)
     test("event platform probe Node oracle: " + probe.name, () => {

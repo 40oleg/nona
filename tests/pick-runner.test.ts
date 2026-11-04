@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
 
 // The routing of Windows CI jobs between GitHub-hosted runners and the
 // owner's self-hosted runner (scripts/pick-runner.mjs, docs/ci-runners.md).
@@ -30,6 +31,29 @@ const decide = async () =>
 const local = ["self-hosted", "Windows", "X64"];
 const idle: Runner = { status: "online", busy: false, labels: local };
 const hostedJob = { labels: ["windows-latest"] };
+
+test("full CI routing stays hosted even with queued jobs and an idle local runner", async () => {
+    const pick = await decide();
+    for (const name of ["check", "program-corpus"]) {
+        const workflow = readFileSync(`.github/workflows/${name}.yml`, "utf8");
+        const setting = workflow.match(
+            /^\s+TRUSTED:\s*["']?(true|false)["']?\s*$/m,
+        );
+        assert.ok(
+            setting,
+            `${name} must explicitly disable local overflow for all events`,
+        );
+        assert.equal(
+            pick({
+                trusted: setting[1] === "true",
+                runners: [idle],
+                queuedJobs: [hostedJob],
+            }).runner,
+            "windows-latest",
+            `${name} must not send full suites to the owner's PC`,
+        );
+    }
+});
 
 test("a queued hosted Windows job sends the next one to an idle self-hosted runner", async () => {
     const pick = await decide();

@@ -24,14 +24,14 @@ The executable contains your program's machine code and Nona's runtime, and noth
 
 ## Install
 
-Download the build for your system from the [latest release](https://github.com/40oleg/nona/releases/latest), extract it and run `nona --help` (`./nona --help` on Linux, macOS and BSD). The archive contains the executable, the license and a version file; nothing else needs to be installed.
+Download the build for your system from the [latest release](https://github.com/40oleg/nona/releases/latest), extract it and run `nona --help` (`./nona --help` on Linux, macOS and BSD). The archive contains the executable (`nona.exe` on Windows, `nona` elsewhere), `LICENSE`, `VERSION`, `README.txt` and `THIRD_PARTY_NOTICES.md`; nothing else needs to be installed. In the archive names below, `<version>` is the release version.
 
-| OS                          | Release build                                  | Target name                  | Output format |
-| --------------------------- | ---------------------------------------------- | ---------------------------- | ------------- |
-| Windows x64 / ARM64         | `nona-win32-x64.zip`, `nona-win32-arm64.zip`   | `win32-x64`, `win32-arm64`   | PE32+         |
-| Linux x64 / ARM64           | `nona-linux-x64.zip`, `nona-linux-arm64.zip`   | `linux-x64`, `linux-arm64`   | ELF64         |
-| macOS Intel / Apple Silicon | `nona-darwin-x64.zip`, `nona-darwin-arm64.zip` | `darwin-x64`, `darwin-arm64` | Mach-O64      |
-| FreeBSD / OpenBSD x64       | `nona-freebsd-x64.zip`, `nona-openbsd-x64.zip` | `freebsd-x64`, `openbsd-x64` | ELF64         |
+| OS                          | Release build                                                            | Target name                  | Output format |
+| --------------------------- | ------------------------------------------------------------------------ | ---------------------------- | ------------- |
+| Windows x64 / ARM64         | `nona-<version>-win32-x64.zip`, `nona-<version>-win32-arm64.zip`         | `win32-x64`, `win32-arm64`   | PE32+         |
+| Linux x64 / ARM64           | `nona-<version>-linux-x64.tar.gz`, `nona-<version>-linux-arm64.tar.gz`   | `linux-x64`, `linux-arm64`   | ELF64         |
+| macOS Intel / Apple Silicon | `nona-<version>-darwin-x64.tar.gz`, `nona-<version>-darwin-arm64.tar.gz` | `darwin-x64`, `darwin-arm64` | Mach-O64      |
+| FreeBSD / OpenBSD x64       | `nona-<version>-freebsd-x64.tar.gz`, `nona-<version>-openbsd-x64.tar.gz` | `freebsd-x64`, `openbsd-x64` | ELF64         |
 
 On POSIX systems, run `chmod +x nona` if your archive tool drops the permission. The [browser playground](https://40oleg.github.io/nona/playground) compiles and downloads programs for all eight targets without installing anything.
 
@@ -91,6 +91,8 @@ nona --help | --version
 
 `.mjs` inputs (or `--module`) are compiled as ES modules, together with the modules they import. A CommonJS input is compiled with everything it `require`s, and a package directory builds its `"bin"` command or `"main"` module. `--full-runtime` links every runtime part instead of only the reachable ones; `--link part,...` adds single parts and `--print-link` shows what was linked and why. `--print-asm` prints the x86-64 assembly generated for the program's own functions (`-o` may then be omitted). The [CLI reference](https://40oleg.github.io/nona/reference/cli) describes every option, and the `examples` directory has more programs, including a [matrix calculator](docs/matrix-calculator.md).
 
+The output cannot replace any file successfully read for compilation or package resolution, including imported or required sources, JSON modules, `package.json` files and explicit icon, manifest or version information files. Canonical paths and hard-link identity protect aliases too; a refused build preserves the existing files and removes temporary output.
+
 ## What is supported
 
 **Language: ES2020.** Classes and `super`, generators, async functions and async generators, `for await`, destructuring, spread, optional chaining, `??`, BigInt, Symbols, iterators, proper tail calls, sloppy-mode `with` and Annex B web-compatibility semantics. ES modules with cycles, live bindings, `import.meta` and dynamic `import()` of modules known at compile time. Later additions that are supported: resizable ArrayBuffer and growable SharedArrayBuffer (ES2024), class fields, private methods and static blocks and top-level `await` in ES modules (ES2022), the RegExp `d` flag with match indices (ES2022), numeric separators, logical assignment, `Promise.any`/`AggregateError`, `Promise.try`, `Promise.withResolvers`, iterator helpers (`Iterator`, `Iterator.from`, `map`/`filter`/`take`/`drop`/`flatMap`/`toArray`, …), `Array.fromAsync`, `.at()`, `findLast`/`findLastIndex`, TypedArray `toSorted`/`toReversed`/`with` (ES2023), `Object.hasOwn`, `Object.groupBy`/`Map.groupBy`, `String.prototype.replaceAll`, `String.prototype.isWellFormed`/`toWellFormed` (ES2024), Error `cause`, symbols as WeakMap keys and WeakSet values (ES2023), `WeakRef`, `FinalizationRegistry`, the RegExp `v` flag (ES2024), duplicate named capture groups in different alternatives, `RegExp.escape` (ES2025), RegExp pattern modifiers (`(?i:…)`, ES2025), the ES2025 Set methods (`union`, `intersection`, `difference`, `symmetricDifference`, `isSubsetOf`, `isSupersetOf`, `isDisjointFrom`), and the ES2023 change-by-copy array methods `toSorted`, `toReversed`, `toSpliced` and `with`, and half-precision floats (`Float16Array`, `Math.f16round`, `DataView` `getFloat16`/`setFloat16`).
@@ -99,7 +101,7 @@ nona --help | --version
 
 **`eval` and `Function`** work when their source text is known at compile time: a string literal, a concatenation of literals, or a variable only ever given such constants. That source is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception ([contract](docs/es2020-contract.md)).
 
-**Node.js-compatible APIs.** These are written for Nona, not taken from Node.js, and cover the subsets described in the linked pages:
+**Node.js-compatible APIs.** These are written for Nona, not taken from Node.js, and cover the subsets described in the linked pages. HTTP, HTTPS and TCP producers should stop on a false `write()` and resume on `drain`, with terminal error/close handling; see the [buffering limits](docs/network.md#write-backpressure).
 
 | Module or global                                                                                                | What it covers                                                                                                                                                                                                                                                     | Docs                                                        |
 | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
@@ -214,6 +216,6 @@ Nona has not had a security audit. Do not compile untrusted source code, and do 
 
 ## License
 
-[MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Include both files when distributing programs generated by Nona: the shared runtime includes nondecimal numeric formatting and cube-root support covered by these notices, RegExp and Intl support imports generated Unicode data, and ARM64 output also uses the software logarithm and exponential helpers.
 
 I want this to be used someday in a mission to Mars.

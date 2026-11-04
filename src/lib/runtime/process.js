@@ -139,12 +139,18 @@ ${processReportNetworkIntrinsicsSource}
     var argv=[execPath];
     for(var a=1;a<commandLine.length;a++)argv[argv.length]=commandLine[a];
     var env={};
+    var environmentKeys;
+    if(windows){
+      environmentKeys=createObject(null);
+      // Preserve the initial for-in suppression of inherited enumerable names.
+      for(var inherited in env)environmentKeys[inherited.toUpperCase()]=true
+    }
     for(var e=0;e<environment.length;e++){
       var entry=environment[e],eq=entry.indexOf('=',1);
       // Windows keeps per-drive directories as "=C:=C:\\..."; Node.js hides them.
       if(eq<=0)continue;
       var key=entry.slice(0,eq);
-      if(windows){var upper=key.toUpperCase(),known=false;for(var existing in env)if(existing.toUpperCase()===upper){known=true;break}if(known)continue}
+      if(windows){var upper=key.toUpperCase();if(environmentKeys[upper])continue;environmentKeys[upper]=true}
       defineProperty(env,key,{value:entry.slice(eq+1),writable:true,enumerable:true,configurable:true})
     }
     function exitStatus(code){

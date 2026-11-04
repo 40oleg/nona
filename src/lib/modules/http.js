@@ -607,13 +607,104 @@ export class OutgoingMessage {
         return (
             this._outputSize +
             buffered +
-            (this.socket ? this.socket.writableLength : 0)
+            (this.socket && this.socket._httpMessage === this
+                ? this.socket.writableLength
+                : 0)
         );
     }
     get writableNeedDrain() {
-        return (
-            !this.destroyed && !this.finished && this.writableLength >= 16384
-        );
+        return !this.destroyed && !this.finished && this._needDrain;
+    }
+    /** A false public write owes one deferred drain, even if uncork sends it all. */
+    _writeResult(ok) {
+        if (this.socket !== null && this.socket.destroyed) return false;
+        if (!ok || this.writableLength >= this.writableHighWaterMark) {
+            this._needDrain = true;
+            this._watchDrain();
+            return false;
+        }
+        return true;
+    }
+    _watchDrain() {
+        // Waiting pipelined responses are activated by _flushOutput; they
+        // must not subscribe to another message's socket drain meanwhile.
+        const socket =
+            this.socket !== null && this.socket._httpMessage === this
+                ? this.socket
+                : null;
+        // A corked message can cross its HWM while a partial send leaves a
+        // socket tail below the socket HWM. That tail still owes us a drain.
+        if (socket !== null && socket.writableLength > 0)
+            socket._requestDrain();
+        if (socket !== this._drainSocket) {
+            this._unwatchDrain();
+            if (socket !== null && !socket.destroyed) {
+                this._drainSocket = socket;
+                this._onDrain = () => this._scheduleDrain();
+                this._onDrainError = (error) => this._cancelWrites(error);
+                this._onDrainClose = () => this._cancelWrites();
+                socket.on("drain", this._onDrain);
+                socket.on("error", this._onDrainError);
+                socket.on("close", this._onDrainClose);
+            }
+        }
+        this._scheduleDrain();
+    }
+    _unwatchDrain() {
+        const socket = this._drainSocket;
+        if (socket !== null) {
+            socket.removeListener("drain", this._onDrain);
+            socket.removeListener("error", this._onDrainError);
+            socket.removeListener("close", this._onDrainClose);
+            this._drainSocket = null;
+            this._onDrain = this._onDrainError = this._onDrainClose = null;
+        }
+    }
+    _scheduleDrain() {
+        if (!this._needDrain || this._drainScheduled) return;
+        this._drainScheduled = true;
+        queueMicrotask(() => {
+            this._drainScheduled = false;
+            const socket = this.socket;
+            if (
+                this.destroyed ||
+                this.finished ||
+                (socket && socket.destroyed)
+            ) {
+                this._needDrain = false;
+                this._unwatchDrain();
+            } else if (
+                this._needDrain &&
+                socket !== null &&
+                socket._httpMessage === this &&
+                !socket.connecting &&
+                !socket.writableNeedDrain &&
+                this.writableLength === 0
+            ) {
+                this._needDrain = false;
+                this._unwatchDrain();
+                this.emit("drain");
+            }
+        });
+    }
+    _cancelWrites(error) {
+        this._needDrain = false;
+        this._unwatchDrain();
+        error =
+            error ||
+            codedError(
+                "ERR_STREAM_DESTROYED",
+                "Cannot call write after a stream was destroyed",
+            );
+        if (this._chunks !== null) this._flushChunks(error);
+        const output = this._output;
+        this._output = null;
+        this._outputSize = 0;
+        if (output !== null)
+            for (let i = 1; i < output.length; i += 2) {
+                const callback = output[i];
+                if (callback) queueMicrotask(() => done(callback, error));
+            }
     }
     get closed() {
         return this._closed;
@@ -999,13 +1090,15 @@ export class OutgoingMessage {
             return socket._sendNow(bytes, length, callback);
         }
         if (socket !== null && socket._destroyed) {
-            if (callback && typeof callback === "function")
+            if (callback)
                 queueMicrotask(() =>
-                    callback(
-                        codedError(
-                            "ERR_STREAM_DESTROYED",
-                            "Cannot call write after a stream was destroyed",
-                        ),
+                    done(
+                        callback,
+                        socket.errored ||
+                            codedError(
+                                "ERR_STREAM_DESTROYED",
+                                "Cannot call write after a stream was destroyed",
+                            ),
                     ),
                 );
             return false;
@@ -1031,6 +1124,7 @@ export class OutgoingMessage {
             }
             ok = socket._sendNow(bytes, bytes.length, callback);
         }
+        if (this._needDrain) this._watchDrain();
         return ok;
     }
     _implicitHeader() {
@@ -1044,7 +1138,9 @@ export class OutgoingMessage {
             callback = encoding;
             encoding = null;
         }
-        return this._write(chunk, encoding, callback, false);
+        const ok = this._write(chunk, encoding, callback, false);
+        if (this.destroyed || this.finished) return false;
+        return this._writeResult(ok);
     }
     _write(chunk, encoding, callback, fromEnd) {
         if (typeof callback !== "function") callback = undefined;
@@ -1097,9 +1193,7 @@ export class OutgoingMessage {
                 if (this._chunks === null) this._chunks = [];
                 this._chunks.push(chunk, encoding, callback);
                 this._chunkLength += length;
-                // The chunks reach the socket within the tick, which applies
-                // backpressure from there ('drain' is the socket's).
-                return true;
+                return this.writableLength < this.writableHighWaterMark;
             }
             if (length === 0)
                 return this._headerSent
@@ -1185,6 +1279,8 @@ export class OutgoingMessage {
             this._implicitHeader();
         }
         this.finished = true;
+        this._needDrain = false;
+        this._unwatchDrain();
         if (this._corked !== 0) {
             // The last data joins the chunks written in this tick (Node.js).
             if (this._hasBody && this.chunkedEncoding && chunk) {
@@ -1269,7 +1365,7 @@ export class OutgoingMessage {
     destroy(error) {
         if (this.destroyed) return this;
         this.destroyed = true;
-        if (this._chunks !== null) this._flushChunks(error);
+        this._cancelWrites(error);
         if (this.socket) this.socket.destroy(error);
         else this.once("socket", (socket) => socket.destroy(error));
         return this;
@@ -1296,7 +1392,7 @@ export class OutgoingMessage {
             length = this._chunkLength;
         this._chunks = null;
         this._chunkLength = 0;
-        if (this.destroyed) {
+        if (this.destroyed || error) {
             if (!error)
                 error = codedError(
                     "ERR_STREAM_DESTROYED",
@@ -1319,6 +1415,7 @@ export class OutgoingMessage {
             );
             prefix = null;
         }
+        if (this._needDrain) this._watchDrain();
     }
 }
 Object.setPrototypeOf(OutgoingMessage.prototype, EventEmitter.prototype);
@@ -1328,6 +1425,12 @@ defaults(OutgoingMessage.prototype, {
     _corked: 0,
     _chunks: null,
     _chunkLength: 0,
+    _needDrain: false,
+    _drainScheduled: false,
+    _drainSocket: null,
+    _onDrain: null,
+    _onDrainError: null,
+    _onDrainClose: null,
     _fields: null,
     _fieldEnd: 0,
     _keys: 0,
@@ -1616,8 +1719,10 @@ export class ServerResponse {
         this.socket = socket;
         if (hasListener(this, "socket")) this.emit("socket", socket);
         if (this._output !== null) this._flushOutput();
+        else if (this._needDrain) this._watchDrain();
     }
     detachSocket(socket) {
+        this._unwatchDrain();
         if (socket._httpMessage === this) socket._httpMessage = null;
         this.socket = null;
     }
@@ -2423,12 +2528,14 @@ function onServerSocketClose() {
     const active = this._httpMessage;
     if (active) {
         active.destroyed = true;
+        active._cancelWrites();
         active._closed = true;
         active.emit("close");
     }
     while (connection.waiting.length > 0) {
         const res = connection.waiting.shift();
         res.destroyed = true;
+        res._cancelWrites();
         res._closed = true;
         res.emit("close");
     }
@@ -2881,6 +2988,7 @@ export class ClientRequest extends OutgoingMessage {
     destroy(error) {
         if (this.destroyed) return this;
         this.destroyed = true;
+        this._cancelWrites(error);
         if (this.res) this.res._dump();
         this._destroyError = error;
         if (this.socket) this.socket.destroy(error);
@@ -2938,6 +3046,7 @@ export class ClientRequest extends OutgoingMessage {
         if (socket === null || socket._httpMessage !== this || socket.destroyed)
             return;
         if (this._output !== null) this._flushOutput();
+        else if (this._needDrain) this._watchDrain();
     }
     _afterFinish() {
         this._requestDone = true;
@@ -2989,12 +3098,14 @@ function onClientSocketError(error) {
     const req = this._httpMessage;
     if (!req) return;
     this._hadError = true;
+    req._cancelWrites(error);
     req._error(error);
 }
 function onClientSocketClose() {
     const req = this._httpMessage;
     if (!req || req.socket !== this) return;
     req.destroyed = true;
+    req._cancelWrites();
     const res = req.res;
     if (res) {
         if (!res.complete) res.destroy(hangUp("aborted"));
