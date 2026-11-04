@@ -85,6 +85,67 @@ normal controls and required current-head CI on both hosts after main integratio
 remain mandatory before PR #631 is ready, merged or #616 closed. T07 requirements
 remain unchanged.
 
+### Write backpressure
+
+TCP sockets and HTTP outgoing messages use a 16 KiB write high-water mark.
+Stop producing when `write()` returns `false`, then resume on `drain`; also
+handle terminal `error`/`close` events. HTTP counts corked chunks, encoded
+output waiting for socket assignment, and its active socket's queued bytes.
+`writableNeedDrain` records an outstanding false write until drain or terminal
+cleanup, even when a partial send leaves fewer than 16 KiB queued. Auto-cork
+flushes on a later microtask and cannot let a synchronous producer keep
+appending while returning `true`. Explicit corks must eventually be uncorked
+by the caller. A destroyed message never emits a later drain.
+
+For HTTPS, the TLS socket carries this obligation from pending plaintext
+through encrypted records on its raw TCP socket. A raw write can return
+`true` for a partial tail below 16 KiB while HTTP still owes a drain from
+its larger corked write. TLS arms the raw transport's notification and
+forwards it only after both queues empty; HTTP waits for that obligation
+to clear. Successful queued completions precede this drain. An immediate
+send can notify drain before its deferred callback, as before.
+
+The high-water mark is a flow-control threshold, not a hard memory cap. For
+`N` concurrent producers that stop at the first false write, maximum encoded
+write size `C`, and bounded HTTP header/framing overhead `F` per producer,
+the logical pending-byte envelope is conservatively `N * (16384 + C + F)`.
+If each producer additionally holds at most one in-flight request/body of
+size `R`, include `N * R` in its application-owned storage. Declare these
+limits together: unlimited requests, oversized writes, retained backing
+buffers or ignoring false invalidate that envelope. Kernel buffers, read
+arenas, object/callback overhead, temporary encoding/copy storage and the
+reusable output arena are additional memory; RSS alone cannot measure the
+write queues or establish that their owners were released.
+
+For TLS application records, add 22 bytes per record of at most 16 KiB
+plaintext (five-byte header, content type, sixteen-byte authentication tag).
+For a bounded batch of plaintext `B`, this adds `22 * ceil(B / 16384)`;
+separately account for handshake/certificate input and any key-update records.
+The plaintext waiting for the handshake obeys the same producer limit;
+unlimited pre-handshake writes still invalidate it.
+
+The focused regression uses one 1 MiB data response at a time (three
+sequential requests on a keep-alive connection), one independent probe, 4 KiB
+writes and at most 256 bytes of response framing/header allowance. It checks
+the data producer's pending bytes against `16384 + 4096 + 256`, exact body
+bytes, false/drain transitions, completion counts, and empty queues after
+production stops. Scripted syscall tests separately cover partial sends,
+EAGAIN/EINTR, queued completions, nested corking, socket assignment and
+terminal cleanup. A small compiled adapter retains a queued completion owner
+under forced GC, separately from ordinary native HTTP allocation tests.
+
+The HTTPS fixture uses two sequential 160 KiB uploads on one keep-alive
+connection, 20 KiB writes, at most 1 KiB HTTP framing/header allowance and
+one independent probe. It checks exact content and status, completions,
+finish/close counts, progress, reuse and empty message/TLS/raw queues. Nona
+keeps the one-chunk allowance above. Node 26.9.0's cork can accept an
+oversized first chunk and return false on the next: the observed queue
+was 41,074 bytes at a 16 KiB HWM. The shared oracle therefore checks Node
+against `HWM + 2*C + F`, plus TLS record expansion, while retaining Nona's
+stricter `HWM + C + F` assertion. These are declared fixture envelopes,
+not universal memory caps. See the [verification record](issue-615-verification.md)
+for the deterministic failure and pending hosted native/GC evidence.
+
 Performance: the server parses request heads, copies bodies, folds header
 names and writes responses with native helpers (`src/runtime/http-native.ts`);
 a request creates its `IncomingMessage` and `ServerResponse` as base-class
@@ -296,8 +357,11 @@ measurement. Heap and external-memory figures are reported separately using the
 server runtime's own counters, without interpreting Nona counters as V8 GC
 statistics. Unsupported counters remain `null`. Shared-runner timing and cache
 noise can fail a short control's RSS/p99 criteria; the report retains that failure
-without relaxing the budgets. Such a control still checks request correctness,
-sampling and lifecycle behavior.
+without relaxing the budgets. Explicit `--smoke` mode treats only p99 as a
+non-gating smoke observation, retaining its measured values and original criterion
+verdict. RSS, correctness, crash, resource, complete-sample and route-coverage
+criteria still gate smoke correctness. A short run without `--smoke` keeps p99
+gating ([#642](https://github.com/40oleg/nona/issues/642)).
 
 The quiescent baseline is sampled one second after readiness, before load.
 After workers finish, their keep-alive agents are destroyed and the server settles
@@ -357,6 +421,24 @@ sampling at least once per minute and successful coverage of all eight routes.
 A short Node control, smoke, incomplete run or workload excluding `/big` cannot
 satisfy native three-hour acceptance.
 
+For explicit smoke, `summary.originalPass` records the verdict of all original
+criteria, including p99, while `summary.pass` and the driver exit status describe
+smoke correctness. The p99 criterion keeps its actual `pass` value and is marked
+`gating: false` with an observation in JSON, Markdown and console output. Native
+three-hour acceptance still requires the strict p99 20% ratio with no additive
+allowance, RSS growth below 10%, all eight routes and the existing provenance.
+
+The pinned legacy driver used by `scripts/http-soak-check.mjs` keeps its original
+JSON, Markdown, process exits and events. The wrapper records a separate
+`verification.json` smoke correctness decision for its exact five-minute,
+`big=1`, one-connection smoke. An original exit 1 qualifies only for a proven
+sole p99 failure after validating the final reports, full criterion output,
+completion receipt and original JavaScript/process exits. Missing, malformed or
+contradictory evidence, unknown or duplicate criteria, other failures, exceptions
+and incomplete execution fail. Final native-child cleanup remains in force.
+This policy does not change historical failed reports or demonstrate a native
+performance improvement; mandatory three-hour native acceptance remains pending.
+
 ### Running locally
 
 On the owner's PC, run only the cheap Node decision/source checks below, with
@@ -397,7 +479,7 @@ and compiler entry-point hash. A custom duration must exceed its warm-up: settin
 Cheap checks (no server, native compiler or load):
 
 ```sh
-node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs
+node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs scripts/http-soak-smoke-policy.test.mjs
 ```
 
 The separate `http-soak-control.yml` workflow runs these checks and short real

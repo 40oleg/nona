@@ -38,6 +38,7 @@ test(
                         "http-soak.mjs",
                         "http-soak-support.mjs",
                         "http-soak-evidence.mjs",
+                        "http-soak-smoke-policy.mjs",
                     ])
                         copyFileSync(
                             join("scripts", file),

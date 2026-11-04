@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
+import { configuredPass } from "./http-soak-smoke-policy.mjs";
 // Decisions shared by the real HTTP soak driver and cheap Node regressions.
 const BIG = Buffer.alloc(1048576, "b");
 const TEXT = "Hello, soak!";
@@ -314,7 +315,8 @@ export function evaluateRun({
         `last complete ${+config.windowMinutes.toFixed(2)} min ≤ first ${+config.windowMinutes.toFixed(2)} min after warm-up + ${config.limits.p99Growth * 100}%`,
     );
 
-    const pass = criteria.every((c) => c.pass);
+    const originalPass = criteria.every((c) => c.pass);
+    const pass = configuredPass(config, criteria);
     const totalRequests =
         counters.ok +
         counters.deliberate.missing +
@@ -323,6 +325,7 @@ export function evaluateRun({
         counters.failed;
     const summary = {
         pass,
+        originalPass,
         loadSeconds: Math.round(loadSeconds),
         comparisonEndSeconds,
         requests: totalRequests,

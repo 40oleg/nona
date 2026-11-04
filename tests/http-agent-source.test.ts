@@ -36,6 +36,18 @@ const tasks: (() => void)[] = [];
 function flush() {
     while (tasks.length > 0) tasks.shift()!();
 }
+// Keep inherited cancellation, drain cleanup and output completion real too.
+const OutgoingMessage = new Function(
+    "EventEmitter",
+    "defaults",
+    "codedError",
+    section(
+        "export class OutgoingMessage {",
+        "function byteLength(chunk, encoding) {",
+    ) + "\nreturn OutgoingMessage;",
+)(EventEmitter, Object.assign, (code: string, message: string) =>
+    Object.assign(new Error(message), { code }),
+);
 const ClientRequest = new Function(
     "OutgoingMessage",
     "defer",
@@ -47,7 +59,7 @@ const ClientRequest = new Function(
         "class ResponseReader {",
     ) + "\nreturn ClientRequest;",
 )(
-    EventEmitter,
+    OutgoingMessage,
     (target: any, method: string) => tasks.push(() => target[method]()),
     (message: string) =>
         Object.assign(new Error(message), { code: "ECONNRESET" }),
@@ -568,3 +580,123 @@ test("HTTP Agent source: an idle offer settles eligible cross-origin cancellatio
     counts(agent);
     agent.destroy();
 });
+
+for (const action of [
+    "socket-error",
+    "socket-close",
+    "request-destroy",
+    "request-abort",
+]) {
+    test(
+        "HTTP Agent source: corked/output completion and drain cleanup on " +
+            action,
+        async () => {
+            const { agent, connections } = pool({
+                maxSockets: 1,
+                maxTotalSockets: 1,
+            });
+            const req = client(agent);
+            const events: string[] = [];
+            const outputErrors: any[] = [];
+            const outputCompletions: string[] = [];
+            const chunkErrors: any[] = [];
+            const failure = Object.assign(new TypeError("cancel"), {
+                code: "EWRITE",
+            });
+            req.on("error", (error: any) => {
+                events.push("error:" + error.code);
+                if (action === "socket-error" || action === "request-destroy")
+                    assert.equal(error, failure);
+            });
+            req.on("close", () => events.push("close"));
+            req.on("drain", () =>
+                assert.fail("terminal request emitted drain"),
+            );
+            req.on("socket", (socket: Socket) => {
+                socket.writableLength = 0;
+                req._chunks = [
+                    "one",
+                    null,
+                    (error: any) => {
+                        chunkErrors.push(error);
+                        events.push("chunk:" + error.code);
+                        req.destroy(); // Reentrant completion must not duplicate work.
+                    },
+                ];
+                req._chunkLength = 3;
+                req._output = [
+                    Buffer.from("two"),
+                    (error: any) => {
+                        outputCompletions.push("function");
+                        outputErrors.push(error);
+                    },
+                    Buffer.from("three"),
+                    {
+                        _sent(error: any) {
+                            outputCompletions.push("owner");
+                            outputErrors.push(error);
+                        },
+                    },
+                ];
+                req._outputSize = 8;
+                req._needDrain = true;
+                req._watchDrain();
+                assert.equal(socket.listenerCount("drain"), 1);
+                if (action === "request-destroy") req.destroy(failure);
+                else if (action === "request-abort") req.abort();
+                else
+                    socket.destroy(
+                        action === "socket-error" ? failure : undefined,
+                    );
+                assert.equal(req._needDrain, false);
+                assert.equal(req._drainSocket, null);
+                assert.equal(socket.listenerCount("drain"), 0);
+                assert.equal(socket.listenerCount("error"), 0);
+                assert.equal(socket.listenerCount("close"), 1); // Agent ownership only.
+            });
+            agent.addRequest(req, origin(10001));
+            flush();
+            await Promise.resolve();
+            assert.equal(chunkErrors.length, 1);
+            assert.equal(outputErrors.length, 2);
+            assert.deepEqual(outputCompletions, ["function", "owner"]);
+            assert.ok(
+                events.indexOf("chunk:" + chunkErrors[0].code) <
+                    events.indexOf("close"),
+            );
+            assert.equal(events.filter((event) => event === "close").length, 1);
+            assert.equal(
+                events.filter((event) => event.startsWith("error:")).length,
+                1,
+            );
+            if (action === "socket-error" || action === "request-destroy") {
+                assert.equal(chunkErrors[0], failure);
+                assert.deepEqual(outputErrors, [failure, failure]);
+                for (const error of outputErrors) assert.equal(error, failure);
+            } else {
+                assert.equal(chunkErrors[0].code, "ERR_STREAM_DESTROYED");
+                assert.ok(
+                    outputErrors.every(
+                        (error) => error.code === "ERR_STREAM_DESTROYED",
+                    ),
+                );
+            }
+            req.destroy();
+            connections[0]!.socket.emit("drain");
+            agent.destroy();
+            flush();
+            await Promise.resolve();
+            assert.equal(chunkErrors.length, 1);
+            assert.equal(outputErrors.length, 2);
+            assert.deepEqual(outputCompletions, ["function", "owner"]);
+            assert.equal(events.filter((event) => event === "close").length, 1);
+            assert.equal(
+                events.filter((event) => event.startsWith("error:")).length,
+                1,
+            );
+            assert.equal(req._destroyChunks, null);
+            assert.equal(req._destroyError, null);
+            counts(agent);
+        },
+    );
+}

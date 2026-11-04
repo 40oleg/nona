@@ -292,6 +292,8 @@
                 "harness",
                 "has-cache",
                 "http",
+                "http-backpressure",
+                "http-backpressure-source",
                 "http-keepalive",
                 "http-json-bytes",
                 "http-responses",
