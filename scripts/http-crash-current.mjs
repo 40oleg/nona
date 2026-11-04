@@ -20,6 +20,7 @@ import {
     sourceCommit,
     driverSha256,
     serverSha256,
+    controlledReferenceSha256,
 } from "./http-crash-current-policy.mjs";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -234,6 +235,7 @@ export async function runCurrent({ root, origin, env, signal }, io = nativeIo) {
         sourceCommit,
         driverSha256,
         serverSha256,
+        controlledReferenceSha256,
         pressure: [],
         projection: [],
         diagnosticComplete: false,
@@ -248,7 +250,7 @@ export async function runCurrent({ root, origin, env, signal }, io = nativeIo) {
             jobMinutes: 35,
         },
         interpretation:
-            "Continuous c32 correctness/resource witness and small controlled queued-close projection only. Original reports and verdicts are retained. p99 alone is observational. No runtime fix, issue closure or release acceptance.",
+            "Original AB5 server continuous c32 correctness/resource witness and separate controlled-reference c1 queued-close projections only. The sources differ in stats and exception topology; AB5 pressure does not establish continuous c32 behavior of the frozen controlled reference. Original reports and verdicts are retained. p99 alone is observational. No runtime fix, issue closure or release acceptance.",
         dumpCollection:
             "No SDK installation or dump/environment inventory; raw stdout/stderr, process termination and own compiler assembly are retained.",
     };
@@ -279,7 +281,7 @@ export async function runCurrent({ root, origin, env, signal }, io = nativeIo) {
                     "soak-server.mjs",
                 ),
             ),
-            serverSha256,
+            controlledReferenceSha256,
             "Controlled source reference changed",
         );
         const compiler = join(root, "dist", "src", "compiler.js");
@@ -717,6 +719,7 @@ export function verifyCurrent(env = process.env) {
         sourceCommit,
         driverSha256,
         serverSha256,
+        controlledReferenceSha256,
     };
 }
 

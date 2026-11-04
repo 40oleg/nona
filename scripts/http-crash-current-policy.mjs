@@ -6,6 +6,9 @@ export const driverSha256 =
     "31be9600805b228135b665969320e4554c6f95236e6bb85f55f8116b2678f47d";
 export const serverSha256 =
     "3bae7410ac2d9afcb9a9e1431919a2aa5b5ca352db578769810a24f0ac718f60";
+// Separate frozen input used by controlled projections, not the AB5 pressure server.
+export const controlledReferenceSha256 =
+    "093f68880e37773b402b1e2390eaf5fc2dfe58b02d348c2d93cd51f0e69f283b";
 
 export function currentCheckResult(e, head, platform, arch, version) {
     const checks = {

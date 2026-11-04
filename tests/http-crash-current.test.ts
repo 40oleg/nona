@@ -250,6 +250,7 @@ function verificationFixture(overrides = {}, checkout = head, failIo = "") {
         sourceCommit: api.sourceCommit,
         driverSha256: api.driverSha256,
         serverSha256: api.serverSha256,
+        controlledReferenceSha256: api.controlledReferenceSha256,
     };
     const verify = runInNewContext(
         source.replace("export function", "function") + "\nverifyCurrent",
@@ -359,6 +360,14 @@ test("verification preserves each actual image and stable origin across repeated
         assert.equal(first.imageVersion, "20261101.1");
         assert.equal(first.head, head);
         assert.equal(first.tree, "c".repeat(40));
+        assert.equal(
+            first.serverSha256,
+            "3bae7410ac2d9afcb9a9e1431919a2aa5b5ca352db578769810a24f0ac718f60",
+        );
+        assert.equal(
+            first.controlledReferenceSha256,
+            "093f68880e37773b402b1e2390eaf5fc2dfe58b02d348c2d93cd51f0e69f283b",
+        );
         assert.equal(first.timestamp, undefined);
         assert.equal(first.at, undefined);
         const receipt = x.files.get(
@@ -751,14 +760,18 @@ test("current workflow selects only its bounded hosted job and cannot cancel oth
     assert.ok(body.includes("ab5ea083d793e0a665fde8b0a4b33bc1fa67208e"));
 });
 
-// Only external byte pins/children are doubled: transformations and policy run
-// in the real entry. These inert pins do not certify original-driver execution.
+// Only original pressure byte pins/children are doubled; the controlled reference
+// uses its actual frozen bytes. These controls do not certify driver execution.
 function orchestrationFixture(failure = "") {
     const files = new Map<string, any>();
-    const root = resolve("work/current-pressure602-v3/virtual");
+    const root = resolve("work/current-pressure602-v6/virtual");
     const out = join(root, "work/http602-current");
     const source = join(out, "soak-source/scripts/http-soak.mjs");
     const fixture = join(out, "soak-source/bench/http/soak-server.mjs");
+    const controlledReference = join(
+        root,
+        "tests/fixtures/http-crash/soak-server.mjs",
+    );
     const digest = (bytes: any) =>
         createHash("sha256").update(bytes).digest("hex");
     const hash = (bytes: any) =>
@@ -771,8 +784,8 @@ function orchestrationFixture(failure = "") {
     files.set(source, Buffer.from("inert pinned driver"));
     files.set(fixture, Buffer.from("inert pinned server"));
     files.set(
-        join(root, "tests/fixtures/http-crash/soak-server.mjs"),
-        Buffer.from("inert pinned server"),
+        controlledReference,
+        readFileSync("tests/fixtures/http-crash/soak-server.mjs"),
     );
     files.set(join(root, "dist/src/compiler.js"), "inert compiler");
     const origin = {
@@ -953,8 +966,72 @@ function orchestrationFixture(failure = "") {
             return report;
         },
     };
-    return { files, root, out, source, origin, io, calls };
+    return {
+        files,
+        root,
+        out,
+        source,
+        fixture,
+        controlledReference,
+        origin,
+        io,
+        calls,
+    };
 }
+
+test("current preflight accepts distinct pinned pressure and controlled reference inputs", async () => {
+    const x = orchestrationFixture();
+    assert.notDeepEqual(
+        x.files.get(x.fixture),
+        x.files.get(x.controlledReference),
+    );
+    const summary = await entry.runCurrent(
+        { root: x.root, origin: x.origin, env },
+        x.io,
+    );
+    assert.equal(summary.diagnosticComplete, true, JSON.stringify(summary));
+    assert.equal(
+        summary.serverSha256,
+        "3bae7410ac2d9afcb9a9e1431919a2aa5b5ca352db578769810a24f0ac718f60",
+    );
+    assert.equal(
+        summary.controlledReferenceSha256,
+        "093f68880e37773b402b1e2390eaf5fc2dfe58b02d348c2d93cd51f0e69f283b",
+    );
+    assert.equal(summary.pressure.length, 2);
+    assert.equal(summary.projection.length, 6);
+});
+
+for (const domain of ["pressure", "controlled"])
+    for (const mutation of ["append", "wrong-domain"])
+        test(`current preflight refuses ${domain} ${mutation} bytes before any child`, async () => {
+            const x = orchestrationFixture();
+            const target =
+                domain === "pressure" ? x.fixture : x.controlledReference;
+            const other =
+                domain === "pressure" ? x.controlledReference : x.fixture;
+            x.files.set(
+                target,
+                mutation === "append"
+                    ? Buffer.concat([x.files.get(target), Buffer.from("\n")])
+                    : x.files.get(other),
+            );
+            const summary = await entry.runCurrent(
+                { root: x.root, origin: x.origin, env },
+                x.io,
+            );
+            assert.equal(summary.diagnosticComplete, false);
+            assert.match(
+                summary.failure?.message ?? "",
+                domain === "pressure"
+                    ? /Frozen original server changed/
+                    : /Controlled source reference changed/,
+            );
+            assert.equal(x.calls.length, 0);
+            assert.deepEqual(summary.pressure, []);
+            assert.deepEqual(summary.projection, []);
+            assert.ok(x.files.has(join(x.out, "summary.json")));
+        });
 
 test("current orchestrator keeps both five-minute arms and six projected raw results independent on failure", async () => {
     assert.equal(typeof entry.runCurrent, "function");
