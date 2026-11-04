@@ -54,7 +54,10 @@ Cancelling a queued request discards its unsent data, callbacks and connection
 options without opening a socket. Its terminal error/close notification waits
 for a capacity opportunity, as in Node.js; `abort` retains its separate event.
 After socket assignment, destroying or aborting a request completes its corked write
-callbacks with the destruction error before `close`. Synchronous connection creation errors
+callbacks with the destruction error before `close`. Encoded output still held by the
+request is discarded without calling its unsent write callbacks, including when
+cancellation happens in the `socket` listener before output handoff. Writes already
+handed to the socket retain their transport completion. Synchronous connection creation errors
 remove the failed request from the queue, so later valid requests can proceed.
 `Agent.destroy()` destroys current pooled sockets; the Agent can subsequently be
 used again, and eligible queued requests can receive new sockets.

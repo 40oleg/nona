@@ -41,12 +41,45 @@ const OutgoingMessage = new Function(
     "EventEmitter",
     "defaults",
     "codedError",
+    "reserve",
+    "writeString",
+    "copyBytes",
+    "sliceBytes",
+    "byteLength",
     section(
         "export class OutgoingMessage {",
         "function byteLength(chunk, encoding) {",
     ) + "\nreturn OutgoingMessage;",
-)(EventEmitter, Object.assign, (code: string, message: string) =>
-    Object.assign(new Error(message), { code }),
+)(
+    EventEmitter,
+    Object.assign,
+    (code: string, message: string) =>
+        Object.assign(new Error(message), { code }),
+    // Stand in only for native byte helpers; encoding, write/end, corking,
+    // handoff and cancellation still execute the actual HTTP source.
+    (size: number) => Buffer.alloc(size),
+    (
+        text: string,
+        bytes: Buffer | undefined,
+        offset: number,
+        latin: boolean,
+    ) =>
+        bytes
+            ? bytes.write(text, offset, latin ? "latin1" : "utf8")
+            : Buffer.byteLength(text, latin ? "latin1" : "utf8"),
+    (
+        bytes: Uint8Array,
+        start: number,
+        length: number,
+        out: Buffer,
+        at: number,
+    ) => out.set(bytes.subarray(start, start + length), at),
+    (bytes: Uint8Array, start: number, end: number) =>
+        Buffer.from(bytes.subarray(start, end)),
+    (chunk: string | Uint8Array, encoding?: BufferEncoding) =>
+        typeof chunk === "string"
+            ? Buffer.byteLength(chunk, encoding)
+            : chunk.length,
 );
 const ClientRequest = new Function(
     "OutgoingMessage",
@@ -588,7 +621,7 @@ for (const action of [
     "request-abort",
 ]) {
     test(
-        "HTTP Agent source: corked/output completion and drain cleanup on " +
+        "HTTP Agent source: assigned corked completion discards unhanded output on " +
             action,
         async () => {
             const { agent, connections } = pool({
@@ -658,8 +691,10 @@ for (const action of [
             flush();
             await Promise.resolve();
             assert.equal(chunkErrors.length, 1);
-            assert.equal(outputErrors.length, 2);
-            assert.deepEqual(outputCompletions, ["function", "owner"]);
+            assert.equal(outputErrors.length, 0);
+            assert.deepEqual(outputCompletions, []);
+            assert.equal(req._output, null);
+            assert.equal(req._outputSize, 0);
             assert.ok(
                 events.indexOf("chunk:" + chunkErrors[0].code) <
                     events.indexOf("close"),
@@ -671,15 +706,8 @@ for (const action of [
             );
             if (action === "socket-error" || action === "request-destroy") {
                 assert.equal(chunkErrors[0], failure);
-                assert.deepEqual(outputErrors, [failure, failure]);
-                for (const error of outputErrors) assert.equal(error, failure);
             } else {
                 assert.equal(chunkErrors[0].code, "ERR_STREAM_DESTROYED");
-                assert.ok(
-                    outputErrors.every(
-                        (error) => error.code === "ERR_STREAM_DESTROYED",
-                    ),
-                );
             }
             req.destroy();
             connections[0]!.socket.emit("drain");
@@ -687,8 +715,8 @@ for (const action of [
             flush();
             await Promise.resolve();
             assert.equal(chunkErrors.length, 1);
-            assert.equal(outputErrors.length, 2);
-            assert.deepEqual(outputCompletions, ["function", "owner"]);
+            assert.equal(outputErrors.length, 0);
+            assert.deepEqual(outputCompletions, []);
             assert.equal(events.filter((event) => event === "close").length, 1);
             assert.equal(
                 events.filter((event) => event.startsWith("error:")).length,
@@ -700,3 +728,301 @@ for (const action of [
         },
     );
 }
+
+const cancellationActions = [
+    "request-error",
+    "request-destroy",
+    "request-abort",
+    "socket-error",
+    "socket-close",
+    "agent-destroy",
+] as const;
+type CancellationAction = (typeof cancellationActions)[number];
+function cancel(
+    action: CancellationAction,
+    req: any,
+    socket: Socket,
+    error: Error,
+) {
+    if (action === "request-error") req.destroy(error);
+    else if (action === "request-destroy") req.destroy();
+    else if (action === "request-abort") req.abort();
+    else if (action === "agent-destroy") req.agent.destroy();
+    else socket.destroy(action === "socket-error" ? error : undefined);
+}
+class WriteSocket extends Socket {
+    connecting = false;
+    writableLength = 0;
+    pending: { bytes: Buffer; callback: any }[] = [];
+    get _destroyed() {
+        return this.destroyed;
+    }
+    _requestDrain() {}
+    _sendNow(bytes: Uint8Array, length: number, callback: any) {
+        this.pending.push({
+            bytes: Buffer.from(bytes.subarray(0, length)),
+            callback,
+        });
+        this.writableLength += length;
+        return this.writableLength < 16384;
+    }
+    complete(error: Error) {
+        const pending = this.pending;
+        this.pending = [];
+        this.writableLength = 0;
+        for (const { callback } of pending)
+            if (typeof callback === "function") callback(error);
+            else if (callback) callback._sent(error);
+    }
+}
+function writePool(connecting: boolean) {
+    const { agent, connections } = pool({ maxSockets: 1, maxTotalSockets: 1 });
+    agent.createConnection = (options: any) => {
+        const socket = new WriteSocket();
+        socket.connecting = connecting;
+        connections.push({ options, socket });
+        return socket;
+    };
+    const req = client(agent);
+    // Header composition is outside these ownership checks. Public write/end
+    // use this already composed header and the real outgoing implementation.
+    req._header = "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n";
+    req.chunkedEncoding = true;
+    return { agent, connections, req };
+}
+
+for (const connecting of [false, true]) {
+    for (const action of cancellationActions) {
+        for (const ended of [false, true]) {
+            test(`HTTP Agent source: unhanded public writes are discarded on ${action} (connecting=${connecting}, ended=${ended})`, async () => {
+                const { agent, connections, req } = writePool(connecting);
+                const events: string[] = [];
+                const failure = new TypeError("cancel");
+                req.on("error", (error: Error) => {
+                    events.push("error");
+                    if (action === "request-error" || action === "socket-error")
+                        assert.equal(error, failure);
+                    req.destroy();
+                });
+                req.on("close", () => events.push("close"));
+                req.on("drain", () => assert.fail("cancelled output drained"));
+                agent.addRequest(req, origin(10001));
+                assert.equal(
+                    req.socket,
+                    null,
+                    "assignment must remain deferred",
+                );
+                assert.equal(
+                    req.write(Buffer.alloc(16384, 97), () =>
+                        events.push("write"),
+                    ),
+                    false,
+                );
+                assert.equal(req._needDrain, true);
+                if (ended)
+                    req.end(Buffer.from("tail"), () => events.push("finish"));
+                req.once("socket", (socket: WriteSocket) => {
+                    assert.ok(req._outputSize > 16384);
+                    assert.equal(req._chunks, null);
+                    assert.equal(socket.pending.length, 0);
+                    cancel(action, req, socket, failure);
+                    assert.equal(
+                        req._output,
+                        null,
+                        "release unsent payload and callbacks",
+                    );
+                    assert.equal(req._outputSize, 0);
+                    assert.equal(req._needDrain, false);
+                    assert.equal(req._drainSocket, null);
+                });
+                flush();
+                await Promise.resolve();
+                assert.deepEqual(events, ["error", "close"]);
+                const socket = connections[0]!.socket as WriteSocket;
+                assert.equal(socket.pending.length, 0);
+                req.destroy();
+                socket.emit("drain");
+                socket.emit("connect");
+                agent.destroy();
+                flush();
+                await Promise.resolve();
+                assert.deepEqual(events, ["error", "close"]);
+                assert.equal(req._connectListener, null);
+                assert.equal(req._destroyError, null);
+                counts(agent);
+            });
+        }
+
+        test(`HTTP Agent source: public writes made after assignment retain corked callbacks on ${action} (connecting=${connecting})`, async () => {
+            const { agent, connections, req } = writePool(connecting);
+            const events: string[] = [];
+            const errors: any[] = [];
+            const failure = new TypeError("cancel");
+            req.on("error", (error: Error) => {
+                events.push("error");
+                if (action === "request-error" || action === "socket-error")
+                    assert.equal(error, failure);
+                req.destroy();
+            });
+            req.on("close", () => events.push("close"));
+            req.on("socket", (socket: WriteSocket) => {
+                for (const body of ["one", "two"])
+                    req.write(Buffer.from(body), (error: any) => {
+                        errors.push(error);
+                        events.push(body);
+                        req.destroy();
+                        req.uncork();
+                    });
+                assert.equal(req._chunkLength, 6);
+                assert.equal(req._output, null);
+                assert.equal(socket.pending.length, 0);
+                cancel(action, req, socket, failure);
+            });
+            agent.addRequest(req, origin(10001));
+            flush();
+            await Promise.resolve();
+            assert.deepEqual(
+                events,
+                action === "request-error" || action === "socket-error"
+                    ? ["error", "one", "two", "close"]
+                    : ["one", "two", "error", "close"],
+            );
+            assert.equal(errors.length, 2);
+            for (const error of errors)
+                if (action === "request-error" || action === "socket-error")
+                    assert.equal(error, failure);
+                else assert.equal(error.code, "ERR_STREAM_DESTROYED");
+            req.destroy();
+            connections[0]!.socket.emit("drain");
+            agent.destroy();
+            flush();
+            await Promise.resolve();
+            assert.equal(events.length, 4);
+            assert.equal(req._chunks, null);
+            assert.equal(req._destroyChunks, null);
+            assert.equal(req._destroyError, null);
+            counts(agent);
+        });
+    }
+}
+
+for (const action of cancellationActions) {
+    test(`HTTP Agent source: encoded writes after assignment stay unhanded while connecting on ${action}`, async () => {
+        const { agent, connections, req } = writePool(true);
+        const events: string[] = [];
+        const failure = new TypeError("cancel connecting output");
+        req.on("error", (error: Error) => {
+            events.push("error");
+            if (action === "request-error" || action === "socket-error")
+                assert.equal(error, failure);
+            req.destroy();
+        });
+        req.on("close", () => events.push("close"));
+        req.on("drain", () => assert.fail("cancelled output drained"));
+        agent.addRequest(req, origin(10001));
+        flush();
+        const socket = connections[0]!.socket as WriteSocket;
+        req.chunkedEncoding = false;
+        assert.equal(
+            req.write(Buffer.alloc(16384, 97), () => events.push("write")),
+            false,
+        );
+        assert.equal(req._chunks, null);
+        assert.ok(req._outputSize > 16384);
+        assert.equal(socket.pending.length, 0);
+        assert.equal(req._drainSocket, socket);
+        assert.equal(socket.listenerCount("drain"), 1);
+        cancel(action, req, socket, failure);
+        flush();
+        await Promise.resolve();
+        assert.deepEqual(events, ["error", "close"]);
+        assert.equal(req._output, null);
+        assert.equal(req._outputSize, 0);
+        assert.equal(req._needDrain, false);
+        assert.equal(req._drainSocket, null);
+        assert.equal(req._connectListener, null);
+        assert.equal(socket.listenerCount("drain"), 0);
+        socket.emit("connect");
+        socket.emit("drain");
+        req.destroy();
+        agent.destroy();
+        flush();
+        await Promise.resolve();
+        assert.deepEqual(events, ["error", "close"]);
+        assert.equal(socket.pending.length, 0);
+        counts(agent);
+    });
+
+    test(`HTTP Agent source: transport-owned writes keep their completion on ${action}`, async () => {
+        const { agent, connections, req } = writePool(false);
+        const callbacks: string[] = [];
+        const failure = new TypeError("transport failure");
+        req.on("error", () => req.destroy());
+        agent.addRequest(req, origin(10001));
+        flush();
+        const socket = connections[0]!.socket as WriteSocket;
+        req.chunkedEncoding = false;
+        for (const body of ["one", "two"])
+            req.write(Buffer.from(body), (error: any) => {
+                assert.equal(error, failure);
+                callbacks.push(body);
+                req.destroy();
+            });
+        assert.equal(req._output, null);
+        assert.equal(socket.pending.length, 2);
+        assert.equal(socket.pending[0]!.bytes.toString(), req._header + "one");
+        assert.equal(socket.pending[1]!.bytes.toString(), "two");
+        cancel(action, req, socket, failure);
+        flush();
+        await Promise.resolve();
+        assert.deepEqual(
+            callbacks,
+            [],
+            "request cleanup cannot complete socket-owned writes",
+        );
+        assert.equal(socket.pending.length, 2);
+        socket.complete(failure);
+        assert.deepEqual(callbacks, ["one", "two"]);
+        socket.complete(failure);
+        req.destroy();
+        agent.destroy();
+        flush();
+        await Promise.resolve();
+        assert.deepEqual(callbacks, ["one", "two"]);
+        assert.equal(socket.pending.length, 0);
+        assert.equal(socket.writableLength, 0);
+        counts(agent);
+    });
+}
+
+test("HTTP Agent source: generic outgoing cancellation still completes encoded output owners", async () => {
+    const message = Object.setPrototypeOf(
+        new EventEmitter(),
+        OutgoingMessage.prototype,
+    );
+    const failure = new Error("cancel generic output");
+    const completions: string[] = [];
+    message._output = [
+        Buffer.from("one"),
+        (error: any) => {
+            assert.equal(error, failure);
+            completions.push("function");
+        },
+        Buffer.from("two"),
+        {
+            _sent(error: any) {
+                assert.equal(error, failure);
+                completions.push("owner");
+            },
+        },
+    ];
+    message._outputSize = 6;
+    message._needDrain = true;
+    message._cancelWrites(failure);
+    message._cancelWrites(failure);
+    await Promise.resolve();
+    assert.deepEqual(completions, ["function", "owner"]);
+    assert.equal(message._output, null);
+    assert.equal(message._outputSize, 0);
+    assert.equal(message._needDrain, false);
+});

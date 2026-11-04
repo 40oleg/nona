@@ -24,6 +24,10 @@
 
 - **HTTP server soak test.** `scripts/http-soak.mjs` runs a compiled Nona HTTP server for hours under steady load and checks it stays healthy: no crash, no failed requests, RSS growth within 10%, handles return to baseline, and latency within 20%. A smoke mode runs for 5 minutes; the full test is 180 minutes (configurable). `npm run soak:http -- --smoke` locally or via the `http-soak` GitHub Actions workflow on demand ([#516](https://github.com/40oleg/nona/issues/516)). Earlier win32-x64 smoke found a keep-alive stall after large chunked responses ([#601](https://github.com/40oleg/nona/issues/601)) and a crash under concurrent 1 MiB responses ([#602](https://github.com/40oleg/nona/issues/602)). Full CI, hosted HTTP/TLS and native GC validation at the integrated head, and the separate #516 three-hour acceptance remain pending.
 
+### Development
+
+- **HTTP request cancellation preserves write ownership.** Discard encoded output still held by the request without invoking unsent callbacks, including cancellation in the `socket` listener; assigned corked writes and socket-owned writes retain their completion paths. Pure source checks cover this boundary; hosted Linux and Windows validation remains required ([#616](https://github.com/40oleg/nona/issues/616)).
+
 ## v0.34.0 — 2026-10-31
 
 ### Fixes

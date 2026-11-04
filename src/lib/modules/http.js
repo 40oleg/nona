@@ -3163,6 +3163,14 @@ export class ClientRequest extends OutgoingMessage {
         if (this.socket && this.socket.destroyed && !this.destroyed) return;
         super._flushChunks(error);
     }
+    _cancelWrites(error) {
+        // Encoded request output is still message-owned until _flushOutput
+        // detaches it for the socket. Discard it without completing unsent
+        // callbacks, even if a socket has already been assigned.
+        this._output = null;
+        this._outputSize = 0;
+        super._cancelWrites(error);
+    }
     _finishDestroyWrites(error) {
         const chunks = this._destroyChunks || this._chunks;
         this._destroyChunks = null;
