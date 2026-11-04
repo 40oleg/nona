@@ -4,6 +4,8 @@
 
 ### Fixes
 
+- **Computed keys preserve optional runtime parts unless proved numeric.** A string-valued `length` property or a loop counter reassigned to `"Proxy"` now keeps the global Proxy implementation in default builds. Numeric loop-counter suppression requires a lexical binding whose whole-loop writes, captures and dynamic-scope exposure preserve the restricted proof. Numeric literals, coercing arithmetic and invariant lexical counters remain selective. ([#612](https://github.com/40oleg/nona/issues/612))
+
 - **HTTP, HTTPS and TCP writes honor backpressure through partial sends and corking.** A false write keeps an explicit drain obligation until its queued bytes leave, including HTTP auto-corked writes and TLS/raw socket tails below the high-water mark. TLS carries this obligation across handshake completion without an early drain. Terminal paths cancel pending writes and drain listeners; queued HTTP completion objects retain their completion protocol. ([#615](https://github.com/40oleg/nona/issues/615))
 
 - **Initial Windows process environment folding scales linearly.** A temporary membership index avoids repeatedly folding earlier names while preserving initial spelling, values, ordering, descriptors and inherited enumerable suppression. Environment parsing, POSIX behavior and the mutation/Proxy path are unchanged. This source correction alone does not establish a native startup timing improvement or resolve the HTTP acceptance work in #602 ([#638](https://github.com/40oleg/nona/issues/638)).

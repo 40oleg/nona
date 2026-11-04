@@ -147,12 +147,31 @@ compile-time `eval`/`Function` sources and the script prelude.
   matched inside a longer string, is gone. Data strings select only through
   a program-wide fallback. If any source of the collection accesses a
   property with a computed key that is neither a literal nor obviously
-  numeric (a numeric literal, arithmetic, an update expression, or a `for`
-  counter that starts at a number), or does so through `in` or a reflection
+  numeric (a numeric literal, coercing arithmetic, an update expression, or a
+  lexical `for` counter with the restricted invariant below), or does so through `in` or a reflection
   call, then every string of every source that exactly matches a trigger is
   linked, with the reason `"x" in a string (dynamic property access)`. Nested
   collections pass their strings and the flag to the outermost collection,
   which decides.
+
+Numeric-key suppression is a restricted syntactic proof, not property type
+inference. A member named `length`, including a getter or computed
+`holder["length"]`, can return a string and is never sufficient proof.
+Coercing arithmetic such as `a[a.length - 1]` remains numeric; `+` requires
+both operands to be proved non-string.
+
+A `let`/`const` identifier in a `for` initializer can be treated as numeric
+only when its initializer is proved numeric without relying on other binding
+facts. Before classifying keys, the walker inspects all initializers, the
+test, update and body, including nested scopes. Updates, coercing compound
+assignments, and assignments or `+=` with an independently numeric right
+operand preserve the invariant. Other writes invalidate it, including
+destructuring, logical assignments and `for-in`/`for-of` targets. A capture
+(even a read), direct `eval` exposure or `with` exposure also prevents this
+proof. Bindings are resolved by scope: a write to a shadowing local does not
+invalidate the outer counter. `var` counters and uncertain cases use the
+existing dynamic-key fallback. This intentionally avoids a general type or
+control-flow analysis and accounts for loop backedges and delayed closures.
 
 The selection is by name, not by type. `x.at(0)` links the `at` prelude
 whatever `x` is, as the receiver's type is unknown. A `with` body or a sloppy
@@ -178,6 +197,43 @@ still needs `--link` or `--full-runtime`.
 - A `p{…}` string alone links nothing; the tables come with the engine,
   which a `RegExp`, `match`, `matchAll` or `search` name (or a RegExp
   literal) selects.
+
+## Numeric-key measurements (#612)
+
+Windows x64, Node.js 26.9.0, public `compile()` with `reportLink: true`,
+default mode, no GC stress. The baseline is
+`6d4c6704b90d225b744bbe44fa844f9824c2c17a` (audited main
+`1b414d66ba98c05bac82c722578f100ebbd17f81` plus #620's hosted-runner guard).
+The candidate is the #612 implementation on that baseline. Exact programs
+are retained in [the public-compile fixture](../tests/runtime-link-numeric.test.ts).
+
+| Fixture ID          | Baseline bytes | Candidate bytes | Change |
+| ------------------- | -------------: | --------------: | -----: |
+| `numeric-literal`   |      1,325,056 |       1,325,056 |      0 |
+| `numeric-counter`   |      1,326,080 |       1,326,080 |      0 |
+| `numeric-coercion`  |      1,326,080 |       1,326,080 |      0 |
+| `length-data`       |      1,520,640 |       1,530,880 | 10,240 |
+| `body-reassignment` |      1,519,616 |       1,530,368 | 10,752 |
+
+The three numeric-index programs contain `"Proxy"` as data but still select
+no optional parts. The two retained repros add `proxy` alongside the existing
+`timers` selection from `globalThis`; their growth restores the missing
+implementation. All five programs were executed locally on Windows x64.
+Both repros change from `undefined\n` to `function\n` with exit status zero;
+Node, explicit `link: ["proxy"]` and `fullRuntime` controls print `function\n`.
+Unknown counters (including captured or `var` bindings) and uncoerced
+`length` reads can now grow when whole trigger strings are present, because
+they correctly enable the existing fallback. This does not disable selection.
+
+The fixture saves source, compiler HEAD SHA and usage-walker SHA-256, target,
+Node version and invocation, mode, selected parts/reasons, image size,
+diagnostics, and raw Node/native stdout, stderr, signal, exit status and
+process-error properties in `work/runtime-link-numeric/<label>/<target>/`.
+Use `NONA_LINK_EVIDENCE=baseline` to retain baseline records separately;
+the default label is `candidate`. The new file belongs only to the frontend
+suite, covering hosted Linux x64 and the hosted Windows shard. Hosted runs,
+GC stress, comparison and other platforms remain pending at this measurement;
+these local results establish only Windows x64 behavior.
 
 ## Measurements (#438)
 
