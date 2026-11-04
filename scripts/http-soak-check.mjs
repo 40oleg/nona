@@ -14,6 +14,11 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hostedIdentity } from "./http-keepalive-check.mjs";
+import {
+    instrumentLegacyCompletion,
+    legacyCorrectnessSmoke,
+} from "./http-soak-smoke-policy.mjs";
+import { patchDriver } from "./http-latency615-support.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(root, "work", "http-601-soak-source");
@@ -58,15 +63,17 @@ try {
         sourceCommit,
         "unexpected #516 source revision",
     );
-    const original = readFileSync(source, "utf8");
+    const original = readFileSync(source);
     report.originalHarnessSha256 = hash(original);
     report.serverSourceSha256 = hash(readFileSync(serverSource));
-    // Add raw logs and process event records only. Preserve an exact original
-    // beside the executed copy, and reject a changed insertion point.
+    // Apply the accepted, byte-pinned lossless observer before wrapper logging.
+    // It owns raw stdout/stderr; keep the wrapper's event/exit cleanup receipts.
     writeFileSync(join(out, "http-soak.original.mjs"), original);
+    const lossless = patchDriver(original);
+    const driver = lossless.source.toString("utf8");
     const marker = "let stopping = false;";
     assert.equal(
-        original.split(marker).length,
+        driver.split(marker).length,
         2,
         "soak diagnostic insertion point changed",
     );
@@ -78,18 +85,16 @@ function __diagEvent(event, value) {
     __diagAppendFileSync(__diagOut + "/server-events.jsonl", JSON.stringify({sequence: ++__diagSequence, time: new Date().toISOString(), event, ...value}) + "\\n");
 }
 __diagEvent("spawn", {pid: child.pid, serverPath});
-child.stdout.on("data", chunk => __diagAppendFileSync(__diagOut + "/server.stdout.log", chunk));
-child.stderr.on("data", chunk => __diagAppendFileSync(__diagOut + "/server.stderr.log", chunk));
 child.on("error", error => __diagEvent("error", {name: error.name, code: error.code, message: error.message, stack: error.stack}));
 child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code > 255 ? "0x" + code.toString(16) : undefined}));
 `;
     const importMarker = "import { mkdirSync,";
     assert.equal(
-        original.split(importMarker).length,
+        driver.split(importMarker).length,
         2,
         "soak diagnostic import changed",
     );
-    const instrumented = original
+    const instrumented = instrumentLegacyCompletion(driver)
         .replace(
             importMarker,
             "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
@@ -98,8 +103,22 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
     writeFileSync(source, instrumented);
     writeFileSync(join(out, "http-soak.executed.mjs"), instrumented);
     report.executedHarnessSha256 = hash(instrumented);
+    writeFileSync(
+        join(out, "http-soak.patch.json"),
+        JSON.stringify(
+            {
+                sourceCommit,
+                originalSha256: report.originalHarnessSha256,
+                losslessSha256: lossless.sha256,
+                executedSha256: report.executedHarnessSha256,
+                recipe: lossless.recipe,
+            },
+            null,
+            2,
+        ) + "\n",
+    );
     report.diagnostics =
-        "Raw server stdout/stderr, spawn/error/exit events and a harness JavaScript exit marker only; workload and pass criteria unchanged.";
+        "Accepted lossless intervals, selections, CPU and phase/process/pipe receipts plus raw server logs, wrapper cleanup and final driver completion/error receipts; original workload, reports and pass criteria unchanged. A separate smoke correctness decision defers only p99.";
     const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
     const args = [
         join(root, "dist", "cli.js"),
@@ -150,6 +169,10 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
         "server.stdout.log",
         "server.stderr.log",
         "server-events.jsonl",
+        "harness.stdout.log",
+        "harness.stderr.log",
+        "driver-completion.json",
+        "driver-errors.jsonl",
     ])
         writeFileSync(join(out, name), "");
     child = spawn(
@@ -231,22 +254,26 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
         clearTimeout(timeout);
     }
     assert.ifError(report.spawnError);
-    assert.deepEqual(
-        report.exit,
-        { code: 0, signal: null },
-        "original soak harness returned failure",
-    );
-    const soak = JSON.parse(readFileSync(join(out, "http-soak.json"), "utf8"));
-    assert.equal(soak.summary.failed, 0, "soak recorded failed requests");
-    assert.ok(
-        soak.summary.ok >= 100,
-        "soak must complete at least 100 responses",
-    );
-    assert.equal(soak.summary.pass, true, "original soak pass criteria failed");
-    assert.equal(soak.crash, null);
-    assert.deepEqual(soak.mix, { big: 1 });
-    assert.equal(soak.config.connections, 1);
-    report.pass = true;
+    report.correctnessSmoke = legacyCorrectnessSmoke({
+        json: readFileSync(join(out, "http-soak.json"), "utf8"),
+        markdown: readFileSync(join(out, "http-soak.md"), "utf8"),
+        stdout: readFileSync(join(out, "harness.stdout.log"), "utf8"),
+        stderr: readFileSync(join(out, "harness.stderr.log"), "utf8"),
+        exit: report.exit,
+        events: report.events,
+        serverEvents: readFileSync(join(out, "server-events.jsonl"), "utf8")
+            .trim()
+            .split(/\r?\n/)
+            .map((line) => JSON.parse(line)),
+        jsExit: JSON.parse(
+            readFileSync(join(out, "harness-exit.json"), "utf8"),
+        ),
+        completion: JSON.parse(
+            readFileSync(join(out, "driver-completion.json"), "utf8"),
+        ),
+        driverErrors: readFileSync(join(out, "driver-errors.jsonl"), "utf8"),
+    });
+    report.pass = report.correctnessSmoke.pass;
 } catch (error) {
     report.failure = errorInfo(error);
     console.error(error.stack || error);

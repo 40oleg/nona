@@ -3,6 +3,7 @@
     "always": [
         "events",
         "gc",
+        "http-backpressure",
         "uncaught-report",
         "gc-stress-roadmap",
         "runtime-roots",
