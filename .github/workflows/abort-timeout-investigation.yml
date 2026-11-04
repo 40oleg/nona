@@ -1,0 +1,149 @@
+name: AbortSignal timeout investigation
+on:
+    workflow_dispatch:
+        inputs:
+            historical:
+                description: Run the strict original four-revision diagnostic (historical failures remain failures)
+                type: boolean
+                default: false
+    # This focused path works on the proposed PR; it does not require installing
+    # a dispatch-only workflow on main before the investigation can run.
+    pull_request:
+        types: [opened, synchronize, reopened, labeled]
+        paths:
+            - .github/workflows/abort-timeout-investigation.yml
+            - scripts/diagnose-abort-timeout.mjs
+            - scripts/abort-timeout-scalar.mjs
+            - tests/events-timeout-scalar-source.test.mjs
+            - tests/events-timeout-phase-source.test.mjs
+            - tests/helpers/abort-timeout-fixture.ts
+            - tests/probes/event-probe-sources.ts
+            - tests/fixtures/abort-timeout/**
+            - src/**
+            - tests/events.test.ts
+permissions:
+    contents: read
+concurrency:
+    group: abort-timeout-${{ github.event.pull_request.number || github.run_id }}
+    cancel-in-progress: false
+jobs:
+    contracts:
+        if: github.event_name == 'pull_request'
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                runner: [macos-15, windows-latest, ubuntu-24.04]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
+        env:
+            NONA_TEST_CONCURRENCY: "1"
+            NONA_GC_STRESS: "on"
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - run: npm ci
+            - name: Source-clock contracts and historical scalar controls
+              run: |
+                  node -e "require('node:fs').mkdirSync('work/abort-timeout',{recursive:true})"
+                  node --test --test-concurrency=1 --test-reporter=tap --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=work/abort-timeout/phase-source.tap tests/events-timeout-phase-source.test.mjs tests/events-timeout-scalar-source.test.mjs
+            - run: npm run build
+              id: build
+            - name: Exact future and all-due contracts, public default/full and IR, GC off/on
+              run: >-
+                  node --test --test-concurrency=1
+                  --test-reporter=tap --test-reporter-destination=stdout
+                  --test-reporter=tap --test-reporter-destination=work/abort-timeout/native-contracts.tap
+                  --test-name-pattern="events timeout phase:"
+                  dist/tests/events.test.js
+            - name: Retained plain future, GC on
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=future-unref --attempts=1
+            - name: Retained all-due positive, GC on
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=all-due --attempts=1
+            - name: Retained referenced negative, GC on
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=future-referenced --attempts=1
+            - name: Retained referenced negative, GC off
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=future-referenced --no-stress --attempts=1
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: abort-timeout-contracts-${{ matrix.runner }}
+                  path: work/abort-timeout
+                  if-no-files-found: error
+    compare:
+        if: >-
+            github.event_name == 'workflow_dispatch' && inputs.historical
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                runner: [macos-15, windows-latest, ubuntu-24.04]
+                revision:
+                    - name: main23c5c90
+                      ref: 23c5c90d330e488539385ab213e996bb4c4d6457
+                    - name: failing624head
+                      ref: 9fd6dc4e8f2b012f08e9d68c30a10f04c3e852e8
+                    - name: failing624merge
+                      ref: dbeb6c23a79d6d8be49d36684d6dd62029edb691
+                    - name: candidate
+                      ref: ""
+        name: ${{ matrix.runner }} / ${{ matrix.revision.name }}
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
+        env:
+            NONA_TEST_CONCURRENCY: "1"
+            NONA_GC_STRESS: "on"
+            # Optional bounded hosted campaign: 1..8, always retain every outcome.
+            # Applies equally to original/plain and scalar; other modes stay at 2.
+            ABORT_TIMEOUT_ATTEMPTS: "2"
+        defaults:
+            run:
+                working-directory: source
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: tooling
+            - uses: actions/checkout@v4
+              with:
+                  path: source
+                  ref: ${{ matrix.revision.ref || github.sha }}
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+                  cache-dependency-path: source/package-lock.json
+            - name: Copy only diagnostic tooling and pinned fixtures into the exact source checkout
+              run: >-
+                  node -e "const fs=require('node:fs'),path=require('node:path');for(const p of ['scripts/diagnose-abort-timeout.mjs','scripts/abort-timeout-scalar.mjs','tests/events-timeout-scalar-source.test.mjs','tests/helpers/abort-timeout-fixture.ts','tests/fixtures/abort-timeout/original.mjs']){fs.mkdirSync(path.dirname(p),{recursive:true});fs.copyFileSync('../tooling/'+p,p)}"
+            - run: npm ci
+            - name: Controlled source-clock and scalar schema regressions
+              run: |
+                  node -e "require('node:fs').mkdirSync('work/abort-timeout',{recursive:true})"
+                  node --test --test-concurrency=1 --test-reporter=tap --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=work/abort-timeout/scalar-source.tap tests/events-timeout-scalar-source.test.mjs
+            - id: build
+              run: npm run build
+            - name: Original module fixture, full runtime, GC stress (bounded retained processes)
+              id: plain
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=original --attempts=${{ env.ABORT_TIMEOUT_ATTEMPTS }}
+            - name: Supplementary scalar timer admissions, GC stress (bounded retained processes)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=original --scalar --attempts=${{ env.ABORT_TIMEOUT_ATTEMPTS }}
+            - name: Buffered timer liveness trace, GC stress (two retained processes)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=original --trace
+            - name: Supplementary control without GC stress (two retained processes)
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/diagnose-abort-timeout.mjs --native --case=original --no-stress
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: abort-timeout-${{ matrix.runner }}-${{ matrix.revision.name }}
+                  path: source/work/abort-timeout
+                  if-no-files-found: error

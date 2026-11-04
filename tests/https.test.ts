@@ -4,6 +4,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runModulesOnHost } from "./helpers/host.js";
+import { httpsBackpressureProgram } from "./helpers/https-backpressure.js";
 
 // node:https (issue #301) against a Node.js https server with the certificates
 // of tests/fixtures/tls. Each client program runs natively and under Node.js
@@ -20,10 +21,16 @@ const https = require('node:https'), fs = require('node:fs'), path = require('no
 const read = (name) => fs.readFileSync(path.join(process.env.NONA_TLS_FIXTURES, name));
 const handler = (req, res) => {
   const chunks = [];
+  if (req.url === '/backpressure') {
+    req.pause();
+    setTimeout(() => req.resume(), 20);
+  }
   req.on('data', (d) => chunks.push(d));
   req.on('end', () => {
     const body = Buffer.concat(chunks);
-    if (req.url === '/chunked') {
+    if (req.url === '/backpressure') {
+      res.end(JSON.stringify({ length: body.length, correct: body.equals(Buffer.alloc(body.length, 'x')) }));
+    } else if (req.url === '/chunked') {
       res.writeHead(200, { 'content-type': 'text/plain' });
       res.write('one,');
       setTimeout(() => { res.write('two,'); setTimeout(() => res.end('three'), 20); }, 20);
@@ -94,13 +101,15 @@ function runClient(body: string): string[] {
         `const ports = ${JSON.stringify(ports)};\n` +
         "const fetchText = (req) => new Promise((resolve, reject) => { req.on('response', (res) => { const chunks = []; res.on('data', (d) => chunks.push(d)); const authorized = res.socket.authorized; res.on('end', () => resolve({ res, authorized, body: Buffer.concat(chunks).toString('latin1') })); }); req.on('error', reject); });\n" +
         body;
-    const { native, oracle } = runModulesOnHost(
+    const { native, oracle, oracleStatus } = runModulesOnHost(
         { "main.mjs": source },
         "main.mjs",
         { gcStress: false },
     );
+    assert.equal(oracleStatus, 0);
     assert.equal(native.error, undefined);
     assert.equal(native.status, 0, native.stdout + native.stderr);
+    assert.equal(native.stderr, "");
     const lines = native.stdout.split("\n").filter((line) => line !== "");
     assert.deepEqual(
         lines,
@@ -108,6 +117,14 @@ function runClient(body: string): string[] {
     );
     return lines;
 }
+
+test("node:https: false/drain uploads before handshake and on a reused secure socket", () => {
+    assert.deepEqual(runClient(httpsBackpressureProgram), [
+        "https bounded true transitions true empty true",
+        "body true callbacks true finish 2 close 2",
+        "progress true true reuse true",
+    ]);
+});
 
 test("node:https: GET, POST, chunked and large responses, TLSSocket on the response", () => {
     const lines = runClient(String.raw`
