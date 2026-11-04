@@ -160,6 +160,12 @@ jobs:
     linux-native:
         runs-on: ubuntu-latest
         steps:
+            - name: Verify GitHub-hosted Linux runner
+              env:
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  printf 'Runner: %s (%s, %s, %s)\n' "$RUNNER_NAME" "$RUNNER_ENVIRONMENT" "$RUNNER_OS" "$RUNNER_ARCH"
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
               with:
@@ -167,8 +173,20 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run build
+            - name: Portable CLI input protection regressions
+              run: node --test --test-name-pattern="^CLI protects " dist/tests/cli.test.js
             - run: node scripts/run-suite.mjs frontend elf async events
             - run: node scripts/run-suite.mjs path child-process
+            - name: Focused HTTP Agent regressions
+              run: node --test --test-concurrency=1 dist/tests/http-agent-source.test.js dist/tests/http-agent.test.js
+            - name: Verify native packaging with real archive tools
+              env:
+                  NONA_NATIVE_ARCHIVE_INTEGRATION: "1"
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  echo "Native packaging runner: $RUNNER_ENVIRONMENT"
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
+                  node --test --test-concurrency=1 dist/tests/native-packaging.test.js
             - run: npm run compare:linux
             - uses: actions/checkout@v4
               with:

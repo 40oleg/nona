@@ -163,6 +163,17 @@ Integrated prerequisites, final-main update and independent review also precede
 readiness/closure. This is current-release v0.35.0 work, with publication owned
 by the parent coordinator.
 
+The frozen integration uses merged #612 at
+`37fc352d771113653813c18b0442681428c314f6`, #613 input
+`79afe8e11770d6c297eb0e84476af09fb46a0bf2` and #616 input
+`a80f8b4a67c921546860806c8445d722710d8e9f`. Retained old-head hosted results
+remain evidence for those exact heads; integrated-head acceptance, ordinary
+full CI and the complete 1,000-candidate replay remain pending. The planned
+candidate dispatch includes unsharded bounded replay jobs for #612's exact
+native fixture diagnostics; corpus shards alone do not provide that evidence.
+Merge order remains #612, then #613, then #617, with #616 also accepted and
+merged before #617. A changed parent requires child revalidation.
+
 ## Small local checks
 
 ```sh

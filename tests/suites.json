@@ -15,6 +15,7 @@
                 "object-annexb",
                 "with",
                 "modules",
+                "compiler-inputs",
                 "npm",
                 "tail-calls",
                 "dynamic-functions",
@@ -32,6 +33,10 @@
                 "top-level-await",
                 "bench-report"
             ]
+        },
+        "native-packaging": {
+            "description": "Native package layouts and release archive verification (Linux check and release jobs).",
+            "files": ["native-packaging"]
         },
         "path": {
             "description": "node:path (Linux check job).",
@@ -70,6 +75,15 @@
         "events": {
             "description": "node:events (Linux check job and native loader jobs).",
             "files": ["events"]
+        },
+        "http-agent": {
+            "description": "Focused HTTP Agent source and native regressions (GitHub-hosted Windows and Linux check jobs).",
+            "files": [
+                "http-agent-source",
+                "http-agent",
+                "http-agent-fixtures",
+                "http-agent-retained-control"
+            ]
         },
         "event-target": {
             "description": "EventTarget and event probes (native loader jobs).",
@@ -281,6 +295,9 @@
                 "harness",
                 "has-cache",
                 "http",
+                "http-backpressure",
+                "http-backpressure-source",
+                "http-keepalive",
                 "http-json-bytes",
                 "http-responses",
                 "immediate-source",
@@ -304,6 +321,7 @@
                 "native-construction",
                 "net",
                 "net-native",
+                "net-send-source",
                 "tls",
                 "tls-crypto",
                 "tls-handshake",
@@ -340,6 +358,7 @@
                 "process-builtin-native",
                 "process-builtin-source",
                 "process-darwin-bridge-source",
+                "process-environment-source",
                 "process-fatal-source",
                 "process-finalization-source",
                 "process-metadata-source",

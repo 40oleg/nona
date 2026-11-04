@@ -1275,12 +1275,7 @@ export class TLSSocket extends net.Socket {
         raw.on("error", (error) => this.destroy(error));
         raw.on("close", () => this._onRawClose());
         raw.on("timeout", () => this.emit("timeout"));
-        raw.on("drain", () => {
-            if (this._needDrain && this._pendingLength === 0) {
-                this._needDrain = false;
-                this.emit("drain");
-            }
-        });
+        raw.on("drain", () => this._drained());
         raw.on("finish", () => {
             this._finished = true;
             this.emit("finish");
@@ -1342,7 +1337,26 @@ export class TLSSocket extends net.Socket {
         for (const item of pending) this._sendPlain(item.bytes, item.callback);
         if (this._writeEnded) this._closeWrite();
         this.emit("secureConnect");
-        if (this._needDrain && this._raw.writableLength < 16384) {
+        if (this._needDrain) {
+            this._requestDrain();
+            queueMicrotask(() => this._drained());
+        }
+    }
+    /** TLS owns the drain promise across pending plaintext and raw records. */
+    _requestDrain() {
+        this._needDrain = true;
+        if (this._raw !== null && this._raw.writableLength > 0)
+            this._raw._requestDrain();
+    }
+    _drained() {
+        if (
+            this._needDrain &&
+            !this._destroyed &&
+            this._secure &&
+            this._raw !== null &&
+            !this._raw.destroyed &&
+            this.writableLength === 0
+        ) {
             this._needDrain = false;
             this.emit("drain");
         }
@@ -1416,7 +1430,7 @@ export class TLSSocket extends net.Socket {
                 "write after end",
             );
             queueMicrotask(() => {
-                if (callback) callback(error);
+                if (callback) invoke(callback, error);
                 this.emit("error", error);
             });
             return false;
@@ -1436,7 +1450,7 @@ export class TLSSocket extends net.Socket {
                 "ERR_STREAM_DESTROYED",
                 "Cannot call write after a stream was destroyed",
             );
-            if (callback) queueMicrotask(() => callback(error));
+            if (callback) queueMicrotask(() => invoke(callback, error));
             return false;
         }
         if (!this._secure) {
@@ -1454,6 +1468,7 @@ export class TLSSocket extends net.Socket {
             records = this._engine.seal(bytes);
         } catch (error) {
             if (callback) queueMicrotask(() => invoke(callback, error));
+            this.destroy(error);
             return false;
         }
         const ok = this._raw.write(records, undefined, callback);
@@ -1464,13 +1479,15 @@ export class TLSSocket extends net.Socket {
     _sendNow(bytes, length, callback) {
         const view =
             length === bytes.length ? bytes : bytes.subarray(0, length);
-        if (!this._secure || this._destroyed) {
+        if (!this._secure || this._destroyed || this._writeEnded) {
             const copy = new Uint8Array(view);
             if (this._destroyed || this._writeEnded)
                 return this.write(copy, undefined, callback);
             this._pending.push({ bytes: copy, callback });
             this._pendingLength += copy.length;
-            return this._pendingLength < 16384;
+            const ok = this._pendingLength < 16384;
+            if (!ok) this._needDrain = true;
+            return ok;
         }
         return this._sendPlain(view, callback);
     }
@@ -1518,6 +1535,7 @@ export class TLSSocket extends net.Socket {
             }
         this._pending = [];
         this._pendingLength = 0;
+        this._needDrain = false;
         if (this._raw !== null && !this._raw.destroyed) this._raw.destroy();
         callback(error);
     }

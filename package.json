@@ -39,7 +39,8 @@
         "replay:public": "node scripts/semantic-replay/run.mjs pr",
         "replay:candidate": "node scripts/semantic-replay/run.mjs candidate",
         "test:replay-unit": "node --test --test-concurrency=1 tests/semantic-replay.test.ts",
-        "check:replay-types": "tsc -p scripts/semantic-replay/tsconfig.json"
+        "check:replay-types": "tsc -p scripts/semantic-replay/tsconfig.json",
+        "soak:http": "npm run build && node scripts/http-soak.mjs"
     },
     "devDependencies": {
         "@types/node": "^26.6.2",

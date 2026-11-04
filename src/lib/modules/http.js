@@ -607,13 +607,104 @@ export class OutgoingMessage {
         return (
             this._outputSize +
             buffered +
-            (this.socket ? this.socket.writableLength : 0)
+            (this.socket && this.socket._httpMessage === this
+                ? this.socket.writableLength
+                : 0)
         );
     }
     get writableNeedDrain() {
-        return (
-            !this.destroyed && !this.finished && this.writableLength >= 16384
-        );
+        return !this.destroyed && !this.finished && this._needDrain;
+    }
+    /** A false public write owes one deferred drain, even if uncork sends it all. */
+    _writeResult(ok) {
+        if (this.socket !== null && this.socket.destroyed) return false;
+        if (!ok || this.writableLength >= this.writableHighWaterMark) {
+            this._needDrain = true;
+            this._watchDrain();
+            return false;
+        }
+        return true;
+    }
+    _watchDrain() {
+        // Waiting pipelined responses are activated by _flushOutput; they
+        // must not subscribe to another message's socket drain meanwhile.
+        const socket =
+            this.socket !== null && this.socket._httpMessage === this
+                ? this.socket
+                : null;
+        // A corked message can cross its HWM while a partial send leaves a
+        // socket tail below the socket HWM. That tail still owes us a drain.
+        if (socket !== null && socket.writableLength > 0)
+            socket._requestDrain();
+        if (socket !== this._drainSocket) {
+            this._unwatchDrain();
+            if (socket !== null && !socket.destroyed) {
+                this._drainSocket = socket;
+                this._onDrain = () => this._scheduleDrain();
+                this._onDrainError = (error) => this._cancelWrites(error);
+                this._onDrainClose = () => this._cancelWrites();
+                socket.on("drain", this._onDrain);
+                socket.on("error", this._onDrainError);
+                socket.on("close", this._onDrainClose);
+            }
+        }
+        this._scheduleDrain();
+    }
+    _unwatchDrain() {
+        const socket = this._drainSocket;
+        if (socket !== null) {
+            socket.removeListener("drain", this._onDrain);
+            socket.removeListener("error", this._onDrainError);
+            socket.removeListener("close", this._onDrainClose);
+            this._drainSocket = null;
+            this._onDrain = this._onDrainError = this._onDrainClose = null;
+        }
+    }
+    _scheduleDrain() {
+        if (!this._needDrain || this._drainScheduled) return;
+        this._drainScheduled = true;
+        queueMicrotask(() => {
+            this._drainScheduled = false;
+            const socket = this.socket;
+            if (
+                this.destroyed ||
+                this.finished ||
+                (socket && socket.destroyed)
+            ) {
+                this._needDrain = false;
+                this._unwatchDrain();
+            } else if (
+                this._needDrain &&
+                socket !== null &&
+                socket._httpMessage === this &&
+                !socket.connecting &&
+                !socket.writableNeedDrain &&
+                this.writableLength === 0
+            ) {
+                this._needDrain = false;
+                this._unwatchDrain();
+                this.emit("drain");
+            }
+        });
+    }
+    _cancelWrites(error) {
+        this._needDrain = false;
+        this._unwatchDrain();
+        error =
+            error ||
+            codedError(
+                "ERR_STREAM_DESTROYED",
+                "Cannot call write after a stream was destroyed",
+            );
+        if (this._chunks !== null) this._flushChunks(error);
+        const output = this._output;
+        this._output = null;
+        this._outputSize = 0;
+        if (output !== null)
+            for (let i = 1; i < output.length; i += 2) {
+                const callback = output[i];
+                if (callback) queueMicrotask(() => done(callback, error));
+            }
     }
     get closed() {
         return this._closed;
@@ -999,13 +1090,15 @@ export class OutgoingMessage {
             return socket._sendNow(bytes, length, callback);
         }
         if (socket !== null && socket._destroyed) {
-            if (callback && typeof callback === "function")
+            if (callback)
                 queueMicrotask(() =>
-                    callback(
-                        codedError(
-                            "ERR_STREAM_DESTROYED",
-                            "Cannot call write after a stream was destroyed",
-                        ),
+                    done(
+                        callback,
+                        socket.errored ||
+                            codedError(
+                                "ERR_STREAM_DESTROYED",
+                                "Cannot call write after a stream was destroyed",
+                            ),
                     ),
                 );
             return false;
@@ -1031,6 +1124,7 @@ export class OutgoingMessage {
             }
             ok = socket._sendNow(bytes, bytes.length, callback);
         }
+        if (this._needDrain) this._watchDrain();
         return ok;
     }
     _implicitHeader() {
@@ -1044,7 +1138,9 @@ export class OutgoingMessage {
             callback = encoding;
             encoding = null;
         }
-        return this._write(chunk, encoding, callback, false);
+        const ok = this._write(chunk, encoding, callback, false);
+        if (this.destroyed || this.finished) return false;
+        return this._writeResult(ok);
     }
     _write(chunk, encoding, callback, fromEnd) {
         if (typeof callback !== "function") callback = undefined;
@@ -1097,9 +1193,7 @@ export class OutgoingMessage {
                 if (this._chunks === null) this._chunks = [];
                 this._chunks.push(chunk, encoding, callback);
                 this._chunkLength += length;
-                // The chunks reach the socket within the tick, which applies
-                // backpressure from there ('drain' is the socket's).
-                return true;
+                return this.writableLength < this.writableHighWaterMark;
             }
             if (length === 0)
                 return this._headerSent
@@ -1185,6 +1279,8 @@ export class OutgoingMessage {
             this._implicitHeader();
         }
         this.finished = true;
+        this._needDrain = false;
+        this._unwatchDrain();
         if (this._corked !== 0) {
             // The last data joins the chunks written in this tick (Node.js).
             if (this._hasBody && this.chunkedEncoding && chunk) {
@@ -1269,7 +1365,7 @@ export class OutgoingMessage {
     destroy(error) {
         if (this.destroyed) return this;
         this.destroyed = true;
-        if (this._chunks !== null) this._flushChunks(error);
+        this._cancelWrites(error);
         if (this.socket) this.socket.destroy(error);
         else this.once("socket", (socket) => socket.destroy(error));
         return this;
@@ -1296,7 +1392,7 @@ export class OutgoingMessage {
             length = this._chunkLength;
         this._chunks = null;
         this._chunkLength = 0;
-        if (this.destroyed) {
+        if (this.destroyed || error) {
             if (!error)
                 error = codedError(
                     "ERR_STREAM_DESTROYED",
@@ -1319,6 +1415,7 @@ export class OutgoingMessage {
             );
             prefix = null;
         }
+        if (this._needDrain) this._watchDrain();
     }
 }
 Object.setPrototypeOf(OutgoingMessage.prototype, EventEmitter.prototype);
@@ -1328,6 +1425,12 @@ defaults(OutgoingMessage.prototype, {
     _corked: 0,
     _chunks: null,
     _chunkLength: 0,
+    _needDrain: false,
+    _drainScheduled: false,
+    _drainSocket: null,
+    _onDrain: null,
+    _onDrainError: null,
+    _onDrainClose: null,
     _fields: null,
     _fieldEnd: 0,
     _keys: 0,
@@ -1616,8 +1719,10 @@ export class ServerResponse {
         this.socket = socket;
         if (hasListener(this, "socket")) this.emit("socket", socket);
         if (this._output !== null) this._flushOutput();
+        else if (this._needDrain) this._watchDrain();
     }
     detachSocket(socket) {
+        this._unwatchDrain();
         if (socket._httpMessage === this) socket._httpMessage = null;
         this.socket = null;
     }
@@ -2423,12 +2528,14 @@ function onServerSocketClose() {
     const active = this._httpMessage;
     if (active) {
         active.destroyed = true;
+        active._cancelWrites();
         active._closed = true;
         active.emit("close");
     }
     while (connection.waiting.length > 0) {
         const res = connection.waiting.shift();
         res.destroyed = true;
+        res._cancelWrites();
         res._closed = true;
         res.emit("close");
     }
@@ -2469,6 +2576,11 @@ export class Agent extends EventEmitter {
         this.scheduling = this.options.scheduling || "lifo";
         this.maxTotalSockets = this.options.maxTotalSockets || Infinity;
         this.totalSocketCount = 0;
+        this._releasedSockets = [];
+        this._cancelledRequests = Object.create(null);
+        this._queueNames = Object.create(null);
+        this._queueOrder = 0;
+        this._draining = false;
     }
     static get defaultMaxSockets() {
         return Infinity;
@@ -2489,30 +2601,149 @@ export class Agent extends EventEmitter {
         return name;
     }
     addRequest(req, options) {
+        if (req.destroyed) return;
         options = Object.assign({ __proto__: null }, options, this.options);
         const name = this.getName(options);
-        const free = this.freeSockets[name];
-        let socket;
-        while (free !== undefined && free.length > 0) {
-            const candidate =
-                this.scheduling === "fifo" ? free.shift() : free.pop();
-            if (free.length === 0) delete this.freeSockets[name];
-            if (!candidate.destroyed) {
-                socket = candidate;
-                break;
-            }
-        }
-        if (socket !== undefined) {
-            this.reuseSocket(socket, req);
-            list(this.sockets, name).push(socket);
-            assignSocket(this, req, socket);
-        } else if (
-            (this.sockets[name] === undefined ||
-                this.sockets[name].length < this.maxSockets) &&
-            this.totalSocketCount < this.maxTotalSockets
+        req._queuedAgentName = name;
+        req._queuedAgentOptions = options;
+        req._agentQueueOrder = ++this._queueOrder;
+        this._queueNames[name] = true;
+        list(this.requests, name).push(req);
+        this._drain(name);
+    }
+    removeRequest(req) {
+        const name = req._queuedAgentName;
+        if (name !== undefined) removeFrom(this.requests, name, req);
+        req._queuedAgentName = undefined;
+        req._queuedAgentOptions = undefined;
+        req._agentQueueOrder = undefined;
+        if (
+            name !== undefined &&
+            !this.requests[name] &&
+            !this._cancelledRequests[name]
+        )
+            delete this._queueNames[name];
+    }
+    _cancelRequest(req) {
+        const name = req._queuedAgentName;
+        const cancelled = list(this._cancelledRequests, name);
+        let index = cancelled.length;
+        while (index > 0 && cancelled[index - 1].order > req._agentQueueOrder)
+            index--;
+        cancelled.splice(index, 0, {
+            order: req._agentQueueOrder,
+            req,
+        });
+        this.removeRequest(req);
+        // Node reports queued cancellation when a socket can be offered. Keep
+        // just the terminal notification, without connection options/payloads.
+        this._drain(name);
+    }
+    _nextRequest(name, offered) {
+        const waiting = this.requests[name];
+        while (
+            waiting !== undefined &&
+            waiting.length > 0 &&
+            waiting[0].destroyed
+        )
+            this.removeRequest(waiting[0]);
+        const cancelled = this._cancelledRequests[name];
+        while (
+            cancelled !== undefined &&
+            cancelled.length > 0 &&
+            (!waiting ||
+                waiting.length === 0 ||
+                cancelled[0].order < waiting[0]._agentQueueOrder)
         ) {
-            assignSocket(this, req, this.createSocket(req, options));
-        } else list(this.requests, name).push(req);
+            const active = this.sockets[name] || [],
+                free = this.freeSockets[name] || [];
+            if (
+                offered !== name &&
+                free.length === 0 &&
+                (active.length >= this.maxSockets ||
+                    (offered === undefined &&
+                        this.totalSocketCount >= this.maxTotalSockets))
+            )
+                return undefined;
+            const entry = cancelled.shift();
+            if (cancelled.length === 0) {
+                delete this._cancelledRequests[name];
+                if (!this.requests[name]) delete this._queueNames[name];
+            }
+            defer(entry.req, "_finishDestroy");
+        }
+        if (waiting !== undefined && waiting.length > 0) {
+            const req = waiting[0];
+            return req;
+        }
+        return undefined;
+    }
+    /** One iterative pump also covers synchronous/reentrant socket callbacks. */
+    _drain(preferred) {
+        this._drainAgain = true;
+        if (preferred !== undefined) this._drainPreferred = preferred;
+        if (this._draining) return;
+        this._draining = true;
+        try {
+            while (this._drainAgain) {
+                this._drainAgain = false;
+                while (this._releasedSockets.length > 0)
+                    this._releaseOne(this._releasedSockets.shift());
+                const names = Object.keys(this._queueNames);
+                const preferred = this._drainPreferred;
+                this._drainPreferred = undefined;
+                if (preferred !== undefined) {
+                    const index = names.indexOf(preferred);
+                    if (index >= 0) names.splice(index, 1);
+                    names.unshift(preferred);
+                }
+                for (const name of names) {
+                    let req;
+                    while ((req = this._nextRequest(name)) !== undefined) {
+                        const free = this.freeSockets[name];
+                        let socket;
+                        while (free !== undefined && free.length > 0) {
+                            const candidate =
+                                this.scheduling === "fifo"
+                                    ? free[0]
+                                    : free[free.length - 1];
+                            if (!candidate.destroyed) {
+                                removeFrom(this.freeSockets, name, candidate);
+                                socket = candidate;
+                                break;
+                            }
+                            this.removeSocket(candidate);
+                        }
+                        if (socket !== undefined) {
+                            this.reuseSocket(socket, req);
+                            list(this.sockets, name).push(socket);
+                        } else {
+                            const active = this.sockets[name];
+                            if (
+                                (active !== undefined &&
+                                    active.length >= this.maxSockets) ||
+                                this.totalSocketCount >= this.maxTotalSockets
+                            )
+                                break;
+                            try {
+                                socket = this.createSocket(
+                                    req,
+                                    req._queuedAgentOptions,
+                                );
+                            } catch (error) {
+                                this.removeRequest(req);
+                                throw error;
+                            }
+                        }
+                        this.removeRequest(req);
+                        assignSocket(this, req, socket);
+                        if (this._releasedSockets.length > 0) break;
+                    }
+                }
+            }
+        } finally {
+            this._draining = false;
+        }
     }
     createSocket(req, options) {
         options = Object.assign({ __proto__: null }, options, this.options);
@@ -2530,16 +2761,35 @@ export class Agent extends EventEmitter {
     }
     /** The response on socket is complete and its request finished. */
     _release(socket) {
+        const active = this.sockets[socket._agentName];
+        if (
+            socket._agentReleased ||
+            active === undefined ||
+            active.indexOf(socket) < 0
+        )
+            return;
+        socket._agentReleased = true;
+        this._releasedSockets.push(socket);
+        this._drain(socket._agentName);
+    }
+    _releaseOne(socket) {
         const name = socket._agentName;
+        const active = this.sockets[name];
+        if (active === undefined || active.indexOf(socket) < 0) {
+            socket._agentReleased = false;
+            return;
+        }
         this.emit("free", socket, socket._agentOptions);
+        socket._agentReleased = false;
+        if (active.indexOf(socket) < 0) return;
         if (!socket.writable || socket.destroyed) {
             socket.destroy();
             return;
         }
-        const waiting = this.requests[name];
-        if (waiting !== undefined && waiting.length > 0) {
-            const req = waiting.shift();
-            if (waiting.length === 0) delete this.requests[name];
+        const waiting = this._nextRequest(name, name);
+        if (waiting !== undefined) {
+            const req = waiting;
+            this.removeRequest(req);
             assignSocket(this, req, socket);
             return;
         }
@@ -2562,28 +2812,24 @@ export class Agent extends EventEmitter {
         removeFrom(this.sockets, name, socket);
         free.push(socket);
         socket.once("error", freeSocketError);
+        // Node can offer an idle connection to cross-origin cancellation. Only
+        // terminal notifications use this opportunity: idle sockets still count,
+        // and an earlier eligible live request retains its turn.
+        for (const pending of Object.keys(this._queueNames)) {
+            const active = this.sockets[pending] || [];
+            if (pending !== name && active.length >= this.maxSockets) continue;
+            if (this._nextRequest(pending, name) !== undefined) break;
+        }
     }
     removeSocket(socket) {
         const name = socket._agentName;
         if (
             removeFrom(this.sockets, name, socket) |
             removeFrom(this.freeSockets, name, socket)
-        )
-            this.totalSocketCount--;
-        const waiting = this.requests[name];
-        if (
-            waiting !== undefined &&
-            waiting.length > 0 &&
-            (this.sockets[name] === undefined ||
-                this.sockets[name].length < this.maxSockets)
         ) {
-            const req = waiting.shift();
-            if (waiting.length === 0) delete this.requests[name];
-            assignSocket(
-                this,
-                req,
-                this.createSocket(req, socket._agentOptions),
-            );
+            this.totalSocketCount--;
+            socket.removeListener("error", freeSocketError);
+            this._drain(name);
         }
     }
     keepSocketAlive(socket) {
@@ -2864,8 +3110,11 @@ export class ClientRequest extends OutgoingMessage {
                         codedError("ABORT_ERR", "The operation was aborted"),
                     );
             if (signal.aborted) abort();
-            else if (typeof signal.addEventListener === "function")
+            else if (typeof signal.addEventListener === "function") {
+                this._abortSignal = signal;
+                this._abortListener = abort;
                 signal.addEventListener("abort", abort, { once: true });
+            }
         }
     }
     _implicitHeader() {
@@ -2875,24 +3124,113 @@ export class ClientRequest extends OutgoingMessage {
     abort() {
         if (this.aborted) return;
         this.aborted = true;
-        queueMicrotask(() => this.emit("abort"));
+        defer(this, "_abortTask");
         this.destroy();
+    }
+    _abortTask() {
+        this.emit("abort");
     }
     destroy(error) {
         if (this.destroyed) return this;
         this.destroyed = true;
         if (this.res) this.res._dump();
         this._destroyError = error;
+        if (this.socket && this._chunks !== null) {
+            this._destroyChunks = this._chunks;
+            // Stream tasks run before the socket's close task, including when
+            // destroy is called from its deferred assignment or abort task.
+            defer(this, "_finishDestroyWrites");
+        }
+        if (this.socket) {
+            // Corked callbacks belong to the deferred completion above; cancel
+            // encoded output and drain listeners without flushing that batch.
+            this._chunks = null;
+            this._chunkLength = 0;
+            this._cancelWrites(error);
+        }
+        this._clearRequest();
+        if (!this.socket) this._cancelWrites(error);
         if (this.socket) this.socket.destroy(error);
-        else
-            queueMicrotask(() => {
-                this._error(
-                    error || (this.res ? null : hangUp("socket hang up")),
-                );
-                this._closed = true;
-                this.emit("close");
-            });
+        else if (this._queuedAgentName !== undefined)
+            this.agent._cancelRequest(this);
+        else if (!this._offeredSocket) defer(this, "_finishDestroy");
         return this;
+    }
+    _flushChunks(error) {
+        // Auto-uncork may run before a destroyed socket's error/close task.
+        // Leave its batch for that task so the original error and ordering
+        // survive instead of sending it to an already destroyed transport.
+        if (this.socket && this.socket.destroyed && !this.destroyed) return;
+        super._flushChunks(error);
+    }
+    _cancelWrites(error) {
+        // Encoded request output is still message-owned until _flushOutput
+        // detaches it for the socket. Discard it without completing unsent
+        // callbacks, even if a socket has already been assigned.
+        this._output = null;
+        this._outputSize = 0;
+        super._cancelWrites(error);
+    }
+    _finishDestroyWrites(error) {
+        const chunks = this._destroyChunks || this._chunks;
+        this._destroyChunks = null;
+        // Detach corked callbacks before cancelling output/drain state, so
+        // socket error/close retains their original error and callback order.
+        this._chunks = null;
+        this._chunkLength = 0;
+        this._cancelWrites(error || this._destroyError);
+        this._clearRequest();
+        if (!chunks) return;
+        // Socket error/close tasks also run before auto-uncork. Detach the
+        // batch before user callbacks can destroy or uncork the request again.
+        const emitError = error || this._destroyError;
+        if (!error)
+            error =
+                this._destroyError ||
+                codedError(
+                    "ERR_STREAM_DESTROYED",
+                    "Cannot call write after a stream was destroyed",
+                );
+        if (emitError) this._error(error);
+        for (let i = 2; i < chunks.length; i += 3) {
+            const callback = chunks[i];
+            if (callback) callback(error);
+        }
+    }
+    _clearRequest() {
+        // Queued writes have no socket to complete their callbacks. Assigned
+        // corked writes keep their completion task across this cleanup.
+        this._output = null;
+        this._outputSize = 0;
+        this._chunks = null;
+        this._chunkLength = 0;
+        if (this._connectListener && this.socket)
+            this.socket.removeListener("connect", this._connectListener);
+        this._connectListener = null;
+        if (this._abortSignal) {
+            this._abortSignal.removeEventListener("abort", this._abortListener);
+            this._abortSignal = null;
+            this._abortListener = null;
+        }
+        if (this.destroyed) {
+            this.removeAllListeners("response");
+            this.removeAllListeners("finish");
+            this.removeAllListeners("socket");
+            this.removeAllListeners("timeout");
+        }
+    }
+    _finishDestroy() {
+        if (this._closed) return;
+        const error = this._destroyError;
+        this._destroyError = null;
+        this._error(
+            error ||
+                (!this.res && (!this.aborted || this.socket)
+                    ? hangUp("socket hang up")
+                    : null),
+        );
+        this._closed = true;
+        this.emit("close");
     }
     _error(error) {
         if (error === null || this._errorEmitted) return;
@@ -2912,13 +3250,11 @@ export class ClientRequest extends OutgoingMessage {
     }
     _useSocket(socket) {
         if (this.destroyed) {
+            // The offer itself is deferred. Cancellation may have happened
+            // after the Agent dequeued us but before this task could run.
             if (this.agent) this.agent._release(socket);
             else socket.destroy();
-            if (!this._closed) {
-                this._error(this._destroyError || null);
-                this._closed = true;
-                this.emit("close");
-            }
+            this._finishDestroy();
             return;
         }
         this.socket = socket;
@@ -2929,15 +3265,19 @@ export class ClientRequest extends OutgoingMessage {
         if (this.timeout !== undefined)
             socket.on("timeout", onClientSocketTimeout);
         this.emit("socket", socket);
-        if (socket.connecting)
-            socket.once("connect", () => this._flushWhenReady());
-        else this._flushWhenReady();
+        if (this.destroyed) return;
+        if (socket.connecting) {
+            this._connectListener = () => this._flushWhenReady();
+            socket.once("connect", this._connectListener);
+        } else this._flushWhenReady();
     }
     _flushWhenReady() {
+        this._connectListener = null;
         const socket = this.socket;
         if (socket === null || socket._httpMessage !== this || socket.destroyed)
             return;
         if (this._output !== null) this._flushOutput();
+        else if (this._needDrain) this._watchDrain();
     }
     _afterFinish() {
         this._requestDone = true;
@@ -2947,6 +3287,7 @@ export class ClientRequest extends OutgoingMessage {
     _release() {
         if (this._released) return;
         this._released = true;
+        this._clearRequest();
         const socket = this.socket;
         socket.removeListener("error", onClientSocketError);
         socket.removeListener("close", onClientSocketClose);
@@ -2955,8 +3296,10 @@ export class ClientRequest extends OutgoingMessage {
         if (this.timeout !== undefined) socket.setTimeout(0);
         if (this.res) this.res.socket = null;
         queueMicrotask(() => {
-            this._closed = true;
-            this.emit("close");
+            if (!this._closed) {
+                this._closed = true;
+                this.emit("close");
+            }
             if (this.agent) this.agent._release(socket);
             else socket.destroy();
         });
@@ -2989,25 +3332,27 @@ function onClientSocketError(error) {
     const req = this._httpMessage;
     if (!req) return;
     this._hadError = true;
+    req._destroyError = error;
+    req._finishDestroyWrites(error);
     req._error(error);
 }
 function onClientSocketClose() {
     const req = this._httpMessage;
     if (!req || req.socket !== this) return;
+    this._httpMessage = null;
+    this._consumer = null;
+    this.removeListener("error", onClientSocketError);
+    this.removeListener("close", onClientSocketClose);
+    this.removeListener("timeout", onClientSocketTimeout);
     req.destroyed = true;
+    req._finishDestroyWrites();
     const res = req.res;
     if (res) {
         if (!res.complete) res.destroy(hangUp("aborted"));
-        req._closed = true;
-        req.emit("close");
+        req._finishDestroy();
         if (!res.aborted && res.readable) res.push(null);
     } else {
-        if (!this._hadError) {
-            this._hadError = true;
-            req._error(hangUp("socket hang up"));
-        }
-        req._closed = true;
-        req.emit("close");
+        req._finishDestroy();
     }
 }
 function onClientSocketTimeout() {
@@ -3188,14 +3533,11 @@ class ResponseReader {
             copyBytes(data, bodyStart, end, head, 0);
             if (hasListener(req, event)) {
                 if (socket._agent) {
-                    removeFrom(
-                        socket._agent.sockets,
-                        socket._agentName,
-                        socket,
-                    ) && socket._agent.totalSocketCount--;
                     socket.removeListener("close", onAgentSocketClose);
                     socket.removeListener("timeout", onAgentSocketTimeout);
+                    socket._agent.removeSocket(socket);
                 }
+                req._clearRequest();
                 req.emit(event, res, socket, head);
                 req.destroyed = true;
                 req._closed = true;
