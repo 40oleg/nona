@@ -28,15 +28,9 @@ export const accepted601Controls = {
 };
 
 export function launchAllowed(env, event) {
-    if (env.GITHUB_REPOSITORY !== repository) return false;
-    if (env.GITHUB_EVENT_NAME === "workflow_dispatch") return true;
-    const pr = event.pull_request;
     return (
-        env.GITHUB_EVENT_NAME === "pull_request" &&
-        event.number === 630 &&
-        pr?.base?.repo?.full_name === repository &&
-        pr?.head?.repo?.full_name === repository &&
-        pr?.labels?.some((label) => label.name === "full-ci") === true
+        env.GITHUB_REPOSITORY === repository &&
+        env.GITHUB_EVENT_NAME === "workflow_dispatch"
     );
 }
 

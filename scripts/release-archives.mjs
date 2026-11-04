@@ -21,10 +21,14 @@ import {
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { supportedNativeTargets } from "../dist/src/target.js";
+import {
+    projectRoot,
+    releaseVersion as version,
+    validateNativePackage,
+    validateReleaseTag,
+} from "./native-package.mjs";
 
-const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const options = {};
 for (let index = 2; index < process.argv.length; index += 2) {
     const name = process.argv[index],
@@ -45,13 +49,11 @@ const fail = (message) => {
     process.exit(1);
 };
 
-const version = JSON.parse(
-    readFileSync(join(projectRoot, "package.json"), "utf8"),
-).version;
-if (options.tag !== undefined && options.tag !== "v" + version)
-    fail(
-        `tag ${options.tag} does not match package.json version ${version} (expected v${version})`,
-    );
+try {
+    validateReleaseTag(options.tag);
+} catch (error) {
+    fail(error.message);
+}
 
 const artifacts = resolve(options.artifacts),
     out = resolve(options.out);
@@ -62,6 +64,16 @@ const unexpected = readdirSync(artifacts).filter(
 );
 if (unexpected.length)
     fail("artifacts for unknown targets: " + unexpected.join(", "));
+// Validate every package before creating archives or replacing earlier output.
+for (const target of supportedNativeTargets) {
+    const source = join(artifacts, "nona-" + target);
+    if (!existsSync(source)) fail("missing artifact nona-" + target);
+    try {
+        validateNativePackage(source, target, version);
+    } catch (error) {
+        fail(error.message);
+    }
+}
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const staging = join(out, ".staging");
@@ -75,15 +87,6 @@ for (const target of supportedNativeTargets) {
     const source = join(artifacts, "nona-" + target),
         windows = target.startsWith("win32-"),
         executable = windows ? "nona.exe" : "nona";
-    if (!existsSync(source)) fail("missing artifact nona-" + target);
-    for (const file of [executable, "VERSION", "LICENSE", "README.txt"])
-        if (!existsSync(join(source, file)))
-            fail(`nona-${target} has no ${file}`);
-    const packaged = readFileSync(join(source, "VERSION"), "utf8").trim();
-    if (packaged !== version)
-        fail(
-            `nona-${target}/VERSION is ${packaged}, package.json is ${version}`,
-        );
     // Archives hold one top-level directory; artifact downloads lose the executable bit.
     const name = `nona-${version}-${target}`,
         directory = join(staging, name);

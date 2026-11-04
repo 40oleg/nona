@@ -319,18 +319,22 @@ image download/execution, debugger/provisioning or startup campaign ran locally.
 
 ## Original campaign (preserved)
 
-The original **draft PR630** campaign uses `full-ci`. The **HTTP crash
-diagnostic** workflow accepts `pull_request` opened,
-reopened, synchronize and ready-for-review events only for PR630 when both
-repositories are `40oleg/nona` and that label is present. Draft status does not
-block the job. Other PRs cannot start this campaign. Parent review, publication
-and label readback remain with the coordinator.
+Historically, the original **draft PR630** campaign used `full-ci` and accepted
+PR630 pull request events from `40oleg/nona`. That automatic launch path is now
+removed: the **HTTP crash diagnostic** workflow is an explicit manual forensic
+tool, admitted only for `40oleg/nona` with `workflow_dispatch`. PR630 updates,
+including `full-ci` synchronizations, cannot rerun the old ten-shard exact57
+campaign. It is not an implicit release gate or recurring CI repair requirement.
+Its strict evaluation and retained failure evidence are unchanged; historical
+reports retain their original admission metadata and are not reclassified by
+the new launch policy. Parent review and publication remain with the coordinator.
 
-The workflow retains manual `workflow_dispatch` for a registered workflow.
-The PR event path permits the first launch while the workflow is absent from
-default `main`; it does not require merging this diagnostic PR first.
-The checkout explicitly selects the exact PR head SHA (the selected event SHA
-for manual runs), rather than GitHub's synthetic PR merge checkout. See
+Manual dispatch requires workflow registration on default `main`; the recorded
+pre-merge 404 registration limitation still applies. Do not restore an automatic
+PR fallback to work around an unavailable optional manual workflow. The registered
+`native-platforms` workflow remains the current bounded diagnostic path, and
+required normal CI remains enabled.
+The old forensic workflow checks out the exact selected `github.sha`. See
 [GitHub's PR event and checkout semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request).
 Full history is fetched, credentials are not persisted, and Git must verify
 `47193961f3bf9b69c0177d5522de3db1069447df` as an ancestor before any build or trial,
@@ -480,7 +484,7 @@ Before the first hosted launch, trial results were recorded as
 the hosted matrix or establish a completed non-reproduction result.
 No crash mechanism or repair is claimed. Linux remains untested for this fault.
 
-### Hosted launch repair awaiting publication and proof
+### Historical hosted launch repair (2026-11-01)
 
 The earlier dispatch-only implementation could not bootstrap: the workflow was
 absent from default `main`. On 2026-11-01, this launch attempt:
@@ -496,16 +500,17 @@ HTTP 404: workflow http-crash-diagnostic.yml not found on the default branch (ht
 ```
 
 No run, hosted runner, trial artifacts or fault evidence was created by that
-attempt. The PR630/full-ci trigger repairs this launch path in source; actual
-hosted execution remains pending coordinator review and publication. The remote
-PR head at this review was `d0415dda2f2d4ce48dd5193deb7131b0054ec94d`; the
-included #601 stack and launch repair have not yet been published. After the
-parent's normal push, verify the hosted run's workflow/event/source identities,
-ancestor check and runner identity, then retain run/artifact links, exact
-completed/pending counts and verdicts here. Keep #602 open.
+attempt. The historical PR630/full-ci trigger addressed this launch path in
+source; hosted execution was then pending coordinator review and publication.
+The remote PR head at that review was
+`d0415dda2f2d4ce48dd5193deb7131b0054ec94d`; the included #601 stack and launch
+repair were not yet published. That automatic bootstrap policy is superseded by
+the manual-only forensic policy above. The 404 remains a registration limitation,
+not a reason to restore automatic PR launches. Current bounded diagnostics use
+the registered `native-platforms` path. Keep #602 open.
 
-Launch-repair validation is source-only, with Node children at BelowNormal and
-test concurrency one:
+Historical launch-repair validation was source-only, with Node children at
+BelowNormal and test concurrency one:
 
 ```sh
 node --experimental-strip-types --test --test-concurrency=1 tests/http-crash-workflow.test.ts
@@ -518,7 +523,8 @@ Changed-file Prettier checks and `node site/scripts/sync-docs.mjs` followed by
 `npm run check:doc-links` check documentation (verify the generated target is
 inside this worktree with no junctions before syncing). No local build, native
 acceptance test, load or campaign is part of the launch repair. WER capture,
-all 57 trials and current integrated-head CI remain hosted and pending.
+all 57 trials and current integrated-head CI were hosted and pending at that
+review.
 
 The startup follow-up described above supersedes the former proposal to repeat
 the broad matrix. Preserve historical fault signature (exception code and PC

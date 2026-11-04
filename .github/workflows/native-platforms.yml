@@ -9,7 +9,7 @@ on:
             diagnostic_mode:
                 description: Optional isolated diagnostic; full preserves the normal platform jobs
                 type: choice
-                options: [full, startup-602, env-602]
+                options: [full, startup-602, env-602, http602-current]
                 default: full
                 required: false
             diagnostic_sha:
@@ -29,12 +29,12 @@ concurrency:
     # running build finishes and a newer merge replaces the pending one, so a
     # burst of merges is checked once, on its last commit (#353). check.yml
     # still checks every commit of main (#42).
-    # env-602 alone uses a run/attempt-unique group; it cannot evict another mode.
-    group: ${{ inputs.diagnostic_mode == 'env-602' && format('native-platforms-env602-{0}-{1}', github.run_id, github.run_attempt) || format('native-platforms-{0}', github.event_name == 'pull_request' && github.head_ref || github.ref) }}
+    # These two diagnostics use unique groups and cannot evict another mode.
+    group: ${{ inputs.diagnostic_mode == 'http602-current' && format('native-platforms-http602-current-{0}-{1}', github.run_id, github.run_attempt) || inputs.diagnostic_mode == 'env-602' && format('native-platforms-env602-{0}-{1}', github.run_id, github.run_attempt) || format('native-platforms-{0}', github.event_name == 'pull_request' && github.head_ref || github.ref) }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     browser-compiler:
-        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602'
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && inputs.diagnostic_mode != 'http602-current'
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
         name: Windows x64 full regression (manual)
         # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
         # for manually dispatched full-platform runs as well.
-        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && github.event_name == 'workflow_dispatch'
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && inputs.diagnostic_mode != 'http602-current' && github.event_name == 'workflow_dispatch'
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
             - run: npm run compare
     linux-regression:
         name: Linux x64 compiler and example regression
-        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && inputs.diagnostic_mode != 'http602-current' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
             - run: npm run compare:linux
     loaders:
         name: ${{ matrix.target }} native and portable suites
-        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && inputs.diagnostic_mode != 'http602-current' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         strategy:
             fail-fast: false
             matrix:
@@ -163,7 +163,7 @@ jobs:
                   path: work/platform-probes
     linux-distributions:
         name: Linux userspace ${{ matrix.image }}
-        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && inputs.diagnostic_mode != 'http602-current' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -313,9 +313,60 @@ jobs:
                   path: work/http-startup/
                   if-no-files-found: warn
                   retention-days: 30
+    http602-current:
+        name: Current HTTP pressure and queued-close diagnostic (no product acceptance)
+        if: github.repository == '40oleg/nona' && github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'http602-current' && startsWith(github.ref, 'refs/heads/issue-602-startup-') && inputs.diagnostic_sha == github.sha && github.workflow_sha == github.sha && github.workflow_ref == format('40oleg/nona/.github/workflows/native-platforms.yml@{0}', github.ref)
+        runs-on: windows-2025
+        timeout-minutes: 35
+        env:
+            HTTP602_MODE: ${{ inputs.diagnostic_mode }}
+            HTTP602_EXPECTED_SHA: ${{ inputs.diagnostic_sha }}
+            NONA_AUTO_MERGE: "false"
+            NONA_AUTO_RELEASE: "false"
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ${{ github.sha }}
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  architecture: x64
+            - name: Verify exact candidate and workflow on the hosted temporary ref
+              run: node scripts/http-crash-current.mjs --verify
+            - name: Recover frozen original driver and server (never a retained native image)
+              uses: actions/checkout@v4
+              with:
+                  repository: 40oleg/nona
+                  ref: ab5ea083d793e0a665fde8b0a4b33bc1fa67208e
+                  path: work/http602-current/soak-source
+                  sparse-checkout: |
+                      scripts/http-soak.mjs
+                      bench/http/soak-server.mjs
+                  sparse-checkout-cone-mode: false
+                  persist-credentials: false
+            - run: npm ci
+            - run: npm run build
+            - name: Pure current and legacy mode regressions (serial)
+              run: node --test --test-concurrency=1 dist/tests/http-crash-current.test.js dist/tests/http-crash-acceptance.test.js dist/tests/http-crash-workflow.test.js dist/tests/http-crash-shards.test.js dist/tests/http-startup.test.js dist/tests/http-startup-env-boundary.test.js
+            - name: Frozen-driver pure VM controls (no servers)
+              shell: pwsh
+              run: |
+                  $env:LATENCY615_TEST_INPUT = Join-Path $env:GITHUB_WORKSPACE 'work/http602-current/soak-source/scripts/http-soak.mjs'
+                  node --test --test-concurrency=1 scripts/http-soak-smoke-policy.test.mjs scripts/http-soak-check.test.mjs
+            - name: Five-minute continuous native-off and Node pressure, then six bounded projections
+              run: node scripts/http-crash-current.mjs
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http602-current-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: work/http602-current/
+                  if-no-files-found: warn
+                  retention-days: 30
     bsd-loaders:
         name: ${{ matrix.os }} x64 guest VM on Ubuntu host
-        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        if: inputs.diagnostic_mode != 'startup-602' && inputs.diagnostic_mode != 'env-602' && inputs.diagnostic_mode != 'http602-current' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false

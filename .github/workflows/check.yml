@@ -177,6 +177,14 @@ jobs:
               run: node --test --test-name-pattern="^CLI protects " dist/tests/cli.test.js
             - run: node scripts/run-suite.mjs frontend elf async events
             - run: node scripts/run-suite.mjs path child-process
+            - name: Verify native packaging with real archive tools
+              env:
+                  NONA_NATIVE_ARCHIVE_INTEGRATION: "1"
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  echo "Native packaging runner: $RUNNER_ENVIRONMENT"
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
+                  node --test --test-concurrency=1 dist/tests/native-packaging.test.js
             - run: npm run compare:linux
             - uses: actions/checkout@v4
               with:

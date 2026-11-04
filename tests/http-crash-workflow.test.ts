@@ -11,11 +11,8 @@ const workflow = readFileSync(
     "utf8",
 );
 
-test("diagnostic launch admits draft PR630 only with same-repository full-ci authorization", () => {
-    assert.match(
-        workflow,
-        /pull_request:\s*\n\s+types: \[opened, reopened, synchronize, ready_for_review\]/,
-    );
+test("legacy diagnostic launches only by explicit same-repository manual dispatch", () => {
+    assert.doesNotMatch(workflow, /^\s*pull_request:/m);
     assert.match(workflow, /workflow_dispatch:/);
     assert.doesNotMatch(workflow, /pull_request_target/);
     const expressions = ["windows", "aggregate"].map((job) => {
@@ -63,11 +60,16 @@ test("diagnostic launch admits draft PR630 only with same-repository full-ci aut
         );
         return results[0];
     }
-    assert.equal(allowed(), true, "draft630 must launch");
+    assert.equal(
+        allowed(),
+        false,
+        "PR630 with full-ci must not launch legacy57",
+    );
     assert.equal(allowed({ ...event, number: 631 }), false);
     assert.equal(allowed(event, "fork/nona"), false);
     assert.equal(allowed(event, "40oleg/nona", "push"), false);
     assert.equal(allowed(event, "40oleg/nona", "workflow_dispatch"), true);
+    assert.equal(allowed(event, "fork/nona", "workflow_dispatch"), false);
     for (const side of ["base", "head"] as const) {
         const fork = structuredClone(event);
         fork.pull_request[side].repo.full_name = "fork/nona";
@@ -117,10 +119,13 @@ test("diagnostic serial matrix retains every shard without shared pending-slot c
 
 test("diagnostic checkout uses exact head and full dependency history without persisted credentials", () => {
     assert.match(workflow, /repository: 40oleg\/nona/);
-    assert.match(
-        workflow,
-        /ref: \$\{\{ github.event.pull_request.head.sha \|\| github.sha \}\}/,
+    assert.match(workflow, /ref: \$\{\{ github.sha \}\}/);
+    assert.deepEqual(
+        [...workflow.matchAll(/^\s+ref: (.+)$/gm)].map((match) => match[1]),
+        ["${{ github.sha }}", "${{ github.sha }}"],
+        "both jobs must inspect the selected manual event commit",
     );
+    assert.doesNotMatch(workflow, /github.event.pull_request.head.sha/);
     assert.match(workflow, /fetch-depth: 0/);
     assert.match(workflow, /persist-credentials: false/);
     assert.match(workflow, /run: node scripts\/http-crash-provenance.mjs/);
@@ -178,11 +183,11 @@ test("provenance retains distinct workflow/event/source identities and rejects m
         provenance.provenanceRecord(env, event, { head, tree }, dependency);
     const env = {
         GITHUB_REPOSITORY: "40oleg/nona",
-        GITHUB_EVENT_NAME: "pull_request",
-        GITHUB_SHA: "1111111111111111111111111111111111111111",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_SHA: head,
         GITHUB_WORKFLOW_SHA: "2222222222222222222222222222222222222222",
         GITHUB_WORKFLOW_REF:
-            "40oleg/nona/.github/workflows/http-crash-diagnostic.yml@refs/pull/630/merge",
+            "40oleg/nona/.github/workflows/http-crash-diagnostic.yml@refs/heads/issue-602-rebased",
         RUNNER_ENVIRONMENT: "github-hosted",
         RUNNER_OS: "Windows",
     };
@@ -196,7 +201,7 @@ test("provenance retains distinct workflow/event/source identities and rejects m
             labels: [{ name: "full-ci" }],
         },
     };
-    const result = record(env, event);
+    const result = record(env, {});
     assert.equal(result.verified, true);
     assert.deepEqual(result.checkout, { expectedHead: head, head, tree });
     assert.equal(result.event.sha, env.GITHUB_SHA);
@@ -208,10 +213,8 @@ test("provenance retains distinct workflow/event/source identities and rejects m
     assert.equal(result.dependency.isAncestor, true);
     assert.equal(result.accepted601Controls.windowsArtifactId, "13094764449");
     assert.match(result.accepted601Controls.linuxJob, /124870326121$/);
-    const wrong = structuredClone(event);
-    wrong.pull_request.head.sha = env.GITHUB_SHA;
     assert.ok(
-        record(env, wrong).errors.includes(
+        record({ ...env, GITHUB_SHA: "1".repeat(40) }, {}).errors.includes(
             "Checkout differs from exact event head",
         ),
     );
@@ -222,7 +225,7 @@ test("provenance retains distinct workflow/event/source identities and rejects m
     };
     assert.equal(record(manual, {}).verified, true);
     assert.equal(
-        record({ ...manual, GITHUB_SHA: env.GITHUB_SHA }, {}).verified,
+        record({ ...manual, GITHUB_SHA: "1".repeat(40) }, {}).verified,
         false,
     );
     assert.equal(
@@ -253,12 +256,23 @@ test("provenance retains distinct workflow/event/source identities and rejects m
     );
     const fork = structuredClone(event);
     fork.pull_request.head.repo.full_name = "fork/nona";
-    assert.equal(record(env, fork).verified, false);
+    const prEnv = { ...env, GITHUB_EVENT_NAME: "pull_request" };
+    const rejectedPr = record(prEnv, event);
+    assert.equal(rejectedPr.verified, false);
+    assert.equal(rejectedPr.event.pr, 630);
+    assert.equal(rejectedPr.event.draft, true);
+    assert.equal(rejectedPr.event.action, "synchronize");
+    assert.equal(provenance.launchAllowed(prEnv, event), false);
     assert.equal(
-        provenance.launchAllowed(env, { ...event, number: 631 }),
+        record({ ...env, GITHUB_REPOSITORY: "fork/nona" }, {}).verified,
+        false,
+    );
+    assert.equal(record(prEnv, fork).verified, false);
+    assert.equal(
+        provenance.launchAllowed(prEnv, { ...event, number: 631 }),
         false,
     );
     const unlabeled = structuredClone(event);
     unlabeled.pull_request.labels = [];
-    assert.equal(provenance.launchAllowed(env, unlabeled), false);
+    assert.equal(provenance.launchAllowed(prEnv, unlabeled), false);
 });

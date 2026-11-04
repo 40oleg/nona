@@ -16,7 +16,10 @@ const api = await import(
 
 test("workflow isolates env runs at top level and preserves normal/full/legacy gates", () => {
     const text = readFileSync(".github/workflows/native-platforms.yml", "utf8");
-    assert.match(text, /options: \[full, startup-602, env-602\]/);
+    assert.match(
+        text,
+        /options: \[full, startup-602, env-602, http602-current\]/,
+    );
     const group = text.match(/^    group: (.+)$/m)![1]!;
     assert.ok(group.includes("inputs.diagnostic_mode == 'env-602'"));
     assert.ok(
@@ -125,7 +128,9 @@ test("workflow isolates env runs at top level and preserves normal/full/legacy g
                 ],
             ])
                 assert.equal(admitted(mode!, event!, repo, ref, sha), false);
-        } else if (name === "http-startup-602")
+        } else if (name === "http602-current")
+            assert.match(guard, /inputs.diagnostic_mode == 'http602-current'/);
+        else if (name === "http-startup-602")
             assert.match(guard, /inputs.diagnostic_mode == 'startup-602'/);
         else {
             assert.ok(
@@ -134,6 +139,10 @@ test("workflow isolates env runs at top level and preserves normal/full/legacy g
             );
             assert.ok(
                 guard.includes("inputs.diagnostic_mode != 'env-602'"),
+                name,
+            );
+            assert.ok(
+                guard.includes("inputs.diagnostic_mode != 'http602-current'"),
                 name,
             );
         }

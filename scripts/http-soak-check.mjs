@@ -14,10 +14,30 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hostedIdentity } from "./http-keepalive-check.mjs";
+import {
+    instrumentLegacyCompletion,
+    legacyCorrectnessSmoke,
+} from "./http-soak-smoke-policy.mjs";
+import { patchDriver } from "./http-latency615-support.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const sourceRoot = join(root, "work", "http-601-soak-source");
-const out = join(root, "work", "http-601", "soak");
+// Only these fixed cases are supported. Existing callers retain c1/native.
+const profile = process.env.NONA_SOAK_PROFILE ?? "current";
+const runtime = process.env.NONA_SOAK_RUNTIME ?? "native";
+assert.ok(
+    (profile === "current" && runtime === "native") ||
+        (profile === "http602-current" &&
+            ["native-off", "node"].includes(runtime)),
+    "unsupported soak profile/runtime",
+);
+const current602 = profile === "http602-current";
+const sourceRoot = current602
+    ? join(root, "work", "http602-current", "soak-source")
+    : join(root, "work", "http-601-soak-source");
+const out = current602
+    ? join(root, "work", "http602-current", "pressure", runtime)
+    : join(root, "work", "http-601", "soak");
+const connections = current602 ? 32 : 1;
 const sourceCommit = "ab5ea083d793e0a665fde8b0a4b33bc1fa67208e";
 const source = join(sourceRoot, "scripts", "http-soak.mjs");
 const serverSource = join(sourceRoot, "bench", "http", "soak-server.mjs");
@@ -44,6 +64,8 @@ const report = {
 let child;
 let closed;
 let cleanupTimer;
+let original;
+let sourcePatched = false;
 try {
     report.identity = hostedIdentity();
     const revision = spawnSync("git", ["rev-parse", "HEAD"], {
@@ -58,15 +80,34 @@ try {
         sourceCommit,
         "unexpected #516 source revision",
     );
-    const original = readFileSync(source, "utf8");
+    original = readFileSync(source);
     report.originalHarnessSha256 = hash(original);
     report.serverSourceSha256 = hash(readFileSync(serverSource));
-    // Add raw logs and process event records only. Preserve an exact original
-    // beside the executed copy, and reject a changed insertion point.
-    writeFileSync(join(out, "http-soak.original.mjs"), original);
+    if (current602) {
+        assert.equal(
+            report.serverSourceSha256,
+            "3bae7410ac2d9afcb9a9e1431919a2aa5b5ca352db578769810a24f0ac718f60",
+            "original reference server changed",
+        );
+        report.profile = profile;
+        report.runtime = runtime;
+        report.sourceRoot = sourceRoot;
+        report.output = out;
+        report.nodeExecutable = process.execPath;
+        report.nodeExecutableSha256 = hash(readFileSync(process.execPath));
+    }
+    // Apply the accepted, byte-pinned lossless observer before wrapper logging.
+    // It owns raw stdout/stderr; keep the wrapper's event/exit cleanup receipts.
+    writeFileSync(
+        join(out, "http-soak.original.mjs"),
+        original,
+        current602 ? { flag: "wx" } : undefined,
+    );
+    const lossless = patchDriver(original);
+    const driver = lossless.source.toString("utf8");
     const marker = "let stopping = false;";
     assert.equal(
-        original.split(marker).length,
+        driver.split(marker).length,
         2,
         "soak diagnostic insertion point changed",
     );
@@ -78,78 +119,114 @@ function __diagEvent(event, value) {
     __diagAppendFileSync(__diagOut + "/server-events.jsonl", JSON.stringify({sequence: ++__diagSequence, time: new Date().toISOString(), event, ...value}) + "\\n");
 }
 __diagEvent("spawn", {pid: child.pid, serverPath});
-child.stdout.on("data", chunk => __diagAppendFileSync(__diagOut + "/server.stdout.log", chunk));
-child.stderr.on("data", chunk => __diagAppendFileSync(__diagOut + "/server.stderr.log", chunk));
 child.on("error", error => __diagEvent("error", {name: error.name, code: error.code, message: error.message, stack: error.stack}));
 child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code > 255 ? "0x" + code.toString(16) : undefined}));
 `;
     const importMarker = "import { mkdirSync,";
     assert.equal(
-        original.split(importMarker).length,
+        driver.split(importMarker).length,
         2,
         "soak diagnostic import changed",
     );
-    const instrumented = original
+    const instrumented = instrumentLegacyCompletion(driver)
         .replace(
             importMarker,
             "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
         )
         .replace(marker, diagnostics + "\n" + marker);
-    writeFileSync(source, instrumented);
-    writeFileSync(join(out, "http-soak.executed.mjs"), instrumented);
     report.executedHarnessSha256 = hash(instrumented);
+    writeFileSync(source, instrumented);
+    sourcePatched = true;
+    writeFileSync(join(out, "http-soak.executed.mjs"), instrumented);
+    writeFileSync(
+        join(out, "http-soak.patch.json"),
+        JSON.stringify(
+            {
+                sourceCommit,
+                originalSha256: report.originalHarnessSha256,
+                losslessSha256: lossless.sha256,
+                executedSha256: report.executedHarnessSha256,
+                recipe: lossless.recipe,
+            },
+            null,
+            2,
+        ) + "\n",
+    );
     report.diagnostics =
-        "Raw server stdout/stderr, spawn/error/exit events and a harness JavaScript exit marker only; workload and pass criteria unchanged.";
+        "Accepted lossless intervals, selections, CPU and phase/process/pipe receipts plus raw server logs, wrapper cleanup and final driver completion/error receipts; original workload, reports and pass criteria unchanged. A separate smoke correctness decision defers only p99.";
     const target = process.platform === "win32" ? "win32-x64" : "linux-x64";
-    const args = [
-        join(root, "dist", "cli.js"),
-        "build",
-        serverSource,
-        "-o",
-        binary,
-        "--target",
-        target,
-        "--module",
-    ];
-    const build = spawnSync(process.execPath, args, {
-        cwd: root,
-        encoding: "utf8",
-        timeout: 120000,
-        maxBuffer: 16 * 1024 * 1024,
-    });
-    report.build = {
-        args,
-        status: build.status,
-        signal: build.signal,
-        stdout: build.stdout,
-        stderr: build.stderr,
-        error: build.error && errorInfo(build.error),
-    };
-    assert.ifError(build.error);
-    assert.equal(
-        build.status,
-        0,
-        "current compiler could not build recovered soak server",
-    );
-    report.binarySha256 = hash(readFileSync(binary));
-    report.compilerCommit = report.identity.commit;
-    report.compilerEntrySha256 = hash(
-        readFileSync(join(root, "dist", "cli.js")),
-    );
-    report.command =
-        "NONA_SOAK_MIX=big=1 NONA_SOAK_CONNECTIONS=1 node scripts/http-soak.mjs --smoke";
+    const args = current602
+        ? [
+              join(root, "scripts", "http-crash-build.mjs"),
+              serverSource,
+              binary,
+              "off",
+          ]
+        : [
+              join(root, "dist", "cli.js"),
+              "build",
+              serverSource,
+              "-o",
+              binary,
+              "--target",
+              target,
+              "--module",
+          ];
+    if (runtime === "node") {
+        report.build = {
+            skipped: true,
+            reason: "Node control executes the frozen original source; no native image",
+        };
+    } else {
+        const build = spawnSync(process.execPath, args, {
+            cwd: root,
+            encoding: "utf8",
+            timeout: 120000,
+            maxBuffer: 16 * 1024 * 1024,
+            ...(current602
+                ? { env: { ...process.env, NONA_GC_STRESS: "off" } }
+                : {}),
+        });
+        report.build = {
+            args,
+            status: build.status,
+            signal: build.signal,
+            stdout: build.stdout,
+            stderr: build.stderr,
+            error: build.error && errorInfo(build.error),
+        };
+        assert.ifError(build.error);
+        assert.equal(
+            build.status,
+            0,
+            "current compiler could not build recovered soak server",
+        );
+        report.binarySha256 = hash(readFileSync(binary));
+        report.compilerCommit = report.identity.commit;
+        report.compilerEntrySha256 = hash(
+            readFileSync(
+                join(root, "dist", current602 ? "src/compiler.js" : "cli.js"),
+            ),
+        );
+    }
+    const server = runtime === "node" ? serverSource : binary;
+    report.command = `NONA_SOAK_MIX=big=1 NONA_SOAK_CONNECTIONS=${connections} node scripts/http-soak.mjs --smoke`;
     report.settings = {
         minutes: 5,
         warmupMinutes: 1,
         sampleSeconds: 10,
         mix: "big=1",
-        connections: 1,
-        server: binary,
+        connections,
+        server,
     };
     for (const name of [
         "server.stdout.log",
         "server.stderr.log",
         "server-events.jsonl",
+        "harness.stdout.log",
+        "harness.stderr.log",
+        "driver-completion.json",
+        "driver-errors.jsonl",
     ])
         writeFileSync(join(out, name), "");
     child = spawn(
@@ -162,12 +239,13 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
             env: {
                 ...process.env,
                 NONA_SOAK_MIX: "big=1",
-                NONA_SOAK_CONNECTIONS: "1",
+                NONA_SOAK_CONNECTIONS: String(connections),
                 NONA_SOAK_MINUTES: "5",
                 NONA_SOAK_WARMUP_MINUTES: "1",
                 NONA_SOAK_SAMPLE_SECONDS: "10",
-                NONA_SOAK_SERVER: binary,
+                NONA_SOAK_SERVER: server,
                 NONA_SOAK_DIAGNOSTICS: out.replaceAll("\\", "/"),
+                ...(current602 ? { NONA_GC_STRESS: "off" } : {}),
             },
         },
     );
@@ -231,22 +309,38 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
         clearTimeout(timeout);
     }
     assert.ifError(report.spawnError);
-    assert.deepEqual(
-        report.exit,
-        { code: 0, signal: null },
-        "original soak harness returned failure",
+    report.correctnessSmoke = legacyCorrectnessSmoke(
+        {
+            json: readFileSync(join(out, "http-soak.json"), "utf8"),
+            markdown: readFileSync(join(out, "http-soak.md"), "utf8"),
+            stdout: readFileSync(join(out, "harness.stdout.log"), "utf8"),
+            stderr: readFileSync(join(out, "harness.stderr.log"), "utf8"),
+            exit: report.exit,
+            events: report.events,
+            serverEvents: readFileSync(join(out, "server-events.jsonl"), "utf8")
+                .trim()
+                .split(/\r?\n/)
+                .map((line) => JSON.parse(line)),
+            jsExit: JSON.parse(
+                readFileSync(join(out, "harness-exit.json"), "utf8"),
+            ),
+            completion: JSON.parse(
+                readFileSync(join(out, "driver-completion.json"), "utf8"),
+            ),
+            driverErrors: readFileSync(
+                join(out, "driver-errors.jsonl"),
+                "utf8",
+            ),
+        },
+        current602 ? { expectedConnections: 32 } : undefined,
     );
-    const soak = JSON.parse(readFileSync(join(out, "http-soak.json"), "utf8"));
-    assert.equal(soak.summary.failed, 0, "soak recorded failed requests");
-    assert.ok(
-        soak.summary.ok >= 100,
-        "soak must complete at least 100 responses",
-    );
-    assert.equal(soak.summary.pass, true, "original soak pass criteria failed");
-    assert.equal(soak.crash, null);
-    assert.deepEqual(soak.mix, { big: 1 });
-    assert.equal(soak.config.connections, 1);
-    report.pass = true;
+    if (current602)
+        assert.equal(
+            readFileSync(join(out, "server.stderr.log"), "utf8"),
+            "",
+            "unexpected server stderr",
+        );
+    report.pass = report.correctnessSmoke.pass;
 } catch (error) {
     report.failure = errorInfo(error);
     console.error(error.stack || error);
@@ -308,6 +402,41 @@ child.on("exit", (code, signal) => __diagEvent("exit", {code, signal, hex: code 
     } catch (error) {
         report.pass = false;
         report.diagnosticsError = errorInfo(error);
+        process.exitCode = 1;
+    }
+    if (current602 && sourcePatched) {
+        try {
+            // Restore only our exact executed bytes from the immutable original.
+            // A changed checkout belongs to someone else: fail without writing.
+            assert.equal(
+                hash(readFileSync(source)),
+                report.executedHarnessSha256,
+                "refuse restoration: executed driver changed",
+            );
+            assert.equal(
+                hash(readFileSync(join(out, "http-soak.original.mjs"))),
+                report.originalHarnessSha256,
+                "refuse restoration: original evidence changed",
+            );
+            assert.equal(hash(original), report.originalHarnessSha256);
+            writeFileSync(source, original);
+            assert.equal(
+                hash(readFileSync(source)),
+                report.originalHarnessSha256,
+            );
+            report.restoration = {
+                pass: true,
+                originalSha256: report.originalHarnessSha256,
+                executedSha256: report.executedHarnessSha256,
+            };
+        } catch (error) {
+            report.restorationError = errorInfo(error);
+            report.pass = false;
+            process.exitCode = 1;
+        }
+    }
+    if (current602 && report.cleanupError) {
+        report.pass = false;
         process.exitCode = 1;
     }
     writeFileSync(

@@ -215,12 +215,13 @@ test("queued completion preserves write backpressure, drain order and queue acco
     assert.equal(b.socket._writeQueue[1].callback, owner);
     b.socket._flushWrites();
     assert.equal(b.socket.writableLength, 0);
-    assert.equal(b.socket.writableNeedDrain, false);
+    assert.equal(b.socket.writableNeedDrain, true);
     assert.deepEqual(events, []);
     b.drainTasks();
     b.socket._flushWrites();
     b.drainTasks();
     assert.deepEqual(events, ["first", "message", "drain"]);
+    assert.equal(b.socket.writableNeedDrain, false);
 });
 
 for (const destroy of [false, true]) {
@@ -307,57 +308,88 @@ test("terminal _sendNow preserves function error codes and event order", () => {
     }
 });
 
-test("T06/B04 reproduction: an already terminal _sendNow still drops message completions", () => {
-    // Retain this pre-existing limitation without expanding #601 into terminal-state hardening.
+test("T06/B04: an already terminal _sendNow settles its message completion once", () => {
     for (const ended of [false, true]) {
         const b = socketBoundary();
         const errors: string[] = [];
         let calls = 0;
+        const code = ended
+            ? "ERR_STREAM_WRITE_AFTER_END"
+            : "ERR_STREAM_DESTROYED";
         b.socket.on("error", (error: any) => errors.push(error.code));
         if (ended) {
             b.socket._writeEnded = true;
             b.socket.connecting = true;
         } else b.socket.destroy();
         b.drainTasks();
-        b.socket._sendNow(new Uint8Array([1]), 1, {
-            _sent() {
+        const owner = {
+            _sent(error: any) {
+                assert.equal(this, owner);
+                assert.equal(error.name, "Error");
+                assert.equal(error.code, code);
                 calls++;
+                errors.push("callback:" + error.code);
             },
-        });
-        b.drainTasks();
+        };
+        assert.equal(b.socket._sendNow(new Uint8Array([1]), 1, owner), false);
         assert.equal(calls, 0);
-        assert.deepEqual(errors, ended ? ["ERR_STREAM_WRITE_AFTER_END"] : []);
+        b.drainTasks();
+        b.socket.destroy();
+        b.socket._flushWrites();
+        b.drainTasks();
+        assert.equal(calls, 1);
+        assert.deepEqual(
+            errors,
+            ended ? ["callback:" + code, code] : ["callback:" + code],
+        );
     }
 });
 
-test("T06/B04 reproduction: an immediate send error still omits the supplied completion", () => {
+test("T06/B04: an immediate send error completes before error and close", () => {
     for (const kind of ["function", "message"]) {
         const b = socketBoundary([-32]);
         const events: string[] = [];
         let calls = 0;
-        b.socket.on("error", (error: any) =>
-            events.push(error.name + ":" + error.code + ":" + error.syscall),
-        );
+        let completionError: unknown;
+        b.socket.on("error", (error: any) => {
+            events.push(error.name + ":" + error.code + ":" + error.syscall);
+            assert.equal(error, completionError);
+        });
         b.socket.on("close", (hadError: boolean) =>
             events.push("close:" + hadError),
         );
+        const complete = (error: any) => {
+            assert.equal(error.name, "Error");
+            assert.equal(error.code, "EPIPE");
+            assert.equal(error.syscall, "write");
+            completionError = error;
+            calls++;
+            events.push("callback");
+        };
         const callback =
             kind === "message"
                 ? {
-                      _sent() {
-                          calls++;
+                      _sent(error: unknown) {
+                          assert.equal(this, callback);
+                          complete(error);
                       },
                   }
-                : () => {
-                      calls++;
-                  };
+                : complete;
         assert.equal(
             b.socket._sendNow(new Uint8Array([1]), 1, callback),
             false,
         );
-        b.drainTasks();
-        assert.deepEqual(events, ["Error:EPIPE:write", "close:true"]);
         assert.equal(calls, 0);
+        b.drainTasks();
+        b.socket.destroy();
+        b.socket._flushWrites();
+        b.drainTasks();
+        assert.deepEqual(events, [
+            "callback",
+            "Error:EPIPE:write",
+            "close:true",
+        ]);
+        assert.equal(calls, 1);
         assert.equal(b.socket.writableLength, 0);
         assert.deepEqual(b.wire, []);
         assert.deepEqual(b.closed, [7]);

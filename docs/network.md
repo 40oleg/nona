@@ -46,6 +46,67 @@ server has a `clientError` listener; parse errors carry the llhttp codes
 
 `https:` requests are made with [`node:https`](#nodehttps), which runs this client over TLS.
 
+### Write backpressure
+
+TCP sockets and HTTP outgoing messages use a 16 KiB write high-water mark.
+Stop producing when `write()` returns `false`, then resume on `drain`; also
+handle terminal `error`/`close` events. HTTP counts corked chunks, encoded
+output waiting for socket assignment, and its active socket's queued bytes.
+`writableNeedDrain` records an outstanding false write until drain or terminal
+cleanup, even when a partial send leaves fewer than 16 KiB queued. Auto-cork
+flushes on a later microtask and cannot let a synchronous producer keep
+appending while returning `true`. Explicit corks must eventually be uncorked
+by the caller. A destroyed message never emits a later drain.
+
+For HTTPS, the TLS socket carries this obligation from pending plaintext
+through encrypted records on its raw TCP socket. A raw write can return
+`true` for a partial tail below 16 KiB while HTTP still owes a drain from
+its larger corked write. TLS arms the raw transport's notification and
+forwards it only after both queues empty; HTTP waits for that obligation
+to clear. Successful queued completions precede this drain. An immediate
+send can notify drain before its deferred callback, as before.
+
+The high-water mark is a flow-control threshold, not a hard memory cap. For
+`N` concurrent producers that stop at the first false write, maximum encoded
+write size `C`, and bounded HTTP header/framing overhead `F` per producer,
+the logical pending-byte envelope is conservatively `N * (16384 + C + F)`.
+If each producer additionally holds at most one in-flight request/body of
+size `R`, include `N * R` in its application-owned storage. Declare these
+limits together: unlimited requests, oversized writes, retained backing
+buffers or ignoring false invalidate that envelope. Kernel buffers, read
+arenas, object/callback overhead, temporary encoding/copy storage and the
+reusable output arena are additional memory; RSS alone cannot measure the
+write queues or establish that their owners were released.
+
+For TLS application records, add 22 bytes per record of at most 16 KiB
+plaintext (five-byte header, content type, sixteen-byte authentication tag).
+For a bounded batch of plaintext `B`, this adds `22 * ceil(B / 16384)`;
+separately account for handshake/certificate input and any key-update records.
+The plaintext waiting for the handshake obeys the same producer limit;
+unlimited pre-handshake writes still invalidate it.
+
+The focused regression uses one 1 MiB data response at a time (three
+sequential requests on a keep-alive connection), one independent probe, 4 KiB
+writes and at most 256 bytes of response framing/header allowance. It checks
+the data producer's pending bytes against `16384 + 4096 + 256`, exact body
+bytes, false/drain transitions, completion counts, and empty queues after
+production stops. Scripted syscall tests separately cover partial sends,
+EAGAIN/EINTR, queued completions, nested corking, socket assignment and
+terminal cleanup. A small compiled adapter retains a queued completion owner
+under forced GC, separately from ordinary native HTTP allocation tests.
+
+The HTTPS fixture uses two sequential 160 KiB uploads on one keep-alive
+connection, 20 KiB writes, at most 1 KiB HTTP framing/header allowance and
+one independent probe. It checks exact content and status, completions,
+finish/close counts, progress, reuse and empty message/TLS/raw queues. Nona
+keeps the one-chunk allowance above. Node 26.9.0's cork can accept an
+oversized first chunk and return false on the next: the observed queue
+was 41,074 bytes at a 16 KiB HWM. The shared oracle therefore checks Node
+against `HWM + 2*C + F`, plus TLS record expansion, while retaining Nona's
+stricter `HWM + C + F` assertion. These are declared fixture envelopes,
+not universal memory caps. See the [verification record](issue-615-verification.md)
+for the deterministic failure and pending hosted native/GC evidence.
+
 Performance: the server parses request heads, copies bodies, folds header
 names and writes responses with native helpers (`src/runtime/http-native.ts`);
 a request creates its `IncomingMessage` and `ServerResponse` as base-class
@@ -257,8 +318,11 @@ measurement. Heap and external-memory figures are reported separately using the
 server runtime's own counters, without interpreting Nona counters as V8 GC
 statistics. Unsupported counters remain `null`. Shared-runner timing and cache
 noise can fail a short control's RSS/p99 criteria; the report retains that failure
-without relaxing the budgets. Such a control still checks request correctness,
-sampling and lifecycle behavior.
+without relaxing the budgets. Explicit `--smoke` mode treats only p99 as a
+non-gating smoke observation, retaining its measured values and original criterion
+verdict. RSS, correctness, crash, resource, complete-sample and route-coverage
+criteria still gate smoke correctness. A short run without `--smoke` keeps p99
+gating ([#642](https://github.com/40oleg/nona/issues/642)).
 
 The quiescent baseline is sampled one second after readiness, before load.
 After workers finish, their keep-alive agents are destroyed and the server settles
@@ -280,6 +344,20 @@ counter means the handle criterion cannot pass.
   and at least the configured number of samples covering each window; every
   configured route must have a successful request
 
+Load snapshots identify each observation as `complete` or `terminal-partial`.
+The deadline can clip the last sampling interval; that partial snapshot stays
+in the raw report with all requests, deliberate aborts and failures, but is
+excluded from RSS and latency comparisons regardless of whether it has latency
+observations. The last complete comparison window ends at the preceding complete
+boundary, recorded as `summary.comparisonEndSeconds`; its coverage must still
+reach the actual load end within the existing sampling tolerance. Sample-count
+minimums and performance limits are unchanged; explicit interval boundaries must
+be contiguous. Empty complete comparison intervals, missing snapshots, gaps,
+early exits and crashes fail. Older evidence
+without the new marker remains eligible only for genuinely complete intervals;
+old reports did not record the new metadata
+([#640](https://github.com/40oleg/nona/issues/640)).
+
 The test writes `soak-report/http-soak.{json,md}` (pass/fail, raw samples, all
 failures and their reasons); the server executable is built into
 `bench/results/`. When the server crashes, failed requests of the last 2
@@ -289,12 +367,52 @@ build and catchable interruption failures also write failure receipts with the
 original error/code, child logs and any partial samples. In-progress reports are
 explicitly incomplete until final criteria have been evaluated.
 
+Premature response aborts, errors and closes settle each request once as a
+failure; `/slow` counts as a deliberate successful abort only after the client
+has received its configured byte threshold. An interrupted statistics response
+returns no statistics. This lets workers drain and child cleanup finish before
+the final JSON/Markdown criteria are written, retaining the server's original
+exit code (including an unexpected zero) and stderr. A failed configured run
+returns a nonzero driver status ([#636](https://github.com/40oleg/nona/issues/636)).
+
 `summary.pass` describes only the configured run. `summary.acceptancePass` also
 requires a native server with a known measured source commit and image hash,
 at least 180 minutes, the 10-minute warm-up, 30-minute comparison windows,
 sampling at least once per minute and successful coverage of all eight routes.
 A short Node control, smoke, incomplete run or workload excluding `/big` cannot
 satisfy native three-hour acceptance.
+
+For explicit smoke, `summary.originalPass` records the verdict of all original
+criteria, including p99, while `summary.pass` and the driver exit status describe
+smoke correctness. The p99 criterion keeps its actual `pass` value and is marked
+`gating: false` with an observation in JSON, Markdown and console output. Native
+three-hour acceptance still requires the strict p99 20% ratio with no additive
+allowance, RSS growth below 10%, all eight routes and the existing provenance.
+
+The pinned legacy driver used by `scripts/http-soak-check.mjs` keeps its original
+JSON, Markdown, process exits and events. The wrapper records a separate
+`verification.json` smoke correctness decision for its exact five-minute,
+`big=1`, one-connection smoke. An original exit 1 qualifies only for a proven
+sole p99 failure after validating the final reports, full criterion output,
+completion receipt and original JavaScript/process exits. Missing, malformed or
+contradictory evidence, unknown or duplicate criteria, other failures, exceptions
+and incomplete execution fail. Final native-child cleanup remains in force.
+This policy does not change historical failed reports or demonstrate a native
+performance improvement; mandatory three-hour native acceptance remains pending.
+
+For completed legacy smoke, the wrapper classifies only exact Node
+`TimeoutNegativeWarning` timer-clamp blocks whose PID matches `harness.spawn`.
+The delay must be a canonical finite negative number; Node clamps it to 1 ms
+([Node 26.9.0 timers](https://nodejs.org/download/release/v26.9.0/docs/api/timers.html#settimeoutcallback-delay-args)).
+The pinned sampling loop can cross its next deadline between its clock check and
+sleep calculation. Parsed warnings appear as `correctnessSmoke.warningObservations`
+in the separate decision, with their name, PID, delay and clamped delay. Raw stderr
+bytes, reports and original exits remain intact. Empty stderr retains its existing
+behavior; unknown, malformed, mixed or trailing diagnostics and missing or wrong
+warning PIDs fail. Recognized warnings still require every completion, exit,
+exception-ledger, request, memory, resource, coverage, p99-observation and cleanup
+check to succeed. Historical failed runs keep their original status
+([#644](https://github.com/40oleg/nona/issues/644)).
 
 ### Running locally
 
@@ -336,7 +454,7 @@ and compiler entry-point hash. A custom duration must exceed its warm-up: settin
 Cheap checks (no server, native compiler or load):
 
 ```sh
-node --test --test-concurrency=1 scripts/http-soak.test.mjs
+node --test --test-concurrency=1 scripts/http-soak.test.mjs scripts/http-soak-completion.test.mjs scripts/http-soak-smoke-policy.test.mjs
 ```
 
 The separate `http-soak-control.yml` workflow runs these checks and short real
@@ -376,6 +494,48 @@ No full native three-hour baseline is retained. The first full-mix hosted run
 still waits for #601, #602 and #615; the infrastructure follow-up remains
 Part of #516. New Windows/Linux control workflow evidence is pending publication
 and hosted execution by the parent harness.
+
+For a bounded current-candidate investigation, the existing `native-platforms`
+workflow also has the manual `http602-current` diagnostic mode. It requires the
+exact reviewed `diagnostic_sha` on an `issue-602-startup-*` branch, with workflow
+and candidate SHA/ref agreement, and selects only one GitHub-hosted
+`windows-2025` job using Node.js 26.9.0. Its concurrency group is unique to the
+mode, run and attempt; it cannot cancel another mode. The job is limited to
+35 minutes, with a 28-minute driver deadline.
+
+The current compiler builds the frozen original server from commit
+`ab5ea083d793e0a665fde8b0a4b33bc1fa67208e`. The original listeners and sixteen
+65,536-byte `/big` writes remain. Two serial, independent five-minute continuous
+32-client arms use the shared soak wrapper: native with forced GC stress off,
+then a same-host Node control. Forced stress off does **not** establish zero
+collections. All correctness, resource, coverage, error, termination and cleanup
+gates remain; only smoke p99 is observational. Original reports, original exits
+and raw stderr are retained alongside the separate correctness decision.
+
+Six additional small controlled projections reuse `runTrial` and `serverSource`:
+queued-timeout and destroy-queued, each with Node, native-off and native-stress,
+one client and the same original `/big` size/listeners. These finite projections
+are separate from the continuous pressure arms and the historical 57-trial
+campaign. An unsent-close observation requires actual positive pending output
+at destruction or closure, matching server and client closure before forced
+cleanup, complete termination evidence and a matching accepted Node control.
+A queue observed only at write time is insufficient. Deliberate resets require
+the specific traced destroy transition and exact reset accounting, including
+under stress; crashes, hangs, wrong bodies and unexplained errors still fail.
+If the real trace cannot establish these conditions, its result stays failed
+or incomplete. No historical evaluator, matrix, source pin or startup bound is
+relaxed.
+
+Partial and final evidence is always uploaded from `work/http602-current/`,
+including actual settings, source/image/compiler hashes, candidate tree,
+workflow/run/attempt, runner image and Node version. Each pressure arm has its
+own output and checked source restoration. The bounded driver uses the existing
+safe child-environment allowlist and records raw process failures; it introduces
+no SDK installation or dump/environment inventory. The historical `0xc0000005`
+cause and its causal repair remain unproved. A no-fault diagnostic does not
+establish a product fix, close #602 or complete a release. The owner cancelled
+the mandatory three-hour validation on 2026-11-04; this mode adds neither that
+wait nor a new full57 prerequisite.
 
 **Oracle baseline (Node.js server, not Nona):** a 5-minute smoke run of
 `NONA_SOAK_SERVER=bench/http/soak-server.mjs` on the same machine, 32

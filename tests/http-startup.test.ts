@@ -233,6 +233,8 @@ test("dispatch mode runs only startup job; default/full retain original jobs and
                         event_name: eventName,
                         sha: head,
                         ref,
+                        workflow_sha: head,
+                        workflow_ref: `40oleg/nona/.github/workflows/native-platforms.yml@${ref}`,
                         event: {
                             pull_request: {
                                 labels: label ? [{ name: "full-ci" }] : [],
@@ -241,6 +243,7 @@ test("dispatch mode runs only startup job; default/full retain original jobs and
                     },
                     contains: (a: string[], v: string) => a.includes(v),
                     startsWith: (s: string, p: string) => s.startsWith(p),
+                    format: (s: string, a: string) => s.replace("{0}", a),
                 });
             })
             .map(([name]) => name)
@@ -248,6 +251,12 @@ test("dispatch mode runs only startup job; default/full retain original jobs and
     }
     assert.deepEqual(selected("startup-602", "workflow_dispatch"), [
         "http-startup-602",
+    ]);
+    assert.deepEqual(selected("env-602", "workflow_dispatch"), [
+        "http-env-602",
+    ]);
+    assert.deepEqual(selected("http602-current", "workflow_dispatch"), [
+        "http602-current",
     ]);
     const original = [
         "browser-compiler",
