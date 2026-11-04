@@ -4,6 +4,8 @@
 
 ### Fixes
 
+- **HTTP, HTTPS and TCP writes honor backpressure through partial sends and corking.** A false write keeps an explicit drain obligation until its queued bytes leave, including HTTP auto-corked writes and TLS/raw socket tails below the high-water mark. TLS carries this obligation across handshake completion without an early drain. Terminal paths cancel pending writes and drain listeners; queued HTTP completion objects retain their completion protocol. ([#615](https://github.com/40oleg/nona/issues/615))
+
 - **Initial Windows process environment folding scales linearly.** A temporary membership index avoids repeatedly folding earlier names while preserving initial spelling, values, ordering, descriptors and inherited enumerable suppression. Environment parsing, POSIX behavior and the mutation/Proxy path are unchanged. This source correction alone does not establish a native startup timing improvement or resolve the HTTP acceptance work in #602 ([#638](https://github.com/40oleg/nona/issues/638)).
 
 ### Testing
@@ -14,7 +16,7 @@
 
 - **HTTP soak infrastructure review.** Add cheap Node decision regressions and hosted Windows/Linux control/failure fixtures, retain startup/interruption evidence, identify source and image provenance, validate all deterministic JSON values and enforce the p99 20% ratio without additive slack. Short controls remain separate from full native acceptance ([#516](https://github.com/40oleg/nona/issues/516)).
 
-- **HTTP server soak test.** `scripts/http-soak.mjs` runs a compiled Nona HTTP server for hours under steady load and checks it stays healthy: no crash, no failed requests, RSS growth within 10%, handles return to baseline, and latency within 20%. A smoke mode runs for 5 minutes; the full test is 180 minutes (configurable). `npm run soak:http -- --smoke` locally or via the `http-soak` GitHub Actions workflow on demand ([#516](https://github.com/40oleg/nona/issues/516)). On win32-x64 it finds a keep-alive stall after large chunked responses ([#601](https://github.com/40oleg/nona/issues/601)) and a crash under concurrent 1 MiB responses ([#602](https://github.com/40oleg/nona/issues/602)); the compiled server does not pass yet.
+- **HTTP server soak test.** `scripts/http-soak.mjs` runs a compiled Nona HTTP server for hours under steady load and checks it stays healthy: no crash, no failed requests, RSS growth within 10%, handles return to baseline, and latency within 20%. A smoke mode runs for 5 minutes; the full test is 180 minutes (configurable). `npm run soak:http -- --smoke` locally or via the `http-soak` GitHub Actions workflow on demand ([#516](https://github.com/40oleg/nona/issues/516)). Earlier win32-x64 smoke found a keep-alive stall after large chunked responses ([#601](https://github.com/40oleg/nona/issues/601)) and a crash under concurrent 1 MiB responses ([#602](https://github.com/40oleg/nona/issues/602)). Full CI, hosted HTTP/TLS and native GC validation at the integrated head, and the separate #516 three-hour acceptance remain pending.
 
 ## v0.34.0 — 2026-10-31
 

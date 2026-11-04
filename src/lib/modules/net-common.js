@@ -537,6 +537,9 @@ export class Socket extends Readable {
     get writableLength() {
         return this._writeLength;
     }
+    get writableHighWaterMark() {
+        return 16384;
+    }
     get bufferSize() {
         return this._writeLength;
     }
@@ -547,7 +550,7 @@ export class Socket extends Readable {
         return this._finished;
     }
     get writableNeedDrain() {
-        return this._needDrain;
+        return this._needDrain && !this._destroyed && !this._writeEnded;
     }
     get remoteAddress() {
         return this._peer().address;
@@ -785,7 +788,7 @@ export class Socket extends Readable {
                 "write after end",
             );
             queueMicrotask(() => {
-                if (callback) callback(error);
+                if (callback) invoke(callback, error);
                 this.emit("error", error);
             });
             return false;
@@ -805,7 +808,7 @@ export class Socket extends Readable {
                 "ERR_STREAM_DESTROYED",
                 "Cannot call write after a stream was destroyed",
             );
-            if (callback) queueMicrotask(() => callback(error));
+            if (callback) queueMicrotask(() => invoke(callback, error));
             return false;
         }
         (this._writeQueue || (this._writeQueue = [])).push({
@@ -819,6 +822,10 @@ export class Socket extends Readable {
         const ok = this._writeLength < 16384;
         if (!ok) this._needDrain = true;
         return ok;
+    }
+    /** Arm a drain owed by an upper layer even when our tail is below HWM. */
+    _requestDrain() {
+        this._needDrain = true;
     }
     _flushWrites() {
         while (
@@ -862,9 +869,16 @@ export class Socket extends Readable {
         if (this._writeQueue === null || this._writeQueue.length === 0) {
             if (this._watched & WRITE) markDirty(this);
             if (this._needDrain) {
-                this._needDrain = false;
                 queueMicrotask(() => {
-                    if (!this._destroyed) this.emit("drain");
+                    // Another write may have queued bytes before this job.
+                    if (
+                        !this._destroyed &&
+                        this._needDrain &&
+                        this._writeLength === 0
+                    ) {
+                        this._needDrain = false;
+                        this.emit("drain");
+                    }
                 });
             }
             if (this._writeEnded && !this._shutdown) this._finishWrites();
@@ -942,6 +956,7 @@ export class Socket extends Readable {
                 }
         this._writeQueue = null;
         this._writeLength = 0;
+        this._needDrain = false;
         if (this.server !== null) this.server._removeConnection(this);
         callback(error);
     }
@@ -1028,19 +1043,22 @@ export class Socket extends Readable {
             (this._writeQueue !== null && this._writeQueue.length > 0) ||
             this.connecting ||
             this._fd < 0 ||
-            this._destroyed
+            this._destroyed ||
+            this._writeEnded
         ) {
-            const pending = sliceBytes(bytes, 0, length);
-            // Terminal public-write paths only accept function callbacks.
-            // Keep their existing behavior; live writes retain the HTTP owner.
-            if (this._writeEnded || this._destroyed)
-                return this.write(pending, callback);
-            return this.write(pending, undefined, callback);
+            // The internal callback may be an HTTP message, not a function.
+            return this.write(
+                sliceBytes(bytes, 0, length),
+                undefined,
+                callback,
+            );
         }
         let n = sys.send(this._fd, bytes, length);
         if (n === EINTR) n = EAGAIN;
         if (n < 0 && n !== EAGAIN) {
-            this.destroy(errnoException(n, "write"));
+            const error = errnoException(n, "write");
+            if (callback) queueMicrotask(() => invoke(callback, error));
+            this.destroy(error);
             return false;
         }
         if (n === EAGAIN) n = 0;
@@ -1055,7 +1073,9 @@ export class Socket extends Readable {
             });
             this._writeLength += rest.length;
             markDirty(this);
-            return this._writeLength < 16384;
+            const ok = this._writeLength < 16384;
+            if (!ok) this._needDrain = true;
+            return ok;
         }
         if (callback) invoke(callback, null);
         return true;

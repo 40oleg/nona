@@ -3,13 +3,30 @@ on:
     push:
         branches: [main]
     workflow_dispatch:
+        inputs:
+            diagnostic_mode:
+                type: choice
+                default: normal
+                options: [normal, latency615-triad]
+            expected_head:
+                type: string
+            expected_tree:
+                type: string
+            expected_workflow_sha256:
+                type: string
+            expected_workflow_id:
+                type: string
+            source_identity_sha256:
+                type: string
+            dispatch_nonce:
+                type: string
     pull_request:
         types: [opened, synchronize, reopened, labeled]
 permissions:
     contents: read
 concurrency:
-    group: http-keepalive-${{ github.repository }}-${{ github.head_ref || github.sha }}
-    cancel-in-progress: true
+    group: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'latency615-triad' && format('http-latency615-{0}-{1}', github.repository, inputs.dispatch_nonce) || format('http-keepalive-{0}-{1}', github.repository, github.head_ref || github.sha) }}
+    cancel-in-progress: ${{ !(github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'latency615-triad') }}
 env:
     NODE_VERSION: "26.9.0"
 jobs:
@@ -26,8 +43,8 @@ jobs:
                 runner: [windows-latest, ubuntu-24.04]
         env:
             # Match check.yml: stress all requested cases with gc-stress and
-            # all main/manual runs. None of these files is in gc-stress.json;
-            # other PRs run them without stress, as the ordinary shards do.
+            # all main/manual runs. The explicit ownership fixture also keeps
+            # its gcStress option separate from ordinary buffering/TLS cases.
             NONA_GC_STRESS: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'gc-stress') && 'off' || '' }}
         steps:
             - name: Require a GitHub-hosted runner
@@ -67,6 +84,14 @@ jobs:
                   dist/tests/net.test.js
                   dist/tests/net-native.test.js
                   dist/tests/net-send-source.test.js
+                  dist/tests/http-backpressure.test.js
+                  dist/tests/http-backpressure-source.test.js
+            - name: TLS and HTTPS public API, handshake and backpressure regressions
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              shell: bash
+              run: |
+                  set -o pipefail
+                  node --test --test-concurrency=1 --test-reporter=tap dist/tests/https.test.js dist/tests/tls.test.js dist/tests/tls-handshake.test.js 2>&1 | tee work/http-601/backpressure-tls.tap
             - name: Recover the original soak source from PR 603
               id: soak-source
               if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -94,4 +119,46 @@ jobs:
                   name: http-601-${{ matrix.runner }}
                   path: work/http-601
                   if-no-files-found: warn
+                  retention-days: 14
+    latency615-triad:
+        if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'latency615-triad'
+        name: latency615 triad (Windows retained image, nonce ${{ inputs.dispatch_nonce }})
+        runs-on: windows-latest
+        timeout-minutes: 31
+        permissions:
+            contents: read
+            actions: read
+        env:
+            DIAGNOSTIC_MODE: ${{ inputs.diagnostic_mode }}
+            EXPECTED_HEAD: ${{ inputs.expected_head }}
+            EXPECTED_TREE: ${{ inputs.expected_tree }}
+            EXPECTED_WORKFLOW_SHA256: ${{ inputs.expected_workflow_sha256 }}
+            EXPECTED_WORKFLOW_ID: ${{ inputs.expected_workflow_id }}
+            SOURCE_IDENTITY_SHA256: ${{ inputs.source_identity_sha256 }}
+            DISPATCH_NONCE: ${{ inputs.dispatch_nonce }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ inputs.expected_head }}
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+            - name: Validate nonce and evidence destination
+              id: admission-path
+              shell: pwsh
+              run: |
+                  node --input-type=module -e 'import {nonce} from "./scripts/http-latency615-support.mjs"; import {appendFileSync} from "node:fs"; nonce(process.env.DISPATCH_NONCE); if (!/^[a-f0-9]{40}$/.test(process.env.EXPECTED_HEAD)) throw Error("head pin"); appendFileSync(process.env.GITHUB_OUTPUT, "artifact=latency615-triad-"+process.env.EXPECTED_HEAD+"-"+process.env.GITHUB_RUN_ID+"-"+process.env.GITHUB_RUN_ATTEMPT+"-"+process.env.DISPATCH_NONCE+"\n"+"path=work/http-latency615/"+process.env.GITHUB_RUN_ID+"-"+process.env.GITHUB_RUN_ATTEMPT+"-"+process.env.DISPATCH_NONCE+"\n");'
+            - name: One instrumented nativeA, Node, nativeB triad
+              run: node scripts/http-latency615.mjs
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  NONA_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+            - name: Retain diagnostic observations (product acceptance remains false)
+              if: always() && steps.admission-path.outcome == 'success'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ${{ steps.admission-path.outputs.artifact }}
+                  path: ${{ steps.admission-path.outputs.path }}
+                  if-no-files-found: error
                   retention-days: 14
