@@ -13,6 +13,10 @@ import {
     unpatchDriver,
     sha256,
 } from "./http-latency615-support.mjs";
+import {
+    instrumentLegacyCompletion,
+    legacyCorrectnessSmoke,
+} from "./http-soak-smoke-policy.mjs";
 
 const original = readFileSync(process.env.LATENCY615_TEST_INPUT);
 const wrapperUrl = new URL("./http-soak-check.mjs", import.meta.url);
@@ -41,21 +45,27 @@ class MemoryFiles extends Map {
 
 // Execute only original histogram/sample/evaluator functions and the inserted
 // hooks, with deterministic clock, CPU and statistics. No scheduling or requests.
-async function sampleDriver(source, out, files, env, tailBin) {
+async function sampleDriver(source, out, files, env, tailBin, mode) {
     let now = 1000;
+    let stdout = "";
     const proc = new EventEmitter();
     Object.assign(proc, {
         env,
         pid: 7,
         cpuUsage: () => ({ user: 12, system: 3 }),
-        stdout: { write() {} },
+        stdout: { write: (value) => (stdout += value) },
         exit(code) {
+            if (mode === "during-exit") throw Error("late exit exception");
             this.exitCode = code;
             this.emit("exit", code);
         },
     });
     const append = (p, b) => files.set(p, (files.get(p) ?? "") + b);
-    const write = (p, b) => files.set(p, String(b));
+    const write = (p, b) => {
+        files.set(p, String(b));
+        if (mode === "before-exit" && p === join(out, "http-soak.md"))
+            throw Error("late report exception");
+    };
     const child = new FakeChild();
     const ctx = vm.createContext({
         Buffer,
@@ -76,17 +86,20 @@ async function sampleDriver(source, out, files, env, tailBin) {
         },
         gitCommit: () => "inert",
         target: "linux-x64",
-        serverLog: "",
+        serverLog: [],
         mix: [["big", 1]],
         writeFileSync: write,
+        readFileSync: (p) => files.get(p),
         __l615Append: append,
         __l615Write: write,
         __diagAppendFileSync: append,
-        console: { log() {} },
+        console: { log: (value) => (stdout += value + "\n") },
         fetchStats: async () => ({
             memory: { rss: 100 },
             openSockets: 1,
             activeResources: 0,
+            errors: 0,
+            uncaught: 0,
         }),
         procRss: () => 100,
         procFds: () => null,
@@ -100,7 +113,8 @@ async function sampleDriver(source, out, files, env, tailBin) {
             : "";
     };
     vm.runInContext(
-        hook("runtime") +
+        source.slice(0, source.indexOf("import {")) +
+            hook("runtime") +
             slice("function envNumber", "const PATHS") +
             slice("const BUCKET_BASE", "function sleep") +
             slice("const counters = {", "let jsonLength") +
@@ -123,13 +137,12 @@ async function sampleDriver(source, out, files, env, tailBin) {
         "loadStart = 2000; lastSampleAt = loadStart;\n" + hook("start"),
         ctx,
     );
-    for (const [time, n, bin] of [
-        [72000, 70000, 818],
-        [302000, 84587, tailBin],
-    ]) {
-        now = time;
+    for (let i = 1; i <= 30; i++) {
+        now = 2000 + i * 10000;
+        const n = i === 30 ? 9587 : 5000;
+        const bin = i > 24 ? tailBin : 818;
         vm.runInContext(
-            `interval.requests = ${n}; interval.hist.n = ${n}; interval.hist.counts[${bin}] = ${n};`,
+            `interval.requests = ${n}; interval.hist.n = ${n}; interval.hist.counts[${bin}] = ${n}; counters.ok += ${n};`,
             ctx,
         );
         await vm.runInContext('sample("load")', ctx);
@@ -147,18 +160,25 @@ async function sampleDriver(source, out, files, env, tailBin) {
         ctx,
     );
     vm.runInContext(hook("kill"), ctx);
-    child.emit("exit", 0, null);
+    if (mode !== "orphan") child.emit("exit", 0, null);
     child.stdout.emit("end");
     child.stdout.emit("close");
     child.stderr.emit("end");
     child.stderr.emit("close");
     child.emit("close", 0, null);
-    vm.runInContext(
-        "counters.ok = 154587;\n" +
-            slice("// --- Criteria", "\nconst mb =") +
-            source.slice(source.lastIndexOf("process.exit(pass ? 0 : 1);")),
-        ctx,
-    );
+    if (mode === "failed-request")
+        vm.runInContext(
+            "counters.failed = 1; counters.failures.test = 1;",
+            ctx,
+        );
+    try {
+        vm.runInContext(source.slice(source.indexOf("// --- Criteria")), ctx);
+    } catch (error) {
+        proc.emit("uncaughtExceptionMonitor", error);
+        proc.exitCode = 1;
+        proc.emit("exit", 1);
+    }
+    return { code: proc.exitCode, stdout };
 }
 
 async function runWrapper({
@@ -166,6 +186,7 @@ async function runWrapper({
     revision = pin,
     tailBin = 842,
     exitCode,
+    mode,
 } = {}) {
     const files = new MemoryFiles(),
         calls = [];
@@ -185,8 +206,9 @@ async function runWrapper({
         execPath: "inert-node",
         stdout: { write() {} },
         stderr: { write() {} },
-        kill() {
-            throw Error("unexpected orphan cleanup");
+        kill(...args) {
+            calls.push({ kill: args });
+            assert.equal(mode, "orphan", "unexpected orphan cleanup");
         },
     };
     const ctx = vm.createContext({
@@ -197,6 +219,8 @@ async function runWrapper({
         resolve,
         fileURLToPath,
         patchDriver,
+        instrumentLegacyCompletion,
+        legacyCorrectnessSmoke,
         process: proc,
         console: { error() {} },
         hostedIdentity: () => ({
@@ -223,17 +247,18 @@ async function runWrapper({
             const child = new FakeChild();
             queueMicrotask(async () => {
                 try {
-                    await sampleDriver(
+                    const result = await sampleDriver(
                         String(files.get(sourcePath)),
                         out,
                         files,
                         options.env,
                         tailBin,
+                        mode,
                     );
-                    const code =
-                        exitCode ??
-                        JSON.parse(files.get(join(out, "harness-exit.json")))
-                            .code;
+                    child.stdout.emit("data", Buffer.from(result.stdout));
+                    if (mode === "child-error")
+                        child.emit("error", Error("late child error"));
+                    const code = exitCode ?? result.code;
                     child.exitCode = code;
                     child.emit("exit", code, null);
                     child.emit("close", code, null);
@@ -261,7 +286,7 @@ async function runWrapper({
     };
 }
 
-test("normal wrapper emits lossless intervals, exact selections and CPU even when original p99 exits 1", async () => {
+test("normal wrapper defers only smoke p99 while retaining lossless intervals and original exit 1", async () => {
     const run = await runWrapper();
     assert.ok(
         run.files.has(join(run.out, "intervals.jsonl")),
@@ -281,38 +306,47 @@ test("normal wrapper emits lossless intervals, exact selections and CPU even whe
         })),
         [
             { index: 0, phase: "baseline", start: 0, end: 0 },
-            { index: 1, phase: "load", start: 0, end: 70000 },
-            { index: 2, phase: "load", start: 70000, end: 300000 },
-            { index: 3, phase: "after", start: 300000, end: 308000 },
+            ...Array.from({ length: 30 }, (_, i) => ({
+                index: i + 1,
+                phase: "load",
+                start: i * 10000,
+                end: (i + 1) * 10000,
+            })),
+            { index: 31, phase: "after", start: 300000, end: 308000 },
         ],
     );
     for (const [index, bin, n] of [
-        [1, 818, 70000],
-        [2, 842, 84587],
+        [7, 818, 5000],
+        [30, 842, 9587],
     ]) {
         const expected = Array(2000).fill(0);
         expected[bin] = n;
         assert.deepEqual(intervals[index].histogram, { n, counts: expected });
         assert.deepEqual(intervals[index].cpu, {
-            mono: index === 1 ? 72000 : 302000,
+            mono: index === 7 ? 72000 : 302000,
             user: 12,
             system: 3,
         });
         assert.deepEqual(intervals[index].absolute, {
             timeOrigin: 1700000000000,
-            start: index === 1 ? 2000 : 72000,
-            end: index === 1 ? 72000 : 302000,
+            start: index === 7 ? 62000 : 292000,
+            end: index === 7 ? 72000 : 302000,
             loadStart: 2000,
-            swap: index === 1 ? [72000, 72000] : [302000, 302000],
-            stats: index === 1 ? [72000, 72000] : [302000, 302000],
+            swap: index === 7 ? [72000, 72000] : [302000, 302000],
+            stats: index === 7 ? [72000, 72000] : [302000, 302000],
         });
     }
     const telemetry = json("telemetry.json"),
         scalar = json("http-soak.json");
-    assert.deepEqual(telemetry.headIndices, [1]);
-    assert.deepEqual(telemetry.tailIndices, [2]);
-    assert.deepEqual(telemetry.head, intervals[1].histogram);
-    assert.deepEqual(telemetry.tail, intervals[2].histogram);
+    assert.deepEqual(telemetry.headIndices, [7, 8, 9, 10, 11, 12]);
+    assert.deepEqual(telemetry.tailIndices, [24, 25, 26, 27, 28, 29, 30]);
+    const headCounts = Array(2000).fill(0),
+        tailCounts = Array(2000).fill(0);
+    headCounts[818] = 30000;
+    tailCounts[818] = 5000;
+    tailCounts[842] = 34587;
+    assert.deepEqual(telemetry.head, { n: 30000, counts: headCounts });
+    assert.deepEqual(telemetry.tail, { n: 39587, counts: tailCounts });
     assert.equal(scalar.summary.p99Head, 3.427);
     assert.equal(scalar.summary.p99Tail, 4.351);
     assert.equal(scalar.summary.ok, 154587);
@@ -321,12 +355,30 @@ test("normal wrapper emits lossless intervals, exact selections and CPU even whe
     assert.equal(telemetry.pass, false);
     assert.equal(json("telemetry-state.json").exitCode, 1);
     assert.equal(json("harness-exit.json").code, 1);
-    assert.equal(run.exitCode, 1);
-    assert.equal(run.report.pass, false);
-    assert.match(
-        run.report.failure.message,
-        /original soak harness returned failure/,
+    assert.equal(run.exitCode, undefined);
+    assert.equal(run.report.pass, true, JSON.stringify(run.report.failure));
+    assert.equal(run.report.correctnessSmoke.originalPass, false);
+    assert.equal(run.report.correctnessSmoke.acceptancePass, false);
+    assert.equal(run.report.correctnessSmoke.p99.gating, false);
+    assert.equal(json("driver-completion.json").code, 1);
+    assert.equal(
+        json("driver-completion.json").json,
+        run.files.get(join(run.out, "http-soak.json")),
     );
+    assert.equal(
+        json("driver-completion.json").markdown,
+        run.files.get(join(run.out, "http-soak.md")),
+    );
+    assert.match(
+        run.files.get(join(run.out, "http-soak.md")),
+        /^# HTTP soak test: FAIL\n/,
+    );
+    assert.match(
+        run.files.get(join(run.out, "harness.stdout.log")),
+        /\nFAIL; reports in /,
+    );
+    assert.equal(run.files.get(join(run.out, "driver-errors.jsonl")), "");
+    assert.equal(run.files.get(join(run.out, "harness.stderr.log")), "");
     const events = String(run.files.get(join(run.out, "events.jsonl")))
         .trim()
         .split("\n")
@@ -367,12 +419,14 @@ test("composition is reversible and preserves normal settings, deadline and raw 
     );
     const loggingStart = executed.indexOf("\nconst __diagOut");
     const loggingEnd = executed.indexOf("let stopping = false;", loggingStart);
-    const lossless = Buffer.from(
-        (executed.slice(0, loggingStart) + executed.slice(loggingEnd)).replace(
-            "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
-            "import { mkdirSync,",
-        ),
+    const completed = (
+        executed.slice(0, loggingStart) + executed.slice(loggingEnd)
+    ).replace(
+        "import { appendFileSync as __diagAppendFileSync, mkdirSync,",
+        "import { mkdirSync,",
     );
+    const lossless = patchDriver(original).source;
+    assert.equal(completed, instrumentLegacyCompletion(lossless.toString()));
     assert.deepEqual(unpatchDriver(lossless, receipt.recipe), original);
     assert.equal(receipt.originalSha256, sha256(original));
     assert.equal(receipt.losslessSha256, sha256(lossless));
@@ -467,17 +521,39 @@ test("changed revision, pin or insertion markers are refused before build or exe
     }
 });
 
-test("original scalar failure and nonzero exit each still fail the normal wrapper", async () => {
+test("contradictory scalar verdict and native exit still fail the normal wrapper", async () => {
     const scalar = await runWrapper({ exitCode: 0 });
     assert.equal(scalar.report.pass, false);
-    assert.match(
-        scalar.report.failure.message,
-        /original soak pass criteria failed/,
-    );
+    assert.equal(scalar.exitCode, 1);
+    assert.ok(scalar.report.failure);
     const exit = await runWrapper({ tailBin: 818, exitCode: 1 });
     assert.equal(exit.report.pass, false);
-    assert.match(
-        exit.report.failure.message,
-        /original soak harness returned failure/,
-    );
+    assert.equal(exit.exitCode, 1);
+    assert.ok(exit.report.failure);
 });
+
+for (const mode of [
+    "failed-request",
+    "before-exit",
+    "during-exit",
+    "child-error",
+    "orphan",
+])
+    test(`actual composed wrapper fails closed on ${mode}`, async () => {
+        const run = await runWrapper({ mode });
+        assert.equal(run.report.pass, false);
+        assert.equal(run.exitCode, 1);
+        assert.ok(run.report.failure);
+        if (mode === "before-exit" || mode === "during-exit")
+            assert.match(
+                run.files.get(join(run.out, "driver-errors.jsonl")),
+                /late .* exception/,
+            );
+        if (mode === "orphan") {
+            assert.equal(run.report.orphanCleanup.pid, 42);
+            assert.deepEqual(run.calls.find((c) => c.kill).kill, [
+                42,
+                "SIGKILL",
+            ]);
+        }
+    });

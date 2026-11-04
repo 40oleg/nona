@@ -6,6 +6,8 @@ import { PassThrough } from "node:stream";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { deflateRawSync } from "node:zlib";
+import { join } from "node:path";
+import { instrumentLegacyCompletion } from "./http-soak-smoke-policy.mjs";
 let s = {};
 let c = {};
 try {
@@ -384,6 +386,90 @@ test("source patch is additive and roundtrips exact protected request/evaluator 
     ])
         assert.throws(() => patch(bad));
 });
+test("composed pinned terminal retains observer completion and both late-error monitors", () => {
+    const patched = api("patchDriver")(
+        readFileSync(process.env.LATENCY615_TEST_INPUT),
+    );
+    const source = instrumentLegacyCompletion(patched.source.toString());
+    const monitor = source.slice(
+        0,
+        source.indexOf(patched.source.toString().slice(0, 100)),
+    );
+    const terminal = source.slice(
+        source.lastIndexOf(
+            'writeFileSync(join(outDir, "driver-completion.json")',
+        ),
+    );
+    const files = new Map();
+    const proc = new EventEmitter();
+    Object.assign(proc, {
+        env: { NONA_SOAK_DIAGNOSTICS: "inert" },
+        cpuUsage: () => ({ user: 12, system: 3 }),
+        stdout: { write() {} },
+        exit(code) {
+            this.emit("exit", code);
+        },
+    });
+    const json = '{"summary":{"pass":false}}';
+    const markdown = "# HTTP soak test: FAIL\n";
+    const sandbox = vm.createContext({
+        Buffer,
+        structuredClone,
+        process: proc,
+        performance: { now: () => 310000, timeOrigin: 1700000000000 },
+        outDir: "inert",
+        join,
+        pass: false,
+        loadSeconds: 300,
+        p99Head: 3.427,
+        p99Tail: 4.351,
+        current: { requests: 0, deliberate: 0, failed: 0, hist: hist(0) },
+        readFileSync: (p) => (p.endsWith(".json") ? json : markdown),
+        writeFileSync: (p, value) => files.set(p, String(value)),
+        __l615Write: (p, value) => files.set(p, String(value)),
+        __l615Append: (p, value) => files.set(p, (files.get(p) ?? "") + value),
+        __diagAppendFileSync: (p, value) =>
+            files.set(p, (files.get(p) ?? "") + value),
+    });
+    vm.runInContext(
+        monitor +
+            patched.recipe.find((r) => r.id === "runtime").span +
+            '\n__l615.residual("residual.final", current, {ok:300}); __l615.final({pass:false});\n' +
+            terminal,
+        sandbox,
+    );
+    const completion = JSON.parse(
+        files.get(join("inert", "driver-completion.json")),
+    );
+    assert.deepEqual(completion, {
+        code: 1,
+        loadSeconds: 300,
+        p99Head: 3.427,
+        p99Tail: 4.351,
+        json,
+        markdown,
+    });
+    assert.equal(
+        JSON.parse(files.get("inert/telemetry-state.json")).complete,
+        true,
+    );
+    proc.emit("uncaughtExceptionMonitor", new Error("late joint error"));
+    assert.match(files.get("inert/driver-errors.jsonl"), /late joint error/);
+    const events = files
+        .get("inert/events.jsonl")
+        .trim()
+        .split("\n")
+        .map(JSON.parse);
+    assert.ok(events.some((e) => e.kind === "harness.jsExit" && e.code === 1));
+    assert.ok(
+        events.some(
+            (e) =>
+                e.kind === "uncaughtExceptionMonitor" &&
+                e.error.message === "late joint error",
+        ),
+    );
+});
+
 test("original histogram and OR predicate are exercised as inert VM functions", () => {
     api("patchDriver");
     const text = readFileSync(process.env.LATENCY615_TEST_INPUT, "utf8");
