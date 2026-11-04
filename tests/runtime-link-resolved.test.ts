@@ -148,6 +148,75 @@ test("real uses still select their parts", () => {
     assert.equal(linked("import { bold } from './x.js'", true), "annexB");
 });
 
+test("unproved numeric keys keep whole-string dynamic fallback and its reason", () => {
+    for (const source of [
+        'const holder = {length: "Proxy"}; globalThis[holder.length]',
+        'const holder = {get length() { return "Proxy" }}; globalThis[holder.length]',
+        'const holder = {length: "Proxy"}; globalThis[holder["length"]]',
+        'const holder = {length: "Proxy"}; for (let i = holder.length;;) { a[i]; break }',
+        'for (let i = 0; i < 1; i++) { i = "Proxy"; a[i] }',
+        // Backedge: the unsafe write is after the access in traversal order.
+        'for (let i = 0;; i = "Proxy") a[i]',
+        'for (let i = 0; (i = "Proxy"); i++) a[i]',
+        'for (let i = 0, x = (i = "Proxy");; i++) a[i]',
+        'for (let i = 0;; i++) { a[i]; i = "Proxy" }',
+        'for (let i = 0;; i++) { a[i]; i += "Proxy" }',
+        'for (let i = 0;; i++) { a[i]; i ||= "Proxy" }',
+        'for (let i = 0;; i++) { a[i]; [i] = ["Proxy"] }',
+        'for (let i = 0;; i++) { a[i]; ({x: i} = {x: "Proxy"}) }',
+        'for (let i = 0;; i++) { a[i]; [...i] = ["Proxy"] }',
+        'for (let i = 0;; i++) { a[i]; ({...i} = {x: "Proxy"}) }',
+        'for (let i = 0;; i++) { a[i]; [i = "Proxy"] = [] }',
+        'for (let i = 0;; i++) { a[i]; for (i of ["Proxy"]) {} }',
+        'for (let i = 0;; i++) { a[i]; for ([i] of [["Proxy"]]) {} }',
+        'for (let i = 0;; i++) { a[i]; for (i in {x: "Proxy"}) {} }',
+        'for (let i = 0;; i++) { a[i]; function mutate() { i = "Proxy" } }',
+        'const label = "Proxy"; for (let i = 0;; i++) { a[i]; () => i }',
+        'for (let i = 0;; i++) { const read = () => a[i]; i = "Proxy" }',
+        'for (let i = 0;; i++) { a[i]; function f(x = (i = "Proxy")) { let i } }',
+        'for (let arguments = 0;; arguments++) { a[arguments]; () => { arguments = "Proxy" } }',
+        'for (let i = 0;; i++) { { let i = "Proxy"; a[i] } }',
+        'const label = "Proxy"; for (var i = 0;; i++) a[i]',
+        'const label = "Proxy"; for (let i = 0;; i++) { a[i]; eval(code) }',
+        'const label = "Proxy"; for (let i = 0;; i++) { a[i]; () => eval(code) }',
+        'const label = "Proxy"; for (let i = 0;; i++) { a[i]; with (o) i++ }',
+        'const label = "Proxy"; with (o) { for (let i = 0;; i++) a[i] }',
+    ]) {
+        const result = usage(source);
+        assert.equal(result.usage.preludes.proxy, true, source);
+        assert.equal(
+            result.reasons.proxy,
+            '"Proxy" in a string (dynamic property access)',
+            source,
+        );
+    }
+});
+
+test("restricted numeric invariants respect shadowing and remain selective", () => {
+    for (const body of [
+        "a[i]",
+        "a[i]; i = 1; i += 2; i -= x; i *= x; i >>>= x",
+        "a[i]; i = +x; i = x - y; i = x++; ++i",
+        '{ let i = "Proxy"; i = value } a[i]',
+        'try {} catch (i) { i = "Proxy" } a[i]',
+        'for (let i of ["Proxy"]) { i = value } a[i]',
+        'for (let i in {x: "Proxy"}) { i = value } a[i]',
+        'function f(i) { i = "Proxy" } a[i]',
+        'function f() { let i = "Proxy"; return i } a[i]',
+        '((i) => { i = "Proxy" })(1); a[i]',
+        'a[i]; o[i] = "Proxy"',
+    ]) {
+        const source = `const label = "Proxy"; for (let i = 0; i < 2; i++) { ${body} }`;
+        assert.equal(linked(source), "", source);
+    }
+    for (const source of [
+        'const label = "Proxy"; a[0]; a[-1]; a[+x]; a[x - y]; a[x++]; a[1 + 2]',
+        'const label = "Proxy"; for (const i = 0;;) { a[i]; break }',
+        "function f(Proxy) { return Proxy } f(1)",
+    ])
+        assert.equal(linked(source), "", source);
+});
+
 test("enumeration and nested collections keep their conservative rules", () => {
     const all = Object.keys(preludeSet(true))
         .filter((name) => !(syntaxOnlyPreludes as string[]).includes(name))

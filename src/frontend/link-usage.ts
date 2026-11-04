@@ -252,8 +252,10 @@ function recordString(text: string): void {
 interface Scope {
     parent: Scope | undefined;
     names: Set<string>;
-    /** Bindings that hold a number (a for counter initialised with one). */
+    /** Lexical for counters whose whole-loop numeric invariant survives inspection. */
     numeric?: Set<string>;
+    /** Function boundary, including arrows (captures invalidate counter facts). */
+    function?: boolean;
     /** A with body, or a function or program with direct eval: every name may be a property. */
     dynamic?: boolean;
     /** Function or program scope (where direct eval declares). */
@@ -316,6 +318,9 @@ export function recordProgramUsage(
 
 class UsageWalker {
     private refs: { name: string; scope: Scope }[] = [];
+    private writes: { name: string; scope: Scope }[] = [];
+    private keys: { node: A.Expression; scope: Scope }[] = [];
+    private dynamicScopes: Scope[] = [];
     constructor(private computed: WeakSet<A.Member> | undefined) {}
 
     program(program: A.Program): void {
@@ -341,8 +346,28 @@ class UsageWalker {
                 for (const specifier of statement.specifiers)
                     scope.names.add(specifier.local.name);
         this.statements(program.body, scope);
-        for (const { name, scope } of this.refs)
+        // Decide keys only after inspecting every initializer, test, update and
+        // body. A write after a key can affect its next iteration; a closure
+        // can run at any time. Traversal-order invalidation is insufficient.
+        for (const { name, scope } of this.writes)
+            this.declaring(name, scope)?.numeric?.delete(name);
+        for (const { name, scope } of this.refs) {
+            const declaring = this.declaring(name, scope);
+            for (
+                let s: Scope | undefined = scope;
+                s && s !== declaring;
+                s = s.parent
+            )
+                if (s.function) declaring?.numeric?.delete(name);
             if (this.free(name, scope)) selectName(name, inSource(name));
+        }
+        for (const dynamic of this.dynamicScopes)
+            for (let s: Scope | undefined = dynamic; s; s = s.parent)
+                for (const name of s.numeric ?? [])
+                    if (this.declaring(name, dynamic) === s)
+                        s.numeric!.delete(name);
+        for (const { node, scope } of this.keys)
+            if (!this.numeric(node, scope)) dynamicKey = true;
     }
 
     private free(name: string, scope: Scope): boolean {
@@ -358,7 +383,11 @@ class UsageWalker {
             if (s.names.has(name)) return s;
         return undefined;
     }
-    private numeric(node: A.Expression, scope: Scope): boolean {
+    private numeric(
+        node: A.Expression,
+        scope: Scope,
+        bindings = true,
+    ): boolean {
         switch (node.kind) {
             case "Literal":
                 return typeof node.value !== "string";
@@ -374,18 +403,19 @@ class UsageWalker {
                 return numericOperators.has(node.operator)
                     ? true
                     : node.operator === "+" &&
-                          this.numeric(node.left, scope) &&
-                          this.numeric(node.right, scope);
-            case "Member":
-                return literalName(node.property) === "length";
+                          this.numeric(node.left, scope, bindings) &&
+                          this.numeric(node.right, scope, bindings);
             case "Identifier": {
+                if (!bindings) return false;
                 const declaring = this.declaring(node.name, scope);
-                if (!declaring) return false;
-                for (let s: Scope | undefined = scope; s; s = s.parent) {
-                    if (s.numeric?.has(node.name)) return true;
-                    if (s === declaring) break;
-                }
-                return false;
+                if (!declaring || this.free(node.name, scope)) return false;
+                for (
+                    let s: Scope | undefined = scope;
+                    s && s !== declaring;
+                    s = s.parent
+                )
+                    if (s.function) return false;
+                return !!declaring.numeric?.has(node.name);
             }
             default:
                 return false;
@@ -395,8 +425,7 @@ class UsageWalker {
     private key(node: A.Expression, scope: Scope): void {
         const name = literalName(node);
         if (name !== undefined) selectName(name, inString(name));
-        else if (node.kind !== "PrivateName" && !this.numeric(node, scope))
-            dynamicKey = true;
+        else if (node.kind !== "PrivateName") this.keys.push({ node, scope });
     }
 
     private block(statements: readonly A.Statement[], parent: Scope): void {
@@ -450,11 +479,13 @@ class UsageWalker {
                 return;
             case "With": {
                 this.expression(node.object, scope);
-                this.nested(node.body, {
+                const inner: Scope = {
                     parent: scope,
                     names: new Set(),
                     dynamic: true,
-                });
+                };
+                this.dynamicScopes.push(inner);
+                this.nested(node.body, inner);
                 return;
             }
             case "Switch": {
@@ -483,15 +514,18 @@ class UsageWalker {
             case "For": {
                 const inner = this.loopScope(node.init, scope);
                 if (node.init?.kind === "Var") {
-                    this.declaration(node.init, inner);
-                    // for (let i = 0; …) a[i]: the counter is a number.
-                    for (const d of node.init.declarations)
+                    // Only lexical counters are isolated from outside writes.
+                    // Do not derive initialization from another binding's fact.
+                    for (const d of node.init.declarationKind === "var"
+                        ? []
+                        : node.init.declarations)
                         if (
                             d.id.kind === "Identifier" &&
                             d.init &&
-                            this.numeric(d.init, inner)
+                            this.numeric(d.init, inner, false)
                         )
                             (inner.numeric ??= new Set()).add(d.id.name);
+                    this.declaration(node.init, inner);
                 } else if (node.init) this.expression(node.init, inner);
                 if (node.test) this.expression(node.test, inner);
                 if (node.update) this.expression(node.update, inner);
@@ -592,7 +626,12 @@ class UsageWalker {
     private target(
         node: A.Assignable | A.ArrayPattern | A.ObjectPattern,
         scope: Scope,
+        numericWrite = false,
     ): void {
+        if (numericWrite && node.kind === "Identifier") {
+            this.reference(node.name, scope);
+            return;
+        }
         this.patternOrTarget(node, scope, true);
     }
     private patternOrTarget(
@@ -602,7 +641,10 @@ class UsageWalker {
     ): void {
         switch (node.kind) {
             case "Identifier":
-                if (assignment) this.reference(node.name, scope);
+                if (assignment) {
+                    this.reference(node.name, scope);
+                    this.writes.push({ name: node.name, scope });
+                }
                 return;
             case "Member":
                 this.expression(node, scope);
@@ -650,26 +692,36 @@ class UsageWalker {
             outer = { parent, names: new Set([node.id.name]) };
         const scope: Scope = {
             parent: outer,
-            names: new Set(["arguments"]),
+            names: new Set(
+                node.kind === "FunctionExpression" && node.arrow
+                    ? []
+                    : ["arguments"],
+            ),
+            function: true,
             variable: !(node.kind === "FunctionExpression" && node.arrow),
         };
         for (const parameter of node.parameters)
             for (const id of boundNames(parameter)) scope.names.add(id.name);
         if (node.rest)
             for (const id of boundNames(node.rest)) scope.names.add(id.name);
-        const declarations = collectDeclarations(node.body.body, "var");
-        for (const lexical of declarations.lexicals)
-            scope.names.add(lexical.name);
-        for (const id of declarations.vars) scope.names.add(id.name);
-        for (const fn of declarations.bodyFunctions)
-            scope.names.add(fn.id.name);
+        // Parameter defaults cannot see declarations in the function body.
         node.parameters.forEach((parameter, index) => {
             this.pattern(parameter, scope);
             const init = node.defaults?.[index];
             if (init) this.expression(init, scope);
         });
         if (node.rest) this.pattern(node.rest, scope);
-        this.statements(node.body.body, scope);
+        const body: Scope = {
+            parent: scope,
+            names: new Set(),
+            variable: scope.variable,
+        };
+        const declarations = collectDeclarations(node.body.body, "var");
+        for (const lexical of declarations.lexicals)
+            body.names.add(lexical.name);
+        for (const id of declarations.vars) body.names.add(id.name);
+        for (const fn of declarations.bodyFunctions) body.names.add(fn.id.name);
+        this.statements(node.body.body, body);
     }
     private class(node: A.ClassDeclaration | A.ClassExpression, parent: Scope) {
         const scope: Scope =
@@ -750,8 +802,17 @@ class UsageWalker {
                 this.call(node, scope);
                 return;
             case "Assignment":
-                this.target(node.left, scope);
+                this.target(
+                    node.left,
+                    scope,
+                    node.operator === "=" || node.operator === "+="
+                        ? this.numeric(node.right, scope, false)
+                        : numericOperators.has(node.operator.slice(0, -1)),
+                );
                 this.expression(node.right, scope);
+                return;
+            case "Update":
+                this.target(node.argument, scope, true);
                 return;
             case "ImportCall": {
                 const name = literalName(node.argument);
@@ -812,6 +873,9 @@ class UsageWalker {
         if (node.kind !== "Call") return;
         // Direct eval may declare names or read any of them.
         if (callee.kind === "Identifier" && callee.name === "eval") {
+            // The call's lexical environment is exposed even when eval is in
+            // a nested function or a later iteration of an enclosing loop.
+            this.dynamicScopes.push(scope);
             let s: Scope | undefined = scope;
             while (s && !s.variable) s = s.parent;
             if (s) s.dynamic = true;
