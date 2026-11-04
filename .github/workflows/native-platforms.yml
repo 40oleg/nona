@@ -5,6 +5,16 @@ on:
     push:
         branches: [main]
     workflow_dispatch:
+        inputs:
+            diagnostic_mode:
+                description: Explicit bounded origins/2 diagnostic only
+                type: choice
+                options: [normal, origins2]
+                default: normal
+            diagnostic_commit:
+                description: Exact reviewed non-main diagnostic commit (40 hex characters)
+                type: string
+                default: ""
     # On a pull request only the browser compiler runs; the platform jobs run
     # when the PR has the full-ci label (#353). "labeled" starts them once the
     # label is added.
@@ -22,6 +32,7 @@ concurrency:
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
     browser-compiler:
+        if: inputs.diagnostic_mode != 'origins2'
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -48,7 +59,7 @@ jobs:
         name: Windows x64 full regression (manual)
         # check.yml runs the full Windows x64 suite on PRs and main. Keep it here
         # for manually dispatched full-platform runs as well.
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.diagnostic_mode != 'origins2' && github.event_name == 'workflow_dispatch'
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
@@ -61,7 +72,7 @@ jobs:
             - run: npm run compare
     linux-regression:
         name: Linux x64 compiler and example regression
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'origins2' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -75,7 +86,7 @@ jobs:
             - run: npm run compare:linux
     loaders:
         name: ${{ matrix.target }} native and portable suites
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'origins2' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         strategy:
             fail-fast: false
             matrix:
@@ -150,7 +161,7 @@ jobs:
                   path: work/platform-probes
     linux-distributions:
         name: Linux userspace ${{ matrix.image }}
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'origins2' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -202,7 +213,7 @@ jobs:
             - run: node scripts/verify-process-reports.mjs work/distro-results
     bsd-loaders:
         name: ${{ matrix.os }} x64 guest VM on Ubuntu host
-        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+        if: inputs.diagnostic_mode != 'origins2' && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
         runs-on: ubuntu-24.04
         strategy:
             fail-fast: false
@@ -282,3 +293,53 @@ jobs:
                   name: loader-${{ matrix.os }}-x64
                   path: work/platform-probes
             - run: node scripts/verify-process-reports.mjs
+    origins2-diagnostic:
+        name: Windows x64 bounded origins/2 phase comparison
+        if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'origins2' && github.repository == '40oleg/nona' && github.ref == 'refs/heads/codex/diagnostic-616-origins2-20261104' && github.sha == inputs.diagnostic_commit
+        runs-on: windows-latest
+        timeout-minutes: 20
+        env:
+            DIAGNOSTIC_MODE: origins2
+            DIAGNOSTIC_COMMIT: ${{ inputs.diagnostic_commit }}
+            NONA_GC_STRESS: "on"
+            NONA_TEST_CONCURRENCY: "1"
+        steps:
+            - name: Refuse unreviewed or non-hosted execution
+              shell: pwsh
+              run: |
+                  if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ARCH -ne 'X64') { throw 'GitHub-hosted Windows x64 required' }
+                  if ($env:GITHUB_REPOSITORY -ne '40oleg/nona' -or $env:GITHUB_EVENT_NAME -ne 'workflow_dispatch') { throw 'Wrong repository/event' }
+                  if ($env:GITHUB_REF -ne 'refs/heads/codex/diagnostic-616-origins2-20261104' -or $env:DIAGNOSTIC_COMMIT -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_SHA -ne $env:DIAGNOSTIC_COMMIT) { throw 'Exact reviewed diagnostic branch/commit required' }
+                  if ($env:NODE_OPTIONS -or $env:NODE_PATH) { throw 'Node load override refused' }
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ inputs.diagnostic_commit }}
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - name: Build the pinned full compiler on hosted Windows
+              shell: pwsh
+              run: |
+                  if ((node --version) -ne 'v26.9.0') { throw 'Node 26.9.0 required' }
+                  New-Item -ItemType Directory -Path work/origins2-hosted616 -Force | Out-Null
+                  npm ci 2>&1 | Tee-Object work/origins2-hosted616/npm-ci.log
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                  npm run build 2>&1 | Tee-Object work/origins2-hosted616/compiler-build.log
+                  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            - name: One two-arm comparison (no retry)
+              run: node scripts/http-agent-origins2-diagnostic.mjs
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: origins2-windows-${{ inputs.diagnostic_commit }}-${{ github.run_attempt }}
+                  if-no-files-found: error
+                  include-hidden-files: true
+                  path: |
+                      work/origins2-hosted616
+                      scripts/http-agent-origins2-*.mjs
+                      tests/http-agent-origins2-diagnostic.test.ts
+                      docs/http-agent-origins2-diagnostic.md
+                      .github/workflows/native-platforms.yml
