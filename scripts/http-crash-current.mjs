@@ -14,7 +14,7 @@ import { runTrial } from "./http-crash.mjs";
 import { serverSource } from "./http-crash-fixture.mjs";
 import { startupChildEnv } from "./http-startup-env.mjs";
 import {
-    currentAllowed,
+    currentCheckResult,
     projectionPlan,
     projectionAcceptance,
     sourceCommit,
@@ -638,17 +638,55 @@ export async function runCurrent({ root, origin, env, signal }, io = nativeIo) {
 }
 
 export function verifyCurrent(env = process.env) {
-    assert.equal(
-        currentAllowed(
+    const out = resolve("work", "http602-current");
+    mkdirSync(out, { recursive: true });
+    // Fixed, bounded identity fields only; never enumerate the environment.
+    const safe = (value) =>
+        typeof value === "string" && /^[a-zA-Z0-9 ._/@:-]{0,256}$/.test(value)
+            ? value
+            : null;
+    const admit = (head, phase) => {
+        const result = currentCheckResult(
             env,
-            env.GITHUB_SHA,
+            head,
             process.platform,
             process.arch,
             process.version,
-        ),
-        true,
-        "Exact hosted current diagnostic provenance required",
-    );
+        );
+        // This receipt precedes rejection and any Git/driver/compiler work.
+        // It is separate from the stable origin compared by --verify/runCurrent.
+        save(join(out, "admission.json"), {
+            phase,
+            ...result,
+            identity: {
+                repository: safe(env.GITHUB_REPOSITORY),
+                event: safe(env.GITHUB_EVENT_NAME),
+                mode: safe(env.HTTP602_MODE),
+                ref: safe(env.GITHUB_REF),
+                head: safe(head),
+                sha: safe(env.GITHUB_SHA),
+                expectedSha: safe(env.HTTP602_EXPECTED_SHA),
+                workflowSha: safe(env.GITHUB_WORKFLOW_SHA),
+                workflowRef: safe(env.GITHUB_WORKFLOW_REF),
+                run: safe(env.GITHUB_RUN_ID),
+                attempt: safe(env.GITHUB_RUN_ATTEMPT),
+                runner: safe(env.RUNNER_NAME),
+                environment: safe(env.RUNNER_ENVIRONMENT),
+                runnerOs: safe(env.RUNNER_OS),
+                image: safe(env.ImageOS),
+                imageVersion: safe(env.ImageVersion),
+                platform: process.platform,
+                arch: process.arch,
+                node: process.version,
+            },
+        });
+        assert.equal(
+            result.allowed,
+            true,
+            `Exact hosted current diagnostic provenance required: ${result.failedConditions.join(", ")}`,
+        );
+    };
+    admit(env.GITHUB_SHA, "environment");
     const revision = (arg) =>
         execFileSync("git", ["rev-parse", arg], {
             encoding: "utf8",
@@ -656,16 +694,7 @@ export function verifyCurrent(env = process.env) {
         }).trim();
     const head = revision("HEAD"),
         tree = revision("HEAD^{tree}");
-    assert.equal(
-        currentAllowed(
-            env,
-            head,
-            process.platform,
-            process.arch,
-            process.version,
-        ),
-        true,
-    );
+    admit(head, "checkout");
     assert.match(tree, /^[a-f0-9]{40}$/);
     return {
         head,

@@ -7,34 +7,41 @@ export const driverSha256 =
 export const serverSha256 =
     "3bae7410ac2d9afcb9a9e1431919a2aa5b5ca352db578769810a24f0ac718f60";
 
-export function currentAllowed(e, head, platform, arch, version) {
-    return (
-        e.GITHUB_ACTIONS === "true" &&
-        e.GITHUB_REPOSITORY === "40oleg/nona" &&
-        e.GITHUB_EVENT_NAME === "workflow_dispatch" &&
-        e.HTTP602_MODE === "http602-current" &&
-        /^refs\/heads\/issue-602-startup-[a-zA-Z0-9._-]+$/.test(
+export function currentCheckResult(e, head, platform, arch, version) {
+    const checks = {
+        githubActions: e.GITHUB_ACTIONS === "true",
+        repository: e.GITHUB_REPOSITORY === "40oleg/nona",
+        event: e.GITHUB_EVENT_NAME === "workflow_dispatch",
+        mode: e.HTTP602_MODE === "http602-current",
+        ref: /^refs\/heads\/issue-602-startup-[a-zA-Z0-9._-]+$/.test(
             e.GITHUB_REF ?? "",
-        ) &&
-        /^[a-f0-9]{40}$/.test(head ?? "") &&
-        head === e.GITHUB_SHA &&
-        head === e.HTTP602_EXPECTED_SHA &&
-        head === e.GITHUB_WORKFLOW_SHA &&
-        e.GITHUB_WORKFLOW_REF ===
-            `40oleg/nona/.github/workflows/native-platforms.yml@${e.GITHUB_REF}` &&
-        e.RUNNER_ENVIRONMENT === "github-hosted" &&
-        e.RUNNER_OS === "Windows" &&
-        e.ImageOS === "win25" &&
-        [e.GITHUB_RUN_ID, e.GITHUB_RUN_ATTEMPT].every((v) =>
-            /^[1-9][0-9]*$/.test(v ?? ""),
-        ) &&
-        [e.RUNNER_NAME, e.ImageVersion].every(
-            (v) => typeof v === "string" && v.length > 0,
-        ) &&
-        platform === "win32" &&
-        arch === "x64" &&
-        version === "v26.9.0"
-    );
+        ),
+        headFormat: /^[a-f0-9]{40}$/.test(head ?? ""),
+        checkoutSha: head === e.GITHUB_SHA,
+        expectedSha: head === e.HTTP602_EXPECTED_SHA,
+        workflowSha: head === e.GITHUB_WORKFLOW_SHA,
+        workflowRef:
+            e.GITHUB_WORKFLOW_REF ===
+            `40oleg/nona/.github/workflows/native-platforms.yml@${e.GITHUB_REF}`,
+        runnerEnvironment: e.RUNNER_ENVIRONMENT === "github-hosted",
+        runnerOs: e.RUNNER_OS === "Windows",
+        image: ["win25", "win25-vs2026"].includes(e.ImageOS),
+        runId: /^[1-9][0-9]*$/.test(e.GITHUB_RUN_ID ?? ""),
+        runAttempt: /^[1-9][0-9]*$/.test(e.GITHUB_RUN_ATTEMPT ?? ""),
+        runnerName:
+            typeof e.RUNNER_NAME === "string" && e.RUNNER_NAME.length > 0,
+        imageVersion:
+            typeof e.ImageVersion === "string" && e.ImageVersion.length > 0,
+        platform: platform === "win32",
+        arch: arch === "x64",
+        nodeVersion: version === "v26.9.0",
+    };
+    const failedConditions = Object.keys(checks).filter((key) => !checks[key]);
+    return { allowed: failedConditions.length === 0, checks, failedConditions };
+}
+
+export function currentAllowed(e, head, platform, arch, version) {
+    return currentCheckResult(e, head, platform, arch, version).allowed;
 }
 
 export function projectionPlan() {

@@ -43,16 +43,19 @@ const env = {
 };
 
 test("current guard requires exact candidate, workflow, ref and hosted Windows Node identity", () => {
-    assert.throws(
-        () => entry.verifyCurrent({}),
-        /provenance/,
-        "local admission must fail before any Git or filesystem work",
-    );
     assert.equal(typeof api.currentAllowed, "function");
-    assert.equal(
-        api.currentAllowed(env, head, "win32", "x64", "v26.9.0"),
-        true,
-    );
+    for (const ImageOS of ["win25", "win25-vs2026"])
+        assert.equal(
+            api.currentAllowed(
+                { ...env, ImageOS },
+                head,
+                "win32",
+                "x64",
+                "v26.9.0",
+            ),
+            true,
+            ImageOS,
+        );
     for (const [key, value] of Object.entries({
         GITHUB_ACTIONS: "false",
         GITHUB_REPOSITORY: "fork/nona",
@@ -98,6 +101,321 @@ test("current guard requires exact candidate, workflow, ref and hosted Windows N
         api.currentAllowed(env, "b".repeat(40), "win32", "x64", "v26.9.0"),
         false,
     );
+    for (const ImageOS of [
+        "win22",
+        "ubuntu24",
+        "macos15",
+        "win25-vs2027",
+        "win25-unknown",
+        "win25-vs2026-extra",
+        "",
+        " win25",
+        "win25\n",
+        null,
+        25,
+        ["win25"],
+    ])
+        assert.equal(
+            api.currentAllowed(
+                { ...env, ImageOS },
+                head,
+                "win32",
+                "x64",
+                "v26.9.0",
+            ),
+            false,
+            JSON.stringify(ImageOS),
+        );
+    for (const ImageOS of ["win25", "win25-vs2026"])
+        assert.equal(
+            api.currentAllowed(
+                { ...env, ImageOS, RUNNER_ENVIRONMENT: "self-hosted" },
+                head,
+                "win32",
+                "x64",
+                "v26.9.0",
+            ),
+            false,
+        );
+});
+
+test("current check result reports every admission mismatch without weakening the boolean API", () => {
+    const input = {
+        ...env,
+        ImageOS: "win25-unknown",
+        ImageVersion: "",
+        RUNNER_ENVIRONMENT: "self-hosted",
+    };
+    const result = api.currentCheckResult(
+        input,
+        head,
+        "win32",
+        "x64",
+        "v26.9.0",
+    );
+    assert.equal(result.allowed, false);
+    assert.deepEqual(result.failedConditions, [
+        "runnerEnvironment",
+        "image",
+        "imageVersion",
+    ]);
+    assert.equal(result.checks.runnerEnvironment, false);
+    assert.equal(result.checks.image, false);
+    assert.equal(result.checks.imageVersion, false);
+    assert.ok(
+        Object.values(result.checks).every(
+            (value) => typeof value === "boolean",
+        ),
+    );
+    assert.equal(
+        api.currentAllowed(input, head, "win32", "x64", "v26.9.0"),
+        result.allowed,
+    );
+});
+
+// Execute only verification code with memory-only filesystem and Git boundaries.
+function verificationFixture(overrides = {}, checkout = head, failIo = "") {
+    const text = readFileSync("scripts/http-crash-current.mjs", "utf8");
+    const source = text.slice(
+        text.indexOf("export function verifyCurrent("),
+        text.indexOf("async function main("),
+    );
+    const files = new Map<string, any>();
+    const calls: string[] = [];
+    const consoleErrors: string[] = [];
+    const input = new Proxy(
+        {
+            ...env,
+            ...overrides,
+            GH_TOKEN: "credential-sentinel",
+            NODE_OPTIONS: "injection-sentinel",
+        },
+        {
+            ownKeys() {
+                throw new Error("Environment enumeration forbidden");
+            },
+        },
+    );
+    const context = {
+        assert,
+        currentCheckResult: (...args: any[]) => api.currentCheckResult(...args),
+        currentAllowed: api.currentAllowed,
+        process: {
+            env: input,
+            platform: "win32",
+            arch: "x64",
+            version: "v26.9.0",
+            execPath: "memory-node.exe",
+            argv: ["memory-node.exe", "memory-current.mjs", "--verify"],
+            exitCode: 0,
+        },
+        join,
+        resolve,
+        pathToFileURL,
+        console: {
+            error: (message: any) => consoleErrors.push(String(message)),
+        },
+        mkdirSync(file: string) {
+            calls.push("mkdir");
+            assert.equal(file, resolve("work", "http602-current"));
+            if (failIo === "mkdir") throw new Error("Admission mkdir failed");
+        },
+        save(file: string, value: any) {
+            calls.push("receipt");
+            if (failIo === "write") throw new Error("Admission write failed");
+            files.set(file, JSON.parse(JSON.stringify(value)));
+        },
+        execFileSync(command: string, args: string[]) {
+            calls.push("git");
+            assert.ok(
+                files.has(resolve("work", "http602-current", "admission.json")),
+                "receipt must precede Git",
+            );
+            assert.equal(command, "git");
+            assert.equal(args[0], "rev-parse");
+            assert.ok(["HEAD", "HEAD^{tree}"].includes(args[1]!));
+            return args[1] === "HEAD" ? checkout : "c".repeat(40);
+        },
+        readFileSync(file: string) {
+            calls.push("read");
+            assert.ok(
+                [
+                    ".github/workflows/native-platforms.yml",
+                    "memory-node.exe",
+                ].includes(file),
+            );
+            return Buffer.from("inert identity bytes");
+        },
+        hash: (bytes: any) => createHash("sha256").update(bytes).digest("hex"),
+        sourceCommit: api.sourceCommit,
+        driverSha256: api.driverSha256,
+        serverSha256: api.serverSha256,
+    };
+    const verify = runInNewContext(
+        source.replace("export function", "function") + "\nverifyCurrent",
+        context,
+    );
+    const runCli = () =>
+        runInNewContext(
+            "(async () => {\n" +
+                text
+                    .slice(text.indexOf("export function verifyCurrent("))
+                    .replace("export function", "function")
+                    .replace(
+                        "import.meta.url",
+                        JSON.stringify(
+                            pathToFileURL(resolve("memory-current.mjs")).href,
+                        ),
+                    ) +
+                "\n})()",
+            context,
+        );
+    return {
+        verify: () => verify(input),
+        runCli,
+        process: context.process,
+        consoleErrors,
+        files,
+        calls,
+    };
+}
+
+test("early rejection retains a small whitelisted receipt before any Git or input reads", () => {
+    for (const ImageOS of ["win25-unknown", "win25-vs2026"]) {
+        const x = verificationFixture({
+            ImageOS,
+            RUNNER_ENVIRONMENT: "self-hosted",
+            ImageVersion: "",
+        });
+        assert.throws(x.verify, /provenance/);
+        assert.deepEqual(x.calls, ["mkdir", "receipt"]);
+        const receipt = x.files.get(
+            resolve("work", "http602-current", "admission.json"),
+        );
+        assert.equal(receipt.phase, "environment");
+        assert.equal(receipt.allowed, false);
+        assert.deepEqual(
+            receipt.failedConditions,
+            ImageOS === "win25-vs2026"
+                ? ["runnerEnvironment", "imageVersion"]
+                : ["runnerEnvironment", "image", "imageVersion"],
+        );
+        assert.equal(receipt.identity.image, ImageOS);
+        assert.deepEqual(
+            Object.keys(receipt.identity).sort(),
+            [
+                "repository",
+                "event",
+                "mode",
+                "ref",
+                "head",
+                "sha",
+                "expectedSha",
+                "workflowSha",
+                "workflowRef",
+                "run",
+                "attempt",
+                "runner",
+                "environment",
+                "runnerOs",
+                "image",
+                "imageVersion",
+                "platform",
+                "arch",
+                "node",
+            ].sort(),
+        );
+        const serialized = JSON.stringify(receipt);
+        assert.ok(serialized.length < 4096);
+        assert.doesNotMatch(
+            serialized,
+            /credential-sentinel|injection-sentinel|GH_TOKEN|NODE_OPTIONS/,
+        );
+    }
+});
+
+test("checkout mismatch updates the receipt and remains fail closed before origin input reads", () => {
+    const x = verificationFixture({ ImageOS: "win25-vs2026" }, "b".repeat(40));
+    assert.throws(x.verify, /provenance/);
+    assert.deepEqual(x.calls, ["mkdir", "receipt", "git", "git", "receipt"]);
+    const receipt = x.files.get(
+        resolve("work", "http602-current", "admission.json"),
+    );
+    assert.equal(receipt.phase, "checkout");
+    assert.deepEqual(receipt.failedConditions, [
+        "checkoutSha",
+        "expectedSha",
+        "workflowSha",
+    ]);
+    assert.equal(receipt.identity.head, "b".repeat(40));
+});
+
+test("verification preserves each actual image and stable origin across repeated admission", () => {
+    for (const ImageOS of ["win25", "win25-vs2026"]) {
+        const x = verificationFixture({ ImageOS });
+        const first = x.verify();
+        assert.deepEqual(x.verify(), first);
+        assert.equal(first.image, ImageOS);
+        assert.equal(first.imageVersion, "20261101.1");
+        assert.equal(first.head, head);
+        assert.equal(first.tree, "c".repeat(40));
+        assert.equal(first.timestamp, undefined);
+        assert.equal(first.at, undefined);
+        const receipt = x.files.get(
+            resolve("work", "http602-current", "admission.json"),
+        );
+        assert.equal(receipt.allowed, true);
+        assert.deepEqual(receipt.failedConditions, []);
+        assert.ok(
+            Object.values(receipt.checks).every((value) => value === true),
+        );
+    }
+});
+
+test("admission receipt IO failure cannot proceed to Git or origin input reads", () => {
+    for (const failIo of ["mkdir", "write"]) {
+        const x = verificationFixture({}, head, failIo);
+        assert.throws(x.verify, /Admission .* failed/);
+        assert.equal(x.calls.includes("git"), false);
+        assert.equal(x.calls.includes("read"), false);
+    }
+});
+
+test("admission receipt bounds malformed identity values without enumerating the environment", () => {
+    const x = verificationFixture({
+        ImageOS: "win25\n",
+        RUNNER_NAME: "x".repeat(40000),
+        ImageVersion: { credential: "credential-sentinel" },
+    });
+    assert.throws(x.verify, /provenance/);
+    const receipt = x.files.get(
+        resolve("work", "http602-current", "admission.json"),
+    );
+    assert.equal(receipt.identity.image, null);
+    assert.equal(receipt.identity.runner, null);
+    assert.equal(receipt.identity.imageVersion, null);
+    assert.deepEqual(receipt.failedConditions, ["image", "imageVersion"]);
+    assert.ok(JSON.stringify(receipt).length < 4096);
+    assert.doesNotMatch(JSON.stringify(receipt), /credential-sentinel/);
+});
+
+test("early admission and receipt IO failures retain the CLI console error and failing exit", async () => {
+    for (const failIo of ["", "mkdir", "write"]) {
+        const x = verificationFixture(
+            { ImageOS: "win25-unknown" },
+            head,
+            failIo,
+        );
+        await x.runCli();
+        assert.equal(x.process.exitCode, 1);
+        assert.equal(x.consoleErrors.length, 1);
+        assert.match(
+            x.consoleErrors[0]!,
+            failIo ? /Admission .* failed/ : /provenance required: image/,
+        );
+        assert.equal(x.calls.includes("git"), false);
+        assert.equal(x.calls.includes("read"), false);
+    }
 });
 
 function projected(state = "destroy-queued", runtime = "nona", gc = "stress") {
