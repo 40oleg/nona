@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateRawSync, crc32 } from "node:zlib";
 import * as profile from "./issue646-profile.mjs";
-import { peMetadata, bindMap, validateMap, locate } from "./issue646-map.mjs";
+import {
+    peMetadata,
+    bindMap,
+    validateMap,
+    locate,
+    sha256,
+} from "./issue646-map.mjs";
 import {
     pins,
     verifyInputs,
@@ -14,6 +21,289 @@ import {
     verifyObservation,
     changedProfileFiles,
 } from "./issue646-profile.mjs";
+
+function workerIdentity() {
+    return {
+        pid: 7876,
+        parentPid: 1400,
+        creation: "134383386707191620",
+        started: "2026-11-05T07:51:10.7191620Z",
+        image: "C:\\node.exe",
+        imageSha256: "a".repeat(64),
+        commandLine: "C:\\node.exe worker",
+        commandLineTruncated: false,
+    };
+}
+test("worker identity compares equivalent UTC fractions at 100ns without rewriting", () => {
+    const a = workerIdentity(),
+        b = { ...a, started: "2026-11-05T07:51:10.719162Z" };
+    const before = JSON.stringify([a, b]);
+    profile.assertWorkerIdentity(a, b);
+    assert.equal(JSON.stringify([a, b]), before);
+    assert.equal(profile.utc100ns(a.started), profile.utc100ns(b.started));
+    assert.notEqual(
+        profile.utc100ns(a.started),
+        profile.utc100ns("2026-11-05T07:51:10.7191621Z"),
+    );
+    assert.equal(
+        profile.utc100ns("2024-02-29T00:00:00Z"),
+        profile.utc100ns("2024-02-29T00:00:00.0000000Z"),
+    );
+});
+test("worker identity rejects different 100ns, malformed dates and unknown identities", () => {
+    assert.equal(typeof profile.assertWorkerIdentity, "function");
+    for (const change of [
+        { started: "2026-11-05T07:51:10.7191621Z" },
+        { started: "2026-11-05T07:51:10.719163Z" },
+        { started: "2026-02-30T07:51:10.7191620Z" },
+        { started: "2026-11-05T07:51:10.71916201Z" },
+        { started: "2026-11-05T07:51:10.7191620+00:00" },
+        { started: null },
+        { creation: "134383386707191621" },
+        { pid: 7877 },
+        { image: "c:\\node.exe" },
+        { imageSha256: "b".repeat(64) },
+        { commandLineTruncated: true },
+        { image: null },
+        { pid: null },
+        { creation: null },
+    ])
+        assert.throws(() =>
+            profile.assertWorkerIdentity(workerIdentity(), {
+                ...workerIdentity(),
+                ...change,
+            }),
+        );
+    for (const at of [
+        "2023-02-29T00:00:00Z",
+        "2026-11-05T24:00:00Z",
+        "unknown",
+        "2026-11-05T00:00:60Z",
+    ])
+        assert.throws(() => profile.utc100ns(at));
+});
+
+test("partial rows retain outside samples and reject every malformed selected row", () => {
+    const x = observation();
+    x.sampler.complete = false;
+    x.sampler.errors = [{ message: "SuspendThread error 5" }];
+    x.rows[0].threads.push({ tid: 12, creation: "457", rip: "0x7ffd00000000" });
+    x.sampler.samples = 2;
+    const check = (value, bytes) => {
+        const raw =
+            bytes ??
+            Buffer.from(
+                value.rows.map((r) => JSON.stringify(r)).join("\n") + "\n",
+            );
+        return profile.validatePartialRows(
+            raw,
+            { ...value.sampler, samplesSha256: sha256(raw) },
+            value.native,
+            value.pe,
+        );
+    };
+    const result = check(x);
+    assert.equal(result.imageSamples, 1);
+    assert.equal(result.outsideImageSamples, 1);
+    assert.equal(x.sampler.complete, false);
+    for (const mutate of [
+        (x) => x.rows[0].pid++,
+        (x) => (x.rows[0].creation = "124"),
+        (x) => (x.rows[0].at = "2026-11-05T00:03:00.0000001Z"),
+        (x) => (x.rows[0].at = "2026-02-30T00:00:00Z"),
+        (x) => (x.rows[0].cpuMs = -1),
+        (x) => (x.rows[0].rss = 0),
+        (x) => (x.rows[0].threads = []),
+        (x) => (x.rows[0].threads[0].rip = "invalid"),
+        (x) => x.rows[0].threads.push(x.rows[0].threads[0]),
+        (x) => x.sampler.samples++,
+        (x) => x.sampler.rows++,
+        (x) => x.sampler.imageSize++,
+    ]) {
+        const bad = structuredClone(x);
+        mutate(bad);
+        assert.throws(() => check(bad));
+    }
+    assert.throws(
+        () => check(x, Buffer.from(JSON.stringify(x.rows[0]))),
+        /incomplete/,
+    );
+    const raw = Buffer.from(JSON.stringify(x.rows[0]) + "\n");
+    assert.throws(
+        () =>
+            profile.validatePartialRows(
+                raw,
+                { ...x.sampler, samplesSha256: "wrong" },
+                x.native,
+                x.pe,
+            ),
+        /digest/,
+    );
+});
+test("partial attribution fails unmapped in-image offsets and never calls outside samples GC", () => {
+    const b = image(),
+        pe = peMetadata(b);
+    const map = bindMap(b, b, {
+        fragments: [
+            {
+                name: "rt.collect",
+                section: ".text",
+                bytes: new Uint8Array(32),
+                symbols: {},
+            },
+        ],
+        functions: [],
+    });
+    const rows = [
+        { threads: [{ rip: "0x140001001" }, { rip: "0x7ffd00000000" }] },
+    ];
+    const result = profile.attributePartial(
+        rows,
+        { base: "0x140000000", imageSize: pe.sizeOfImage },
+        map,
+        pe,
+    );
+    assert.deepEqual(result.counts, [["rt.collect", 1]]);
+    assert.equal(result.outsideImageSamples, 1);
+    assert.equal(result.totalSamples, 2);
+    rows[0].threads[0].rip = "0x140001100";
+    assert.throws(
+        () =>
+            profile.attributePartial(
+                rows,
+                { base: "0x140000000", imageSize: pe.sizeOfImage },
+                map,
+                pe,
+            ),
+        /unmapped/,
+    );
+});
+
+test("mapping-only workflow cannot launch observation or rewrite original verification", () => {
+    const workflow = readFileSync(
+        new URL("../.github/workflows/issue646-profile.yml", import.meta.url),
+        "utf8",
+    );
+    assert.match(workflow, /prepare-existing profile/);
+    assert.match(workflow, /derive-partial profile/);
+    assert.doesNotMatch(
+        workflow,
+        /\.mjs (observe|native-worker|verify) profile/,
+    );
+    assert.match(workflow, /timeout-minutes: 15/);
+    assert.match(workflow, /profile\/derivation-certificate.json/);
+    assert.match(workflow, /profile\/partial-verification.json/);
+    assert.match(workflow, /profile\/partial-attribution.json/);
+    assert.match(workflow, /github\.actor == '40oleg'/);
+    assert.match(workflow, /pull_request\.number == 647/);
+    assert.match(workflow, /getCommit/);
+    const campaign = readFileSync(
+        new URL(
+            "../.github/workflows/native-gc-diagnosis.yml",
+            import.meta.url,
+        ),
+        "utf8",
+    );
+    assert.match(campaign, /types: \[opened, reopened\]/);
+    assert.doesNotMatch(campaign, /synchronize/);
+});
+
+function flatZip(name, data = Buffer.alloc(0)) {
+    const n = Buffer.from(name),
+        packed = deflateRawSync(data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(crc32(data), 14);
+    local.writeUInt32LE(packed.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(n.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(crc32(data), 16);
+    central.writeUInt32LE(packed.length, 20);
+    central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(n.length, 28);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50);
+    end.writeUInt16LE(1, 8);
+    end.writeUInt16LE(1, 10);
+    end.writeUInt32LE(central.length + n.length, 12);
+    end.writeUInt32LE(local.length + n.length + packed.length, 16);
+    return Buffer.concat([local, n, packed, central, n, end]);
+}
+test("capture ZIP reader accepts empty streams and rejects CRC, names and missing exact entries", () => {
+    const wanted = new Map([["native.stderr.bin", null]]);
+    const decode = (b) =>
+        profile.selectZip(
+            b,
+            wanted,
+            { zipSha256: sha256(b), zipSize: b.length },
+            true,
+        );
+    assert.equal(
+        decode(flatZip("native.stderr.bin")).get("native.stderr.bin").length,
+        0,
+    );
+    for (const name of [
+        "lookalike/native.stderr.bin",
+        "../native.stderr.bin",
+        "native.stderr.bin/",
+    ])
+        assert.throws(() => decode(flatZip(name)), /flat/);
+    const bad = flatZip("native.stderr.bin", Buffer.from("x"));
+    const central = bad.readUInt32LE(bad.length - 6);
+    bad.writeUInt32LE(42, central + 16);
+    assert.throws(() => decode(bad), /CRC/);
+    const b = flatZip("native.stderr.bin");
+    assert.throws(
+        () =>
+            profile.selectZip(
+                b,
+                new Map([...wanted, ["identity.json", null]]),
+                { zipSha256: sha256(b), zipSize: b.length },
+                true,
+            ),
+        /missing exact/,
+    );
+});
+test("capture API validation binds full artifact digest and exact failed run/head", () => {
+    const pin = profile.capturePins;
+    const run = {
+        id: pin.run,
+        head_sha: pin.head,
+        status: "completed",
+        conclusion: "failure",
+        path: ".github/workflows/issue646-profile.yml",
+    };
+    const artifact = {
+        id: pin.artifact,
+        expired: false,
+        size_in_bytes: pin.zipSize,
+        digest: `sha256:${pin.zipSha256}`,
+        workflow_run: { id: pin.run, head_sha: pin.head },
+    };
+    profile.validateCaptureAPI(run, artifact);
+    for (const change of [
+        { head_sha: "f".repeat(40) },
+        { id: pin.run + 1 },
+        { status: "in_progress" },
+        { conclusion: "success" },
+    ])
+        assert.throws(() =>
+            profile.validateCaptureAPI({ ...run, ...change }, artifact),
+        );
+    for (const change of [
+        { digest: "sha256:wrong" },
+        { size_in_bytes: pin.zipSize + 1 },
+        { expired: true },
+        { workflow_run: { id: pin.run, head_sha: "f".repeat(40) } },
+    ])
+        assert.throws(() =>
+            profile.validateCaptureAPI(run, { ...artifact, ...change }),
+        );
+});
 
 test("actual map CLI reaches hosted guard without an unsettled import cycle", () => {
     const out = mkdtempSync(join(tmpdir(), "issue646-cli-"));

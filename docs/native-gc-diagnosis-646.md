@@ -1,5 +1,123 @@
 # Native GC execution diagnosis (#646)
 
+## Prepared mapping-only derivation of the existing partial capture
+
+This is a partial data-processing handoff for parent review/publication in
+existing PR #647, Part of #646. It establishes no production repair, cause,
+issue completion or release acceptance. No new native execution, Node oracle,
+sampler or C# execution is part of this workflow. Earlier observation plans
+below are historical; the current job imports the second attempt instead.
+
+### Capture and immutable receipts
+
+The second run [41990050032](https://github.com/40oleg/nona/actions/runs/41990050032)
+at `45ce52357468985128f807c600588a6a8d8a95d1` captured **1626 rows / 7356
+instruction snapshots** of retained image
+`8157abc9333625725348fda654d2e5997693ee6779ae9b5d9ac33f61c3ac5451`.
+The target is PID **4020**, raw creation **134383386716948292**, base
+`0x7ff6c9160000`. Raw `samples.jsonl` SHA256 is
+`b7a30312f54b9ccef9f7efb43a17054f00c2256a3f028de00050f6334de16cc3`.
+Its observed window is `2026-11-05T07:51:12.3926351Z` through
+`2026-11-05T07:54:11.5957435Z`. These are wall-clock thread instruction
+snapshots, without stacks or exclusive GC CPU-time accounting.
+
+The sampler retained `cleanup: true`, **`complete: false`, exit 1**, and
+`SuspendThread` Win32 error 5 at `2026-11-05T07:54:11.7182736Z`.
+The native result finished at `07:54:11.712Z`, retaining its **180000 ms
+timeout**, `ETIMEDOUT`, `SIGTERM`, `deadlineExpired: true`, and failed output
+assertion. The unchanged Node result remains exit 0. The timing suggests an
+exit race but does not prove its cause. No error is reclassified, ignored or
+cleared. Original map stages were skipped because observe failed; terminal
+capture completeness remains missing.
+
+The fixed input is observation artifact **13397577754**, uploaded after the
+failed observation and before mapping: **31957391 bytes**, ZIP SHA256
+`8d9bb5d13e72b1625af64a2cecb2e5d15e20e6280d32e4c830da913bd4956cca`.
+The separate metadata artifact **13398585305**, **12480 bytes**, SHA256
+`03f705caf5f62092abbeab78a5b038ba5cc8de237fb57c7fd29e3e2854314edf`,
+preserves the subsequent original `verification.json`. Both API run/head/digest
+bindings and complete ZIP digests are checked. Exact flat entry names, sizes,
+local/central headers and CRCs are checked before extraction; duplicate names,
+directories, symlinks, missing entries and suffix lookalikes fail. Overlapping
+entries in the two artifacts must be byte-identical. Raw ZIPs, image, samples,
+streams and old reports remain intact; retained JSON is never rewritten.
+
+The local evidence includes exact decoded entries from the whole-ZIP SHA/CRC
+checked `646-profile-45ce-metadata-entries.json` and
+`646-profile-45ce-final.log` under the owner's `research/release035/` directory.
+The display-only worker timestamp difference `.719162Z` / `.7191620Z` is
+compared as integer UTC 100 ns units, including calendar validation and raw
+FILETIME consistency. Different 100 ns values, invalid dates and unknown
+identities fail. Raw PID, creation string, image path/hash, parent and command
+remain exact; millisecond rounding is not used for this identity comparison.
+
+### Implementation sequence and publication boundary
+
+The implementation plan stays in this document to keep the authorized file
+scope: add precise metadata regressions; validate/import the fixed capture;
+bind the current helper and map in a separate certificate; wire the guarded
+mapping-only job; then run serial lightweight checks and hand off to the parent.
+
+The PR-triggered Windows job keeps its **15-minute** outer limit, owner/ref
+guards and exact-head changed-filename preflight. Its only processing path is
+`prepare-existing` → checkout compiler source
+`b78f81820ff19105ab85fb10773fab4353b3d8f5` → `npm ci` / compiler build solely
+for labels → exact rebuilt-image equality → `derive-partial`. Rebuilt bytes
+are never executed. The six-row campaign guard and all product CI remain.
+There is no observe, native-worker, sampler, PowerShell or Node oracle launch
+step, retry or fallback to resampling.
+
+Before attribution the controller checks original retained ZIP/input/request
+provenance, launch and stream hashes, single native and Node attempt counts,
+worker/target identities, source/image equality and the exact sample digest and
+counts. Every selected row must be complete and valid; source/image/map
+mismatches, malformed rows and unmapped in-image offsets fail attribution.
+Outside-image snapshots remain explicitly outside the image, never assigned
+to a GC label.
+
+`derivation-certificate.json` binds the old capture artifact/run/head/digest
+and retained-file digests to the **current** helper run/head/attempt, workflow
+SHA and helper hashes. `map-result.json` binds that certificate and helper to
+the image/map hashes. `GITHUB_RUN_ID` and `PROFILE_HEAD` keep their current
+values; the old plan, worker, sampler and `verification.json` stay unchanged.
+Separate `partial-input-validation.json`, `partial-verification.json` and
+`partial-attribution.json` record identity/stream/image/map checks, observed
+window/counts and original sampler/native/Node outcomes. They always carry
+`partial: true`, `completeCaptureAccepted: false`, `nativePassed: false`,
+`historicalFailuresCleared: false`, and `releaseAcceptance: false`.
+Validated pre-failure snapshots can support a scoped hotspot observation;
+successful mapping/data processing is explicitly **not a native/capture pass**.
+
+Read-only local validation of the complete observation ZIP and original
+retained ZIP found **1623 in-image snapshots and 5733 outside-image snapshots**
+within the 7356 total. This is address classification only; function labels and
+hotspots remain pending the hosted image-equal map. All 20 exact metadata
+entries matched their recorded size/digest, and overlapping observation bytes
+matched. The separate 12480-byte metadata ZIP also passed full digest/CRC and
+exact-entry validation; its old verification remains incomplete.
+
+Always-run full uploads retain both raw ZIPs and all capture/derivation files.
+The small metadata upload includes the certificate, map/map-result, partial
+reports, old errors/outcomes and original verification. Failure still uploads
+metadata and raw evidence. Parent review/publication remains pending; hosted
+map equality and any hotspot attribution have not been established locally.
+
+Local checks used affinity mask 3 and BelowNormal priority: 21 serial pure
+metadata/JS tests, JS syntax, sampler PowerShell parsing without execution,
+selected-file formatting with cached Prettier 3.6.2 (the available cache), and
+`git diff --check`. No installs, compiler build, native workload, oracle,
+sampling or C# execution ran. The document-link checker examined 1589 links in
+308 documents and exited 1 with 95 missing-anchor diagnostics in unchanged site
+pages; the baseline comparison produced the identical 95 diagnostics. Those
+unrelated documents are outside this task's allowed file scope.
+
+Prepared partial publication: existing capture identity, streams, image and
+sample bytes are validated for scoped derivation; collection remains partial
+with its original terminal error and native timeout. Parent review/publication
+and hosted map equality remain pending. No capture pass, historical failure
+clearance, exclusive GC CPU-time claim, cause, repair or release acceptance is
+asserted.
+
 ## Profile support after the failed first attempt (partial support, 2026-11-05)
 
 This section records prepared follow-up support, **not a valid profile, established

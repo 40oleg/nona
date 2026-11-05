@@ -12,7 +12,7 @@ import {
     realpathSync,
     unlinkSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, win32 } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
@@ -34,6 +34,85 @@ export const pins = Object.freeze({
         "8157abc9333625725348fda654d2e5997693ee6779ae9b5d9ac33f61c3ac5451",
     requestPath: `${root}/request.json`,
 });
+export const capturePins = Object.freeze({
+    artifact: 13397577754,
+    run: 41990050032,
+    head: "45ce52357468985128f807c600588a6a8d8a95d1",
+    zipSize: 31957391,
+    zipSha256:
+        "8d9bb5d13e72b1625af64a2cecb2e5d15e20e6280d32e4c830da913bd4956cca",
+    samplesSha256:
+        "b7a30312f54b9ccef9f7efb43a17054f00c2256a3f028de00050f6334de16cc3",
+    rows: 1626,
+    samples: 7356,
+    pid: 4020,
+    creation: "134383386716948292",
+    base: "0x7ff6c9160000",
+});
+export const captureMetadataPins = Object.freeze({
+    artifact: 13398585305,
+    run: capturePins.run,
+    head: capturePins.head,
+    zipSize: 12480,
+    zipSha256:
+        "03f705caf5f62092abbeab78a5b038ba5cc8de237fb57c7fd29e3e2854314edf",
+});
+export const captureNames =
+    `artifact.json candidates.json historical-context.json historical-native-result.json historical-node-result.json identity.json image.bin inputs-verified.json launch.json native-attempt.json native-input.json native-result.json native.stderr.bin native.stdout.bin node-attempt.json node-input.json node-result.json node.stderr.bin node.stdout.bin observe-failure.json pe.json plan.json request.json retained.zip run.json sampler-exit.json sampler-ready.json sampler-result.json sampler.stderr.bin sampler.stdout.bin samples.jsonl selection-Sample-request.json selection-Sample-result.json stop.json target.json worker-identity.json worker-os.json worker-result.json worker.stderr.bin worker.stdout.bin WorkerIdentity-control.json`.split(
+        " ",
+    );
+export const captureMetadataNames =
+    `candidates.json identity.json inputs-verified.json metadata-index.json native-attempt.json native-result.json node-attempt.json node-result.json observe-failure.json plan.json sampler-exit.json sampler-ready.json sampler-result.json selection-Sample-request.json selection-Sample-result.json verification.json worker-identity.json worker-os.json worker-result.json WorkerIdentity-control.json`.split(
+        " ",
+    );
+
+// UTC only, validated calendar, integer 100ns units. Date.parse alone would
+// round away identity differences and accept normalized invalid dates.
+export function utc100ns(value) {
+    assert.equal(typeof value, "string", "unknown UTC timestamp");
+    const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,7}))?Z$/.exec(
+        value,
+    );
+    assert.ok(m, "invalid UTC timestamp");
+    const ms = Date.parse(m[1] + "Z");
+    assert.ok(
+        Number.isFinite(ms) && new Date(ms).toISOString() === m[1] + ".000Z",
+        "invalid UTC date",
+    );
+    return BigInt(ms) * 10000n + BigInt((m[2] ?? "").padEnd(7, "0"));
+}
+export function assertWorkerIdentity(actual, expected) {
+    for (const x of [actual, expected]) {
+        assert.ok(
+            x &&
+                Number.isSafeInteger(x.pid) &&
+                x.pid > 0 &&
+                Number.isSafeInteger(x.parentPid) &&
+                x.parentPid > 0,
+            "unknown worker identity",
+        );
+        assert.match(x.creation, /^\d+$/);
+        assert.ok(
+            typeof x.image === "string" && win32.isAbsolute(x.image),
+            "unknown worker path",
+        );
+        assert.match(x.imageSha256, /^[a-f0-9]{64}$/);
+        assert.ok(
+            typeof x.commandLine === "string" && x.commandLine.length > 0,
+            "unknown worker command",
+        );
+        assert.equal(x.commandLineTruncated, false);
+        assert.equal(
+            utc100ns(x.started) + 116444736000000000n,
+            BigInt(x.creation),
+            "worker creation/timestamp identity",
+        );
+    }
+    assert.deepEqual(
+        { ...actual, started: utc100ns(actual.started) },
+        { ...expected, started: utc100ns(expected.started) },
+    );
+}
 // Exact canonical ZIP entries only. Synthetic native-evidence-tests trees are
 // deliberately unreachable; no basename or suffix search is used.
 export const retainedFiles = Object.freeze([
@@ -340,9 +419,9 @@ export function verifyProvenance(req, n, c, context, historical) {
 
 // Small bounded ZIP reader: parse the central directory, then inflate only the
 // seven exact pinned entries. The entire ZIP digest is checked before parsing.
-export function selectZip(b, wanted) {
-    assert.equal(sha256(b), pins.zipSha256, "ZIP digest");
-    assert.equal(b.length, pins.zipSize);
+export function selectZip(b, wanted, archive = pins, strictFlat = false) {
+    assert.equal(sha256(b), archive.zipSha256, "ZIP digest");
+    assert.equal(b.length, archive.zipSize);
     let end = b.length - 22;
     while (
         end >= Math.max(0, b.length - 65557) &&
@@ -382,12 +461,28 @@ export function selectZip(b, wanted) {
         const name = b.toString("utf8", p + 46, p + 46 + len);
         assert.ok(!names.has(name), "duplicate ZIP name");
         names.add(name);
+        if (strictFlat) {
+            assert.ok(
+                /^[A-Za-z0-9.-]+$/.test(name) && wanted.has(name),
+                "unexpected/non-flat ZIP entry",
+            );
+            assert.notEqual(
+                (b.readUInt32LE(p + 38) >>> 16) & 0xf000,
+                0xa000,
+                "ZIP symlink",
+            );
+            assert.equal(b.readUInt32LE(p + 38) & 16, 0, "ZIP directory");
+        }
         if (wanted.has(name)) {
             assert.equal(flags & 1, 0, "encrypted ZIP entry");
             assert.ok(method === 0 || method === 8);
-            assert.equal(unpacked, wanted.get(name));
+            if (wanted.get(name) !== null)
+                assert.equal(unpacked, wanted.get(name));
+            assert.ok(unpacked <= 33554432, "ZIP entry size bound");
             assert.ok(local + 30 <= offset);
             assert.equal(b.readUInt32LE(local), 0x04034b50);
+            assert.equal(b.readUInt16LE(local + 6), flags);
+            assert.equal(b.readUInt16LE(local + 8), method);
             const localLen = b.readUInt16LE(local + 26),
                 localExtra = b.readUInt16LE(local + 28),
                 start = local + 30 + localLen + localExtra;
@@ -401,15 +496,39 @@ export function selectZip(b, wanted) {
                 method === 0
                     ? b.subarray(start, start + packed)
                     : inflateRawSync(b.subarray(start, start + packed), {
-                          maxOutputLength: unpacked,
+                          maxOutputLength: Math.max(1, unpacked),
                       });
             assert.equal(bytes.length, unpacked);
+            assert.equal(crc32(bytes), b.readUInt32LE(p + 16), "ZIP CRC");
             found.set(name, bytes);
         }
         p += 46 + len + extra + comment;
     }
     assert.equal(p, end);
+    assert.equal(found.size, wanted.size, "missing exact ZIP entries");
     return found;
+}
+function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+        crc ^= byte;
+        for (let i = 0; i < 8; i++)
+            crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+export function decodeCapture(bytes, metadata = false) {
+    return selectZip(
+        bytes,
+        new Map(
+            (metadata ? captureMetadataNames : captureNames).map((n) => [
+                n,
+                null,
+            ]),
+        ),
+        metadata ? captureMetadataPins : capturePins,
+        true,
+    );
 }
 async function api(endpoint) {
     const response = await fetch(
@@ -510,6 +629,581 @@ function filesFromDisk(out) {
     return new Map(
         retainedFiles.map(([p, n]) => [p, readFileSync(join(out, n))]),
     );
+}
+// This import never launches a worker, oracle, sampler or PowerShell helper.
+async function downloadCapture(out, pin, prefix) {
+    const metadata = [];
+    for (const endpoint of [
+        `actions/runs/${pin.run}`,
+        `actions/artifacts/${pin.artifact}`,
+    ]) {
+        const response = await api(endpoint);
+        assert.equal(response.status, 200);
+        metadata.push(await response.json());
+    }
+    const [run, artifact] = metadata;
+    json(out, `${prefix}-api.json`, { run, artifact });
+    validateCaptureAPI(run, artifact, pin);
+    const redirect = await api(`actions/artifacts/${pin.artifact}/zip`);
+    assert.equal(redirect.status, 302);
+    const location = new URL(redirect.headers.get("location"));
+    assert.equal(location.protocol, "https:");
+    const response = await fetch(location, {
+        signal: AbortSignal.timeout(60000),
+    });
+    assert.equal(response.status, 200);
+    let size = 0;
+    const chunks = [];
+    for await (const chunk of response.body) {
+        size += chunk.length;
+        assert.ok(size <= pin.zipSize, "capture ZIP byte bound");
+        chunks.push(chunk);
+    }
+    const bytes = Buffer.concat(chunks);
+    writeFileSync(join(out, `${prefix}.zip`), bytes, { flag: "wx" });
+    return bytes;
+}
+export function validateCaptureAPI(run, artifact, pin = capturePins) {
+    assert.equal(run.id, pin.run);
+    assert.equal(run.head_sha, pin.head);
+    assert.equal(run.status, "completed");
+    assert.equal(run.conclusion, "failure");
+    assert.equal(run.path, ".github/workflows/issue646-profile.yml");
+    assert.equal(artifact.id, pin.artifact);
+    assert.equal(artifact.expired, false);
+    assert.equal(artifact.size_in_bytes, pin.zipSize);
+    assert.equal(artifact.digest, `sha256:${pin.zipSha256}`);
+    assert.equal(artifact.workflow_run.id, pin.run);
+    assert.equal(artifact.workflow_run.head_sha, pin.head);
+}
+function helperBinding() {
+    assert.match(process.env.PROFILE_HEAD, /^[a-f0-9]{40}$/);
+    assert.match(process.env.GITHUB_RUN_ID, /^\d+$/);
+    assert.match(process.env.GITHUB_SHA, /^[a-f0-9]{40}$/);
+    assert.match(process.env.GITHUB_RUN_ATTEMPT, /^\d+$/);
+    const checkout = spawnSync("git", ["rev-parse", "HEAD"], {
+        cwd: fileURLToPath(new URL("..", import.meta.url)),
+        encoding: "utf8",
+        timeout: 10000,
+        windowsHide: true,
+    });
+    assert.equal(checkout.status, 0);
+    assert.equal(
+        checkout.stdout.trim(),
+        process.env.PROFILE_HEAD,
+        "current helper checkout/head",
+    );
+    return {
+        run: process.env.GITHUB_RUN_ID,
+        head: process.env.PROFILE_HEAD,
+        workflowSha: process.env.GITHUB_SHA,
+        attempt: process.env.GITHUB_RUN_ATTEMPT,
+        profileSha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
+        mapHelperSha256: sha256(
+            readFileSync(
+                fileURLToPath(new URL("./issue646-map.mjs", import.meta.url)),
+            ),
+        ),
+    };
+}
+async function prepareExisting(out) {
+    const certificate = {
+        mode: "mapping-only-existing-partial",
+        capture: capturePins,
+        metadata: captureMetadataPins,
+        source: pins.source,
+        helper: helperBinding(),
+        newNativeLaunches: 0,
+        newNodeOracleLaunches: 0,
+        newSamplerLaunches: 0,
+        completeCaptureAccepted: false,
+        historicalFailuresCleared: false,
+        releaseAcceptance: false,
+    };
+    json(out, "derivation-certificate.json", certificate);
+    const bytes = await downloadCapture(out, capturePins, "capture");
+    const files = decodeCapture(bytes);
+    // Make the checked original errors/outcomes available to the small upload
+    // even if the subsequent metadata download fails.
+    for (const [name, raw] of files)
+        writeFileSync(join(out, name), raw, { flag: "wx" });
+    const metadataBytes = await downloadCapture(
+        out,
+        captureMetadataPins,
+        "capture-metadata",
+    );
+    const metadata = decodeCapture(metadataBytes, true);
+    for (const [name, raw] of metadata) {
+        if (files.has(name))
+            assert.ok(
+                files.get(name).equals(raw),
+                `capture/metadata disagreement ${name}`,
+            );
+        else {
+            files.set(name, raw);
+            writeFileSync(join(out, name), raw, { flag: "wx" });
+        }
+    }
+    // Flat, exact names were validated before writes; preserve bytes, including
+    // old verification and every error. No old plan/run field is substituted.
+    certificate.files = [...files].map(([name, raw]) => ({
+        name,
+        size: raw.length,
+        sha256: sha256(raw),
+    }));
+    json(out, "derivation-certificate.json", certificate);
+    const validated = validateExistingCapture(files);
+    json(out, "partial-input-validation.json", {
+        ...partialFlags,
+        validated: true,
+        ...validated.summary,
+    });
+}
+const partialFlags = Object.freeze({
+    partial: true,
+    completeCaptureAccepted: false,
+    nativePassed: false,
+    historicalFailuresCleared: false,
+    releaseAcceptance: false,
+});
+export function validatePartialRows(raw, sampler, nativeResult, pe) {
+    assert.ok(
+        raw.length > 0 && raw.length <= 33554432 && raw.at(-1) === 10,
+        "incomplete samples",
+    );
+    assert.equal(sha256(raw), sampler.samplesSha256, "sample digest");
+    assert.match(sampler.base, /^0x[0-9a-f]+$/i);
+    assert.equal(sampler.imageSize, pe.sizeOfImage);
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(raw);
+    const lines = text.slice(0, -1).split("\n");
+    const rows = lines.map((line) => JSON.parse(line));
+    assert.ok(rows.length > 0 && rows.length <= 1800);
+    assert.equal(rows.length, sampler.rows);
+    let previous = -1n,
+        cpu = -1,
+        totalSamples = 0,
+        imageSamples = 0;
+    const start = utc100ns(nativeResult.started),
+        finish = utc100ns(nativeResult.finished),
+        threads = new Map();
+    assert.ok(start <= finish);
+    for (const row of rows) {
+        assert.equal(row.pid, sampler.pid);
+        assert.equal(row.creation, sampler.creation);
+        const at = utc100ns(row.at);
+        assert.ok(
+            at >= previous && at >= start && at <= finish,
+            "sample outside native lifetime",
+        );
+        previous = at;
+        assert.ok(
+            Number.isFinite(row.cpuMs) &&
+                row.cpuMs >= 0 &&
+                row.cpuMs >= cpu &&
+                Number.isSafeInteger(row.rss) &&
+                row.rss > 0,
+            "invalid CPU/RSS",
+        );
+        cpu = row.cpuMs;
+        assert.ok(
+            Array.isArray(row.threads) &&
+                row.threads.length > 0 &&
+                row.threads.length <= 32,
+            "incomplete thread row",
+        );
+        const tids = new Set();
+        for (const t of row.threads) {
+            assert.ok(
+                Number.isSafeInteger(t.tid) && t.tid > 0 && !tids.has(t.tid),
+                "duplicate/invalid thread",
+            );
+            tids.add(t.tid);
+            assert.match(t.creation, /^\d+$/);
+            assert.match(t.rip, /^0x[0-9a-f]{1,16}$/i);
+            if (threads.has(t.tid))
+                assert.equal(
+                    t.creation,
+                    threads.get(t.tid),
+                    "thread identity reused",
+                );
+            threads.set(t.tid, t.creation);
+            const rva = BigInt(t.rip) - BigInt(sampler.base);
+            totalSamples++;
+            if (rva >= 0n && rva < BigInt(sampler.imageSize)) imageSamples++;
+        }
+    }
+    assert.equal(totalSamples, sampler.samples, "sample count");
+    assert.ok(imageSamples > 0, "no retained-image samples");
+    return {
+        rows,
+        totalSamples,
+        imageSamples,
+        outsideImageSamples: totalSamples - imageSamples,
+        observedWindow: {
+            first: rows[0].at,
+            last: rows.at(-1).at,
+            duration100ns: (
+                utc100ns(rows.at(-1).at) - utc100ns(rows[0].at)
+            ).toString(),
+        },
+    };
+}
+export function validateExistingCapture(files) {
+    const bytes = (name) => {
+        assert.ok(files.has(name), `missing exact capture entry ${name}`);
+        return files.get(name);
+    };
+    const get = (name) => JSON.parse(bytes(name));
+    const input = verifyInputs(
+        new Map(retainedFiles.map(([p, n]) => [p, bytes(n)])),
+    );
+    const original = selectZip(
+        bytes("retained.zip"),
+        new Map(retainedFiles.map(([p, , size]) => [p, size])),
+    );
+    verifyInputs(original);
+    for (const [p, n] of retainedFiles)
+        assert.ok(original.get(p).equals(bytes(n)));
+    const plan = get("plan.json"),
+        launch = get("launch.json"),
+        n = get("native-result.json"),
+        c = get("node-result.json"),
+        s = get("sampler-result.json"),
+        identity = get("identity.json"),
+        target = get("target.json"),
+        worker = get("worker-result.json"),
+        workerIdentity = get("worker-identity.json");
+    assert.deepEqual(plan.pins, pins);
+    assert.equal(plan.source, pins.source);
+    assert.equal(plan.diagnosticHead, capturePins.head);
+    assert.equal(plan.run, String(capturePins.run));
+    assert.equal(plan.nativeCount, 1);
+    assert.equal(plan.nodeCount, 1);
+    assert.equal(get("native-attempt.json").count, 1);
+    assert.equal(get("node-attempt.json").count, 1);
+    assert.equal(launch.source, pins.source);
+    assert.equal(launch.imageSha256, pins.imageSha256);
+    assert.deepEqual(launch.files, input.files);
+    assert.equal(launch.entry, input.entry);
+    assert.deepEqual(launch.args, []);
+    assert.equal(launch.timeoutMs, 180000);
+    assert.equal(launch.windowsHide, true);
+    assert.equal(launch.maxBuffer, 1048576);
+    assert.equal(launch.stdin, "pipe-closed-empty");
+    assert.equal(win32.join(launch.cwd, "image.exe"), launch.image);
+    assert.equal(n.imageSha256, pins.imageSha256);
+    assert.equal(n.pid, capturePins.pid);
+    assert.equal(n.timeoutMs, 180000);
+    assert.equal(n.deadlineExpired, true);
+    assert.equal(n.status, null);
+    assert.equal(n.signal, "SIGTERM");
+    assert.equal(n.error.code, "ETIMEDOUT");
+    assert.equal(n.aborted, false);
+    assert.equal(n.complete, true);
+    assert.equal(n.error.path, launch.image);
+    assert.deepEqual(n.error.spawnargs, []);
+    assert.equal(n.launchSha256, sha256(bytes("launch.json")));
+    assert.equal(c.timeoutMs, 60000);
+    assert.equal(c.status, 0);
+    assert.equal(c.signal, null);
+    assert.equal(c.error, null);
+    assert.equal(
+        c.oracleSourceSha256,
+        sha256(Buffer.from(input.options.oracleSource)),
+    );
+    for (const [prefix, r] of [
+        ["native", n],
+        ["node", c],
+    ])
+        for (const stream of ["stdout", "stderr"])
+            assert.equal(
+                sha256(bytes(`${prefix}.${stream}.bin`)),
+                r[`${stream}Sha256`],
+            );
+    assert.ok(
+        bytes("node.stdout.bin").equals(
+            Buffer.from(
+                get("historical-node-result.json").stdout.data,
+                "base64",
+            ),
+        ),
+    );
+    assert.equal(bytes("node.stderr.bin").length, 0);
+    assert.equal(worker.status, 0);
+    assert.equal(worker.signal, null);
+    assert.equal(worker.error, null);
+    assert.equal(worker.boundExceeded, false);
+    assert.equal(worker.aborted, false);
+    assert.equal(worker.complete, true);
+    assert.ok(
+        Number.isSafeInteger(worker.logBytes) &&
+            worker.logBytes >= 0 &&
+            worker.logBytes <= 1048576,
+    );
+    assertWorkerIdentity(identity.worker, workerIdentity);
+    assertWorkerIdentity(target.worker, workerIdentity);
+    assertWorkerIdentity(get("worker-os.json"), workerIdentity);
+    assert.equal(worker.pid, workerIdentity.pid);
+    assert.equal(identity.parentPid, worker.pid);
+    assert.equal(launch.parentPid, workerIdentity.parentPid);
+    assert.equal(get("native-attempt.json").parentPid, worker.pid);
+    assert.deepEqual(target, {
+        ...launch,
+        parentPid: worker.pid,
+        started: n.started,
+        launchSha256: n.launchSha256,
+        worker: target.worker,
+    });
+    for (const key of [
+        "pid",
+        "creation",
+        "imageSha256",
+        "base",
+        "imageSize",
+        "targetSha256",
+        "launchSha256",
+    ])
+        assert.equal(identity[key], s[key], `identity binding ${key}`);
+    for (const key of [
+        "pid",
+        "creation",
+        "base",
+        "samplesSha256",
+        "rows",
+        "samples",
+    ])
+        assert.equal(s[key], capturePins[key]);
+    assert.equal(s.imageSha256, pins.imageSha256);
+    assert.equal(s.targetSha256, sha256(bytes("target.json")));
+    assert.equal(s.launchSha256, n.launchSha256);
+    assert.equal(identity.image, launch.image);
+    assert.equal(identity.commandLine, launch.image);
+    assert.equal(identity.canonicalImage, identity.expectedCanonicalImage);
+    assert.equal(
+        utc100ns(identity.started) + 116444736000000000n,
+        BigInt(identity.creation),
+    );
+    assert.ok(
+        utc100ns(identity.started) >= utc100ns(n.started) &&
+            utc100ns(identity.started) <= utc100ns(n.started) + 20000000n,
+    );
+    const selected = get("selection-Sample-result.json").selected;
+    for (const key of [
+        "pid",
+        "parentPid",
+        "creation",
+        "image",
+        "imageSha256",
+        "commandLine",
+        "canonicalImage",
+        "expectedCanonicalImage",
+    ])
+        assert.equal(selected[key], identity[key]);
+    assert.equal(utc100ns(selected.started), utc100ns(identity.started));
+    assert.equal(selected.commandLineTruncated, false);
+    assert.equal(s.complete, false);
+    assert.equal(s.cleanup, true);
+    assert.ok(Array.isArray(s.errors) && s.errors.length > 0);
+    assert.match(s.errors[0].message, /Win32Exception \(5\): SuspendThread/);
+    assert.equal(s.errors[0].at, "2026-11-05T07:54:11.7182736Z");
+    const samplerExit = get("sampler-exit.json");
+    assert.deepEqual(samplerExit, { status: 1, signal: null, error: null });
+    const pe = peMetadata(bytes("image.bin"));
+    assert.deepEqual(get("pe.json"), pe);
+    const checked = validatePartialRows(bytes("samples.jsonl"), s, n, pe);
+    assert.ok(utc100ns(s.started) <= utc100ns(checked.rows[0].at));
+    assert.ok(utc100ns(checked.rows.at(-1).at) < utc100ns(s.errors[0].at));
+    assert.ok(utc100ns(s.finished) >= utc100ns(s.errors[0].at));
+    return {
+        ...checked,
+        sampler: s,
+        pe,
+        summary: {
+            ...partialFlags,
+            totalSamples: checked.totalSamples,
+            imageSamples: checked.imageSamples,
+            outsideImageSamples: checked.outsideImageSamples,
+            rows: checked.rows.length,
+            observedWindow: checked.observedWindow,
+            sampler: s,
+            samplerExit,
+            nativeOutcome: n,
+            nodeOutcome: c,
+            observeFailure: get("observe-failure.json"),
+        },
+    };
+}
+export function attributePartial(rows, sampler, map, pe) {
+    validateMap(map, pe);
+    const counts = new Map(),
+        offsets = new Map();
+    let outsideImageSamples = 0,
+        totalSamples = 0;
+    for (const row of rows)
+        for (const t of row.threads) {
+            totalSamples++;
+            const rva = BigInt(t.rip) - BigInt(sampler.base);
+            if (rva < 0n || rva >= BigInt(sampler.imageSize)) {
+                outsideImageSamples++;
+                continue;
+            }
+            const offset = Number(rva),
+                label = locate(map, offset);
+            assert.ok(
+                label,
+                `unmapped in-image offset ${offset}; attribution forbidden`,
+            );
+            counts.set(label.name, (counts.get(label.name) ?? 0) + 1);
+            offsets.set(offset, (offsets.get(offset) ?? 0) + 1);
+        }
+    return {
+        ...partialFlags,
+        totalSamples,
+        imageSamples: totalSamples - outsideImageSamples,
+        outsideImageSamples,
+        counts: [...counts].sort((a, b) => b[1] - a[1]),
+        offsets: [...offsets].sort((a, b) => b[1] - a[1]),
+        unmapped: 0,
+        limitation:
+            "Partial wall-clock instruction snapshots before collection failure; no stacks or exclusive GC CPU-time accounting. Mapping success is not a native/capture pass and does not establish a cause.",
+    };
+}
+function derivePartial(out) {
+    const result = {
+        ...partialFlags,
+        validated: false,
+        captureInputsValidated: false,
+        mapBindingsChecked: false,
+        attributionComplete: false,
+        errors: [],
+    };
+    try {
+        const certificate = readJson(out, "derivation-certificate.json");
+        assert.equal(certificate.mode, "mapping-only-existing-partial");
+        for (const key of [
+            "newNativeLaunches",
+            "newNodeOracleLaunches",
+            "newSamplerLaunches",
+        ])
+            assert.equal(certificate[key], 0);
+        for (const key of [
+            "completeCaptureAccepted",
+            "historicalFailuresCleared",
+            "releaseAcceptance",
+        ])
+            assert.equal(certificate[key], false);
+        assert.deepEqual(certificate.capture, capturePins);
+        assert.deepEqual(certificate.metadata, captureMetadataPins);
+        assert.equal(certificate.source, pins.source);
+        assert.deepEqual(certificate.helper, helperBinding());
+        const files = decodeCapture(readFileSync(join(out, "capture.zip")));
+        for (const [name, raw] of decodeCapture(
+            readFileSync(join(out, "capture-metadata.zip")),
+            true,
+        )) {
+            if (files.has(name)) assert.ok(files.get(name).equals(raw));
+            else files.set(name, raw);
+        }
+        assert.deepEqual(
+            certificate.files,
+            [...files].map(([name, raw]) => ({
+                name,
+                size: raw.length,
+                sha256: sha256(raw),
+            })),
+        );
+        for (const [name, raw] of files)
+            assert.ok(
+                readFileSync(join(out, name)).equals(raw),
+                `retained bytes changed ${name}`,
+            );
+        for (const [pin, prefix] of [
+            [capturePins, "capture"],
+            [captureMetadataPins, "capture-metadata"],
+        ]) {
+            const { run, artifact } = readJson(out, `${prefix}-api.json`);
+            validateCaptureAPI(run, artifact, pin);
+        }
+        const validated = validateExistingCapture(files);
+        Object.assign(result, validated.summary, {
+            captureInputsValidated: true,
+        });
+        for (const mode of ["dependencies", "build"]) {
+            const r = readJson(out, `${mode}-result.json`);
+            assert.equal(r.source, pins.source);
+            assert.equal(r.node, "v26.9.0");
+            assert.equal(r.status, 0);
+            assert.equal(r.signal, null);
+            assert.equal(r.error, null);
+            for (const stream of ["stdout", "stderr"])
+                assert.equal(
+                    r[`${stream}Sha256`],
+                    sha256(readFileSync(join(out, `${mode}.${stream}.bin`))),
+                );
+        }
+        const mapping = readJson(out, "map-result.json"),
+            mapBytes = readFileSync(join(out, "map.json"));
+        assert.equal(mapping.complete, true);
+        assert.equal(mapping.source, pins.source);
+        assert.equal(mapping.imageSha256, pins.imageSha256);
+        assert.equal(mapping.rebuiltSha256, pins.imageSha256);
+        assert.deepEqual(mapping.helper, certificate.helper);
+        assert.equal(
+            mapping.certificateSha256,
+            sha256(readFileSync(join(out, "derivation-certificate.json"))),
+        );
+        assert.equal(mapping.mapSha256, sha256(mapBytes));
+        assert.equal(
+            sha256(readFileSync(join(out, "rebuilt-for-map.bin"))),
+            pins.imageSha256,
+        );
+        const attribution = attributePartial(
+            validated.rows,
+            validated.sampler,
+            JSON.parse(mapBytes),
+            validated.pe,
+        );
+        result.mapBindingsChecked = true;
+        json(out, "partial-attribution.json", {
+            ...attribution,
+            attributionComplete: true,
+            rows: validated.rows.length,
+            originalSampler: validated.sampler,
+            originalSamplerExit: validated.summary.samplerExit,
+            nativeOutcome: validated.summary.nativeOutcome,
+            nodeOutcome: validated.summary.nodeOutcome,
+            imageSha256: pins.imageSha256,
+            samplesSha256: capturePins.samplesSha256,
+            mapSha256: mapping.mapSha256,
+            certificateSha256: mapping.certificateSha256,
+            observedWindow: validated.observedWindow,
+        });
+        result.validated = true;
+        result.attributionComplete = true;
+        result.bindings = {
+            imageSha256: pins.imageSha256,
+            mapSha256: mapping.mapSha256,
+            certificateSha256: mapping.certificateSha256,
+            capture: capturePins,
+            helper: certificate.helper,
+        };
+    } catch (error) {
+        result.errors.push(errorJSON(error));
+        // Never leave an earlier-looking success when derivation fails.
+        json(out, "partial-attribution.json", {
+            ...partialFlags,
+            attributionComplete: false,
+            errors: result.errors,
+        });
+        process.exitCode = 1;
+    } finally {
+        json(out, "partial-verification.json", result);
+        json(out, "partial-metadata-index.json", {
+            ...partialFlags,
+            validated: result.validated,
+            attributionComplete: result.attributionComplete,
+        });
+    }
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function buildForMap(out, source, mode) {
@@ -1104,7 +1798,7 @@ function verify(out) {
             identity.expectedCanonicalImage.toLowerCase(),
             realpathSync.native(launch.image).toLowerCase(),
         );
-        assert.deepEqual(
+        assertWorkerIdentity(
             identity.worker,
             readJson(out, "worker-identity.json"),
         );
@@ -1278,7 +1972,9 @@ if (
         out = resolve(output);
     mkdirSync(out, { recursive: true });
     try {
-        if (mode === "prepare") await prepare(out);
+        if (mode === "prepare-existing") await prepareExisting(out);
+        else if (mode === "derive-partial") derivePartial(out);
+        else if (mode === "prepare") await prepare(out);
         else if (mode === "observe") await observe(out);
         else if (mode === "native-worker") nativeWorker(out);
         else if (mode === "dependencies" || mode === "build")

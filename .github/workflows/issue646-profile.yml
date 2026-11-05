@@ -1,4 +1,4 @@
-name: Issue 646 single retained Windows image profile
+name: Issue 646 mapping-only existing partial Windows capture
 on:
     pull_request:
         types: [opened, synchronize, reopened]
@@ -19,7 +19,7 @@ jobs:
         runs-on: ubuntu-24.04
         timeout-minutes: 3
         outputs:
-            observe: ${{ steps.head.outputs.observe }}
+            derive: ${{ steps.head.outputs.derive }}
             head: ${{ steps.head.outputs.head }}
         steps:
             - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
                           if (!complete) throw Error('Truncated commit file metadata');
                           const changed = changedProfileFiles(files);
                           core.setOutput('head', head);
-                          core.setOutput('observe', context.eventName === 'workflow_dispatch' || changed ? 'true' : 'false');
+                          core.setOutput('derive', context.eventName === 'workflow_dispatch' || changed ? 'true' : 'false');
                       } finally {
                           fs.mkdirSync('profile-preflight', {recursive: true});
                           fs.writeFileSync('profile-preflight/head.json', JSON.stringify({
@@ -68,11 +68,10 @@ jobs:
                   retention-days: 30
     profile:
         needs: preflight
-        if: needs.preflight.outputs.observe == 'true'
+        if: needs.preflight.outputs.derive == 'true'
         runs-on: windows-latest
         timeout-minutes: 15
         env:
-            NONA_GC_STRESS: "on"
             PROFILE_HEAD: ${{ needs.preflight.outputs.head }}
         steps:
             - uses: actions/checkout@v4
@@ -83,12 +82,14 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: "26.9.0"
-            - name: Pin and retain the exact artifact, image and inputs
+            # This job has no observe/native-worker/sampler/oracle step. Both
+            # ZIPs and their original reports remain immutable capture evidence.
+            - name: Prepare pinned existing partial capture; zero new executions
               id: prepare
               timeout-minutes: 2
               env:
                   GH_TOKEN: ${{ github.token }}
-              run: node diagnostic/scripts/issue646-profile.mjs prepare profile
+              run: node diagnostic/scripts/issue646-profile.mjs prepare-existing profile
             - uses: actions/upload-artifact@v4
               if: always()
               with:
@@ -96,27 +97,15 @@ jobs:
                   path: profile/
                   if-no-files-found: error
                   retention-days: 30
-            - name: One original native execution and one unchanged Node oracle
-              id: observe
-              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
-              timeout-minutes: 5
-              run: node diagnostic/scripts/issue646-profile.mjs observe profile
-            - uses: actions/upload-artifact@v4
-              if: always()
-              with:
-                  name: issue646-profile-observation-${{ github.run_id }}-${{ github.run_attempt }}
-                  path: profile/
-                  if-no-files-found: error
-                  retention-days: 30
             - uses: actions/checkout@v4
-              if: ${{ !cancelled() && steps.observe.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
               with:
                   path: source
                   ref: b78f81820ff19105ab85fb10773fab4353b3d8f5
                   persist-credentials: false
             - name: Install pinned compiler dependencies solely for map reconstruction
               id: dependencies
-              if: ${{ !cancelled() && steps.observe.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
               timeout-minutes: 2
               run: node diagnostic/scripts/issue646-profile.mjs dependencies profile source
             - name: Build pinned compiler solely for map reconstruction
@@ -128,15 +117,21 @@ jobs:
               if: ${{ !cancelled() && steps.build.outcome == 'success' }}
               timeout-minutes: 1
               run: node diagnostic/scripts/issue646-map.mjs profile source
-            - name: Verify outcomes and profile independently; reject attribution gaps
+            - name: Derive partial snapshots only; success is not a native or capture pass
               if: always()
-              run: node diagnostic/scripts/issue646-profile.mjs verify profile
+              run: node diagnostic/scripts/issue646-profile.mjs derive-partial profile
             - name: Retain small outcome and failure metadata
               uses: actions/upload-artifact@v4
               if: always()
               with:
                   name: issue646-profile-metadata-${{ github.run_id }}-${{ github.run_attempt }}
                   path: |
+                      profile/derivation-certificate.json
+                      profile/capture-api.json
+                      profile/capture-metadata-api.json
+                      profile/partial-*.json
+                      profile/partial-verification.json
+                      profile/partial-attribution.json
                       profile/metadata-index.json
                       profile/verification.json
                       profile/inputs-verified.json

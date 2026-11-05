@@ -261,6 +261,20 @@ async function hostedMap(output, source) {
         gap: null,
     };
     try {
+        const certificateBytes = readFileSync(
+            join(output, "derivation-certificate.json"),
+        );
+        const certificate = JSON.parse(certificateBytes);
+        assert.equal(certificate.mode, "mapping-only-existing-partial");
+        assert.equal(certificate.source, pins.source);
+        assert.equal(certificate.helper.run, process.env.GITHUB_RUN_ID);
+        assert.equal(certificate.helper.head, process.env.PROFILE_HEAD);
+        assert.equal(
+            certificate.helper.mapHelperSha256,
+            sha256(readFileSync(new URL(import.meta.url))),
+        );
+        report.helper = certificate.helper;
+        report.certificateSha256 = sha256(certificateBytes);
         assert.equal(
             execFileSync("git", ["rev-parse", "HEAD"], {
                 cwd: source,

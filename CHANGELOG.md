@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Partial #646 mapping-only derivation support.** Import the fixed failed
+  capture without new native/oracle/sampler executions, compare equivalent UTC
+  worker timestamps at 100 ns precision, and bind retained snapshots to a
+  separately certified image-equal map. Preserve incomplete collection, sampler
+  errors, native timeout and old verification; mapping success cannot clear
+  historical failures or establish a cause or release acceptance.
+  ([#646](https://github.com/40oleg/nona/issues/646))
+
 - **Partial #646 profile support repair.** Break the mapper CLI import cycle,
   select owned native children by canonical image and process identity, abort
   incomplete observations promptly with verified tree cleanup, and retain a
