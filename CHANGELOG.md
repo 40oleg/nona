@@ -12,6 +12,8 @@
 
 ### Testing
 
+- **Retain complete native GC failure evidence.** Preserve signals, spawn error metadata, exact fixture inputs, raw Node/native streams, executable hashes and compile/link timings before helper cleanup. Add a bounded hosted diagnostic matrix for the pinned Darwin assert/RegExp and Windows HTTP witnesses, with Linux controls; failures and incomplete reports keep release admission unresolved ([#646](https://github.com/40oleg/nona/issues/646)).
+
 - **Completed legacy HTTP smoke recognizes Node timer-clamp diagnostics.** Record only exact `TimeoutNegativeWarning` blocks with canonical finite negative delays and the actual driver PID as separate correctness observations. Preserve raw stderr, reports, exits and historical failures; reject other diagnostics and retain every existing correctness gate and native acceptance requirement ([#644](https://github.com/40oleg/nona/issues/644)).
 
 - **Explicit HTTP smoke correctness policy.** Defer only p99 for explicit smoke runs while retaining measurements and the original failed criterion. Keep every other gate and strict three-hour native acceptance unchanged. The pinned legacy wrapper validates final reports and driver completion before recording a separate correctness decision; original reports and exits remain intact. Historical failures remain historical, with no performance improvement claimed ([#642](https://github.com/40oleg/nona/issues/642)).
