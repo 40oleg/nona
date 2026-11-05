@@ -1,4 +1,6 @@
-param([Parameter(Mandatory = $true)][string]$Output)
+param([Parameter(Mandatory = $true)][string]$Output,
+    [ValidateSet('Sample', 'WorkerIdentity', 'Cleanup')][string]$Mode = 'Sample',
+    [int]$WorkerPid = 0)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or
@@ -6,6 +8,98 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
     [Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString() -ne 'X64' -or
     -not [OperatingSystem]::IsWindows()) { throw 'Sampler requires GitHub-hosted Windows AMD64' }
 $Output = [IO.Path]::GetFullPath($Output)
+function Save-Json($Name, $Value) {
+    [IO.File]::WriteAllText((Join-Path $Output $Name), ($Value | ConvertTo-Json -Depth 20) + "`n", [Text.UTF8Encoding]::new($false))
+}
+function Process-Metadata($Process, $Info) {
+    # Access Handle before reading identity; keep the process object/handle until
+    # selection/capture or cleanup is finished, including across PID reuse.
+    $null = $Process.Handle
+    if ($Info.ProcessId -ne $Process.Id -or
+        [Math]::Abs(($Info.CreationDate.ToUniversalTime() - $Process.StartTime.ToUniversalTime()).TotalMilliseconds) -gt 1) { throw 'CIM/process handle creation identity mismatch' }
+    $image = $Process.MainModule.FileName
+    return @{
+        pid = $Process.Id; parentPid = [int]$Info.ParentProcessId
+        creation = $Process.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()
+        started = $Process.StartTime.ToUniversalTime().ToString('o')
+        image = $image; imageSha256 = (Get-FileHash -LiteralPath $image -Algorithm SHA256).Hash.ToLowerInvariant()
+        commandLine = if ($null -eq $Info.CommandLine) { $null } else { $Info.CommandLine.Substring(0, [Math]::Min(4096, $Info.CommandLine.Length)) }
+        commandLineTruncated = $null -ne $Info.CommandLine -and $Info.CommandLine.Length -gt 4096
+    }
+}
+function Select-Owned($Expected, $Candidates) {
+    Save-Json "selection-$Mode-request.json" @{ expected = $Expected; candidates = @($Candidates) }
+    # This JS mode only validates metadata and canonicalizes paths through
+    # realpathSync.native. It cannot enumerate, sample or compile C#.
+    & node (Join-Path $PSScriptRoot 'issue646-profile.mjs') select-child $Output $Mode
+    if ($LASTEXITCODE -ne 0) { throw 'Owned identity selection failed; see selection receipts' }
+    return (Get-Content -LiteralPath (Join-Path $Output "selection-$Mode-result.json") -Raw | ConvertFrom-Json).selected
+}
+if ($Mode -eq 'WorkerIdentity') {
+    $worker = [Diagnostics.Process]::GetProcessById($WorkerPid)
+    try {
+        $info = Get-CimInstance Win32_Process -Filter "ProcessId = $WorkerPid"
+        Save-Json 'worker-os.json' (Process-Metadata $worker $info)
+    } finally { $worker.Dispose() }
+    exit 0
+}
+if ($Mode -eq 'Cleanup') {
+    $cleanup = @{ complete = $false; errors = @(); expected = $null; actual = $null; descendants = @() }
+    $worker = $null
+    $descendants = @()
+    try {
+        $expected = Get-Content -LiteralPath (Join-Path $Output 'worker-identity.json') -Raw | ConvertFrom-Json
+        $cleanup.expected = $expected
+        if ($expected.pid -ne $WorkerPid) { throw 'Cleanup worker PID mismatch' }
+        $info = Get-CimInstance Win32_Process -Filter "ProcessId = $WorkerPid"
+        if ($null -eq $info) {
+            # A missing root is not proof its native child has exited.
+            throw 'Cleanup worker unavailable; tree cleanup unverified'
+        }
+        $worker = [Diagnostics.Process]::GetProcessById($WorkerPid)
+        $actual = Process-Metadata $worker $info
+        $cleanup.actual = $actual
+        $selected = Select-Owned $expected @($actual)
+        if ($null -eq $selected -or $selected.pid -ne $WorkerPid -or $actual.creation -ne $expected.creation) { throw 'Cleanup worker identity mismatch' }
+        try {
+            $parents = @($worker)
+            while ($parents.Count -gt 0) {
+                $next = @()
+                foreach ($parent in $parents) {
+                    foreach ($child in @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($parent.Id)")) {
+                        if ($descendants.Count -ge 64) { throw 'Cleanup descendant bound exceeded' }
+                        $process = [Diagnostics.Process]::GetProcessById([int]$child.ProcessId)
+                        $descendants += $process
+                        $metadata = Process-Metadata $process $child
+                        if ([long]$metadata.creation -lt $parent.StartTime.ToUniversalTime().ToFileTimeUtc()) { throw 'Cleanup descendant predates owned parent' }
+                        $cleanup.descendants += $metadata
+                        $next += $process
+                    }
+                }
+                $parents = $next
+            }
+        } catch { $cleanup.errors += $_.Exception.ToString() }
+        finally {
+            # Root handle and exact epoch/path/hash/parent verified before killing
+            # only this observation's owned tree. Never taskkill an unverified PID.
+            $worker.Kill($true)
+            if (-not $worker.WaitForExit(5000)) { throw 'Owned worker tree did not stop' }
+            # WaitForExit on the root alone does not establish descendant cleanup.
+            $wait = [Diagnostics.Stopwatch]::StartNew()
+            foreach ($process in $descendants) {
+                if (-not $process.WaitForExit([Math]::Max(0, 5000 - [int]$wait.ElapsedMilliseconds))) { throw 'Owned descendant did not stop' }
+            }
+        }
+        $cleanup.complete = $cleanup.errors.Count -eq 0
+    } catch { $cleanup.errors += $_.Exception.ToString() }
+    finally {
+        if ($null -ne $worker) { $worker.Dispose() }
+        foreach ($process in $descendants) { $process.Dispose() }
+        Save-Json 'worker-cleanup.json' $cleanup
+    }
+    if (-not $cleanup.complete) { exit 1 }
+    exit 0
+}
 $report = [ordered]@{
     complete = $false; cleanup = $false; errors = @(); rows = 0; samples = 0
     started = [DateTime]::UtcNow.ToString('o'); pid = $null; creation = $null
@@ -17,9 +111,6 @@ $report = [ordered]@{
 $writer = $null
 $ownedProcess = $null
 $samplePath = Join-Path $Output 'samples.jsonl'
-function Save-Json($Name, $Value) {
-    [IO.File]::WriteAllText((Join-Path $Output $Name), ($Value | ConvertTo-Json -Depth 20) + "`n", [Text.UTF8Encoding]::new($false))
-}
 try {
     # Windows already provides Kernel32. No SDK, debugger, driver or ETW session
     # is installed. Managed allocations/serialization happen outside suspension.
@@ -137,27 +228,66 @@ public static class Issue646Context {
     $report.launchSha256 = $target.launchSha256
     if ($target.timeoutMs -ne 180000 -or $target.args.Count -ne 0 -or -not $target.windowsHide) { throw 'Unexpected launch scope' }
     if ($target.imageSha256 -ne '8157abc9333625725348fda654d2e5997693ee6779ae9b5d9ac33f61c3ac5451') { throw 'Unexpected target digest' }
-    # spawnSync exposes its child's PID only on return. Discover just this
-    # worker's one child, then bind the open process handle and creation time.
+    # spawnSync exposes its child's PID only on return. Verify the worker's
+    # exact epoch, then select a unique image identity among its children.
     # The final verifier compares the discovered PID to the raw spawnSync PID.
     $discovery = [Diagnostics.Stopwatch]::StartNew()
     $info = $null
-    while ($null -eq $info) {
-        $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($target.parentPid)")
-        if ($children.Count -gt 1) { throw 'More than one child of native worker' }
-        if ($children.Count -eq 1) { $info = $children[0]; break }
-        if ($discovery.ElapsedMilliseconds -gt 5000) { throw 'No owned native child found within 5 seconds' }
-        Start-Sleep -Milliseconds 50
-    }
-    $ownedProcess = [Diagnostics.Process]::GetProcessById([int]$info.ProcessId)
+    $worker = [Diagnostics.Process]::GetProcessById([int]$target.parentPid)
+    $candidateLog = @()
+    $candidateHandles = @()
+    try {
+        $workerInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $($target.parentPid)"
+        $workerMetadata = Process-Metadata $worker $workerInfo
+        if ($null -eq (Select-Owned $target.worker @($workerMetadata))) { throw 'Worker creation/path/hash/parent identity mismatch' }
+        while ($null -eq $info) {
+            if ($worker.HasExited -or $worker.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $target.worker.creation) { throw 'Owned worker exited or identity changed' }
+            $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($target.parentPid)")
+            if ($children.Count -gt 64) { throw 'Candidate metadata bound exceeded' }
+            $metadata = @()
+            try {
+                foreach ($child in $children) {
+                    try {
+                        $candidate = [Diagnostics.Process]::GetProcessById([int]$child.ProcessId)
+                        $candidateHandles += $candidate
+                        $metadata += Process-Metadata $candidate $child
+                    } catch {
+                        # Retain unknown/racing candidates too; selection fails
+                        # closed rather than treating an unreadable identity as benign.
+                        $metadata += @{ pid = [int]$child.ProcessId; parentPid = [int]$child.ParentProcessId
+                            image = $child.ExecutablePath; creation = $null; imageSha256 = $null
+                            started = $null; error = $_.Exception.ToString() }
+                    }
+                }
+                $candidateLog += @{ at = [DateTime]::UtcNow.ToString('o'); candidates = @($metadata) }
+                Save-Json 'candidates.json' @{ worker = $workerMetadata; observations = @($candidateLog); maxObservations = 20; maxCandidates = 64 }
+                $selected = Select-Owned $target $metadata
+                if ($null -ne $selected) {
+                    $info = $children | Where-Object { $_.ProcessId -eq $selected.pid }
+                    $ownedProcess = $candidateHandles | Where-Object { $_.Id -eq $selected.pid }
+                    break
+                }
+            } finally {
+                foreach ($candidate in $candidateHandles) { if ($candidate -ne $ownedProcess) { $candidate.Dispose() } }
+                $candidateHandles = @()
+            }
+            if ($discovery.ElapsedMilliseconds -gt 5000) { throw 'No owned native child found within 5 seconds' }
+            if ($candidateLog.Count -ge 20) { throw 'Candidate observation bound reached' }
+            Start-Sleep -Milliseconds 50
+        }
+    } finally { $worker.Dispose() }
     $handle = $ownedProcess.Handle # Keep a handle to this process object, across PID reuse.
     $report.pid = $ownedProcess.Id
     $report.creation = [Issue646Context]::Creation($handle, $report.pid)
+    if ($report.creation -ne $selected.creation) { throw 'Selected process creation identity changed' }
     $started = $ownedProcess.StartTime.ToUniversalTime()
     if ([Math]::Abs(($started - [DateTime]::Parse($target.started).ToUniversalTime()).TotalSeconds) -gt 2) { throw 'Process creation outside owned launch window' }
     if ($null -eq $info -or $info.ParentProcessId -ne $target.parentPid) { throw 'Process parent identity mismatch' }
     $module = $ownedProcess.MainModule
-    if (-not [string]::Equals([IO.Path]::GetFullPath($module.FileName), [IO.Path]::GetFullPath($target.image), [StringComparison]::OrdinalIgnoreCase)) { throw 'Process executable path mismatch' }
+    # Re-check the held process after selection, including its exact creation
+    # epoch and canonical file identity (short/long aliases may differ).
+    $actual = Process-Metadata $ownedProcess $info
+    if ($actual.creation -ne $selected.creation -or $null -eq (Select-Owned $target @($actual))) { throw 'Process executable identity changed after selection' }
     $report.imageSha256 = (Get-FileHash -LiteralPath $module.FileName -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($report.imageSha256 -ne $target.imageSha256) { throw 'Loaded image file digest mismatch' }
     $report.base = '0x' + $module.BaseAddress.ToInt64().ToString('x')
@@ -167,6 +297,8 @@ public static class Issue646Context {
         image = $module.FileName; base = $report.base; imageSize = $report.imageSize
         commandLine = $info.CommandLine; started = $started.ToString('o'); imageSha256 = $report.imageSha256
         targetSha256 = $report.targetSha256; launchSha256 = $report.launchSha256
+        canonicalImage = $selected.canonicalImage; expectedCanonicalImage = $selected.expectedCanonicalImage
+        worker = $target.worker
     }
     $writer = [IO.StreamWriter]::new($samplePath, $false, [Text.UTF8Encoding]::new($false))
     $writer.NewLine = "`n"

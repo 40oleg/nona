@@ -321,5 +321,15 @@ if (
     process.argv[1] &&
     import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-    await hostedMap(resolve(process.argv[2]), resolve(process.argv[3]));
+    // Let this module finish evaluation before profile imports it back.
+    setImmediate(() => {
+        Promise.resolve()
+            .then(() =>
+                hostedMap(resolve(process.argv[2]), resolve(process.argv[3])),
+            )
+            .catch((error) => {
+                console.error(error);
+                process.exitCode = 1;
+            });
+    });
 }

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Partial #646 profile support repair.** Break the mapper CLI import cycle,
+  select owned native children by canonical image and process identity, abort
+  incomplete observations promptly with verified tree cleanup, and retain a
+  small metadata artifact alongside full evidence. The zero-sample first attempt
+  and native timeout remain failures; one new bounded hosted observation is
+  still pending. No production repair or release acceptance is established.
+  ([#646](https://github.com/40oleg/nona/issues/646))
+
 - **Partial hosted profiling support for the unresolved native GC diagnosis.** A single guarded Windows observation replays the retained original HTTP image with external instruction sampling and image-equality-gated address mapping. It preserves the original deadlines and failures and does not establish a cause, repair, issue completion or release acceptance. ([#646](https://github.com/40oleg/nona/issues/646))
 
 ### Fixes

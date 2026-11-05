@@ -1,12 +1,65 @@
 # Native GC execution diagnosis (#646)
 
-## Prepared single hosted profile (partial support, 2026-11-05)
+## Profile support after the failed first attempt (partial support, 2026-11-05)
 
-This section records prepared support, **not an executed profile, established
+This section records prepared follow-up support, **not a valid profile, established
 cause, production repair, completion of #646 or admission of #628/#631/#635**.
 PR #647 remains the existing draft, with `Part of #646`. The earlier review
 sections below are historical records; their missing-evidence statements refer
 to those reviews, not to the subsequently completed campaign.
+
+### First attempt receipts and bounded follow-up
+
+The parent's absolute files under
+`C:/Users/helgus/Documents/ChatGPT/nona/research/release035/` are the evidence:
+`646-profile-00c-range-proof.json`, `646-map-startup-negative.json`,
+`646-map-startup-negative.log` and `646-profile-00c-final.log`.
+At head `00c75b005b01388029629d560f3f2e64d0c5d422`, run
+[`41986142335`](https://github.com/40oleg/nona/actions/runs/41986142335)
+produced result artifact **13395654814**, reported digest
+`06e7c00feaf5f9bc7656c46c4e372a4bcedbcd35033e65ae1e9ef37847793331`.
+The parent verified selected flat entries' text and CRC through ZIP ranges;
+the whole result ZIP SHA256 was **not locally verified** because the large
+transfer timed out. Separately, the hosted prepare step verified the exact
+original retained ZIP, image and input hashes.
+
+The retained native image timed out at 180000 ms; the unchanged Node control
+passed. The sampler exited before `identity.json`, with **zero rows and zero
+samples**, `cleanup: true`, and `More than one child of native worker` at
+`sampler.ps1:147`. Candidate identities were not retained, so these receipts
+do not identify a particular console/helper executable. The mapper separately
+hit an import cycle: its top-level await dynamically imported the profile
+module, which statically imported the mapper. Both the hosted log and direct
+CLI negative control show an unsettled top-level await; the local CLI exited
+13 before reaching its hosted guard. There is **no profile to re-map**.
+
+The prepared changes defer mapper CLI kickoff until module evaluation finishes
+and catch CLI errors explicitly. Owned selection records at most 20 snapshots
+of 64 candidate identities, verifies the worker's PID/creation epoch and
+selects only a unique child with the expected parent, launch window, canonical
+image path and pinned file hash. Node `realpathSync.native` resolves Windows
+short/long aliases. Known nonmatching children may coexist; ambiguous matches,
+unknown identity and inaccessible metadata fail closed. Selection holds process
+handles and rechecks creation/path/hash before thread capture.
+
+The supervisor watches sampler exit while the native worker is running. Early
+collection failure writes `observation-abort.json` and stops only this owned
+worker tree after checking its PID, creation epoch, parent, canonical Node
+image path and file hash. Cleanup retains descendant identities/handles and
+checks their termination too. After verified cleanup the temporary executable
+is removed; the retained `image.bin` and all failure receipts remain. Aborted
+attempts are explicitly incomplete, cannot count as native deadline witnesses,
+and cannot pass verification. Missing native streams/results stay missing.
+The unchanged Node oracle runs once after cleanup. A valid sampling attempt
+still uses the exact 180000 ms native deadline. Failed observation skips map
+reconstruction; verification and both final uploads still run.
+
+The next hosted target remains exactly **one new observation** of the same
+retained original image and one unchanged 60000 ms Node oracle, within the
+15-minute job. No first-attempt output is reused or derived as valid profile
+data, and no retry matrix, markers, GC changes or larger deadline is added.
+The first-attempt receipts remain untouched. OS selection, tree cleanup and
+map equality still require hosted validation after parent review/publication.
 
 The completed read-only investigation inspected
 [`41979548935`](https://github.com/40oleg/nona/actions/runs/41979548935)
@@ -102,7 +155,7 @@ The 1232-byte context backing store is aligned to 16 bytes, flags are at byte
 48 and RIP at byte 248. Each successful owned-thread suspend has one resume
 in `finally`; each thread handle is closed. Unexpected suspend counts and
 resume/handle failures are explicit failures. The sampler binds the worker's
-sole native child to its exact executable path/hash, parent PID, creation
+unique matching native child to its canonical executable path/hash, parent PID, creation
 window and an open process handle. Per-thread handles must belong to that
 process; creation identities are retained. Final verification compares the
 discovered PID to the native worker's raw result PID.
@@ -133,7 +186,11 @@ of a timeout still fails the job. Unavailable APIs/permissions, zero valid
 retained-image samples, cleanup failure, unsuccessful worker/sampler exit,
 incomplete streams/reports, changed provenance, wrong identities or wrong
 counts also fail. Missing build/map reports fail verification while preserving
-the raw profile. All reports, partial failures and streams are uploaded with
+the raw profile. A separate always-uploaded `issue646-profile-metadata-*`
+artifact includes verification, sampler/identity/candidate reports, map/result,
+attribution and abort/failure/cleanup context when present, plus a missing-file
+index. It excludes images, ZIPs and raw sample streams. The full evidence
+artifact and earlier checkpoints remain. All reports, partial failures and streams are uploaded with
 `if: always()`, including an observation checkpoint before rebuilding; uploaded
 inputs survive a later timeout or cancellation. Hard
 runner loss can still prevent final reporting/upload and is incomplete evidence.
@@ -153,16 +210,22 @@ This preparation does not commit, push, create PRs, change labels, dispatch jobs
 or wait for hosted outcomes. Keep #647 draft and `Part of #646`, retain all
 historical failures and the current-release admission hold.
 
-Prepared-support checks on this Windows checkout with Node 26.9.0: seven
-serial metadata tests passed, including malformed PE/function ranges, map
-coverage/image mismatch, altered provenance, PID/creation mismatch, incomplete
-reports and missing image samples. JS syntax, PowerShell parsing and selected
-Prettier checks passed. The seven canonical entry pins and original input
-provenance matched the supplied read-only research metadata. The document-link
-check examined 1589 links in 308 documents and failed on 95 existing site-anchor
-errors; an in-memory baseline using the two documents from `HEAD` produced the
-exact same 95 errors (1586 links). No site files were changed to address them.
-These checks provide no Windows sampling, image-rebuild or native-run result.
+The earlier prepared-support checks passed seven serial metadata tests, JS
+syntax, PowerShell parsing and selected Prettier checks. That imported-export
+coverage missed the actual mapper CLI cycle; the follow-up regression invokes
+the real CLI with `GITHUB_ACTIONS=false`, requires the hosted guard, and rejects
+exit 13, unsettled-await warnings and hangs without building or running Nona.
+Additional pure tests cover child selection/aliases and early-failure supervision.
+The earlier document-link check found 95 existing site-anchor errors, exactly
+matching its in-memory `HEAD` baseline; no site files were changed. These checks
+provide no Windows sampling, image-rebuild or native-run result.
+
+Follow-up local validation at mask 3 / BelowNormal with Node 26.9.0 passed
+**14 serial pure metadata tests**, selected JS syntax and Prettier checks, and
+PowerShell parsing without executing the script or C#. The current document-link
+check found 95 errors across 1589 links in 308 documents; substituting both
+edited documents from `HEAD` in memory reproduced the exact same 95 errors.
+Parent review/publication and one new hosted observation remain outstanding.
 
 **Scope: partial diagnostic infrastructure. Part of #646.** Any PR for this
 branch must use `Part of #646`, keep the issue open and retain the release hold.

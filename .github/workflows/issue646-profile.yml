@@ -97,6 +97,7 @@ jobs:
                   if-no-files-found: error
                   retention-days: 30
             - name: One original native execution and one unchanged Node oracle
+              id: observe
               if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
               timeout-minutes: 5
               run: node diagnostic/scripts/issue646-profile.mjs observe profile
@@ -108,14 +109,14 @@ jobs:
                   if-no-files-found: error
                   retention-days: 30
             - uses: actions/checkout@v4
-              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.observe.outcome == 'success' }}
               with:
                   path: source
                   ref: b78f81820ff19105ab85fb10773fab4353b3d8f5
                   persist-credentials: false
             - name: Install pinned compiler dependencies solely for map reconstruction
               id: dependencies
-              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.observe.outcome == 'success' }}
               timeout-minutes: 2
               run: node diagnostic/scripts/issue646-profile.mjs dependencies profile source
             - name: Build pinned compiler solely for map reconstruction
@@ -130,6 +131,34 @@ jobs:
             - name: Verify outcomes and profile independently; reject attribution gaps
               if: always()
               run: node diagnostic/scripts/issue646-profile.mjs verify profile
+            - name: Retain small outcome and failure metadata
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-profile-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      profile/metadata-index.json
+                      profile/verification.json
+                      profile/inputs-verified.json
+                      profile/plan.json
+                      profile/sampler-*.json
+                      profile/identity.json
+                      profile/candidates.json
+                      profile/selection-*.json
+                      profile/worker-*.json
+                      profile/native-attempt.json
+                      profile/native-result.json
+                      profile/node-attempt.json
+                      profile/node-result.json
+                      profile/map-result.json
+                      profile/map.json
+                      profile/attribution.json
+                      profile/observation-abort.json
+                      profile/aborted-image-cleanup.json
+                      profile/*-failure.json
+                      profile/*-control.json
+                  if-no-files-found: error
+                  retention-days: 30
             - uses: actions/upload-artifact@v4
               if: always()
               with:

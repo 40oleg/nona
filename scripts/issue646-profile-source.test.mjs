@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import * as profile from "./issue646-profile.mjs";
 import { peMetadata, bindMap, validateMap, locate } from "./issue646-map.mjs";
 import {
     pins,
@@ -8,6 +14,243 @@ import {
     verifyObservation,
     changedProfileFiles,
 } from "./issue646-profile.mjs";
+
+test("actual map CLI reaches hosted guard without an unsettled import cycle", () => {
+    const out = mkdtempSync(join(tmpdir(), "issue646-cli-"));
+    try {
+        const run = spawnSync(
+            process.execPath,
+            [
+                fileURLToPath(new URL("./issue646-map.mjs", import.meta.url)),
+                out,
+                out,
+            ],
+            {
+                env: { ...process.env, GITHUB_ACTIONS: "false" },
+                timeout: 5000,
+                encoding: "utf8",
+            },
+        );
+        assert.equal(run.error, undefined);
+        assert.equal(run.status, 1, run.stderr);
+        assert.match(run.stderr, /requires GitHub-hosted/);
+        assert.doesNotMatch(run.stderr, /unsettled|top.level await/i);
+        assert.deepEqual(readdirSync(out), []);
+    } finally {
+        rmSync(out, { recursive: true });
+    }
+});
+
+function childScope() {
+    const expected = {
+        parentPid: 40,
+        started: "2026-11-05T00:00:00Z",
+        image: "C:\\Users\\RUNNER~1\\image.exe",
+        imageSha256: pins.imageSha256,
+    };
+    const child = {
+        pid: 50,
+        parentPid: 40,
+        creation: "134000000000000000",
+        started: expected.started,
+        image: "C:\\Users\\Runner Name\\image.exe",
+        imageSha256: pins.imageSha256,
+        commandLine: '"C:\\Users\\RUNNER~1\\image.exe"',
+    };
+    const canonical = (path) => {
+        if (/^c:\\users\\(runner~1|runner name)\\image.exe$/i.test(path))
+            return "C:\\Users\\Runner Name\\image.exe";
+        return path;
+    };
+    return { expected, child, canonical };
+}
+test("owned selection ignores an unrelated helper and resolves short/long path aliases", () => {
+    const { expected, child, canonical } = childScope();
+    const helper = {
+        ...child,
+        pid: 51,
+        image: "C:\\other\\helper.exe",
+        imageSha256: "a".repeat(64),
+        commandLine: "helper.exe",
+    };
+    assert.equal(
+        profile.selectOwnedChild(expected, [helper, child], canonical).pid,
+        50,
+    );
+    assert.equal(profile.selectOwnedChild(expected, [helper], canonical), null);
+    assert.equal(
+        profile.selectOwnedChild(
+            expected,
+            [{ ...child, image: child.image.toUpperCase() }],
+            canonical,
+        ).pid,
+        50,
+    );
+});
+test("owned selection fails closed on ambiguity, unknown identity, wrong parent/image/hash/epoch", () => {
+    const { expected, child, canonical } = childScope();
+    assert.throws(
+        () =>
+            profile.selectOwnedChild(
+                expected,
+                [child, { ...child, pid: 51 }],
+                canonical,
+            ),
+        /ambiguous/i,
+    );
+    for (const change of [
+        { parentPid: 41 },
+        { image: "C:\\foreign\\image.exe" },
+        { imageSha256: "f".repeat(64) },
+        { started: "2026-11-05T00:00:10Z" },
+    ])
+        assert.equal(
+            profile.selectOwnedChild(
+                expected,
+                [{ ...child, ...change }],
+                canonical,
+            ),
+            null,
+        );
+    for (const change of [
+        { image: null },
+        { creation: null },
+        { imageSha256: null },
+        { started: "unknown" },
+    ])
+        assert.throws(
+            () =>
+                profile.selectOwnedChild(
+                    expected,
+                    [{ ...child, ...change }],
+                    canonical,
+                ),
+            /identity/i,
+        );
+    assert.throws(
+        () =>
+            profile.selectOwnedChild(
+                { ...expected, parentPid: null },
+                [child],
+                canonical,
+            ),
+        /identity/i,
+    );
+    assert.equal(
+        profile.selectOwnedChild(
+            { ...expected, creation: "123" },
+            [child],
+            canonical,
+        ),
+        null,
+    );
+    assert.equal(
+        profile.selectOwnedChild({ ...expected, pid: 99 }, [child], canonical),
+        null,
+    );
+});
+test("supervisor aborts once on early sampler failure and retains incomplete outcome", async () => {
+    let finishWorker;
+    const workerDone = new Promise((resolve) => {
+        finishWorker = resolve;
+    });
+    const events = [];
+    const result = await profile.superviseObservation({
+        workerDone,
+        samplerDone: Promise.resolve({ status: 1, signal: null, error: null }),
+        readSampler: () => ({
+            complete: false,
+            cleanup: true,
+            errors: [{ message: "selection failed" }],
+        }),
+        abort: async (reason) => {
+            events.push(reason);
+            finishWorker({ status: null, signal: "SIGTERM" });
+        },
+    });
+    assert.equal(events.length, 1);
+    assert.equal(result.aborted, true);
+    assert.equal(result.complete, false);
+    assert.equal(result.deadlineExpired, false);
+    assert.equal(result.reason.samplerExit.status, 1);
+    assert.equal(result.reason.sampler.errors[0].message, "selection failed");
+});
+test("supervisor lets a valid sample attempt reach its native outcome", async () => {
+    const result = await profile.superviseObservation({
+        workerDone: Promise.resolve({ status: 0, signal: null }),
+        samplerDone: new Promise(() => {}),
+        readSampler: () => {
+            throw Error("not finished");
+        },
+        abort: () => {
+            throw Error("must not abort");
+        },
+    });
+    assert.equal(result.aborted, false);
+    assert.deepEqual(result.workerExit, { status: 0, signal: null });
+});
+test("supervisor aborts missing, malformed, empty and unclean sampler receipts", async () => {
+    for (const sampler of [
+        null,
+        { complete: true, cleanup: false, rows: 1, samples: 1, errors: [] },
+        { complete: true, cleanup: true, rows: 0, samples: 0, errors: [] },
+        "missing",
+    ]) {
+        let finishWorker;
+        const workerDone = new Promise((resolve) => {
+            finishWorker = resolve;
+        });
+        const result = await profile.superviseObservation({
+            workerDone,
+            samplerDone: Promise.resolve({
+                status: 0,
+                signal: null,
+                error: null,
+            }),
+            // The bound makes a failure to abort empty evidence observable,
+            // without any real timer or native process in the regression.
+            bound: Promise.resolve(),
+            readSampler: () => {
+                if (sampler === "missing") throw Error("missing receipt");
+                return sampler;
+            },
+            abort: () => {
+                finishWorker({ status: null, signal: "SIGTERM" });
+            },
+        });
+        assert.equal(result.aborted, true);
+        assert.equal(result.deadlineExpired, false);
+        assert.equal(
+            result.reason.boundExceeded,
+            undefined,
+            "invalid receipt must abort before the outer bound",
+        );
+    }
+});
+test("a completed sampler may precede worker flushing without aborting", async () => {
+    let finishWorker;
+    const workerDone = new Promise((resolve) => {
+        finishWorker = resolve;
+    });
+    const result = await profile.superviseObservation({
+        workerDone,
+        samplerDone: Promise.resolve({ status: 0, signal: null, error: null }),
+        readSampler: () => {
+            queueMicrotask(() => finishWorker({ status: 0, signal: null }));
+            return {
+                complete: true,
+                cleanup: true,
+                rows: 1,
+                samples: 1,
+                errors: [],
+            };
+        },
+        abort: () => {
+            throw Error("valid collection must not be aborted");
+        },
+    });
+    assert.equal(result.aborted, false);
+});
 
 function image() {
     const b = Buffer.alloc(1024);
@@ -321,6 +564,12 @@ test("profile validity cannot clear native failure; identity and incomplete evid
         },
         (x) => {
             x.nodeCount = 0;
+        },
+        (x) => {
+            x.native.aborted = true;
+        },
+        (x) => {
+            x.native.complete = false;
         },
     ]) {
         const x = observation();

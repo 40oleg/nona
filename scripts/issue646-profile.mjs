@@ -9,6 +9,8 @@ import {
     mkdirSync,
     mkdtempSync,
     existsSync,
+    realpathSync,
+    unlinkSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -100,7 +102,11 @@ export function changedProfileFiles(files) {
     );
 }
 export function requireHosted() {
-    assert.equal(process.env.GITHUB_ACTIONS, "true");
+    assert.equal(
+        process.env.GITHUB_ACTIONS,
+        "true",
+        "Profile requires GitHub-hosted Windows AMD64",
+    );
     assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
     assert.equal(process.platform, "win32");
     assert.equal(process.arch, "x64");
@@ -122,6 +128,162 @@ const errorJSON = (error) =>
               Object.getOwnPropertyNames(error).map((k) => [k, error[k]]),
           )
         : null;
+
+// Metadata only: no process enumeration, sampling or C# on this path. Production
+// canonicalization uses the filesystem (including Windows short/long aliases).
+export function selectOwnedChild(
+    expected,
+    candidates,
+    canonical = realpathSync.native,
+) {
+    assert.ok(
+        Number.isInteger(expected.parentPid) &&
+            expected.parentPid > 0 &&
+            typeof expected.image === "string" &&
+            /^[a-f0-9]{64}$/.test(expected.imageSha256) &&
+            Number.isFinite(Date.parse(expected.started)) &&
+            (expected.creation === undefined ||
+                (typeof expected.creation === "string" &&
+                    /^\d+$/.test(expected.creation))) &&
+            (expected.pid === undefined ||
+                (Number.isInteger(expected.pid) && expected.pid > 0)),
+        "unknown target identity",
+    );
+    assert.ok(
+        Array.isArray(candidates) && candidates.length <= 64,
+        "candidate identity bound",
+    );
+    const expectedPath = canonical(expected.image).toLowerCase();
+    const matches = candidates.filter((c) => {
+        assert.ok(
+            Number.isInteger(c.pid) &&
+                c.pid > 0 &&
+                Number.isInteger(c.parentPid) &&
+                typeof c.creation === "string" &&
+                /^\d+$/.test(c.creation) &&
+                typeof c.image === "string" &&
+                c.image.length > 0 &&
+                typeof c.imageSha256 === "string" &&
+                /^[a-f0-9]{64}$/.test(c.imageSha256) &&
+                Number.isFinite(Date.parse(c.started)),
+            "unknown candidate identity",
+        );
+        return (
+            c.parentPid === expected.parentPid &&
+            (expected.pid === undefined || c.pid === expected.pid) &&
+            Math.abs(Date.parse(c.started) - Date.parse(expected.started)) <=
+                2000 &&
+            (!expected.creation || c.creation === expected.creation) &&
+            canonical(c.image).toLowerCase() === expectedPath &&
+            c.imageSha256 === expected.imageSha256
+        );
+    });
+    assert.ok(matches.length <= 1, "ambiguous matching native children");
+    return matches[0]
+        ? {
+              ...matches[0],
+              canonicalImage: canonical(matches[0].image),
+              expectedCanonicalImage: canonical(expected.image),
+          }
+        : null;
+}
+
+export async function superviseObservation({
+    workerDone,
+    samplerDone,
+    readSampler,
+    abort,
+    bound,
+}) {
+    const events = [
+        workerDone.then((workerExit) => ({ workerExit })),
+        samplerDone.then((samplerExit) => ({ samplerExit })),
+    ];
+    if (bound) events.push(bound.then(() => ({ boundExceeded: true })));
+    let first = await Promise.race(events);
+    if (first.workerExit)
+        return { aborted: false, workerExit: first.workerExit };
+    let sampler;
+    try {
+        sampler = readSampler();
+    } catch (error) {
+        sampler = { complete: false, error: errorJSON(error) };
+    }
+    if (
+        !first.boundExceeded &&
+        first.samplerExit.status === 0 &&
+        first.samplerExit.signal === null &&
+        first.samplerExit.error === null &&
+        sampler?.complete === true &&
+        sampler.cleanup === true &&
+        Number.isInteger(sampler.rows) &&
+        sampler.rows > 0 &&
+        sampler.rows <= 1800 &&
+        Number.isInteger(sampler.samples) &&
+        sampler.samples > 0 &&
+        sampler.samples <= 57600 &&
+        Array.isArray(sampler.errors) &&
+        sampler.errors.length === 0
+    ) {
+        // Sampling can finish just before the worker flushes its raw result.
+        const next = await Promise.race([
+            workerDone.then((workerExit) => ({ workerExit })),
+            ...(bound ? [bound.then(() => ({ boundExceeded: true }))] : []),
+        ]);
+        if (next.workerExit)
+            return { aborted: false, workerExit: next.workerExit };
+        first = { ...first, ...next };
+    }
+    const reason = {
+        ...first,
+        sampler,
+        message:
+            "Owned observation aborted: collection failed or outer bound exceeded",
+    };
+    await abort(reason);
+    return {
+        aborted: true,
+        complete: false,
+        deadlineExpired: false,
+        reason,
+        workerExit: await workerDone,
+    };
+}
+
+const samplerScript = fileURLToPath(
+    new URL("./issue646-sampler.ps1", import.meta.url),
+);
+function controlWorker(out, mode, pid) {
+    const result = spawnSync(
+        "pwsh",
+        [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            samplerScript,
+            "-Output",
+            out,
+            "-Mode",
+            mode,
+            "-WorkerPid",
+            String(pid),
+        ],
+        { windowsHide: true, timeout: 10000, maxBuffer: 1048576 },
+    );
+    json(out, `${mode}-control.json`, {
+        status: result.status,
+        signal: result.signal,
+        error: errorJSON(result.error),
+        stdout: result.stdout?.toString(),
+        stderr: result.stderr?.toString(),
+    });
+    assert.equal(
+        result.status,
+        0,
+        `${mode} failed; see control and cleanup receipts`,
+    );
+}
 
 export function verifyInputs(files) {
     for (const [path, , size, hash] of retainedFiles) {
@@ -405,6 +567,25 @@ function nativeWorker(out) {
     const config = readJson(out, "launch.json");
     verifyInputs(filesFromDisk(out));
     assert.equal(sha256(readFileSync(config.image)), pins.imageSha256);
+    controlWorker(out, "WorkerIdentity", process.pid);
+    const worker = readJson(out, "worker-os.json");
+    assert.equal(worker.pid, process.pid);
+    assert.equal(worker.parentPid, config.parentPid);
+    const expectedWorker = {
+        parentPid: process.ppid,
+        image: process.execPath,
+        imageSha256: sha256(readFileSync(process.execPath)),
+        started: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+        creation: worker.creation,
+    };
+    assert.ok(
+        selectOwnedChild(expectedWorker, [worker]),
+        "worker self identity mismatch",
+    );
+    json(out, "worker-identity.json", {
+        ...worker,
+        image: realpathSync.native(process.execPath),
+    });
     const started = new Date().toISOString(),
         start = performance.now();
     // Exclusive attempt record makes accidental re-entry fail before launch.
@@ -418,6 +599,7 @@ function nativeWorker(out) {
         parentPid: process.pid,
         started,
         launchSha256: sha256(readFileSync(join(out, "launch.json"))),
+        worker: readJson(out, "worker-identity.json"),
     });
     // Retain the same spawnSync raw semantics as the original helper, including
     // its ETIMEDOUT error, null status and SIGTERM on Windows deadline expiry.
@@ -426,10 +608,12 @@ function nativeWorker(out) {
         timeout: 180000,
         windowsHide: true,
     });
-    const stdout = run.stdout ?? Buffer.alloc(0),
-        stderr = run.stderr ?? Buffer.alloc(0);
-    writeFileSync(join(out, "native.stdout.bin"), stdout);
-    writeFileSync(join(out, "native.stderr.bin"), stderr);
+    const stdout = run.stdout,
+        stderr = run.stderr;
+    // Missing streams remain missing evidence, never synthesized as empty.
+    if (stdout) writeFileSync(join(out, "native.stdout.bin"), stdout);
+    if (stderr) writeFileSync(join(out, "native.stderr.bin"), stderr);
+    const aborted = existsSync(join(out, "observation-abort.json"));
     json(out, "native-result.json", {
         status: run.status,
         signal: run.signal,
@@ -439,11 +623,13 @@ function nativeWorker(out) {
         started,
         finished: new Date().toISOString(),
         elapsedMs: performance.now() - start,
-        deadlineExpired: run.error?.code === "ETIMEDOUT",
-        stdoutBytes: stdout.length,
-        stderrBytes: stderr.length,
-        stdoutSha256: sha256(stdout),
-        stderrSha256: sha256(stderr),
+        aborted,
+        complete: !aborted,
+        deadlineExpired: !aborted && run.error?.code === "ETIMEDOUT",
+        stdoutBytes: stdout?.length ?? null,
+        stderrBytes: stderr?.length ?? null,
+        stdoutSha256: stdout ? sha256(stdout) : null,
+        stderrSha256: stderr ? sha256(stderr) : null,
         launchSha256: sha256(readFileSync(join(out, "launch.json"))),
         imageSha256: pins.imageSha256,
     });
@@ -522,8 +708,7 @@ async function observe(out) {
             [fileURLToPath(import.meta.url), "native-worker", out],
             { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
         );
-        let workerError = null,
-            workerBound = false;
+        let workerError = null;
         const logs = [[], []];
         let logBytes = 0;
         worker.on("error", (e) => {
@@ -537,35 +722,69 @@ async function observe(out) {
         const workerDone = new Promise((resolve) =>
             worker.on("close", (status, signal) => resolve({ status, signal })),
         );
-        // Outer cleanup guard only; never changes the inner native deadline.
-        const workerTimer = setTimeout(() => {
-            workerBound = true;
-            const cleanup = spawnSync(
-                "taskkill",
-                ["/PID", String(worker.pid), "/T", "/F"],
-                { windowsHide: true, timeout: 10000 },
-            );
-            json(out, "worker-cleanup.json", {
-                status: cleanup.status,
-                error: errorJSON(cleanup.error),
-                stdout: cleanup.stdout?.toString(),
-                stderr: cleanup.stderr?.toString(),
-            });
-        }, 210000);
-        const workerExit = await workerDone;
-        clearTimeout(workerTimer);
-        json(out, "worker-result.json", {
-            ...workerExit,
-            pid: worker.pid,
-            error: workerError,
-            boundExceeded: workerBound,
-            logBytes,
+        // This outer bound and early collection abort do not alter the inner
+        // spawnSync deadline or turn an aborted attempt into a timeout witness.
+        let workerTimer;
+        const bound = new Promise((resolve) => {
+            workerTimer = setTimeout(resolve, 210000);
         });
-        for (const [i, name] of [
-            "worker.stdout.bin",
-            "worker.stderr.bin",
-        ].entries())
-            writeFileSync(join(out, name), Buffer.concat(logs[i]));
+        let supervised;
+        try {
+            supervised = await superviseObservation({
+                workerDone,
+                samplerDone,
+                bound,
+                readSampler: () => readJson(out, "sampler-result.json"),
+                abort: async (reason) => {
+                    json(out, "observation-abort.json", {
+                        at: new Date().toISOString(),
+                        complete: false,
+                        aborted: true,
+                        deadlineExpired: false,
+                        reason,
+                    });
+                    const identityDeadline = Date.now() + 10000;
+                    while (
+                        !existsSync(join(out, "worker-identity.json")) &&
+                        worker.exitCode === null &&
+                        Date.now() < identityDeadline
+                    )
+                        await delay(25);
+                    if (worker.exitCode !== null) return;
+                    controlWorker(out, "Cleanup", worker.pid);
+                    assert.equal(
+                        readJson(out, "worker-cleanup.json").complete,
+                        true,
+                    );
+                    unlinkSync(executable);
+                    json(out, "aborted-image-cleanup.json", {
+                        image: executable,
+                        imageSha256: pins.imageSha256,
+                        removed: true,
+                        afterVerifiedTreeCleanup: true,
+                    });
+                },
+            });
+        } finally {
+            clearTimeout(workerTimer);
+            json(out, "worker-result.json", {
+                ...(supervised?.workerExit ?? {
+                    status: worker.exitCode,
+                    signal: worker.signalCode,
+                }),
+                pid: worker.pid,
+                error: workerError,
+                boundExceeded: !!supervised?.reason?.boundExceeded,
+                aborted: existsSync(join(out, "observation-abort.json")),
+                complete: !!supervised,
+                logBytes,
+            });
+            for (const [i, name] of [
+                "worker.stdout.bin",
+                "worker.stderr.bin",
+            ].entries())
+                writeFileSync(join(out, name), Buffer.concat(logs[i]));
+        }
         // Original oracle source replaces the entry only after native completion.
         writeFileSync(join(directory, input.entry), input.options.oracleSource);
         const nodeStarted = new Date().toISOString(),
@@ -580,14 +799,10 @@ async function observe(out) {
             [join(directory, input.entry)],
             { cwd: directory, timeout: 60000 },
         );
-        writeFileSync(
-            join(out, "node.stdout.bin"),
-            node.stdout ?? Buffer.alloc(0),
-        );
-        writeFileSync(
-            join(out, "node.stderr.bin"),
-            node.stderr ?? Buffer.alloc(0),
-        );
+        if (node.stdout)
+            writeFileSync(join(out, "node.stdout.bin"), node.stdout);
+        if (node.stderr)
+            writeFileSync(join(out, "node.stderr.bin"), node.stderr);
         json(out, "node-result.json", {
             status: node.status,
             signal: node.signal,
@@ -597,13 +812,13 @@ async function observe(out) {
             started: nodeStarted,
             finished: new Date().toISOString(),
             elapsedMs: performance.now() - nodeStart,
-            stdoutSha256: sha256(node.stdout ?? Buffer.alloc(0)),
-            stderrSha256: sha256(node.stderr ?? Buffer.alloc(0)),
+            stdoutSha256: node.stdout ? sha256(node.stdout) : null,
+            stderrSha256: node.stderr ? sha256(node.stderr) : null,
             oracleSourceSha256: sha256(Buffer.from(input.options.oracleSource)),
         });
     } finally {
-        // The native deadline is independent of profiler availability/failure.
-        // Never terminate the sampler while it may have suspended a live target.
+        // Early sampler failure aborts only this owned observation. Its receipt
+        // remains incomplete, independently of native outcome and old failures.
         json(out, "stop.json", { at: new Date().toISOString() });
         samplerExit = await Promise.race([
             samplerDone,
@@ -631,6 +846,20 @@ async function observe(out) {
         // Retain temporary launch files for evidence; GitHub-hosted VM disposal
         // removes them. Process/thread cleanup is verified separately.
     }
+    const samplerResult = readJson(out, "sampler-result.json");
+    assert.equal(
+        samplerExit.status,
+        0,
+        "sampler failed; observation incomplete",
+    );
+    assert.equal(samplerResult.complete, true);
+    assert.equal(samplerResult.cleanup, true);
+    assert.deepEqual(samplerResult.errors, []);
+    assert.ok(samplerResult.samples > 0 && samplerResult.rows > 0);
+    assert.ok(
+        !existsSync(join(out, "observation-abort.json")),
+        "observation aborted",
+    );
 }
 
 export function verifyObservation(x) {
@@ -639,6 +868,12 @@ export function verifyObservation(x) {
     assert.equal(x.nodeCount, 1);
     assert.equal(x.native.timeoutMs, 180000);
     assert.equal(x.node.timeoutMs, 60000);
+    assert.notEqual(
+        x.native.aborted,
+        true,
+        "aborted observation is incomplete",
+    );
+    assert.notEqual(x.native.complete, false, "native observation incomplete");
     for (const r of [x.native, x.node]) {
         assert.ok(
             Object.hasOwn(r, "status") &&
@@ -754,20 +989,35 @@ function verify(out) {
     };
     try {
         // Preserve this result even if provenance, streams, samples or map fail.
-        const n = readJson(out, "native-result.json");
+        result.abort = existsSync(join(out, "observation-abort.json"))
+            ? readJson(out, "observation-abort.json")
+            : null;
+        const n = existsSync(join(out, "native-result.json"))
+            ? readJson(out, "native-result.json")
+            : null;
         result.nativeOutcome = n;
         result.nativeExitSucceeded =
+            !!n &&
+            !result.abort &&
+            !n.aborted &&
+            n.complete !== false &&
             n.status === 0 &&
             n.signal === null &&
             n.error === null &&
             !n.deadlineExpired &&
             !n.bufferExceeded;
-        const input = verifyInputs(filesFromDisk(out));
-        const plan = readJson(out, "plan.json");
-        assert.deepEqual(plan.pins, pins);
         const c = readJson(out, "node-result.json");
         // Native outcome is recorded independently even if profile/map checks fail.
         result.nodeOutcome = c;
+        result.nodeExitSucceeded =
+            c.status === 0 && c.signal === null && c.error === null;
+        assert.ok(
+            n,
+            "native outcome missing after incomplete/aborted observation; no streams synthesized",
+        );
+        const input = verifyInputs(filesFromDisk(out));
+        const plan = readJson(out, "plan.json");
+        assert.deepEqual(plan.pins, pins);
         assert.equal(readJson(out, "native-attempt.json").count, 1);
         assert.equal(readJson(out, "node-attempt.json").count, 1);
         assert.equal(n.imageSha256, pins.imageSha256);
@@ -793,6 +1043,11 @@ function verify(out) {
             readFileSync(join(out, "node.stderr.bin")).length === 0;
         result.nativePassed =
             result.nativeExitSucceeded && result.nativeAssertionsPassed;
+        result.nodePassed =
+            c.status === 0 &&
+            c.signal === null &&
+            c.error === null &&
+            result.nodeAssertionsPassed;
         for (const [prefix, r] of [
             ["native", n],
             ["node", c],
@@ -817,6 +1072,7 @@ function verify(out) {
         assert.equal(worker.signal, null);
         assert.equal(worker.error, null);
         assert.equal(worker.boundExceeded, false);
+        assert.equal(worker.aborted, false);
         assert.ok(worker.logBytes <= 1048576);
         assert.equal(target.parentPid, worker.pid);
         assert.equal(
@@ -836,15 +1092,33 @@ function verify(out) {
         ])
             assert.equal(identity[key], s[key], `identity binding: ${key}`);
         assert.equal(identity.parentPid, worker.pid);
-        assert.equal(identity.image.toLowerCase(), launch.image.toLowerCase());
+        assert.equal(
+            realpathSync.native(identity.image).toLowerCase(),
+            realpathSync.native(launch.image).toLowerCase(),
+        );
+        assert.equal(
+            identity.canonicalImage.toLowerCase(),
+            realpathSync.native(launch.image).toLowerCase(),
+        );
+        assert.equal(
+            identity.expectedCanonicalImage.toLowerCase(),
+            realpathSync.native(launch.image).toLowerCase(),
+        );
+        assert.deepEqual(
+            identity.worker,
+            readJson(out, "worker-identity.json"),
+        );
+        assert.equal(identity.worker.pid, worker.pid);
         assert.ok(
             Math.abs(Date.parse(identity.started) - Date.parse(n.started)) <=
                 2000,
             "creation time outside launch window",
         );
         assert.equal(
-            identity.commandLine.trim().replace(/^"|"$/g, "").toLowerCase(),
-            launch.image.toLowerCase(),
+            realpathSync
+                .native(identity.commandLine.trim().replace(/^"|"$/g, ""))
+                .toLowerCase(),
+            realpathSync.native(launch.image).toLowerCase(),
             "unexpected actual native command line",
         );
         assert.deepEqual(target, {
@@ -852,6 +1126,7 @@ function verify(out) {
             parentPid: worker.pid,
             started: n.started,
             launchSha256: n.launchSha256,
+            worker: readJson(out, "worker-identity.json"),
         });
         const raw = readFileSync(join(out, "samples.jsonl"));
         assert.ok(
@@ -959,6 +1234,31 @@ function verify(out) {
         result.errors.push(errorJSON(error));
     } finally {
         json(out, "verification.json", result);
+        json(out, "metadata-index.json", {
+            complete: result.complete && result.attributionComplete,
+            historicalFailuresCleared: false,
+            releaseAcceptance: false,
+            files: [
+                "verification.json",
+                "sampler-result.json",
+                "sampler-exit.json",
+                "identity.json",
+                "candidates.json",
+                "worker-identity.json",
+                "worker-result.json",
+                "worker-cleanup.json",
+                "native-result.json",
+                "node-result.json",
+                "map-result.json",
+                "map.json",
+                "attribution.json",
+                "observation-abort.json",
+                "aborted-image-cleanup.json",
+                "observe-failure.json",
+                "prepare-failure.json",
+                "select-child-failure.json",
+            ].map((name) => ({ name, present: existsSync(join(out, name)) })),
+        });
         if (
             !result.complete ||
             !result.nativePassed ||
@@ -984,7 +1284,19 @@ if (
         else if (mode === "dependencies" || mode === "build")
             buildForMap(out, resolve(source), mode);
         else if (mode === "verify") verify(out);
-        else throw Error("unknown profile mode");
+        else if (mode === "select-child") {
+            assert.ok(
+                ["Sample", "Cleanup"].includes(source),
+                "unknown selection scope",
+            );
+            const { expected, candidates } = readJson(
+                out,
+                `selection-${source}-request.json`,
+            );
+            json(out, `selection-${source}-result.json`, {
+                selected: selectOwnedChild(expected, candidates),
+            });
+        } else throw Error("unknown profile mode");
     } catch (error) {
         json(out, `${mode}-failure.json`, {
             at: new Date().toISOString(),
