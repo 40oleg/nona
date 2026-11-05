@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **GC block lookup candidate (hosted validation pending).** Fuse the page-map
+  probe and payload validation into a frame-free lookup, avoiding a nested call
+  and pointer spill on each resolution while retaining pointer bounds, free-cell
+  rejection and collection semantics. Add direct native boundary, epoch and
+  mapping-reuse coverage. The original native failures remain unresolved; this
+  candidate does not establish issue completion or release acceptance.
+  ([#646](https://github.com/40oleg/nona/issues/646))
+
 - **Partial #646 mapping-only derivation support.** Import the fixed failed
   capture without new native/oracle/sampler executions, compare equivalent UTC
   worker timestamps at 100 ns precision, and bind retained snapshots to a

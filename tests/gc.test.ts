@@ -71,6 +71,154 @@ function equal(a: Assembler, symbol: string, value: number): void {
     a.jcc("ne", "test.fail");
 }
 
+// Query a saved payload pointer (possibly interior), checking the actual header
+// or a miss. The expected header comes from the allocator's returned payload.
+function blockAt(
+    a: Assembler,
+    pointerSlot: number,
+    offset: number,
+    found = true,
+): void {
+    a.load("rcx", { base: "rsp", disp: pointerSlot });
+    a.add("rcx", offset);
+    a.call("rt.blockOf");
+    if (found) {
+        a.load("r10", { base: "rsp", disp: pointerSlot });
+        a.sub("r10", H.size);
+        a.cmp("rax", "r10");
+    } else a.cmp("rax", 0);
+    a.jcc("ne", "test.fail");
+}
+
+test("block lookup accepts only requested payload bytes across cell and mapping sizes (#646)", () =>
+    native((a) => {
+        // The table is initially absent; static and null pointers must miss.
+        a.mov("rcx", 0);
+        a.call("rt.blockOf");
+        a.cmp("rax", 0);
+        a.jcc("ne", "test.fail");
+        a.lea("rcx", { rip: "test.roots" });
+        a.call("rt.blockOf");
+        a.cmp("rax", 0);
+        a.jcc("ne", "test.fail");
+        // Includes cell padding, non-power-of-two classes and a large mapping.
+        for (const bytes of [1, 63, 985, 4096, 65400, 150000])
+            for (let cell = 0; cell < 3; cell++) {
+                // Successive cells exercise nonzero cell indices as well.
+                a.mov("rcx", bytes);
+                a.call("rt.alloc");
+                a.store({ base: "rsp", disp: 40 }, "rax");
+                blockAt(a, 40, -H.size, false);
+                blockAt(a, 40, -1, false);
+                blockAt(a, 40, 0);
+                blockAt(a, 40, bytes - 1);
+                blockAt(a, 40, bytes, false);
+                // A mapping header is never a payload, even with a valid page key.
+                a.load("rcx", { base: "rsp", disp: 40 });
+                a.and("rcx", -65536);
+                a.call("rt.blockOf");
+                a.cmp("rax", 0);
+                a.jcc("ne", "test.fail");
+            }
+    }));
+
+test("interior lookup and weak mark queries track collection epochs and cell reuse (#646)", () =>
+    native((a) => {
+        a.mov("rcx", 64);
+        a.call("rt.alloc");
+        a.store({ base: "rsp", disp: 40 }, "rax");
+        a.add("rax", 17);
+        a.store({ rip: "test.roots", addend: 8 }, "rax");
+        a.mov("rax", 4);
+        a.store({ rip: "test.roots" }, "rax");
+        const marked = (expected: number) => {
+            a.load("rcx", { base: "rsp", disp: 40 });
+            a.add("rcx", 17);
+            a.call("rt.gcIsMarkedPointer");
+            a.cmp("rax", expected);
+            a.jcc("ne", "test.fail");
+        };
+        for (let epoch = 0; epoch < 3; epoch++) {
+            a.call("rt.collect");
+            equal(a, "rt.blocks", 1);
+            blockAt(a, 40, 17);
+            marked(1);
+        }
+        // Lazy sweep leaves the dead header present, but its mark is stale.
+        a.mov("rax", 0);
+        a.store({ rip: "test.roots" }, "rax");
+        a.call("rt.collect");
+        marked(0);
+        // Force sweeping so lookup must now reject the free cell itself.
+        a.mov("rax", 1);
+        a.store({ rip: "rt.gcPoison" }, "rax");
+        a.call("rt.collect");
+        blockAt(a, 40, 17, false);
+        equal(a, "rt.blocks", 0);
+        a.mov("rcx", 64);
+        a.call("rt.alloc");
+        a.load("r10", { base: "rsp", disp: 40 });
+        a.cmp("rax", "r10");
+        a.jcc("ne", "test.fail");
+        blockAt(a, 40, 17);
+        marked(1);
+        a.call("rt.collect");
+        blockAt(a, 40, 17, false);
+        equal(a, "rt.blocks", 0);
+        // Preserve weak-key treatment of null and permanently live statics.
+        a.mov("rcx", 0);
+        a.call("rt.gcIsMarkedPointer");
+        a.cmp("rax", 0);
+        a.jcc("ne", "test.fail");
+        a.lea("rcx", { rip: "rt.objectPrototype" });
+        a.call("rt.gcIsMarkedPointer");
+        a.cmp("rax", 1);
+        a.jcc("ne", "test.fail");
+    }));
+
+test("large interior lookup survives page-map growth, tombstones and shorter cached reuse (#646)", () =>
+    native((a) => {
+        // Each mapping spans 49 granules, forcing growth of the initial table.
+        for (const pointerSlot of [40, 48]) {
+            a.mov("rcx", 3 << 20);
+            a.call("rt.alloc");
+            a.store({ base: "rsp", disp: pointerSlot }, "rax");
+            blockAt(a, pointerSlot, 0);
+            blockAt(a, pointerSlot, 65536);
+            blockAt(a, pointerSlot, (3 << 20) - 1);
+        }
+        // Keep only the second mapping via an interior root. Removing all page
+        // keys of the first must not break probes that pass through tombstones.
+        a.load("rax", { base: "rsp", disp: 48 });
+        a.add("rax", 65536);
+        a.store({ rip: "test.roots", addend: 8 }, "rax");
+        a.mov("rax", 4);
+        a.store({ rip: "test.roots" }, "rax");
+        a.call("rt.collect");
+        for (const offset of [0, 65536, (3 << 20) - 1]) {
+            blockAt(a, 40, offset, false);
+            blockAt(a, 48, offset);
+        }
+        // The cached 3 MiB mapping fits a 2 MiB payload; its old tail remains
+        // mapped and registered, but must not be accepted as the new payload.
+        a.mov("rcx", 2 << 20);
+        a.call("rt.alloc");
+        a.load("r10", { base: "rsp", disp: 40 });
+        a.cmp("rax", "r10");
+        a.jcc("ne", "test.fail");
+        blockAt(a, 40, 65536);
+        blockAt(a, 40, (2 << 20) - 1);
+        blockAt(a, 40, 2 << 20, false);
+        blockAt(a, 40, (3 << 20) - 1, false);
+        blockAt(a, 48, (3 << 20) - 1);
+        a.mov("rax", 0);
+        a.store({ rip: "test.roots" }, "rax");
+        a.call("rt.collect");
+        blockAt(a, 40, 65536, false);
+        blockAt(a, 48, 65536, false);
+        equal(a, "rt.blocks", 0);
+    }));
+
 for (const bytes of [64, 9 << 20])
     test(`heap snapshot excludes unswept dead ArrayBuffers with ${bytes}-byte backing stores (#601)`, () =>
         native((a) => {

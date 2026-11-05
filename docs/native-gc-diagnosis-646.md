@@ -1,5 +1,87 @@
 # Native GC execution diagnosis (#646)
 
+## Lookup optimization implementation plan (2026-11-05)
+
+This candidate is Part of #646 in draft #647, based on exact HEAD
+`401c15587504a2ab81884a5fc95dad835767b1bc`. The owner requests implementation
+in this existing worktree, without commits, publication or local native execution.
+
+**Evidence.** Mapping-only run
+[41993008967](https://github.com/40oleg/nona/actions/runs/41993008967) succeeded:
+the rebuilt image equals retained SHA256
+`8157abc9333625725348fda654d2e5997693ee6779ae9b5d9ac33f61c3ac5451`, including
+the certified function boundaries and `.pdata`. The supplied partial attribution,
+verification and map-result receipts retain 7356 snapshots / 1626 rows: 1623
+in-image, 5733 outside, zero unmapped in-image. `rt.blockOf` has 645 snapshots,
+`rt.chunkTableFind` 184, `gcMarkPointer` 176, `gcTraceProperty` 149 and
+`gcTraceObject` 90. These are partial wall-clock snapshots, without stacks or
+exclusive CPU attribution. Sampler `complete=false` / error 5 and the original
+180000 ms native HTTP `ETIMEDOUT` remain failures; Node exited 0. Mapping success
+does not clear them or establish a common cause for the historical witnesses.
+
+**Concrete mechanism and proposed change.** Git comparisons establish identical
+`memory.ts` and `gc.ts` at accepted main `37fc352d`, HTTP pin `b78f8182` and this
+HEAD. Object/property/range tracing repeatedly calls `gcMarkPointer`, which
+filters the heap envelope, resolves `blockOf`, then tests the collection epoch.
+Weak entry/key checks use `gcIsMarkedPointer`, which also resolves `blockOf`.
+The only caller of `chunkTableFind` is `blockOf`: each resolution creates two
+frames, spills/reloads RCX and calls/returns across the inner frame even though
+the probe preserves RCX and makes no calls. Fuse the existing probe and payload
+validation into one frame-free `blockOf` in `src/runtime/memory.ts`. Remove the
+now-unneeded inner function, pointer spill and redundant returned-entry check.
+Do not change `gc.ts`. This reduces fixed instruction/stack work, not probe
+count; it makes no claim that lookup overhead explains the entire timeout.
+
+**Invariants.** Keep the exact hash, wraparound probing, empty/tombstone rules,
+mapping flags and cell arithmetic. Keep carved-cell bounds, FreeKind rejection
+and the half-open requested-payload interval for small and multi-granule large
+blocks, including interior pointers. Use only existing volatile registers, no
+stack slots, calls, allocation or new imports; retain runtime return/unwind
+metadata on x64 and ARM64. No cache means no new epoch or mapping invalidation
+state. Leave marking, weak/static/null behavior, lazy sweep and large-cache
+unregistration/reuse semantics intact on Windows and Linux.
+
+**Implementation and hosted falsification.**
+
+1. Add direct allocator/collector regressions to `tests/gc.test.ts` using its
+   existing native helper: payload/header/end boundaries across small,
+   non-power-of-two and large classes; interior roots across epochs, weak mark
+   queries, forced free/reuse; table growth, tombstones, multi-granule large
+   release and cached reuse with a shorter requested payload. Assertions check
+   returned headers, liveness and reclamation, not emitted instruction text.
+   `gc` is already in `tests/gc-stress.json`; retain that file unchanged.
+2. Apply only the fusion above and add a candidate entry in `CHANGELOG.md`.
+3. Locally perform selected formatting, text/static ABI/control-flow review and
+   `git diff --check` only. Parent runs the new tests serially on hosted Windows
+   and Linux, then one bounded unchanged stressed HTTP witness at its original
+   180000 ms deadline with its original Node control. Retain the original
+   `b78f8182` fixture/module graph; overlay only the reviewed candidate
+   `memory.ts` for this distinct candidate image and record its source/image
+   hashes alongside the existing failed image. Existing hosted native
+   failures are RED evidence; the new correctness tests are unexecuted locally.
+
+Any wrong header, accepted boundary/free pointer, lost root, stale weak result,
+reuse failure, crash, ABI/unwind failure or assertion rejects the candidate.
+An unchanged HTTP timeout or failed original assertion rejects it as a repair
+for that witness even if correctness tests pass. No numerical speed threshold
+substitutes for correctness. Parent adds `full-ci` / `gc-stress` before the
+relevant push and obtains required hosted checks before general integration;
+#647 stays draft, #646 open and release admission held.
+
+### Candidate preparation record
+
+Implemented the probe fusion and three direct native correctness tests described
+above; `gc.ts`, the stress selection and all #647 diagnostic helpers are unchanged.
+Static review retains every probe/payload check and limits the leaf to volatile
+registers with the existing `raw` return/unwind convention. Selected formatting
+with an already cached Prettier 3.6.2 accepted all four edited files unchanged;
+the repository pins 3.9.10, whose hosted check is still required. No dependencies
+were installed. `git diff --check` passed; HEAD and the staged-file inventory
+remain unchanged. Native tests, compilation, runtime emission, the unchanged HTTP
+witness and required platform checks have not run locally. No GREEN result or
+release clearance is claimed. The sections below preserve earlier diagnostic
+handoffs and their historical limitations.
+
 ## Prepared mapping-only derivation of the existing partial capture
 
 This is a partial data-processing handoff for parent review/publication in

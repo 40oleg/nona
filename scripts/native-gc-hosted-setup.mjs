@@ -74,7 +74,9 @@ if (mode === "prepare") {
             "gh",
             [
                 "api",
-                ...(endpoint.endsWith("/logs") ? ["--allow-escape-sequences"] : []),
+                ...(endpoint.endsWith("/logs")
+                    ? ["--allow-escape-sequences"]
+                    : []),
                 `repos/40oleg/nona/actions/${endpoint}`,
             ],
             { maxBuffer: 64 * 1024 * 1024 },
