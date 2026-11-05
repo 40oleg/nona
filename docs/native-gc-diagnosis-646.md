@@ -1,7 +1,16 @@
 # Native GC execution diagnosis (#646)
 
+**Scope: partial diagnostic infrastructure. Part of #646.** Any PR for this
+branch must use `Part of #646`, keep the issue open and retain the release hold.
+The step names in commit history do not establish completed diagnosis or repair.
+This branch supplies evidence retention and diagnostic failure handling only;
+it does not complete #646's native diagnosis, production repair, permanent native
+regression or required current-head release CI. Those remain follow-up work on
+this current-release issue, with HTTP Agent behavior owned by #616.
+
 This records step 2 diagnostic support and the inconclusive step 3 admission
-review. No production repair or release admission is established.
+review. No production repair or release admission is established. The review
+fixes below do not add hosted results or change that conclusion.
 The branch started at accepted main `37fc352d771113653813c18b0442681428c314f6`.
 The supplied task says step 1 is committed, but this checkout's history and tree
 contain no step-1 evidence bundle or matrix. The issue's immutable pins and
@@ -87,6 +96,33 @@ evidence tests (serial), Prettier for this document, and `npm run check:doc-link
 (1586 links in 308 documents). These checks ran at affinity mask 3 and
 BelowNormal priority; no Nona compilation or native workload ran locally.
 
+## Review fixes: diagnostic failure handling only
+
+Worker reports are written before worker shutdown. The controller now retains
+the independent launcher's status, signal and error alongside every report and
+fails any unsuccessful launcher, even when the report looks successful. Final
+failure records include the launcher outcome. Evidence verification rejects
+failed launchers and discrepancies between final failure flags and retained
+worker outcomes; retained artifacts still include unsuccessful attempts.
+
+Unchanged concurrent comparisons and the isolated HTTP tail now replay their
+entire pinned assertion callbacks, including expected stdout and both native
+and Node stderr checks. For groups with multiple programs, only the selected
+comparison's results are substituted; other calls keep the original results.
+Original results are restored after replay. Each comparison retains its
+assertion report and a failed assertion fails the run. Marked variants remain
+separate native diagnostics, whose intentional stderr markers do not constitute
+an unchanged-witness pass.
+
+Serial lightweight regressions cover a worker writing a successful-looking
+report before exit 7 or termination, launcher errors, verifier rejection of
+failed launchers, and exit-zero HTTP comparison/tail outcomes whose sole defect
+is unexpected stderr. Positive controls still pass. These regressions exercise
+diagnostic handling without building or running Nona; they provide no evidence
+that the historical native execution failures have been repaired. Publication
+and the bounded hosted diagnosis remain a harness handoff; this review does
+not push, open a PR or start a hosted campaign.
+
 ## Fixed hosted matrix
 
 `native-gc-diagnosis.yml` runs only for the issue-646 PR branch or explicit manual
@@ -155,8 +191,9 @@ Requests identify original, concurrent, tail, marked and startup variants.
 The controller evaluates the original assertion callbacks after collecting every
 program in each selected group, so an early failure cannot suppress later
 programs or Node controls. Original failures and all comparison outcomes remain
-in artifacts. A worker error, failed result or failed original assertion fails
-the run. Evidence completeness is checked independently: missing final/partial
+in artifacts. A launcher failure, worker error, failed result or failed original
+or unchanged-comparison assertion fails the run. Evidence completeness is checked
+independently of native witness success: missing final/partial
 reports, phases, counts, streams, image hashes, samples, timings, logs or source
 provenance fail acceptance. Always-run uploads retain input/partial evidence
 before execution and final/partial evidence after it, including failed runs.
@@ -169,6 +206,7 @@ node --test --test-concurrency=1 scripts/native-execution-evidence.test.mjs
 
 It verifies controlled Node exit, platform-reported signal and timeout metadata;
 binary retention; every helper execution branch with injected outcomes; and
-complete pinned fixture composition/oracle replay using small serial Node
-controls. It never builds or executes a Nona image. Hosted execution additionally
+complete pinned fixture composition/oracle replay, launcher failure handling and
+stderr-only HTTP negatives using small serial Node controls. It never builds
+or executes a Nona image. Hosted execution additionally
 checks serialization on POSIX, where an actual signal result is asserted.

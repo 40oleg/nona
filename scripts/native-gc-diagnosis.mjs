@@ -17,6 +17,13 @@ import {
     pins,
 } from "./native-gc-diagnosis-cases.mjs";
 import { serializeExecution } from "../tests/helpers/execution.ts";
+import {
+    readWorkerOutcome,
+    launcherFailed,
+    outcomeFailed,
+    replayResult,
+    replayAssertions,
+} from "./native-gc-diagnosis-outcomes.mjs";
 
 const script = fileURLToPath(import.meta.url);
 const json = (file, value) =>
@@ -42,31 +49,6 @@ function stopTree(child) {
             process.kill(-child.pid, "SIGKILL");
         } catch {}
     }
-}
-
-function outcomeFailed(outcome) {
-    const native = outcome.result?.native ?? outcome.result;
-    const oracle = outcome.result?.oracleRun ?? outcome.oracle;
-    return Boolean(
-        outcome.error ||
-        !native ||
-        native.status !== 0 ||
-        native.signal ||
-        native.error ||
-        !oracle ||
-        oracle.status !== 0 ||
-        oracle.signal ||
-        oracle.error ||
-        native.stdout !== oracle.stdout,
-    );
-}
-
-function replayResult(result) {
-    // JSON evidence represents absent Error fields as null. Restore the helper's
-    // undefined error for the unchanged assertions; retain the raw report as-is.
-    for (const run of [result, result?.native, result?.oracleRun])
-        if (run?.error === null) delete run.error;
-    return result;
 }
 
 function hosted() {
@@ -172,6 +154,7 @@ if (mode === "--worker") {
             const oracleCall =
                 next?.kind === "oracle" ? entry.calls[++i] : undefined;
             originals.push({
+                entry,
                 caseName: entry.name,
                 kind: call.kind,
                 args: call.args,
@@ -285,10 +268,14 @@ if (mode === "--worker") {
         clearTimeout(timer);
         children.delete(child);
         json(join(directory, "launcher.json"), outcome);
-        const file = join(directory, "worker-result.json");
-        return existsSync(file)
-            ? read(file)
-            : { error: { message: "Missing worker result", outcome } };
+        const result = readWorkerOutcome(directory);
+        if (phase === "concurrent-2" || phase === "isolated-tail") {
+            result.assertions = [
+                replayAssertions(item.entry, [{ ...item, outcome: result }]),
+            ];
+            json(join(directory, "assertions.json"), result.assertions);
+        }
+        return result;
     }
     const outcomes = [];
     // All original programs and Node controls finish before any comparison.
@@ -302,14 +289,7 @@ if (mode === "--worker") {
             original.oracleCall.thrown = result.error;
         }
     }
-    const assertions = cases.map((entry) => {
-        try {
-            entry.replay();
-            return { name: entry.name, passed: true };
-        } catch (error) {
-            return { name: entry.name, passed: false, error };
-        }
-    });
+    const assertions = cases.map((entry) => replayAssertions(entry));
     json(join(out, "original-assertions.json"), assertions);
     // Two selected unchanged images, no synthetic load and no suite campaign.
     outcomes.push(
@@ -326,13 +306,16 @@ if (mode === "--worker") {
     const failures = outcomes.map((outcome, index) => ({
         id: manifest[index].id,
         failed: outcomeFailed(outcome),
+        launcher: outcome.launcher,
     }));
     json(join(out, "final.json"), {
         completed: true,
         executions: sequence,
         assertions,
         failures,
-        workerErrors: outcomes.filter((item) => item.error),
+        workerErrors: outcomes.filter(
+            (item) => item.error || launcherFailed(item.launcher),
+        ),
         interpretation:
             "Common cause unresolved. Comparisons and instrumented successes do not clear original failures; HTTP behavior remains owned by #616. Current-head release CI is still required.",
     });
@@ -367,6 +350,10 @@ if (mode === "--worker") {
     assert.equal(final.assertions.length, plan.originalGroups);
     assert.equal(manifest.length, plan.totalNative);
     assert.equal(final.executions, plan.totalNative);
+    assert.deepEqual(
+        final.failures.map((item) => item.id),
+        manifest.map((item) => item.id),
+    );
     for (const [phase, count] of Object.entries({
         original: plan.originalNative,
         "concurrent-2": 2,
@@ -384,8 +371,24 @@ if (mode === "--worker") {
     for (const item of manifest) {
         const directory = join(out, item.id);
         const request = read(join(directory, "request.json"));
-        read(join(directory, "launcher.json"));
+        const outcome = readWorkerOutcome(directory);
+        assert.equal(
+            launcherFailed(outcome.launcher),
+            false,
+            "Unsuccessful worker launcher: " + JSON.stringify(outcome.launcher),
+        );
+        // A missing report is incomplete even if launcher.json says exit zero.
         read(join(directory, "worker-result.json"));
+        if (item.phase === "concurrent-2" || item.phase === "isolated-tail") {
+            outcome.assertions = read(join(directory, "assertions.json"));
+            assert.equal(outcome.assertions.length, 1);
+            assert.equal(typeof outcome.assertions[0].passed, "boolean");
+        }
+        assert.equal(
+            final.failures.find((failure) => failure.id === item.id).failed,
+            outcomeFailed(outcome),
+            "Final outcome disagrees with retained worker evidence: " + item.id,
+        );
         const samples = readFileSync(join(directory, "samples.jsonl"), "utf8")
             .trim()
             .split("\n")

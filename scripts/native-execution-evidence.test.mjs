@@ -25,10 +25,78 @@ import {
     diagnosticPlan,
     pins,
 } from "./native-gc-diagnosis-cases.mjs";
+import {
+    readWorkerOutcome,
+    outcomeFailed,
+    replayAssertions,
+} from "./native-gc-diagnosis-outcomes.mjs";
 
 const work = resolve("work/native-evidence-tests");
 mkdirSync(work, { recursive: true });
 const plain = (value) => JSON.parse(JSON.stringify(serializeExecution(value)));
+
+test("worker launcher failure overrides a successful-looking report", () => {
+    const run = { status: 0, signal: null, stdout: "ok\n", stderr: "" };
+    const report = { result: run, oracle: run };
+    for (const ending of [
+        "process.exitCode = 7",
+        "process.exitCode = 0",
+        "process.kill(process.pid, 'SIGTERM')",
+    ]) {
+        const directory = mkdtempSync(join(work, "launcher-"));
+        // Write a real report before terminating the lightweight Node worker.
+        const launcher = spawnSync(
+            process.execPath,
+            [
+                "-e",
+                "require('node:fs').writeFileSync(process.argv[1], process.argv[2]); " +
+                    ending,
+                join(directory, "worker-result.json"),
+                JSON.stringify(report),
+            ],
+            { timeout: 5000, windowsHide: true },
+        );
+        assert.equal(launcher.error, undefined);
+        writeFileSync(
+            join(directory, "launcher.json"),
+            JSON.stringify(
+                plain({
+                    status: launcher.status,
+                    signal: launcher.signal,
+                    error: launcher.error,
+                }),
+            ),
+        );
+        const outcome = readWorkerOutcome(directory);
+        assert.equal(
+            outcomeFailed(outcome),
+            ending !== "process.exitCode = 0",
+            ending,
+        );
+        assert.equal(outcome.launcher.status, launcher.status);
+        assert.equal(outcome.launcher.signal, launcher.signal);
+        assert.deepEqual(outcome.result, report.result);
+        assert.deepEqual(outcome.oracle, report.oracle);
+    }
+    const directory = mkdtempSync(join(work, "launcher-error-"));
+    writeFileSync(
+        join(directory, "worker-result.json"),
+        JSON.stringify(report),
+    );
+    writeFileSync(
+        join(directory, "launcher.json"),
+        JSON.stringify({
+            status: 0,
+            signal: null,
+            error: { code: "ENOENT" },
+        }),
+    );
+    assert.equal(outcomeFailed(readWorkerOutcome(directory)), true);
+    unlinkSync(join(directory, "worker-result.json"));
+    const missing = readWorkerOutcome(directory);
+    assert.equal(outcomeFailed(missing), true);
+    assert.equal(missing.launcher.error.code, "ENOENT");
+});
 
 test("controlled exit retains both raw streams and nonzero status", () => {
     const result = spawnSync(
@@ -345,6 +413,12 @@ test("pinned fixture matrix captures every original program and replays original
                         oracle: node.stdout,
                         oracleStatus: 0,
                         oracleStderr: node.stderr,
+                        oracleRun: {
+                            status: 0,
+                            signal: null,
+                            stdout: node.stdout,
+                            stderr: node.stderr,
+                        },
                     };
                 } else if (call.kind === "oracle") {
                     // The original Script oracle has a console String adapter.
@@ -367,6 +441,40 @@ test("pinned fixture matrix captures every original program and replays original
                 }
             }
             entry.replay();
+            if (group === "http") {
+                for (const phase of ["concurrent-2", "isolated-tail"]) {
+                    const call = entry.calls[0];
+                    const original = call.result;
+                    const outcome = {
+                        launcher: { status: 0, signal: null },
+                        result: structuredClone(original),
+                    };
+                    assert.equal(
+                        replayAssertions(entry, [{ call, outcome }]).passed,
+                        true,
+                        phase + " unchanged positive control",
+                    );
+                    outcome.result.native.stderr = "unexpected diagnostic\n";
+                    const checked = {
+                        ...outcome,
+                        assertions: [
+                            replayAssertions(entry, [{ call, outcome }]),
+                        ],
+                    };
+                    assert.equal(checked.assertions[0].passed, false, phase);
+                    assert.equal(outcomeFailed(checked), true, phase);
+                    assert.equal(
+                        call.result,
+                        original,
+                        "Original evidence is restored",
+                    );
+                    assert.equal(
+                        outcome.result.native.stderr,
+                        "unexpected diagnostic\n",
+                    );
+                    entry.replay();
+                }
+            }
             entry.calls[0].result = {
                 native: { status: null, error: { code: "ETIMEDOUT" } },
                 status: null,
@@ -381,7 +489,7 @@ test("pinned fixture matrix captures every original program and replays original
     }
 });
 
-test("completeness rejects a missing raw stream even when the final report claims success", () => {
+test("verification rejects failed launchers, false comparison passes and missing raw streams", () => {
     const root = mkdtempSync(join(work, "verification-"));
     const output = join(root, "work/native-gc-diagnosis");
     const provenance = join(root, "work/native-gc-provenance");
@@ -416,13 +524,20 @@ test("completeness rejects a missing raw stream even when the final report claim
         completed: true,
         executions: plan.totalNative,
         assertions: [{ passed: true }],
+        failures: manifest.map((item) => ({ id: item.id, failed: false })),
     });
     for (const item of manifest) {
         const directory = join(output, item.id);
         mkdirSync(directory);
         json(join(directory, "request.json"), { source: plan.pin });
         json(join(directory, "launcher.json"), { status: 0 });
-        json(join(directory, "worker-result.json"), { result: {} });
+        const run = { status: 0, signal: null, stdout: "ok\n", stderr: "" };
+        json(join(directory, "worker-result.json"), {
+            result: run,
+            oracle: run,
+        });
+        if (item.phase === "concurrent-2" || item.phase === "isolated-tail")
+            json(join(directory, "assertions.json"), [{ passed: true }]);
         writeFileSync(
             join(directory, "samples.jsonl"),
             JSON.stringify({ status: 0, stdout: "synthetic control" }) + "\n",
@@ -468,6 +583,32 @@ test("completeness rejects a missing raw stream even when the final report claim
         windowsHide: true,
     });
     assert.equal(complete.status, 0, complete.stderr);
+    for (const launcher of [
+        { status: 7, signal: null },
+        { status: null, signal: "SIGTERM" },
+        { status: 0, signal: null, error: { code: "ENOENT" } },
+    ]) {
+        json(join(output, "0/launcher.json"), launcher);
+        const failedWorker = spawnSync(process.execPath, command, {
+            cwd: root,
+            encoding: "utf8",
+            timeout: 5000,
+            windowsHide: true,
+        });
+        assert.notEqual(failedWorker.status, 0, JSON.stringify(launcher));
+        assert.match(failedWorker.stderr, /launcher/iu);
+    }
+    json(join(output, "0/launcher.json"), { status: 0, signal: null });
+    json(join(output, "1/assertions.json"), [{ passed: false }]);
+    const falsePass = spawnSync(process.execPath, command, {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 5000,
+        windowsHide: true,
+    });
+    assert.notEqual(falsePass.status, 0);
+    assert.match(falsePass.stderr, /Final outcome disagrees/u);
+    json(join(output, "1/assertions.json"), [{ passed: true }]);
     unlinkSync(join(output, "0/executions/modules-control/stderr.bin"));
     const incomplete = spawnSync(process.execPath, command, {
         cwd: root,

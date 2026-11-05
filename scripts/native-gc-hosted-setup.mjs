@@ -48,6 +48,7 @@ if (mode === "prepare") {
         "tests/helpers/oracle.ts",
         "scripts/native-gc-diagnosis.mjs",
         "scripts/native-gc-diagnosis-cases.mjs",
+        "scripts/native-gc-diagnosis-outcomes.mjs",
         "scripts/native-gc-sample.mjs",
         "scripts/native-execution-evidence.test.mjs",
     ])
