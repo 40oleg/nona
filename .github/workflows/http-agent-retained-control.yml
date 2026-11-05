@@ -1,0 +1,51 @@
+name: HTTP Agent retained-context controls
+on:
+    # Include drafts: these controls must be available before merging #631.
+    pull_request:
+        paths:
+            - "src/**"
+            - "tests/http-agent*.test.ts"
+            - "tests/helpers/**"
+            - "scripts/build.mjs"
+            - "scripts/lib-sources.mjs"
+            - "scripts/http-agent-retained-control.mjs"
+            - "package*.json"
+            - "tsconfig.json"
+            - ".github/workflows/http-agent-retained-control.yml"
+permissions:
+    contents: read
+jobs:
+    retained-context:
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 15
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [windows-latest, ubuntu-24.04]
+        env:
+            CONTROL_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - run: npm ci
+            - id: build
+              run: npm run build
+            - name: Exact retained-context case without GC stress
+              run: node scripts/http-agent-retained-control.mjs off
+            - name: Exact retained-context case with GC stress
+              # Override success() so the required stress case also runs after
+              # a failed control. Neither failure is allowed to pass the job.
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/http-agent-retained-control.mjs on
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: http-agent-retained-${{ matrix.os }}-${{ github.event.pull_request.head.sha }}
+                  path: work/http-agent-retained/
+                  if-no-files-found: warn

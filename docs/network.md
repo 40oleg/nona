@@ -43,6 +43,51 @@ server has a `clientError` listener; parse errors carry the llhttp codes
 
 `https:` requests are made with [`node:https`](#nodehttps), which runs this client over TLS.
 
+Agent limits count both active and idle keep-alive connections: `maxSockets`
+applies to each origin (including TLS options for HTTPS), and `maxTotalSockets`
+applies across origins. When a socket closes or is detached for CONNECT/Upgrade,
+the Agent prefers eligible work for that origin, then scans other queued origins,
+skipping those at their per-origin limit. Requests within an origin remain FIFO;
+`scheduling: 'fifo'` or `'lifo'` selects among its free sockets. Idle sockets still
+consume capacity until they close, and remain unreferenced with their idle timeout.
+Cancelling a queued request discards its unsent data, callbacks and connection
+options without opening a socket. Its terminal error/close notification waits
+for a capacity opportunity, as in Node.js; `abort` retains its separate event.
+After socket assignment, destroying or aborting a request completes its corked write
+callbacks with the destruction error before `close`. Encoded output still held by the
+request is discarded without calling its unsent write callbacks, including when
+cancellation happens in the `socket` listener before output handoff. Writes already
+handed to the socket retain their transport completion. Synchronous connection creation errors
+remove the failed request from the queue, so later valid requests can proceed.
+`Agent.destroy()` destroys current pooled sockets; the Agent can subsequently be
+used again, and eligible queued requests can receive new sockets.
+
+The [#616 idle-timeout witness](../tests/helpers/http-agent-cases.ts) disables
+the server's independent keep-alive expiry before listening, so it tests the
+client's 200 ms idle timeout without requiring that deadline to precede a server
+deadline already overdue under forced GC. Both the normal Node oracle and staged
+native program retain their complete output and replacement-connection assertions.
+This fixture does not validate default-server expiry. Existing HTTP witnesses,
+including server keep-alive configuration in
+[`tests/http.test.ts`](../tests/http.test.ts), remain unchanged.
+
+The [preserved diagnostic protocol](https://github.com/40oleg/nona/blob/1619e503d9c65f9eeab845a177e92a870dc61428/docs/http-agent-idle-diagnostic.md)
+and [Linux run 41417655809](https://github.com/40oleg/nona/actions/runs/41417655809/job/125185336895)
+retain the failed original/scalar/trace cases and the successful uninstrumented
+server-expiry isolation. The isolated stressed input is exactly the original
+2240-byte input plus `server.keepAliveTimeout = 0;` and its newline: 2269 bytes,
+SHA-256 `39b252fd7cad09b0b578c4be1e1e144009a558b4fb867753d05d627a90ef9fbc`.
+Its matching Node control uses identical bytes. The trace captures both response
+finishes and an overdue 6000 ms peer deadline before the client deadline; the
+separate Node baseline/delayed pair establishes timing sufficiency. The original
+uninstrumented native phase remains unobserved, and no production Agent, runtime
+or compiler cause or fix is proved. The diagnostic job failed its original-case
+comparison; it is not a green full-suite result. Windows isolation was still
+queued at the last reviewed snapshot. All 32 stressed native witnesses, four
+normal controls and required current-head CI on both hosts after main integration
+remain mandatory before PR #631 is ready, merged or #616 closed. T07 requirements
+remain unchanged.
+
 ### Write backpressure
 
 TCP sockets and HTTP outgoing messages use a 16 KiB write high-water mark.

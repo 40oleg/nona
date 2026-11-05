@@ -98,6 +98,47 @@ export function loadTimings(root = projectRoot) {
         : {};
 }
 
+/** Keep GC cohorts in order, with the assigned Agent file alone at each tail. */
+export function planShardPhases(names, env, stressed) {
+    const cohorts =
+        env.NONA_GC_STRESS_SCOPE === "marked"
+            ? [
+                  {
+                      files: names.filter((name) => !stressed.includes(name)),
+                      env: { ...env, NONA_GC_STRESS: "off" },
+                      suffix: "",
+                  },
+                  {
+                      files: names.filter((name) => stressed.includes(name)),
+                      env: { ...env },
+                      suffix: "-stress",
+                  },
+              ]
+            : [{ files: names, env: { ...env }, suffix: "" }];
+    const phases = [];
+    for (const cohort of cohorts) {
+        const peers = cohort.files.filter((name) => name !== "http-agent");
+        if (peers.length) phases.push({ ...cohort, files: peers });
+        if (cohort.files.includes("http-agent"))
+            phases.push({
+                files: ["http-agent"],
+                env: { ...cohort.env, NONA_TEST_CONCURRENCY: "1" },
+                suffix: cohort.suffix + "-http-agent",
+            });
+    }
+    return phases;
+}
+
+/** Run every phase even on failure, retaining the first nonzero exit status. */
+export function runShardPhases(phases, run) {
+    let status = 0;
+    for (const phase of phases) {
+        const result = run(phase);
+        if (!status) status = result;
+    }
+    return status;
+}
+
 function main(argv) {
     const option = (name) => {
         const at = argv.indexOf(name);
@@ -121,8 +162,7 @@ function main(argv) {
     const timingsOut = option("--timings-out");
     if (timingsOut)
         mkdirSync(dirname(join(projectRoot, timingsOut)), { recursive: true });
-    const run = (files, env, suffix) => {
-        if (!files.length) return 0;
+    const run = ({ files, env, suffix }) => {
         const reporters = timingsOut
             ? [
                   "--test-reporter=spec",
@@ -142,7 +182,7 @@ function main(argv) {
             process.execPath,
             [
                 "--test",
-                ...testConcurrencyArgs(),
+                ...testConcurrencyArgs(env),
                 ...reporters,
                 ...files.map((name) =>
                     join("dist", "tests", name + ".test.js"),
@@ -151,20 +191,20 @@ function main(argv) {
             {
                 cwd: projectRoot,
                 stdio: "inherit",
-                env: { ...process.env, ...env },
+                env,
             },
         );
         return result.status ?? 1;
     };
-    if (process.env.NONA_GC_STRESS_SCOPE !== "marked")
-        return run(names, {}, "");
-    const { stressed, other } = splitGcStress(names);
-    console.log(
-        `GC stress only for ${stressed.length} of them (tests/gc-stress.json)`,
-    );
-    const first = run(other, { NONA_GC_STRESS: "off" }, "");
-    const second = run(stressed, {}, "-stress");
-    return first || second;
+    const stressed =
+        process.env.NONA_GC_STRESS_SCOPE === "marked"
+            ? splitGcStress(names).stressed
+            : [];
+    if (process.env.NONA_GC_STRESS_SCOPE === "marked")
+        console.log(
+            `GC stress only for ${stressed.length} of them (tests/gc-stress.json)`,
+        );
+    return runShardPhases(planShardPhases(names, process.env, stressed), run);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))
