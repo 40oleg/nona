@@ -10,9 +10,16 @@ import { linkHost } from "./program.js";
 import { requireHostTarget, getTarget } from "../../src/target.js";
 import { linkLinux } from "../../src/backend/linux/index.js";
 import type { RuntimeLink } from "../../src/link.js";
+import {
+    executionEvidence,
+    executionFailure,
+    retainExecution,
+} from "./execution.js";
+export { executionFailure } from "./execution.js";
 
 export interface HostRun {
     status: number | null;
+    signal: NodeJS.Signals | null;
     stdout: string;
     stderr: string;
     error?: Error;
@@ -34,18 +41,43 @@ export function runOnHost(
         gcStress: true,
     },
 ): HostRun {
-    const program = generate(compileToIR(source), {
+    const timeout =
+        options.timeoutMs ??
+        (options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS);
+    const evidence = executionEvidence("host", {
+        source,
+        options,
+        target: requireHostTarget(),
+        compilerMode: "compileToIR/generate",
+        link: options.link ?? "fullRuntimeLink",
+        timeoutMs: timeout,
+    });
+    const timings: Record<string, number> = {};
+    let started = performance.now();
+    const ir = compileToIR(source);
+    timings.compileMs = performance.now() - started;
+    started = performance.now();
+    const program = generate(ir, {
         gcStress: options.gcStress,
         ...(options.realms ? { realms: options.realms } : {}),
         ...(options.link ? { link: options.link } : {}),
     });
-    const timeout =
-        options.timeoutMs ??
-        (options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS);
+    timings.generateMs = performance.now() - started;
+    started = performance.now();
+    const image =
+        process.platform !== "linux"
+            ? linkHost(program)
+            : linkLinux(program, getTarget(requireHostTarget())!.arch);
+    timings.linkMs = performance.now() - started;
+    evidence?.json("timings.json", timings);
+    evidence?.bytes("image.bin", image);
     if (process.platform !== "linux") {
-        const result = runNative(linkHost(program), timeout);
+        started = performance.now();
+        const result = runNative(image, timeout);
+        retainExecution(evidence, result, started);
         return {
             status: result.status,
+            signal: result.signal,
             stdout: result.stdout.toString(),
             stderr: result.stderr.toString(),
             error: result.error,
@@ -54,19 +86,18 @@ export function runOnHost(
     const directory = mkdtempSync(join(tmpdir(), "nona-host-"));
     try {
         const executable = join(directory, "image");
-        writeFileSync(
-            executable,
-            linkLinux(program, getTarget(requireHostTarget())!.arch),
-        );
+        writeFileSync(executable, image);
         chmodSync(executable, 0o755);
+        started = performance.now();
         const result = spawnSync(executable, [], {
-            encoding: "utf8",
             timeout,
         });
+        retainExecution(evidence, result, started);
         return {
             status: result.status,
-            stdout: result.stdout ?? "",
-            stderr: result.stderr ?? "",
+            signal: result.signal,
+            stdout: result.stdout?.toString() ?? "",
+            stderr: result.stderr?.toString() ?? "",
             error: result.error,
         };
     } finally {
@@ -84,34 +115,60 @@ export function runModulesOnHost(
         oracleSource?: string;
         timeoutMs?: number;
     } = { gcStress: true },
-): { native: HostRun; oracle: string; oracleStatus: number | null } {
+): {
+    native: HostRun;
+    oracle: string;
+    oracleStatus: number | null;
+    oracleStderr: string;
+    oracleRun: HostRun;
+} {
     const directory = mkdtempSync(join(tmpdir(), "nona-modules-"));
+    const timeout =
+        options.timeoutMs ??
+        (options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS);
+    const evidence = executionEvidence("modules", {
+        files,
+        entry,
+        options,
+        target: requireHostTarget(),
+        compilerMode: "compileModuleToIR/generate",
+        link: "fullRuntimeLink",
+        timeoutMs: timeout,
+    });
     try {
         for (const [name, text] of Object.entries(files))
             writeFileSync(join(directory, name), text);
-        const program = generate(
-            compileModuleToIR(files[entry]!, join(directory, entry)),
-            { gcStress: options.gcStress },
-        );
+        const timings: Record<string, number> = {};
+        let started = performance.now();
+        const ir = compileModuleToIR(files[entry]!, join(directory, entry));
+        timings.compileMs = performance.now() - started;
+        started = performance.now();
+        const program = generate(ir, { gcStress: options.gcStress });
+        timings.generateMs = performance.now() - started;
         const executable = join(
             directory,
             process.platform === "linux" ? "image" : "image.exe",
         );
         // Both programs run in the temporary directory, so relative paths stay inside it.
-        writeFileSync(executable, linkHost(program));
+        started = performance.now();
+        const image = linkHost(program);
+        timings.linkMs = performance.now() - started;
+        evidence?.bytes("image.bin", image);
+        evidence?.json("timings.json", timings);
+        writeFileSync(executable, image);
         chmodSync(executable, 0o755);
+        started = performance.now();
         const result = spawnSync(executable, [], {
             cwd: directory,
-            encoding: "utf8",
-            timeout:
-                options.timeoutMs ??
-                (options.gcStress ? GC_STRESS_TIMEOUT_MS : TIMEOUT_MS),
+            timeout,
             windowsHide: true,
         });
+        retainExecution(evidence, result, started);
         const native: HostRun = {
             status: result.status,
-            stdout: result.stdout ?? "",
-            stderr: result.stderr ?? "",
+            signal: result.signal,
+            stdout: result.stdout?.toString() ?? "",
+            stderr: result.stderr?.toString() ?? "",
             error: result.error,
         };
         if (options.oracleSource !== undefined)
@@ -119,19 +176,36 @@ export function runModulesOnHost(
         // The oracle may talk to servers that share a loaded CI runner (the
         // TLS chain cases took over 10 s there), so it gets the native budget.
         // A killed oracle would return truncated output: fail instead.
+        const oracleEvidence = executionEvidence("module-oracle", {
+            files,
+            entry,
+            options,
+            timeoutMs: TIMEOUT_MS,
+        });
+        started = performance.now();
         const oracle = spawnSync(process.execPath, [join(directory, entry)], {
             cwd: directory,
-            encoding: "utf8",
             timeout: TIMEOUT_MS,
         });
+        retainExecution(oracleEvidence, oracle, started);
+        const oracleRun: HostRun = {
+            status: oracle.status,
+            signal: oracle.signal,
+            stdout: oracle.stdout?.toString() ?? "",
+            stderr: oracle.stderr?.toString() ?? "",
+            error: oracle.error,
+        };
         if (oracle.error)
             throw new Error(
-                `Node.js oracle failed: ${oracle.error.message}\n${oracle.stdout}${oracle.stderr}`,
+                `Node.js oracle failed: ${executionFailure(oracleRun)}`,
+                { cause: oracle.error },
             );
         return {
             native,
-            oracle: oracle.stdout,
+            oracle: oracleRun.stdout,
             oracleStatus: oracle.status,
+            oracleStderr: oracleRun.stderr,
+            oracleRun,
         };
     } finally {
         removeTemporaryDirectory(directory);

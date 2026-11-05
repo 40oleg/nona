@@ -1,13 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { compileToIR } from "../src/compiler.js";
-import { runOnHost } from "./helpers/host.js";
+import { runOnHost, executionFailure } from "./helpers/host.js";
 import { runOracle } from "./helpers/oracle.js";
 
 function sameAsNode(source: string, gcStress = true): void {
     const run = runOnHost(source, { gcStress });
-    assert.equal(run.status, 0, run.stderr);
-    assert.equal(run.stdout, runOracle(source).stdout);
+    const diagnostic = executionFailure({ gcStress, ...run });
+    assert.equal(run.error, undefined, diagnostic);
+    assert.equal(run.status, 0, diagnostic);
+    assert.equal(run.stdout, runOracle(source).stdout, diagnostic);
 }
 
 test("the flags string lists every flag in specification order", () =>
