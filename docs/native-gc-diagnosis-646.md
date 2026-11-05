@@ -1,6 +1,7 @@
 # Native GC execution diagnosis (#646)
 
-This is step 2 diagnostic support, not a production repair or release admission.
+This records step 2 diagnostic support and the inconclusive step 3 admission
+review. No production repair or release admission is established.
 The branch started at accepted main `37fc352d771113653813c18b0442681428c314f6`.
 The supplied task says step 1 is committed, but this checkout's history and tree
 contain no step-1 evidence bundle or matrix. The issue's immutable pins and
@@ -22,12 +23,69 @@ repairs that evidence path. It does not establish a common execution defect.
 HTTP scenario behavior remains owned by #616; any demonstrated Agent repair must
 be coordinated there rather than folded into this diagnostic step.
 
-No native, build, load or benchmark workload ran locally. Hosted results are
-pending: the user forbids pushing this commit, and a workflow consuming these
-unpublished files cannot be dispatched from GitHub. The harness must publish the
-commit and start this narrowly scoped workflow. A successful original retry,
-comparison, startup control or instrumented variant cannot erase the historical
-failures. Required current-head CI and step 3 remain outstanding.
+No native, build, load or benchmark workload ran locally. At the end of step 2,
+hosted results were pending and the diagnostic files were unpublished. The
+step 3 audit below records the subsequent publication without hosted execution.
+The harness must arrange execution of this narrowly scoped workflow. A successful
+original retry, comparison, startup control or instrumented variant cannot erase the historical
+failures. The mechanism diagnosis, repair and required current-head CI remain
+outstanding.
+
+## Step 3 result: inconclusive, release admission held
+
+Read-only GitHub checks on 2026-11-05 at 05:58 UTC found:
+
+- Remote `main` remains `37fc352d771113653813c18b0442681428c314f6`.
+- Remote `nona/issue-646` contains diagnostic commit
+  `f2d564983a460c227e402f52dacf993699d49960`. The Actions runs endpoint queried
+  with that exact `head_sha` returned `total_count: 0`, including all event
+  types. This is missing validation, not a successful diagnostic run.
+- The repository's Actions workflow inventory does not include
+  `.github/workflows/native-gc-diagnosis.yml`; the PR inventory for head
+  `nona/issue-646` is empty. The branch file alone does not establish a
+  dispatchable workflow or executed jobs. This step is forbidden to push or
+  open a PR, so it cannot supply the missing PR-triggered run.
+- PRs #628, #631 and #635 are open drafts at the exact source pins in the
+  evidence table above. None is admitted by this review.
+- Issue #646 is open with its existing `bug`, `complex`, `nona-agent`,
+  `nona-reliability`, `blocked` and `nona-agent:wip` labels. Milestone 29 is
+  open `v0.35.0`. The existing harness claim and draft PRs were left intact.
+
+No retained hosted report establishes a common cause or a specific owning
+mechanism. In particular, the historical aggregate durations cannot separate
+compilation, startup, GC, scenario execution and infrastructure contention. The
+HTTP progress lines establish partial scenario progress, not why it stopped.
+The RegExp null status still has no established original error or signal.
+Consequently there is no evidence-backed production repair, scheduling change
+or before/after native regression result to report. The existing diagnostic
+helper regressions test evidence retention; their success is not native release
+acceptance. No deadline, fixture, oracle, GC mode or platform was changed.
+
+Release admission remains dependent on these steps, in order:
+
+1. Obtain and retain complete results from the predeclared hosted matrix below
+   at the original pins and deadlines. Keep failed and incomplete reports as
+   failures or inconclusive evidence. Passing isolated or marked variants do
+   not dismiss the original witnesses.
+2. Attribute a specific mechanism before editing its owning layer, then retain
+   a permanent regression failing before and passing after the repair alongside
+   the unchanged witnesses and Node 26 controls. Any HTTP Agent behavior repair
+   belongs to #616 and must be coordinated there; #646 does not absorb it.
+3. Validate the repair in bounded hosted jobs at the original deadlines. Before
+   the harness's relevant CI-triggering pushes, verify the required `full-ci`
+   and `gc-stress` labels, exactly one type label and `v0.35.0` milestone on
+   each affected PR. Require the necessary successful CI on each final
+   integrated head, including required platform suites, before changing draft
+   status or admitting a release PR. Historical passes and absent reports do
+   not satisfy this gate.
+
+This records an unresolved current-release blocker, not completion of #646.
+No new campaign, later-milestone work or deferred #602 work was started.
+
+Step 3 local checks on Windows with Node 26.9.0 passed: all seven lightweight
+evidence tests (serial), Prettier for this document, and `npm run check:doc-links`
+(1586 links in 308 documents). These checks ran at affinity mask 3 and
+BelowNormal priority; no Nona compilation or native workload ran locally.
 
 ## Fixed hosted matrix
 
