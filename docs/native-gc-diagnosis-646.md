@@ -143,7 +143,7 @@ native execution:
 | HTTP   |               1 |                  1/1 |                               2/2 |                       1/1 |                1/1 |                 1/1 |               6/6 |
 
 There are **50 native executions and 50 Node controls** across six jobs. Jobs
-run one at a time, each bounded to 55 minutes (330 runner-minutes total maximum).
+run in parallel on up to six independent GitHub-hosted rows, each still bounded to 55 minutes (330 runner-minutes aggregate maximum).
 The controller is bounded to 35 minutes, each fixture worker to 8 minutes, and
 the pinned compiler build to 10 minutes. Worker cancellation kills its process
 tree. These outer bounds never increase the native execution deadline.
