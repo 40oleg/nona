@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Partial hosted profiling support for the unresolved native GC diagnosis.** A single guarded Windows observation replays the retained original HTTP image with external instruction sampling and image-equality-gated address mapping. It preserves the original deadlines and failures and does not establish a cause, repair, issue completion or release acceptance. ([#646](https://github.com/40oleg/nona/issues/646))
+
 ### Fixes
 
 - **Computed keys preserve optional runtime parts unless proved numeric.** A string-valued `length` property or a loop counter reassigned to `"Proxy"` now keeps the global Proxy implementation in default builds. Numeric loop-counter suppression requires a lexical binding whose whole-loop writes, captures and dynamic-scope exposure preserve the restricted proof. Numeric literals, coercing arithmetic and invariant lexical counters remain selective. ([#612](https://github.com/40oleg/nona/issues/612))

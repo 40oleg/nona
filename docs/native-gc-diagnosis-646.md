@@ -1,5 +1,169 @@
 # Native GC execution diagnosis (#646)
 
+## Prepared single hosted profile (partial support, 2026-11-05)
+
+This section records prepared support, **not an executed profile, established
+cause, production repair, completion of #646 or admission of #628/#631/#635**.
+PR #647 remains the existing draft, with `Part of #646`. The earlier review
+sections below are historical records; their missing-evidence statements refer
+to those reviews, not to the subsequently completed campaign.
+
+The completed read-only investigation inspected
+[`41979548935`](https://github.com/40oleg/nona/actions/runs/41979548935)
+at diagnostic head `5278ca50cff7356338332440bad4f73f510064c0`.
+Its recorded `result.text`, `646-http-windows-outcomes.json` and
+`646-http-windows-entries.json` under the owner's
+`C:/Users/helgus/Documents/ChatGPT/nona/research/release035/` establish:
+
+- Windows original HTTP, both concurrent copies, isolated tail and marked
+  variant timed out at the unchanged 180000 ms deadline. Startup passed.
+  The original accumulated approximately 177 CPU seconds near 180 seconds
+  elapsed. It printed `queued 2 2`; the historical failure had reached `woken`.
+- Linux's four unmodified HTTP executions passed around 138 seconds; only the
+  marked variant timed out. All four assert/RegExp jobs passed within their
+  bounded fresh-worker scope. These results do not clear historical failures.
+- Pinned x64 stress emission calls `rt.collect` before every IR operation.
+  Collector cost is plausible, but no instruction profile establishes its
+  share. HTTP liveness, finite expensive work and repeating work remain open.
+
+### Fixed design and implementation sequence
+
+The authorized next observation is one external Windows instruction profile
+of the retained unmodified `01-original` image. The small Kernel32 PInvoke
+fallback avoids installing an SDK or adding image instrumentation. Rebuilding
+is exclusively for labels and ranges; rebuilt bytes are never executed.
+The implementation sequence is: pin and retain provenance; sample one replay
+with its original Node oracle; reconstruct and verify an image-bound map;
+verify evidence and raw failures independently. Lightweight parser/provenance/
+identity negative controls accompany this support. All OS/native/build
+validation belongs to the hosted job.
+
+[`issue646-profile.yml`](../.github/workflows/issue646-profile.yml) has one
+Windows GitHub-hosted job with an outer limit of **15 minutes**, no matrix and
+no second Nona execution. A cheap Ubuntu preflight accepts only owner
+`40oleg`, repository `40oleg/nona`, same-repository PR **647**, exact head branch
+`nona/issue-646`, or explicit dispatch on that branch. It reads the exact event
+head commit's paginated filenames, including previous names for renames.
+Unknown/truncated metadata fails explicitly. Automatic profiling runs only
+when the new workflow, profile controller, sampler, mapper or their metadata
+test changed in that commit. Documentation-only and unrelated subsequent
+pushes do not repeat the observation. Explicit dispatch remains available for
+future authorized use; publishing this support is not an instruction to
+dispatch it repeatedly.
+
+The completed six-row campaign keeps its matrix, tests, deadlines and manual
+dispatch. Its PR trigger types change only from `[opened, synchronize,
+reopened]` to `[opened, reopened]`: PR path filters inspect the whole PR diff,
+so `synchronize` would otherwise rerun the entire completed campaign on another
+push to #647. This prevents unrequested duplicate campaigns. It waives no
+failed witness or required product CI; all other product workflows remain intact.
+
+### Immutable inputs and launch
+
+Artifact **13394086354**, run **41979548935**, is pinned to ZIP size
+**28446976** and SHA256
+`c7350500cc5f8ca5c1c4be5b4dd3cbb7d7b5319d7f35e6696ca6355b8a7c68e1`.
+The exact canonical entry is
+`native-gc-diagnosis/01-original/executions/modules-2gJyVw/image.bin`, size
+**13835776**, SHA256
+`8157abc9333625725348fda654d2e5997693ee6779ae9b5d9ac33f61c3ac5451`.
+There is no suffix selection; synthetic `native-evidence-tests` trees cannot
+be selected. API metadata binds the artifact to the completed failed diagnostic
+run. The whole ZIP and each selected entry must pass their recorded digest
+and size checks. No binary artifacts belong in Git.
+
+The controller also pins the exact request, native input, Node input, historical
+native/Node results and context entries. It binds their graph, `main.mjs` entry,
+stress, full-runtime linking, compiler path, oracle and deadlines to compiler/
+runtime owner **b78f81820ff19105ab85fb10773fab4353b3d8f5**, independently of the
+diagnostic branch or accepted main. Before execution it retains these inputs,
+the ZIP, parsed PE metadata, plan and launch configuration and uploads them.
+
+The replay creates the original `nona-modules-*` temporary-directory shape,
+writes the original graph and `image.exe`, uses that directory as cwd, supplies
+no arguments and preserves `windowsHide: true`, empty stdin, default 1 MiB
+`spawnSync` buffer limits and the **180000 ms** native deadline. The temporary
+basename may differ; it is retained in the launch report. A dedicated Node
+worker returns the raw original-style `spawnSync` stdout/stderr/status/error/
+signal, including `ETIMEDOUT` on timeout. Exclusive attempt records reject a
+second execution in the same evidence directory. After native termination,
+the same cwd's entry is replaced with the original distinct Node oracle source
+and Node **26.9.0** executes it once with its original **60000 ms** limit.
+Its raw streams must match the original Node assertions. Neither image stress
+nor original watchdog policy is changed.
+
+### Sampling, mapping and failure semantics
+
+[`issue646-sampler.ps1`](../scripts/issue646-sampler.ps1) compiles a small .NET
+helper only on GitHub-hosted Windows AMD64. It uses the
+[AMD64 CONTEXT layout](https://learn.microsoft.com/windows/win32/api/winnt/ns-winnt-context)
+and [GetThreadContext suspension requirement](https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadcontext).
+The 1232-byte context backing store is aligned to 16 bytes, flags are at byte
+48 and RIP at byte 248. Each successful owned-thread suspend has one resume
+in `finally`; each thread handle is closed. Unexpected suspend counts and
+resume/handle failures are explicit failures. The sampler binds the worker's
+sole native child to its exact executable path/hash, parent PID, creation
+window and an open process handle. Per-thread handles must belong to that
+process; creation identities are retained. Final verification compares the
+discovered PID to the native worker's raw result PID.
+
+The actual main-module load base and image size, CPU milliseconds, RSS,
+timestamp, PID/process creation identity, thread identities and instruction
+addresses are retained. Limits are 100 ms between ticks, 1800 ticks, 32 threads
+per tick and 32 MiB of raw samples. Every completed row is flushed immediately.
+These are wall-clock RIP snapshots with no stacks or exclusive CPU-time
+accounting; sampling suspension/overhead perturbs execution. They can expose
+repeated offsets or concentration in mapped functions but cannot alone prove
+GC dominance, scenario phase timing or a production cause.
+
+[`issue646-map.mjs`](../scripts/issue646-map.mjs) rebuilds solely for metadata
+on the hosted runner using the owner pin, Node 26.9.0 and retained original
+inputs and original compile filename. It requires **exact rebuilt image SHA256
+equality** before emitting a usable map. The pinned linker layout must cover
+the complete executable section; all unwind function boundaries must match the
+retained image's `.pdata`. Map and sample hashes bind the attribution report.
+Dependency/build commands retain raw streams and status/error reports as well.
+Mismatched images, missing labels or incomplete coverage fail closed. The
+verifier retains raw samples and actual-base-relative offsets before mapping;
+an attribution gap is reported explicitly, never replaced with GC attribution.
+
+Native success, profile completeness and attribution completeness are separate
+fields. Native failure is retained even when profiling fails; a valid profile
+of a timeout still fails the job. Unavailable APIs/permissions, zero valid
+retained-image samples, cleanup failure, unsuccessful worker/sampler exit,
+incomplete streams/reports, changed provenance, wrong identities or wrong
+counts also fail. Missing build/map reports fail verification while preserving
+the raw profile. All reports, partial failures and streams are uploaded with
+`if: always()`, including an observation checkpoint before rebuilding; uploaded
+inputs survive a later timeout or cancellation. Hard
+runner loss can still prevent final reporting/upload and is incomplete evidence.
+
+### Local checks and publication handoff
+
+Only lightweight serial JS/metadata tests, syntax/parser checks, selected
+formatting and document-link checks are permitted locally, at affinity mask 3
+and BelowNormal priority. No local compiler build, dependency installation,
+C# compilation, profiler or Nona native execution is part of validation.
+The real Windows APIs, cleanup under native exit races, artifact availability,
+image equality and native outcomes remain unvalidated until the prepared hosted
+job runs; each has a failing path rather than an assumed success.
+
+The parent handles review and publication on the existing #647 branch/PR.
+This preparation does not commit, push, create PRs, change labels, dispatch jobs
+or wait for hosted outcomes. Keep #647 draft and `Part of #646`, retain all
+historical failures and the current-release admission hold.
+
+Prepared-support checks on this Windows checkout with Node 26.9.0: seven
+serial metadata tests passed, including malformed PE/function ranges, map
+coverage/image mismatch, altered provenance, PID/creation mismatch, incomplete
+reports and missing image samples. JS syntax, PowerShell parsing and selected
+Prettier checks passed. The seven canonical entry pins and original input
+provenance matched the supplied read-only research metadata. The document-link
+check examined 1589 links in 308 documents and failed on 95 existing site-anchor
+errors; an in-memory baseline using the two documents from `HEAD` produced the
+exact same 95 errors (1586 links). No site files were changed to address them.
+These checks provide no Windows sampling, image-rebuild or native-run result.
+
 **Scope: partial diagnostic infrastructure. Part of #646.** Any PR for this
 branch must use `Part of #646`, keep the issue open and retain the release hold.
 The step names in commit history do not establish completed diagnosis or repair.
