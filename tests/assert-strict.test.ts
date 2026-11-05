@@ -1,16 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runModulesOnHost } from "./helpers/host.js";
+import { runModulesOnHost, executionFailure } from "./helpers/host.js";
 
 function expectOracle(source: string): void {
     for (const gcStress of [false, true]) {
         const run = runModulesOnHost({ "main.mjs": source }, "main.mjs", {
             gcStress,
         });
-        assert.equal(run.native.error, undefined);
-        assert.equal(run.native.status, 0, run.native.stderr);
-        assert.equal(run.oracleStatus, 0);
-        assert.equal(run.native.stdout, run.oracle);
+        const diagnostic = executionFailure({ gcStress, ...run });
+        assert.equal(run.native.error, undefined, diagnostic);
+        assert.equal(run.native.status, 0, diagnostic);
+        assert.equal(run.oracleStatus, 0, diagnostic);
+        assert.equal(run.native.stdout, run.oracle, diagnostic);
     }
 }
 

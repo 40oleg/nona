@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { executionEvidence, retainExecution } from "./execution.js";
 
 const TEMP_PREFIX = "nona-native-";
 // First execution of a newly emitted PE may wait for Windows antivirus scanning.
@@ -18,6 +19,7 @@ const MAX_BUFFER_BYTES = 4 * 1024 * 1024;
 
 export interface NativeRun {
     status: number | null;
+    signal: NodeJS.Signals | null;
     stdout: Buffer;
     stderr: Buffer;
     error?: Error;
@@ -43,6 +45,11 @@ export function runNative(
     }
 
     const directory = mkdtempSync(join(tmpdir(), TEMP_PREFIX));
+    const evidence = executionEvidence("native", {
+        timeoutMs,
+        redirectStdout,
+        env,
+    });
 
     try {
         // A PE image runs on Windows; a Linux image (ELF magic) runs on Linux.
@@ -64,10 +71,12 @@ export function runNative(
             elf || macho ? "image" : "image.exe",
         );
         writeFileSync(executable, image);
+        evidence?.bytes("image.bin", image);
         if (elf || macho) chmodSync(executable, 0o755);
 
         const outputPath = join(directory, "stdout.bin");
         const outputFd = redirectStdout ? openSync(outputPath, "w") : undefined;
+        const started = performance.now();
         const result = spawnSync(executable, [], {
             shell: false,
             timeout: timeoutMs,
@@ -82,6 +91,7 @@ export function runNative(
         if (outputFd !== undefined) closeSync(outputFd);
         const run: NativeRun = {
             status: result.status,
+            signal: result.signal,
             stdout: redirectStdout
                 ? readFileSync(outputPath)
                 : (result.stdout ?? Buffer.alloc(0)),
@@ -91,6 +101,7 @@ export function runNative(
         if (result.error) {
             run.error = result.error;
         }
+        retainExecution(evidence, { ...result, stdout: run.stdout }, started);
 
         return run;
     } finally {
