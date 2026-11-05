@@ -4,6 +4,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runOnHost } from "./helpers/host.js";
 import { runOracle } from "./helpers/oracle.js";
+import { runNative } from "./helpers/native.js";
+import { hostTarget } from "./helpers/program.js";
+import { spawnSync } from "node:child_process";
 import {
     compile,
     compileToIR,
@@ -51,6 +54,175 @@ const usage = (source: string, module = false) =>
     collectSourceUsage(() => parse(lex(source, { module }), { module }));
 const linked = (source: string, module = false) =>
     parts(usage(source, module).usage);
+
+// Reuse the same scope transitions for selection and public-compile execution.
+// RegExp cases call the engine: typeof alone would only test its always-present facade.
+// Baseline 69efefd6, Node 26.9.0, win32-x64: default builds exit 1 with
+// ReferenceError: Proxy is not defined, or Error: Nona: this program was compiled
+// without the RegExp engine. Explicit/full builds and Node print function/true.
+function parameterScopeCases(builtin: "Proxy" | "RegExp") {
+    const result = (value: string) =>
+        builtin === "Proxy" ? `typeof ${value}` : `${value}("x").test("x")`;
+    return [
+        ...["var", "let", "function"].map((kind) => ({
+            name: `body ${kind}`,
+            source: `function f(x = ${builtin}) { ${kind === "function" ? `function ${builtin}() {}` : `${kind} ${builtin};`} return ${result("x")}; } console.log(f());`,
+        })),
+        {
+            name: "object destructuring default",
+            source: `function f({x = ${builtin}} = {}) { var ${builtin}; return ${result("x")}; } console.log(f());`,
+        },
+        {
+            name: "array destructuring default",
+            source: `function f([x = ${builtin}] = []) { let ${builtin}; return ${result("x")}; } console.log(f());`,
+        },
+        {
+            name: "arrow default",
+            source: `const f = (x = ${builtin}) => { function ${builtin}() {} return ${result("x")}; }; console.log(f());`,
+        },
+        {
+            name: "closure in default",
+            source: `function f(x = () => ${builtin}) { let ${builtin}; return ${result("(x())")}; } console.log(f());`,
+        },
+        {
+            name: "nested function",
+            source: `function outer() { function f(x = ${builtin}) { var ${builtin}; return ${result("x")}; } return f(); } console.log(outer());`,
+        },
+        {
+            name: "named function expression",
+            source: `const f = function local(x = ${builtin}) { let ${builtin}; return ${result("x")}; }; console.log(f());`,
+        },
+        {
+            name: "method default",
+            source: `const o = { f(x = ${builtin}) { let ${builtin}; return ${result("x")}; } }; console.log(o.f());`,
+        },
+    ];
+}
+
+function shadowedParameterCases(builtin: "Proxy" | "RegExp") {
+    return [
+        `function f(${builtin}, x = ${builtin}) { return x; } console.log(f(7));`,
+        `function f({value: ${builtin} = 7} = {}, x = ${builtin}) { return x; } console.log(f());`,
+        `function f([${builtin} = 7] = [], x = ${builtin}) { return x; } console.log(f());`,
+        `const f = (${builtin} = 7, x = ${builtin}) => x; console.log(f());`,
+        `function f(${builtin} = 7, x = () => ${builtin}) { return x(); } console.log(f());`,
+        `function f(x = () => ${builtin}, ...${builtin}) { return x().length; } console.log(f());`,
+        `const f = function ${builtin}(x = ${builtin}) { return x === ${builtin}; }; console.log(f());`,
+        // A later parameter shadows the global even while in its TDZ.
+        `function f(x = ${builtin}, ${builtin} = 7) { return x; } try { f(); } catch (e) { console.log(e.name); }`,
+        // Defaults of a nested function still see its enclosing body bindings.
+        `function outer() { let ${builtin} = 7; function f(x = ${builtin}) { return x; } return f(); } console.log(outer());`,
+        // Body references must still resolve against body declarations.
+        `function f(x = 1) { var ${builtin} = 7; return ${builtin}; } console.log(f());`,
+    ];
+}
+
+const combineCases = (sources: string[]) =>
+    sources.map((source) => `(() => { ${source} })();`).join("\n");
+
+function parameterOracle(source: string, module: boolean) {
+    const oracle = module
+        ? spawnSync(process.execPath, ["--input-type=module", "-e", source], {
+              encoding: "utf8",
+              timeout: 60_000,
+              windowsHide: true,
+          })
+        : runOracle(source);
+    if ("error" in oracle) assert.equal(oracle.error, undefined);
+    assert.equal(oracle.status, 0, oracle.stderr);
+    assert.equal(oracle.stderr, "");
+    return oracle;
+}
+
+for (const module of [false, true]) {
+    const goal = module ? "module" : "script";
+    test(`parameter scope selection (${goal})`, () => {
+        for (const builtin of ["Proxy", "RegExp"] as const) {
+            const expected =
+                builtin === "Proxy" ? "proxy" : "regexp,unicodeProperties";
+            for (const { name, source } of parameterScopeCases(builtin))
+                assert.equal(
+                    linked(source, module),
+                    expected,
+                    `${builtin}: ${name}`,
+                );
+            for (const source of shadowedParameterCases(builtin))
+                assert.equal(linked(source, module), "", source);
+        }
+    });
+
+    for (const builtin of ["Proxy", "RegExp"] as const) {
+        const part = builtin === "Proxy" ? "proxy" : "regexp";
+        test(`parameter defaults use ${builtin} through public compile (${goal})`, () => {
+            const cases = parameterScopeCases(builtin);
+            const source = combineCases(cases.map(({ source }) => source));
+            const oracle = parameterOracle(source, module);
+            assert.equal(
+                oracle.stdout,
+                (builtin === "Proxy" ? "function\n" : "true\n").repeat(
+                    cases.length,
+                ),
+            );
+            for (const [mode, options] of [
+                ["default", {}],
+                ["explicit", { link: [part] }],
+                ["full", { fullRuntime: true }],
+            ] as [string, Partial<CompileOptions>][]) {
+                const result = compile(source, {
+                    fileName: module ? "parameters.mjs" : "parameters.js",
+                    target: hostTarget,
+                    module,
+                    reportLink: true,
+                    ...options,
+                });
+                assert.ok(
+                    result.ok,
+                    result.ok ? "" : JSON.stringify(result.diagnostics),
+                );
+                assert.ok(
+                    result.linked?.some(({ part: name }) => name === part),
+                    mode,
+                );
+                const run = runNative(result.image);
+                const context = `${goal} ${builtin} ${mode}\n${run.stderr}`;
+                assert.equal(run.error, undefined, context);
+                assert.equal(run.status, oracle.status, context);
+                assert.equal(run.stderr.toString(), oracle.stderr, context);
+                assert.equal(run.stdout.toString(), oracle.stdout, context);
+            }
+        });
+    }
+
+    test(`shadowed parameter built-ins stay unlinked through public compile (${goal})`, () => {
+        const source = combineCases(
+            (["Proxy", "RegExp"] as const).flatMap(shadowedParameterCases),
+        );
+        const result = compile(source, {
+            fileName: module ? "parameters.mjs" : "parameters.js",
+            target: hostTarget,
+            module,
+            reportLink: true,
+        });
+        assert.ok(
+            result.ok,
+            result.ok ? "" : JSON.stringify(result.diagnostics),
+        );
+        assert.equal(
+            result.linked?.some(
+                ({ part }) => part === "proxy" || part === "regexp",
+            ),
+            false,
+        );
+        const run = runNative(result.image);
+        assert.equal(run.error, undefined);
+        assert.equal(run.status, 0, run.stderr.toString());
+        assert.equal(run.stderr.toString(), "");
+        assert.equal(
+            run.stdout.toString(),
+            parameterOracle(source, module).stdout,
+        );
+    });
+}
 
 test("strings and local names select no optional parts", () => {
     for (const source of [

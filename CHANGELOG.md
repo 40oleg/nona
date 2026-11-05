@@ -30,6 +30,8 @@
 
 ### Fixes
 
+- **Optional built-ins in parameter defaults survive body shadowing.** Body `var`, `let` and function declarations no longer hide `Proxy` or `RegExp` references in parameter initializers from runtime selection. Actual parameter bindings still shadow the built-ins. ([#613](https://github.com/40oleg/nona/issues/613))
+
 - **Computed keys preserve optional runtime parts unless proved numeric.** A string-valued `length` property or a loop counter reassigned to `"Proxy"` now keeps the global Proxy implementation in default builds. Numeric loop-counter suppression requires a lexical binding whose whole-loop writes, captures and dynamic-scope exposure preserve the restricted proof. Numeric literals, coercing arithmetic and invariant lexical counters remain selective. ([#612](https://github.com/40oleg/nona/issues/612))
 
 - **HTTP, HTTPS and TCP writes honor backpressure through partial sends and corking.** A false write keeps an explicit drain obligation until its queued bytes leave, including HTTP auto-corked writes and TLS/raw socket tails below the high-water mark. TLS carries this obligation across handshake completion without an early drain. Terminal paths cancel pending writes and drain listeners; queued HTTP completion objects retain their completion protocol. ([#615](https://github.com/40oleg/nona/issues/615))
