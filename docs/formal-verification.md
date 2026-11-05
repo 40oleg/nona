@@ -87,6 +87,35 @@ Other checked counterexamples cover deleting a live constant and forwarding a
 copy after its source has changed. Signed-zero tags and operand/destination
 aliasing are also checked examples.
 
+## Int32 fast paths of the code generator
+
+`Nona/Int32Paths.lean` ([#284](https://github.com/40oleg/nona/issues/284))
+models the int32 fast paths of the x64 code generator (also re-encoded for
+ARM64) on an abstraction of binary64 values: NaN, the infinities, -0, finite
+integers and non-integral finite values. The double-to-integer conversion is
+a parameter (`Machine`) that only has to truncate in range, so every theorem
+holds for both `cvttsd2si` (x86-64, an indefinite value out of range) and
+FCVTZS (ARM64, saturating).
+
+| Theorem                    | Guarantee                                                                                            | Production code                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `int32Operand_sound`       | The round-trip test accepts an int32 value with its value, and -0 as 0; nothing else                 | `int32Operand` in `src/backend/x64/integer-ops.ts`            |
+| `integerRemainder_correct` | The inline `%` returns ECMA-262 `Number::remainder` whenever it does not call `rt.rem`               | `integerRemainder`                                            |
+| `mask_needs_negZero_guard` | Without its -0 test, the masked `x % 2^k` would return +0 for -0 % 4                                 | the -0 test of the mask path                                  |
+| `mask_is_remainder`        | `n & (2^k - 1)` is the truncated remainder of a non-negative `n`                                     | the mask path                                                 |
+| `dispatch_eq_chain`        | Jump-table dispatch of a dense `switch` selects the same case as the chain of `===`, for every value | `emitSwitchTable`, `switchTable` in `src/ir/lower/control.ts` |
+
+`integerRemainder_correct` holds whether or not the divide path tests for a
+-0 dividend: that path takes the sign of a zero remainder from the
+dividend's bits, which -0 has set. The divide path therefore has no -0 test;
+only the mask path keeps one. `dispatch_eq_chain` assumes
+`-2^31 < low` and `low + length ≤ 2^31`, which `switchTable` guarantees by
+admitting only case values with `|v| < 2^31`.
+
+The model is of the instruction sequence, written by hand from the emitter;
+it is not extracted from the TypeScript, and the encodings of the
+instructions are trusted.
+
 ## Trusted boundary and limits
 
 The TypeScript compiler does not call Lean during compilation. This is neither

@@ -1,6 +1,7 @@
 import Lean
 import Nona.MoveRules
 import Nona.Examples
+import Nona.Int32Paths
 
 open Lean Elab Command
 
@@ -21,5 +22,8 @@ run_cmd do
           unless allowed.contains dependency do
             throwError "Unapproved axiom in {name}: {dependency}"
   for name in #[`Nona.substitute_correct, `Nona.dead_write_correct,
-      `Nona.coalesce_correct, `Nona.run_congr, `Nona.optimizer_correct] do
+      `Nona.coalesce_correct, `Nona.run_congr, `Nona.optimizer_correct,
+      `Nona.Int32Paths.int32Operand_sound, `Nona.Int32Paths.integerRemainder_correct,
+      `Nona.Int32Paths.mask_needs_negZero_guard, `Nona.Int32Paths.divideResult_correct,
+      `Nona.Int32Paths.mask_is_remainder, `Nona.Int32Paths.dispatch_eq_chain] do
     logInfo m!"{name}: axioms {(← collectAxioms name)}"
