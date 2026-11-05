@@ -1,0 +1,112 @@
+name: Issue 646 bounded native GC diagnosis
+on:
+    workflow_dispatch:
+    pull_request:
+        types: [opened, reopened]
+        paths:
+            - "scripts/native-gc-*.mjs"
+            - "scripts/native-execution-evidence.test.mjs"
+            - "tests/helpers/*.ts"
+            - ".github/workflows/native-gc-diagnosis.yml"
+permissions:
+    contents: read
+    actions: read
+jobs:
+    diagnose:
+        if: >-
+            github.event_name == 'workflow_dispatch' ||
+            startsWith(github.head_ref, 'nona/issue-646') ||
+            startsWith(github.head_ref, 'issue-646')
+        # Six jobs maximum, 55 min each (330 runner-min hard upper bound).
+        # Exactly 50 native + 50 Node controls across the entire matrix. Each
+        # job runs originals first, then only two selected concurrent witnesses,
+        # one marked variant, one startup control and the HTTP isolated tail.
+        timeout-minutes: 55
+        strategy:
+            fail-fast: false
+            max-parallel: 6
+            matrix:
+                include:
+                    - {
+                          runner: macos-15,
+                          group: assert,
+                          pin: 79afe8e11770d6c297eb0e84476af09fb46a0bf2,
+                      }
+                    - {
+                          runner: macos-15,
+                          group: regexp,
+                          pin: a80f8b4a67c921546860806c8445d722710d8e9f,
+                      }
+                    - {
+                          runner: windows-latest,
+                          group: http,
+                          pin: b78f81820ff19105ab85fb10773fab4353b3d8f5,
+                      }
+                    - {
+                          runner: ubuntu-24.04,
+                          group: assert,
+                          pin: 79afe8e11770d6c297eb0e84476af09fb46a0bf2,
+                      }
+                    - {
+                          runner: ubuntu-24.04,
+                          group: regexp,
+                          pin: a80f8b4a67c921546860806c8445d722710d8e9f,
+                      }
+                    - {
+                          runner: ubuntu-24.04,
+                          group: http,
+                          pin: b78f81820ff19105ab85fb10773fab4353b3d8f5,
+                      }
+        runs-on: ${{ matrix.runner }}
+        env:
+            NONA_GC_STRESS: "on"
+            NONA_DIAGNOSTIC_SOURCE: ${{ matrix.pin }}
+            DIAGNOSTIC_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        defaults:
+            run:
+                working-directory: source
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: diagnostic
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  persist-credentials: false
+            - uses: actions/checkout@v4
+              with:
+                  path: source
+                  ref: ${{ matrix.pin }}
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            - run: npm ci
+            - name: Preserve original logs and pinned source before diagnostic overlay
+              id: prepare
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node ../diagnostic/scripts/native-gc-hosted-setup.mjs prepare ${{ matrix.group }}
+            - name: Verify exit, signal and timeout serialization
+              run: node --test --test-concurrency=1 scripts/native-execution-evidence.test.mjs
+            - name: Build pinned compiler with diagnostic helpers
+              id: build
+              run: node ../diagnostic/scripts/native-gc-hosted-setup.mjs build ${{ matrix.group }}
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: native-gc-inputs-${{ matrix.group }}-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: source/work/
+                  if-no-files-found: error
+                  retention-days: 30
+            - name: Execute the predeclared bounded matrix
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: node scripts/native-gc-diagnosis.mjs --run ${{ matrix.group }}
+            - name: Reject incomplete reports even when an earlier step failed
+              if: always()
+              run: node scripts/native-gc-diagnosis.mjs --verify ${{ matrix.group }}
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: native-gc-${{ matrix.group }}-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: source/work/
+                  if-no-files-found: error
+                  retention-days: 30

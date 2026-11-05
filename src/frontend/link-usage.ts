@@ -711,6 +711,8 @@ class UsageWalker {
             if (init) this.expression(init, scope);
         });
         if (node.rest) this.pattern(node.rest, scope);
+        // References resolve after traversal; retain distinct scopes and the
+        // body's variable boundary for direct eval and numeric-key analysis.
         const body: Scope = {
             parent: scope,
             names: new Set(),

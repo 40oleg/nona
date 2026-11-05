@@ -2,7 +2,35 @@
 
 ## Unreleased
 
+- **GC block lookup candidate (hosted validation pending).** Fuse the page-map
+  probe and payload validation into a frame-free lookup, avoiding a nested call
+  and pointer spill on each resolution while retaining pointer bounds, free-cell
+  rejection and collection semantics. Add direct native boundary, epoch and
+  mapping-reuse coverage. The original native failures remain unresolved; this
+  candidate does not establish issue completion or release acceptance.
+  ([#646](https://github.com/40oleg/nona/issues/646))
+
+- **Partial #646 mapping-only derivation support.** Import the fixed failed
+  capture without new native/oracle/sampler executions, compare equivalent UTC
+  worker timestamps at 100 ns precision, and bind retained snapshots to a
+  separately certified image-equal map. Preserve incomplete collection, sampler
+  errors, native timeout and old verification; mapping success cannot clear
+  historical failures or establish a cause or release acceptance.
+  ([#646](https://github.com/40oleg/nona/issues/646))
+
+- **Partial #646 profile support repair.** Break the mapper CLI import cycle,
+  select owned native children by canonical image and process identity, abort
+  incomplete observations promptly with verified tree cleanup, and retain a
+  small metadata artifact alongside full evidence. The zero-sample first attempt
+  and native timeout remain failures; one new bounded hosted observation is
+  still pending. No production repair or release acceptance is established.
+  ([#646](https://github.com/40oleg/nona/issues/646))
+
+- **Partial hosted profiling support for the unresolved native GC diagnosis.** A single guarded Windows observation replays the retained original HTTP image with external instruction sampling and image-equality-gated address mapping. It preserves the original deadlines and failures and does not establish a cause, repair, issue completion or release acceptance. ([#646](https://github.com/40oleg/nona/issues/646))
+
 ### Fixes
+
+- **Optional built-ins in parameter defaults survive body shadowing.** Body `var`, `let` and function declarations no longer hide `Proxy` or `RegExp` references in parameter initializers from runtime selection. Actual parameter bindings still shadow the built-ins. ([#613](https://github.com/40oleg/nona/issues/613))
 
 - **Computed keys preserve optional runtime parts unless proved numeric.** A string-valued `length` property or a loop counter reassigned to `"Proxy"` now keeps the global Proxy implementation in default builds. Numeric loop-counter suppression requires a lexical binding whose whole-loop writes, captures and dynamic-scope exposure preserve the restricted proof. Numeric literals, coercing arithmetic and invariant lexical counters remain selective. ([#612](https://github.com/40oleg/nona/issues/612))
 
@@ -13,6 +41,8 @@
 - **Initial Windows process environment folding scales linearly.** A temporary membership index avoids repeatedly folding earlier names while preserving initial spelling, values, ordering, descriptors and inherited enumerable suppression. Environment parsing, POSIX behavior and the mutation/Proxy path are unchanged. This source correction alone does not establish a native startup timing improvement or resolve the HTTP acceptance work in #602 ([#638](https://github.com/40oleg/nona/issues/638)).
 
 ### Testing
+
+- **Retain complete native GC failure evidence (partial diagnostic support).** Preserve signals, spawn error metadata, exact fixture inputs, raw Node/native streams, executable hashes and compile/link timings before helper cleanup. Add a bounded hosted diagnostic matrix for the pinned Darwin assert/RegExp and Windows HTTP witnesses, with Linux controls. Reject failed worker launchers and replay complete original assertions for unchanged comparisons and the HTTP tail; native diagnosis, repair and release admission remain unresolved ([#646](https://github.com/40oleg/nona/issues/646)).
 
 - **Windows HTTP Agent witnesses run in an isolated shard phase.** Run the already-assigned `http-agent` file alone after its GC-cohort peers, keeping shard membership, peer concurrency, GC selection, native fixtures, Node oracles and execution bounds. Preserve separate timing reports and execute every phase before returning the first failure. Full hosted native validation remains pending; the historical timeout cause is unknown ([#616](https://github.com/40oleg/nona/issues/616)).
 

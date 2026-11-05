@@ -1,0 +1,163 @@
+name: Issue 646 mapping-only existing partial Windows capture
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+    workflow_dispatch:
+permissions:
+    contents: read
+    actions: read
+jobs:
+    preflight:
+        if: >-
+            github.repository == '40oleg/nona' && github.repository_owner == '40oleg' &&
+            github.actor == '40oleg' &&
+            ((github.event_name == 'pull_request' && github.event.pull_request.number == 647 &&
+            github.event.pull_request.head.repo.full_name == '40oleg/nona' &&
+            github.event.pull_request.head.user.login == '40oleg' &&
+            github.event.pull_request.head.ref == 'nona/issue-646') ||
+            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/nona/issue-646'))
+        runs-on: ubuntu-24.04
+        timeout-minutes: 3
+        outputs:
+            derive: ${{ steps.head.outputs.derive }}
+            head: ${{ steps.head.outputs.head }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  persist-credentials: false
+            - uses: actions/github-script@v7
+              id: head
+              with:
+                  script: |
+                      const fs = require('node:fs');
+                      const { pathToFileURL } = require('node:url');
+                      const { changedProfileFiles } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/scripts/issue646-profile.mjs`));
+                      const head = context.payload.pull_request?.head.sha || context.sha;
+                      if (!/^[0-9a-f]{40}$/.test(head)) throw Error('Unknown event head');
+                      const files = [];
+                      let complete = false;
+                      try {
+                          // getCommit lists THIS commit's changes, not the cumulative PR diff.
+                          for (let page = 1; page <= 30; page++) {
+                              const { data } = await github.rest.repos.getCommit({
+                                  owner: '40oleg', repo: 'nona', ref: head, per_page: 100, page
+                              });
+                              if (data.sha !== head || !Array.isArray(data.files) || !data.commit?.tree?.sha)
+                                  throw Error('Unknown commit metadata');
+                              files.push(...data.files.map(({filename, previous_filename, status}) => ({filename, previous_filename, status})));
+                              if (data.files.length < 100) { complete = true; break; }
+                          }
+                          if (!complete) throw Error('Truncated commit file metadata');
+                          const changed = changedProfileFiles(files);
+                          core.setOutput('head', head);
+                          core.setOutput('derive', context.eventName === 'workflow_dispatch' || changed ? 'true' : 'false');
+                      } finally {
+                          fs.mkdirSync('profile-preflight', {recursive: true});
+                          fs.writeFileSync('profile-preflight/head.json', JSON.stringify({
+                              head, event: context.eventName, complete, files,
+                              run: context.runId, attempt: process.env.GITHUB_RUN_ATTEMPT
+                          }, null, 2));
+                      }
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-profile-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: profile-preflight/
+                  if-no-files-found: error
+                  retention-days: 30
+    profile:
+        needs: preflight
+        if: needs.preflight.outputs.derive == 'true'
+        runs-on: windows-latest
+        timeout-minutes: 15
+        env:
+            PROFILE_HEAD: ${{ needs.preflight.outputs.head }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: diagnostic
+                  ref: ${{ needs.preflight.outputs.head }}
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            # This job has no observe/native-worker/sampler/oracle step. Both
+            # ZIPs and their original reports remain immutable capture evidence.
+            - name: Prepare pinned existing partial capture; zero new executions
+              id: prepare
+              timeout-minutes: 2
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node diagnostic/scripts/issue646-profile.mjs prepare-existing profile
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-profile-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: profile/
+                  if-no-files-found: error
+                  retention-days: 30
+            - uses: actions/checkout@v4
+              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+              with:
+                  path: source
+                  ref: b78f81820ff19105ab85fb10773fab4353b3d8f5
+                  persist-credentials: false
+            - name: Install pinned compiler dependencies solely for map reconstruction
+              id: dependencies
+              if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+              timeout-minutes: 2
+              run: node diagnostic/scripts/issue646-profile.mjs dependencies profile source
+            - name: Build pinned compiler solely for map reconstruction
+              id: build
+              if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+              timeout-minutes: 2
+              run: node diagnostic/scripts/issue646-profile.mjs build profile source
+            - name: Reconstruct labels, requiring exact retained image equality
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              timeout-minutes: 1
+              run: node diagnostic/scripts/issue646-map.mjs profile source
+            - name: Derive partial snapshots only; success is not a native or capture pass
+              if: always()
+              run: node diagnostic/scripts/issue646-profile.mjs derive-partial profile
+            - name: Retain small outcome and failure metadata
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-profile-metadata-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      profile/derivation-certificate.json
+                      profile/capture-api.json
+                      profile/capture-metadata-api.json
+                      profile/partial-*.json
+                      profile/partial-verification.json
+                      profile/partial-attribution.json
+                      profile/metadata-index.json
+                      profile/verification.json
+                      profile/inputs-verified.json
+                      profile/plan.json
+                      profile/sampler-*.json
+                      profile/identity.json
+                      profile/candidates.json
+                      profile/selection-*.json
+                      profile/worker-*.json
+                      profile/native-attempt.json
+                      profile/native-result.json
+                      profile/node-attempt.json
+                      profile/node-result.json
+                      profile/map-result.json
+                      profile/map.json
+                      profile/attribution.json
+                      profile/observation-abort.json
+                      profile/aborted-image-cleanup.json
+                      profile/*-failure.json
+                      profile/*-control.json
+                  if-no-files-found: error
+                  retention-days: 30
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-profile-results-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: profile/
+                  if-no-files-found: error
+                  retention-days: 30
