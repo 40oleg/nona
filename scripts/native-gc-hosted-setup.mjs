@@ -72,7 +72,11 @@ if (mode === "prepare") {
     ]) {
         const result = spawnSync(
             "gh",
-            ["api", `repos/40oleg/nona/actions/${endpoint}`],
+            [
+                "api",
+                ...(endpoint.endsWith("/logs") ? ["--allow-escape-sequences"] : []),
+                `repos/40oleg/nona/actions/${endpoint}`,
+            ],
             { maxBuffer: 64 * 1024 * 1024 },
         );
         writeFileSync(join(output, name), result.stdout ?? "");
