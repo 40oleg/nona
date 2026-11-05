@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Development
+
+- Add a dedicated GitHub-hosted public-compile semantic replay lane with exact T01/T02 inputs, effect traces, manifest samples, raw failure reports and a historical selector-omission control. Native acceptance and measured replay budget require real Windows/Linux reports. ([#617](https://github.com/40oleg/nona/issues/617))
+
 - **GC block lookup candidate (hosted validation pending).** Fuse the page-map
   probe and payload validation into a frame-free lookup, avoiding a nested call
   and pointer spill on each resolution while retaining pointer bounds, free-cell
@@ -42,9 +46,9 @@
 
 ### Testing
 
-- **Retain complete native GC failure evidence (partial diagnostic support).** Preserve signals, spawn error metadata, exact fixture inputs, raw Node/native streams, executable hashes and compile/link timings before helper cleanup. Add a bounded hosted diagnostic matrix for the pinned Darwin assert/RegExp and Windows HTTP witnesses, with Linux controls. Reject failed worker launchers and replay complete original assertions for unchanged comparisons and the HTTP tail; native diagnosis, repair and release admission remain unresolved ([#646](https://github.com/40oleg/nona/issues/646)).
-
 - **Windows HTTP Agent witnesses run in an isolated shard phase.** Run the already-assigned `http-agent` file alone after its GC-cohort peers, keeping shard membership, peer concurrency, GC selection, native fixtures, Node oracles and execution bounds. Preserve separate timing reports and execute every phase before returning the first failure. Full hosted native validation remains pending; the historical timeout cause is unknown ([#616](https://github.com/40oleg/nona/issues/616)).
+
+- **Retain complete native GC failure evidence (partial diagnostic support).** Preserve signals, spawn error metadata, exact fixture inputs, raw Node/native streams, executable hashes and compile/link timings before helper cleanup. Add a bounded hosted diagnostic matrix for the pinned Darwin assert/RegExp and Windows HTTP witnesses, with Linux controls. Reject failed worker launchers and replay complete original assertions for unchanged comparisons and the HTTP tail; native diagnosis, repair and release admission remain unresolved ([#646](https://github.com/40oleg/nona/issues/646)).
 
 - **Completed legacy HTTP smoke recognizes Node timer-clamp diagnostics.** Record only exact `TimeoutNegativeWarning` blocks with canonical finite negative delays and the actual driver PID as separate correctness observations. Preserve raw stderr, reports, exits and historical failures; reject other diagnostics and retain every existing correctness gate and native acceptance requirement ([#644](https://github.com/40oleg/nona/issues/644)).
 

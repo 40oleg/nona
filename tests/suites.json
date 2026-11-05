@@ -6,6 +6,8 @@
             "files": [
                 "frontend",
                 "runtime-link-numeric",
+                "semantic-replay",
+                "semantic-replay-selector",
                 "hashbang",
                 "lowering",
                 "scalar-replacement",

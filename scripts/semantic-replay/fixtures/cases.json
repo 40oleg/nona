@@ -1,0 +1,3542 @@
+{
+    "schema": 1,
+    "cases": [
+        {
+            "id": "default-proxy",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = Proxy) { var Proxy; return x; } console.log(typeof f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "default-proxy",
+                "sourceSha256": "45271487bec726a911dec30a29c38467d31f48057d4ead4bd3d45aee8007ddcd"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "default-regexp",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "default-regexp",
+                "sourceSha256": "186e70f8645536db7f979ceecb12f1c8524574b34d0debe666996675fca945bb"
+            },
+            "link": ["regexp"],
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "length-key",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const holder = {length: \"Proxy\"}; console.log(typeof globalThis[holder.length]);"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "length-key",
+                "sourceSha256": "a2cef988e6b9e82c725c2a0e3157ba9bcec3f574da3136549f262f1647b8dbed"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "counter-key",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { key = \"Proxy\"; console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "counter-key",
+                "sourceSha256": "ab8d4a4a45d353539f5b7b30a0ed1ce61a5c5a78202fd42df4dd9e461505fc57"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "reflection-alias",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const read = Reflect.get; const key = \"Proxy\"; console.log(typeof read(globalThis, key));"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "reflection-alias",
+                "sourceSha256": "c2147aec123d84cb033a6dfe8d36ec4e71a6c2ac8f6568649930ebcdcb4a766a"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "documented-computed-name",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const key = \"Pro\" + \"xy\"; console.log(typeof globalThis[key]);"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "documented-computed-name",
+                "sourceSha256": "f2b711d001b3535bf95c9a1e9b9460e04559d6bd02019a478850176b78d8859c"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            },
+            "defaultContract": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "defaultPartAbsent": "proxy"
+        },
+        {
+            "id": "mapped-arguments-control",
+            "family": "retained",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(a) { a = 1; arguments[0] = \"x\"; return a + 2; } console.log(f(0));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "research/compiler/artifacts/link-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "mapped-arguments-control",
+                "sourceSha256": "c869a57c882a53e93e907167f8d16359a9558e7b4a5779b31dabd77cc1432967"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "x2\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "numeric-length-getter",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const holder = {get length() { return \"Proxy\"; }}; console.log(typeof globalThis[holder.length]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-length-computed",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const holder = {length: \"Proxy\"}; console.log(typeof globalThis[holder[\"length\"]]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-test-reassignment",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; (key = \"Proxy\"); key++) { console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-update-reassignment",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0, n = 0; n < 2; key = \"Proxy\", n++) { if (n) console.log(typeof globalThis[key]); }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-init-reassignment",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0, x = (key = \"Proxy\"); ; key++) { console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-nested-mutation",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { function mutate() { key = \"Proxy\"; } mutate(); console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-nested-capture",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { const pick = () => console.log(typeof globalThis[key]); key = \"Proxy\"; pick(); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-default-capture",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { function f(x = (key = \"Proxy\")) { let key; } f(); console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-arrow-arguments",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let arguments = 0; arguments < 1; arguments++) { (() => { arguments = \"Proxy\"; })(); console.log(typeof globalThis[arguments]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-shadowing",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { { let key = \"Proxy\"; console.log(typeof globalThis[key]); } }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-array-target",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { [key] = [\"Proxy\"]; console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-object-target",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { ({value: key} = {value: \"Proxy\"}); console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-rest-target",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { [...key] = [\"Proxy\"]; console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-for-of-target",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { for (key of [\"Proxy\"]) console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-for-in-target",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { for (key in {[\"Proxy\"]: 1}) console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-compound-target",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) { key += \"Proxy\"; key = key.slice(1); console.log(typeof globalThis[key]); break; }"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-numeric-literal",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label = \"Proxy\"; console.log([7][0]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-numeric-counter",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label = \"Proxy\"; const a = [7]; for (let i = 0; i < 1; i++) console.log(a[i]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-numeric-coercion",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label = \"Proxy\"; const a = [7]; console.log(a[a.length - 1]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-local-proxy",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(Proxy) { return Proxy; } console.log(f(7));"
+            },
+            "modes": ["default", "full"],
+            "provenance": "tests/runtime-link-numeric.test.ts",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-script-proxy-1",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = Proxy) { var Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body var",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-2",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = Proxy) { let Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body let",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-3",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = Proxy) { function Proxy() {} return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body function",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-4",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f({x = Proxy} = {}) { var Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "object destructuring default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-5",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f([x = Proxy] = []) { let Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "array destructuring default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-6",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = (x = Proxy) => { function Proxy() {} return typeof x; }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "arrow default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-7",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = () => Proxy) { let Proxy; return typeof (x()); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "closure in default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-8",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function outer() { function f(x = Proxy) { var Proxy; return typeof x; } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "nested function",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-9",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = function local(x = Proxy) { let Proxy; return typeof x; }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "named function expression",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-proxy-10",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const o = { f(x = Proxy) { let Proxy; return typeof x; } }; console.log(o.f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "method default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-1",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(Proxy, x = Proxy) { return x; } console.log(f(7));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 0,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-2",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f({value: Proxy = 7} = {}, x = Proxy) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 1,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-3",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f([Proxy = 7] = [], x = Proxy) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 2,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-4",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = (Proxy = 7, x = Proxy) => x; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 3,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-5",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(Proxy = 7, x = () => Proxy) { return x(); } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 4,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-6",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = () => Proxy, ...Proxy) { return x().length; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 5,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-7",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = function Proxy(x = Proxy) { return x === Proxy; }; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 6,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-8",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = Proxy, Proxy = 7) { return x; } try { f(); } catch (e) { console.log(e.name); }"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 7,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-9",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function outer() { let Proxy = 7; function f(x = Proxy) { return x; } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 8,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-proxy-10",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = 1) { var Proxy = 7; return Proxy; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 9,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-script-regexp-1",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = RegExp) { var RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body var",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-2",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body let",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-3",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = RegExp) { function RegExp() {} return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body function",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-4",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f({x = RegExp} = {}) { var RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "object destructuring default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-5",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f([x = RegExp] = []) { let RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "array destructuring default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-6",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = (x = RegExp) => { function RegExp() {} return x(\"x\").test(\"x\"); }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "arrow default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-7",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = () => RegExp) { let RegExp; return (x())(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "closure in default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-8",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function outer() { function f(x = RegExp) { var RegExp; return x(\"x\").test(\"x\"); } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "nested function",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-9",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = function local(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "named function expression",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-script-regexp-10",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const o = { f(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); } }; console.log(o.f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "method default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-1",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(RegExp, x = RegExp) { return x; } console.log(f(7));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 0,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-2",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f({value: RegExp = 7} = {}, x = RegExp) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 1,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-3",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f([RegExp = 7] = [], x = RegExp) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 2,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-4",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = (RegExp = 7, x = RegExp) => x; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 3,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-5",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(RegExp = 7, x = () => RegExp) { return x(); } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 4,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-6",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = () => RegExp, ...RegExp) { return x().length; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 5,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-7",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const f = function RegExp(x = RegExp) { return x === RegExp; }; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 6,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-8",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = RegExp, RegExp = 7) { return x; } try { f(); } catch (e) { console.log(e.name); }"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 7,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-9",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function outer() { let RegExp = 7; function f(x = RegExp) { return x; } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 8,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-script-regexp-10",
+            "family": "parameter",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(x = 1) { var RegExp = 7; return RegExp; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 9,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-module-proxy-1",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = Proxy) { var Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body var",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-2",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = Proxy) { let Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body let",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-3",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = Proxy) { function Proxy() {} return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body function",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-4",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f({x = Proxy} = {}) { var Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "object destructuring default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-5",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f([x = Proxy] = []) { let Proxy; return typeof x; } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "array destructuring default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-6",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = (x = Proxy) => { function Proxy() {} return typeof x; }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "arrow default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-7",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = () => Proxy) { let Proxy; return typeof (x()); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "closure in default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-8",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function outer() { function f(x = Proxy) { var Proxy; return typeof x; } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "nested function",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-9",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = function local(x = Proxy) { let Proxy; return typeof x; }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "named function expression",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-proxy-10",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const o = { f(x = Proxy) { let Proxy; return typeof x; } }; console.log(o.f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "method default",
+                "builtin": "Proxy"
+            },
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-1",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(Proxy, x = Proxy) { return x; } console.log(f(7));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 0,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-2",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f({value: Proxy = 7} = {}, x = Proxy) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 1,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-3",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f([Proxy = 7] = [], x = Proxy) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 2,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-4",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = (Proxy = 7, x = Proxy) => x; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 3,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-5",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(Proxy = 7, x = () => Proxy) { return x(); } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 4,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-6",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = () => Proxy, ...Proxy) { return x().length; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 5,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-7",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = function Proxy(x = Proxy) { return x === Proxy; }; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 6,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-8",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = Proxy, Proxy = 7) { return x; } try { f(); } catch (e) { console.log(e.name); }"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 7,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-9",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function outer() { let Proxy = 7; function f(x = Proxy) { return x; } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 8,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-proxy-10",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = 1) { var Proxy = 7; return Proxy; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 9,
+                "builtin": "Proxy"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-module-regexp-1",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = RegExp) { var RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body var",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-2",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body let",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-3",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = RegExp) { function RegExp() {} return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "body function",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-4",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f({x = RegExp} = {}) { var RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "object destructuring default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-5",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f([x = RegExp] = []) { let RegExp; return x(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "array destructuring default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-6",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = (x = RegExp) => { function RegExp() {} return x(\"x\").test(\"x\"); }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "arrow default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-7",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = () => RegExp) { let RegExp; return (x())(\"x\").test(\"x\"); } console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "closure in default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-8",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function outer() { function f(x = RegExp) { var RegExp; return x(\"x\").test(\"x\"); } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "nested function",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-9",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = function local(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); }; console.log(f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "named function expression",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-module-regexp-10",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const o = { f(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); } }; console.log(o.f());"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "parameterScopeCases",
+                "name": "method default",
+                "builtin": "RegExp"
+            },
+            "link": ["regexp"],
+            "selector": {
+                "part": "regexp",
+                "present": true
+            },
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-1",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(RegExp, x = RegExp) { return x; } console.log(f(7));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 0,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-2",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f({value: RegExp = 7} = {}, x = RegExp) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 1,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-3",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f([RegExp = 7] = [], x = RegExp) { return x; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 2,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-4",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = (RegExp = 7, x = RegExp) => x; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 3,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-5",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(RegExp = 7, x = () => RegExp) { return x(); } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 4,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-6",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = () => RegExp, ...RegExp) { return x().length; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 5,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-7",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "const f = function RegExp(x = RegExp) { return x === RegExp; }; console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 6,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-8",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = RegExp, RegExp = 7) { return x; } try { f(); } catch (e) { console.log(e.name); }"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 7,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-9",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function outer() { let RegExp = 7; function f(x = RegExp) { return x; } return f(); } console.log(outer());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 8,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "parameter-shadow-module-regexp-10",
+            "family": "parameter",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "function f(x = 1) { var RegExp = 7; return RegExp; } console.log(f());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "tests/runtime-link-resolved.test.ts",
+                "function": "shadowedParameterCases",
+                "index": 9,
+                "builtin": "RegExp"
+            },
+            "selector": {
+                "part": "regexp",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-4",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const holder={length:\"Proxy\"}; for(let i=holder.length;;){console.log(typeof globalThis[i]);break;}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 4",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-6",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<2;i=\"Proxy\",n++)console.log(typeof globalThis[i]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 6",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-9",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);i=\"Proxy\";console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 9",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-10",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);i+=\"Proxy\";console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 10",
+            "expected": {
+                "stdout": "undefined\nundefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-11",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);i||=\"Proxy\";console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 11",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-12",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);[i]=[\"Proxy\"];console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 12",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-13",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);({x:i}={x:\"Proxy\"});console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 13",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-14",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);[...i]=[\"Proxy\"];console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 14",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-15",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);({...i}={x:\"Proxy\"});console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 15",
+            "expected": {
+                "stdout": "undefined\nundefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-16",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);[i=\"Proxy\"]=[];console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 16",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-17",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);for(i of [\"Proxy\"]){}console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 17",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-18",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);for([i] of [[\"Proxy\"]]){}console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 18",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-19",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0,n=0;n<1;i++,n++){console.log(typeof globalThis[i]);for(i in {\"Proxy\":\"Proxy\"}){}console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 19",
+            "expected": {
+                "stdout": "undefined\nfunction\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-20",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for(let i=0;i<1;i++){function mutate(){i=\"Proxy\"} mutate();console.log(typeof globalThis[i]);break;}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 20",
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-21",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(typeof globalThis[i]);const read=()=>i;console.log(read());}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 21",
+            "expected": {
+                "stdout": "undefined\n0\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-26",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\";for(var i=0;i<1;i++)console.log(typeof globalThis[i]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 26",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-27",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(typeof globalThis[i]);eval(\"i=1\");}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 27",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-28",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\";for(let i=0;i<1;i++){console.log(typeof globalThis[i]);const f=()=>eval(\"i=1\");f();}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 28",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-29",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\";const o={};for(let i=0;i<1;i++){console.log(typeof globalThis[i]);with(o)i++;}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 29",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-fallback-30",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\";const o={};with(o){for(let i=0;i<1;i++)console.log(typeof globalThis[i]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of runtime-link-resolved fallback 30",
+            "expected": {
+                "stdout": "undefined\n",
+                "stderr": "",
+                "status": 0
+            },
+            "selector": {
+                "part": "proxy",
+                "present": true
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-1",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 1",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-2",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; i = 1; i += 2; i -= x; i *= x; i >>>= x; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 2",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-3",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; i = +x; i = x - y; i = x++; ++i; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 3",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-4",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){{ let i = \"Proxy\"; i = value } a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 4",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-5",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){try {} catch (i) { i = \"Proxy\" } a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 5",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-6",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){for (let i of [\"Proxy\"]) { i = value } a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 6",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-7",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){for (let i in {x: \"Proxy\"}) { i = value } a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 7",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-8",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){function f(i) { i = \"Proxy\" } a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 8",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-9",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){function f() { let i = \"Proxy\"; return i } a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 9",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-10",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){((i) => { i = \"Proxy\" })(1); a[i]; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 10",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-restricted-11",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(let i=0,n=0;i<2 && n<1;i++,n++){a[i]; o[i] = \"Proxy\"; console.log(a[0]);}"
+            },
+            "modes": ["default", "full"],
+            "provenance": "finite counterpart of restricted numeric invariants 11",
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-other-1",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; console.log(a[0],a[-1],a[+x],a[x-y],a[x++],a[1+2]);"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "scripts/semantic-replay/fixtures/cases.json",
+                "origin": "authored finite semantic counterpart for issue 617",
+                "selectorSource": "tests/runtime-link-resolved.test.ts"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-other-2",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const label=\"Proxy\"; const a=[7,8],o={}; let x=2,y=1,value=3; for(const i=0;;){console.log(a[i]);break;}"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "scripts/semantic-replay/fixtures/cases.json",
+                "origin": "authored finite semantic counterpart for issue 617",
+                "selectorSource": "tests/runtime-link-resolved.test.ts"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "numeric-ast-other-3",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "function f(Proxy){return Proxy} console.log(f(1));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "scripts/semantic-replay/fixtures/cases.json",
+                "origin": "authored finite semantic counterpart for issue 617",
+                "selectorSource": "tests/runtime-link-resolved.test.ts"
+            },
+            "selector": {
+                "part": "proxy",
+                "present": false
+            }
+        },
+        {
+            "id": "effect-alias-coercion",
+            "family": "effect",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "\nfunction mapped(a) { a=1; const snap=a; arguments[0]='x'; return [snap,a+2]; }\nfunction captured(x) { function change() { x='s'; } if (typeof x==='number') { change(); return x+1; } }\nfunction coercion() { let log=''; const x={valueOf(){log+='v'; return 2;}}; x+1; x*2; return log; }\nconsole.log(JSON.stringify([mapped(0),captured(3),coercion()]));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "research/compiler/artifacts/optimizer-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "alias-coercion",
+                "sourceSha256": "da0f0b1545053b9568b05b0e6aa2d301ef097966d77cadb9962ce20bacb10324"
+            },
+            "expected": {
+                "stdout": "[[1,\"x2\"],\"s1\",\"vv\"]\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "effect-number-loops",
+            "family": "effect",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "\nfunction calc(n, start) { let sum=start; for(let i=0;i<n;i++) { sum=sum+(-0); if(i===2) ({s:String(i)}); } return [1/sum,Object.is(sum,-0),sum!==sum]; }\nfor(const n of [0,1,7,2.5,NaN,'3']) for(const start of [-0,0,NaN,Infinity]) console.log(n,String(start),calc(n,start).join('|'));\nfunction edge(n){let i=2147483645,s=0;for(;i<n;i++){s=s+1;if(s>8)break;}return [i,s];}\nconsole.log(edge(2147483649).join('|'),edge(2147483647.5).join('|'));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "research/compiler/artifacts/optimizer-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "number-loops",
+                "sourceSha256": "a44c987e2177ab4d05ce95622ca2e367e084bfb9e3e82274e326bd23c55e0c9d"
+            },
+            "expected": {
+                "stdout": "0 0 -Infinity|true|false\n0 0 Infinity|false|false\n0 NaN NaN|false|true\n0 Infinity 0|false|false\n1 0 -Infinity|true|false\n1 0 Infinity|false|false\n1 NaN NaN|false|true\n1 Infinity 0|false|false\n7 0 -Infinity|true|false\n7 0 Infinity|false|false\n7 NaN NaN|false|true\n7 Infinity 0|false|false\n2.5 0 -Infinity|true|false\n2.5 0 Infinity|false|false\n2.5 NaN NaN|false|true\n2.5 Infinity 0|false|false\nNaN 0 -Infinity|true|false\nNaN 0 Infinity|false|false\nNaN NaN NaN|false|true\nNaN Infinity 0|false|false\n3 0 -Infinity|true|false\n3 0 Infinity|false|false\n3 NaN NaN|false|true\n3 Infinity 0|false|false\n2147483649|4 2147483648|3\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "effect-scalar-snapshots",
+            "family": "effect",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "\nfunction fields(flag) { let saved, total=0; for(let i=0;i<4;i++){const r={x:i,x:i+1,y:i*2}; if(i===0)saved=r; total+=r.x+r.y;} return [total,saved.x]; }\nfunction escape(){const x={v:1}; function change(){x.v=7;} change();return x.v;}\nfunction reassign(){let a={x:3},b=a;a={x:5};return [a.x,b.x];}\nconsole.log(JSON.stringify([fields(true),escape(),reassign()]));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "research/compiler/artifacts/optimizer-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "scalar-snapshots",
+                "sourceSha256": "07022fd428c0c96a99ea9946e8a1c99666aca78a33fc369151da3d9f187d1a13"
+            },
+            "expected": {
+                "stdout": "[[22,1],7,[5,3]]\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "effect-finally-iterator",
+            "family": "effect",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "\nlet log='';const iterable={ [Symbol.iterator](){let i=0;return{next(){log+='n';return{value:i++,done:false}},return(){log+='c';return{done:true}}}} };\nfunction run(n){let total=0;try{for(let i=0;i<n;i++){total+=i;if(i===3)throw new Error('x');}}catch(e){total+=10;}finally{log+='f';}return total;}\nfor(const x of iterable){if(x===2)break;}\nconsole.log(run(8),log);\nfunction returns(){try{return 7;}finally{return 9;}}console.log(returns());"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "research/compiler/artifacts/optimizer-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "finally-iterator",
+                "sourceSha256": "1f088468e2fa159d08666cfe643e3ca0a55b340235c5d742c99e3485febc3cfb"
+            },
+            "expected": {
+                "stdout": "16 nnncf\n9\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "effect-typed-length-effects",
+            "family": "effect",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "\nconst a=new Uint8Array([1,2,3]);Object.defineProperty(a,'length',{get(){return 1;}});\nfunction sum(x){let s=0;for(let i=0;i<x.length;i++)s+=x[i];return s;}console.log(sum(a));\nconst b=new Uint8Array(3);let seen=0;const v={valueOf(){seen++;return 6;}};for(let i=0;i<3;i++)b[i]=v;console.log(b.join(','),seen);\nfunction select(x){switch(x){case -1:return 'm';case 0:return 'z';case 1:return 'o';case 2:return 't';default:return 'd'}}\nconsole.log([-1,-0,0,1,2,2.5,NaN,4294967296].map(select).join(','));"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "research/compiler/artifacts/optimizer-results.json",
+                "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+                "id": "typed-length-effects",
+                "sourceSha256": "66e944db9e31c898abaf1339d52b7bec2cdc3ce325d10be2214b282443209eba"
+            },
+            "expected": {
+                "stdout": "1\n6,6,6 3\nm,z,z,o,t,d,d,d\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "effect-error-and-numbers",
+            "family": "effect",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "let events=\"\"; const x={valueOf(){events+=\"v\";return -0;}}; console.log(1/(+x),Object.is(+x,-0),NaN!==NaN,events); try { throw new TypeError(\"replay\"); } catch(e) { console.log(e.name,e.message); }"
+            },
+            "modes": ["default", "full"],
+            "provenance": {
+                "file": "scripts/semantic-replay/fixtures/cases.json",
+                "origin": "authored finite semantic counterpart for issue 617"
+            },
+            "expected": {
+                "stdout": "-Infinity true true vv\nTypeError replay\n",
+                "stderr": "",
+                "status": 0
+            }
+        },
+        {
+            "id": "graph-proxy",
+            "family": "graph",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "import {pick} from \"./scope.mjs\"; console.log(typeof pick());",
+                "scope.mjs": "export function pick(x=Proxy){let Proxy;return x;}"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "scripts/semantic-replay/fixtures/cases.json",
+                "origin": "authored finite semantic counterpart for issue 617"
+            },
+            "link": ["proxy"],
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            },
+            "resolution": {
+                "kind": "relative-files",
+                "extensions": "exact",
+                "builtins": false
+            }
+        },
+        {
+            "id": "graph-regexp",
+            "family": "graph",
+            "goal": "module",
+            "entry": "main.mjs",
+            "files": {
+                "main.mjs": "import {pick} from \"./scope.mjs\"; console.log(pick()(\"x\").test(\"x\"));",
+                "scope.mjs": "export function pick(x=RegExp){let RegExp;return x;}"
+            },
+            "modes": ["default", "full", "explicit"],
+            "provenance": {
+                "file": "scripts/semantic-replay/fixtures/cases.json",
+                "origin": "authored finite semantic counterpart for issue 617"
+            },
+            "link": ["regexp"],
+            "expected": {
+                "stdout": "true\n",
+                "stderr": "",
+                "status": 0
+            },
+            "resolution": {
+                "kind": "relative-files",
+                "extensions": "exact",
+                "builtins": false
+            }
+        },
+        {
+            "id": "numeric-retained-length-data",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "const holder = {length: \"Proxy\"};\nconsole.log(typeof globalThis[holder.length]);\n"
+            },
+            "modes": ["default", "full", "explicit"],
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            },
+            "provenance": {
+                "file": "tests/runtime-link-numeric.test.ts",
+                "id": "length-data",
+                "sourceSha256": "943a2d74277d5115bee84909b60dfdd5366f71fcbf52dcce495ac51b899c2434"
+            }
+        },
+        {
+            "id": "numeric-retained-body-reassignment",
+            "family": "numeric",
+            "goal": "script",
+            "entry": "main.js",
+            "files": {
+                "main.js": "for (let key = 0; key < 1; key++) {\n    key = \"Proxy\";\n    console.log(typeof globalThis[key]);\n    break;\n}\n"
+            },
+            "modes": ["default", "full", "explicit"],
+            "link": ["proxy"],
+            "selector": {
+                "part": "proxy",
+                "present": true
+            },
+            "expected": {
+                "stdout": "function\n",
+                "stderr": "",
+                "status": 0
+            },
+            "provenance": {
+                "file": "tests/runtime-link-numeric.test.ts",
+                "id": "body-reassignment",
+                "sourceSha256": "5d7b3a734f9707282a0f1b8eb007e8f498c0d4c81dbedcee185e65785fcefacd"
+            }
+        }
+    ],
+    "selectorContracts": [
+        {
+            "id": "fallback-1",
+            "source": "const holder = {length: \"Proxy\"}; globalThis[holder.length]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "length-key",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-2",
+            "source": "const holder = {get length() { return \"Proxy\" }}; globalThis[holder.length]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-length-getter",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-3",
+            "source": "const holder = {length: \"Proxy\"}; globalThis[holder[\"length\"]]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-length-computed",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-4",
+            "source": "const holder = {length: \"Proxy\"}; for (let i = holder.length;;) { a[i]; break }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-4",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-5",
+            "source": "for (let i = 0; i < 1; i++) { i = \"Proxy\"; a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "counter-key",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-6",
+            "source": "for (let i = 0;; i = \"Proxy\") a[i]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-6",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-7",
+            "source": "for (let i = 0; (i = \"Proxy\"); i++) a[i]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-test-reassignment",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-8",
+            "source": "for (let i = 0, x = (i = \"Proxy\");; i++) a[i]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-init-reassignment",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-9",
+            "source": "for (let i = 0;; i++) { a[i]; i = \"Proxy\" }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-9",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-10",
+            "source": "for (let i = 0;; i++) { a[i]; i += \"Proxy\" }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-10",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-11",
+            "source": "for (let i = 0;; i++) { a[i]; i ||= \"Proxy\" }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-11",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-12",
+            "source": "for (let i = 0;; i++) { a[i]; [i] = [\"Proxy\"] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-12",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-13",
+            "source": "for (let i = 0;; i++) { a[i]; ({x: i} = {x: \"Proxy\"}) }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-13",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-14",
+            "source": "for (let i = 0;; i++) { a[i]; [...i] = [\"Proxy\"] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-14",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-15",
+            "source": "for (let i = 0;; i++) { a[i]; ({...i} = {x: \"Proxy\"}) }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-15",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-16",
+            "source": "for (let i = 0;; i++) { a[i]; [i = \"Proxy\"] = [] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-16",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-17",
+            "source": "for (let i = 0;; i++) { a[i]; for (i of [\"Proxy\"]) {} }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-17",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-18",
+            "source": "for (let i = 0;; i++) { a[i]; for ([i] of [[\"Proxy\"]]) {} }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-18",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-19",
+            "source": "for (let i = 0;; i++) { a[i]; for (i in {x: \"Proxy\"}) {} }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-19",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-20",
+            "source": "for (let i = 0;; i++) { a[i]; function mutate() { i = \"Proxy\" } }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-20",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-21",
+            "source": "const label = \"Proxy\"; for (let i = 0;; i++) { a[i]; () => i }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-21",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-22",
+            "source": "for (let i = 0;; i++) { const read = () => a[i]; i = \"Proxy\" }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-nested-capture",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-23",
+            "source": "for (let i = 0;; i++) { a[i]; function f(x = (i = \"Proxy\")) { let i } }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-default-capture",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-24",
+            "source": "for (let arguments = 0;; arguments++) { a[arguments]; () => { arguments = \"Proxy\" } }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-arrow-arguments",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-25",
+            "source": "for (let i = 0;; i++) { { let i = \"Proxy\"; a[i] } }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-shadowing",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-26",
+            "source": "const label = \"Proxy\"; for (var i = 0;; i++) a[i]",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-26",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-27",
+            "source": "const label = \"Proxy\"; for (let i = 0;; i++) { a[i]; eval(code) }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-27",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-28",
+            "source": "const label = \"Proxy\"; for (let i = 0;; i++) { a[i]; () => eval(code) }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-28",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-29",
+            "source": "const label = \"Proxy\"; for (let i = 0;; i++) { a[i]; with (o) i++ }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-29",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "fallback-30",
+            "source": "const label = \"Proxy\"; with (o) { for (let i = 0;; i++) a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": true,
+            "semanticId": "numeric-ast-fallback-30",
+            "provenance": "tests/runtime-link-resolved.test.ts: unproved numeric keys"
+        },
+        {
+            "id": "restricted-1",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-1"
+        },
+        {
+            "id": "restricted-2",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { a[i]; i = 1; i += 2; i -= x; i *= x; i >>>= x }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-2"
+        },
+        {
+            "id": "restricted-3",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { a[i]; i = +x; i = x - y; i = x++; ++i }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-3"
+        },
+        {
+            "id": "restricted-4",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { { let i = \"Proxy\"; i = value } a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-4"
+        },
+        {
+            "id": "restricted-5",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { try {} catch (i) { i = \"Proxy\" } a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-5"
+        },
+        {
+            "id": "restricted-6",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { for (let i of [\"Proxy\"]) { i = value } a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-6"
+        },
+        {
+            "id": "restricted-7",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { for (let i in {x: \"Proxy\"}) { i = value } a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-7"
+        },
+        {
+            "id": "restricted-8",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { function f(i) { i = \"Proxy\" } a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-8"
+        },
+        {
+            "id": "restricted-9",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { function f() { let i = \"Proxy\"; return i } a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-9"
+        },
+        {
+            "id": "restricted-10",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { ((i) => { i = \"Proxy\" })(1); a[i] }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-10"
+        },
+        {
+            "id": "restricted-11",
+            "source": "const label = \"Proxy\"; for (let i = 0; i < 2; i++) { a[i]; o[i] = \"Proxy\" }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-restricted-11"
+        },
+        {
+            "id": "restricted-other-1",
+            "source": "const label = \"Proxy\"; a[0]; a[-1]; a[+x]; a[x - y]; a[x++]; a[1 + 2]",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-other-1"
+        },
+        {
+            "id": "restricted-other-2",
+            "source": "const label = \"Proxy\"; for (const i = 0;;) { a[i]; break }",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-other-2"
+        },
+        {
+            "id": "restricted-other-3",
+            "source": "function f(Proxy) { return Proxy } f(1)",
+            "goal": "script",
+            "part": "proxy",
+            "present": false,
+            "semanticId": "numeric-ast-other-3"
+        }
+    ],
+    "coverage": [
+        {
+            "file": "tests/runtime-link-numeric.test.ts",
+            "normalization": "CRLF to LF",
+            "sha256": "a7bf2d0e74540b3bf42e7da5df0209941957dad721075ed851b164c0688c189c"
+        },
+        {
+            "file": "tests/runtime-link-resolved.test.ts",
+            "normalization": "CRLF to LF",
+            "sha256": "37d5e3725bbcdffeb73a2eaa516af101bb3bb8beacee7118aadcb200c926b9c5"
+        }
+    ]
+}
