@@ -433,12 +433,17 @@ export function emitMemory(b: RuntimeBuilder): void {
         a.jmp(probe);
         a.label(done);
     });
-    // RCX pointer -> RAX page map entry of its mapping, or 0. Pure.
-    b.fn("rt.chunkTableFind", 40, (a) => {
+    // RCX pointer -> RAX header of the live block whose payload contains it, or 0.
+    // Probe and validate in one leaf: the probe preserves RCX, so there is no
+    // need for a nested lookup frame or a spill of the original pointer.
+    b.raw("rt.blockOf", (a) => {
         const probe = a.unique("probe"),
             miss = a.unique("miss"),
             done = a.unique("done"),
-            next = a.unique("next");
+            next = a.unique("next"),
+            found = a.unique("found"),
+            large = a.unique("large"),
+            check = a.unique("check");
         a.load("r8", { rip: "rt.chunkTable" });
         a.test("r8", "r8");
         a.jcc("e", miss);
@@ -458,26 +463,12 @@ export function emitMemory(b: RuntimeBuilder): void {
         a.cmp("r11", "rdx");
         a.jcc("ne", next);
         a.mov("rax", "r10");
-        a.jmp(done);
+        a.jmp(found);
         a.label(next);
         a.add("rax", 1);
         a.and("rax", "r9");
         a.jmp(probe);
-        a.label(miss);
-        a.mov("rax", 0);
-        a.label(done);
-    });
-    // RCX pointer -> RAX header of the live block whose payload contains it, or 0.
-    b.fn("rt.blockOf", 56, (a) => {
-        const miss = a.unique("miss"),
-            done = a.unique("done"),
-            large = a.unique("large"),
-            check = a.unique("check");
-        a.store(slot(40), "rcx");
-        a.call("rt.chunkTableFind");
-        a.test("rax", "rax");
-        a.jcc("e", done);
-        a.load("rcx", slot(40));
+        a.label(found);
         a.load("r8", { base: "rax", disp: T.base });
         a.load("r10", { base: "rax", disp: T.large });
         a.test("r10", "r10");
@@ -514,6 +505,7 @@ export function emitMemory(b: RuntimeBuilder): void {
         a.label(miss);
         a.mov("rax", 0);
         a.label(done);
+        a.ret();
     });
 
     // RCX class index: maps a chunk for the class and makes it current.

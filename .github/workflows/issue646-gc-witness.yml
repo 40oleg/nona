@@ -1,0 +1,121 @@
+name: Issue 646 candidate GC and original HTTP witness
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+    workflow_dispatch:
+permissions:
+    contents: read
+    actions: read
+# Queue, never cancel a real execution to replace it with another attempt.
+concurrency:
+    group: issue646-gc-witness
+    cancel-in-progress: false
+jobs:
+    preflight:
+        if: >-
+            github.repository == '40oleg/nona' && github.repository_owner == '40oleg' &&
+            github.actor == '40oleg' &&
+            ((github.event_name == 'pull_request' && github.event.pull_request.number == 647 &&
+            github.event.pull_request.head.repo.full_name == '40oleg/nona' &&
+            github.event.pull_request.head.user.login == '40oleg' &&
+            github.event.pull_request.head.ref == 'nona/issue-646') ||
+            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/nona/issue-646'))
+        runs-on: ubuntu-24.04
+        timeout-minutes: 3
+        outputs:
+            head: ${{ steps.admit.outputs.head }}
+            execute: ${{ steps.admit.outputs.execute }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  fetch-depth: 1
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            - name: Admit only current source head and this commit's support changes
+              id: admit
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node scripts/issue646-gc-witness.mjs preflight witness-preflight
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-gc-witness-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: witness-preflight/
+                  if-no-files-found: error
+                  retention-days: 30
+    witness:
+        needs: preflight
+        if: needs.preflight.outputs.execute == 'true'
+        strategy:
+            fail-fast: false
+            max-parallel: 2
+            matrix:
+                os: [windows-latest, ubuntu-24.04]
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 15
+        env:
+            WITNESS_HEAD: ${{ needs.preflight.outputs.head }}
+            NONA_GC_STRESS: "on"
+        steps:
+            - name: Initialize small fail-closed outcome before checkout or setup
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const fs = require('node:fs');
+                      fs.mkdirSync('witness', {recursive: true});
+                      fs.writeFileSync('witness/outcome.json', JSON.stringify({
+                          gc: false, http: false, incomplete: true,
+                          nativeAttempts: null, nodeAttempts: null,
+                          candidateHead: process.env.WITNESS_HEAD,
+                          historicalSource: 'b78f81820ff19105ab85fb10773fab4353b3d8f5',
+                          modifiedHistoricalTree: true,
+                          historicalFailuresCleared: false, releaseAcceptance: false,
+                          run: context.runId, attempt: process.env.GITHUB_RUN_ATTEMPT,
+                          job: process.env.GITHUB_JOB, runner: process.env.RUNNER_NAME
+                      }, null, 2));
+            - uses: actions/checkout@v4
+              with:
+                  path: candidate
+                  ref: ${{ needs.preflight.outputs.head }}
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/checkout@v4
+              with:
+                  path: historical
+                  ref: b78f81820ff19105ab85fb10773fab4353b3d8f5
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            - name: Serial candidate correctness tests and one original HTTP native/Node pair
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: node candidate/scripts/issue646-gc-witness.mjs run witness candidate historical
+            - name: Verify both independent gates from retained real execution evidence
+              if: always()
+              run: node candidate/scripts/issue646-gc-witness.mjs verify witness
+            - name: Always retain bounded small outcome metadata
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-gc-witness-metadata-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      witness/outcome.json
+                      witness/provenance.json
+                      witness/failure.json
+                      witness/controller-timeout.json
+                      witness/cancelled.json
+                      witness/controller-cleanup.json
+                  if-no-files-found: error
+                  retention-days: 30
+            - name: Always retain full raw source, images, streams and execution reports
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: issue646-gc-witness-raw-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: witness/
+                  if-no-files-found: error
+                  retention-days: 30
