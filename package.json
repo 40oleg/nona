@@ -35,6 +35,11 @@
         "site:dev": "npm --prefix site run dev",
         "site:build": "npm --prefix site run build",
         "snapshot:programs": "npm run build && node scripts/snapshot-program-corpus.mjs",
+        "replay:inventory": "node scripts/semantic-replay/run.mjs --inventory pr",
+        "replay:public": "node scripts/semantic-replay/run.mjs pr",
+        "replay:candidate": "node scripts/semantic-replay/run.mjs candidate",
+        "test:replay-unit": "node --test --test-concurrency=1 tests/semantic-replay.test.ts",
+        "check:replay-types": "tsc -p scripts/semantic-replay/tsconfig.json",
         "soak:http": "npm run build && node scripts/http-soak.mjs"
     },
     "devDependencies": {

@@ -235,6 +235,17 @@ suite, covering hosted Linux x64 and the hosted Windows shard. Hosted runs,
 GC stress, comparison and other platforms remain pending at this measurement;
 these local results establish only Windows x64 behavior.
 
+## Public compile semantic replay (#617)
+
+The dedicated [semantic replay lane](semantic-replay.md) calls public `compile()`
+in default/full/explicit modes with exact retained sources and module graphs,
+raw Node/native outcomes, link reasons and image/compiler/source hashes.
+It preserves all T01/T02 families, an isolated split-string contract, effect
+traces and a deterministic manifest sample; candidate dispatch covers all 1,000
+manifest IDs. Existing IR/full-runtime helpers retain their purpose.
+Native parity, historical omission detection and a measured PR budget remain
+pending until complete Windows and Linux hosted reports exist.
+
 ## Measurements (#438)
 
 Windows x64, `nona build probe.mjs -o probe.exe --target win32-x64

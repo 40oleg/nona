@@ -1,0 +1,69 @@
+{
+    "baseline": "1b414d66ba98c05bac82c722578f100ebbd17f81",
+    "source": "research/compiler/artifacts/link-results.json",
+    "results": [
+        {
+            "id": "default-proxy",
+            "source": "function f(x = Proxy) { var Proxy; return x; } console.log(typeof f());",
+            "oracle": {
+                "status": 0,
+                "stdout": "function\n",
+                "stderr": ""
+            }
+        },
+        {
+            "id": "default-regexp",
+            "source": "function f(x = RegExp) { let RegExp; return x(\"x\").test(\"x\"); } console.log(f());",
+            "oracle": {
+                "status": 0,
+                "stdout": "true\n",
+                "stderr": ""
+            }
+        },
+        {
+            "id": "length-key",
+            "source": "const holder = {length: \"Proxy\"}; console.log(typeof globalThis[holder.length]);",
+            "oracle": {
+                "status": 0,
+                "stdout": "function\n",
+                "stderr": ""
+            }
+        },
+        {
+            "id": "counter-key",
+            "source": "for (let key = 0; key < 1; key++) { key = \"Proxy\"; console.log(typeof globalThis[key]); break; }",
+            "oracle": {
+                "status": 0,
+                "stdout": "function\n",
+                "stderr": ""
+            }
+        },
+        {
+            "id": "reflection-alias",
+            "source": "const read = Reflect.get; const key = \"Proxy\"; console.log(typeof read(globalThis, key));",
+            "oracle": {
+                "status": 0,
+                "stdout": "function\n",
+                "stderr": ""
+            }
+        },
+        {
+            "id": "documented-computed-name",
+            "source": "const key = \"Pro\" + \"xy\"; console.log(typeof globalThis[key]);",
+            "oracle": {
+                "status": 0,
+                "stdout": "function\n",
+                "stderr": ""
+            }
+        },
+        {
+            "id": "mapped-arguments-control",
+            "source": "function f(a) { a = 1; arguments[0] = \"x\"; return a + 2; } console.log(f(0));",
+            "oracle": {
+                "status": 0,
+                "stdout": "x2\n",
+                "stderr": ""
+            }
+        }
+    ]
+}

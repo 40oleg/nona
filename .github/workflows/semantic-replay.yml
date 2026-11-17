@@ -1,0 +1,150 @@
+name: public compile semantic replay
+
+on:
+    pull_request:
+    workflow_dispatch:
+        inputs:
+            lane:
+                description: Bounded PR replay or full manifest candidate
+                type: choice
+                options: [pr, candidate]
+                default: pr
+
+permissions:
+    contents: read
+
+concurrency:
+    group: semantic-replay-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+    NODE_VERSION: "26.9.0"
+    NONA_GC_STRESS: "off"
+
+jobs:
+    replay:
+        # Literal GitHub-hosted labels: never route native replay to overflow.
+        name: bounded replay (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 120 # Provisional safety cap, not a measured PR budget.
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - name: Verify runner identity
+              shell: bash
+              run: node -e "if(process.env.RUNNER_ENVIRONMENT!=='github-hosted')process.exit(1)"
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: node scripts/semantic-replay/start.mjs work/semantic-replay/pr
+            - run: npm ci
+            - run: npm run build
+            - run: npm run check:replay-types
+            - name: Pure reporter and selector units (one worker)
+              run: node --test --test-concurrency=1 dist/tests/semantic-replay.test.js dist/tests/semantic-replay-selector.test.js
+            - name: Replay default, full and enumerated explicit controls
+              run: node scripts/semantic-replay/run.mjs pr . work/semantic-replay/pr
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: semantic-replay-pr-${{ matrix.os }}
+                  path: work/semantic-replay/
+                  if-no-files-found: warn
+                  retention-days: 30
+
+    negative:
+        name: historical omission control (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 30
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - name: Verify runner identity
+              shell: bash
+              run: node -e "if(process.env.RUNNER_ENVIRONMENT!=='github-hosted')process.exit(1)"
+            - uses: actions/checkout@v4
+              with:
+                  ref: 1b414d66ba98c05bac82c722578f100ebbd17f81
+                  path: work/historical-compiler
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+                  cache-dependency-path: work/historical-compiler/package-lock.json
+            - run: node scripts/semantic-replay/start.mjs work/semantic-replay/negative
+            - run: npm ci
+              working-directory: work/historical-compiler
+            - run: npm run build
+              working-directory: work/historical-compiler
+            - name: Prove successful default omission and successful full control
+              run: node scripts/semantic-replay/run.mjs negative work/historical-compiler work/semantic-replay/negative
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: semantic-replay-negative-${{ matrix.os }}
+                  path: work/semantic-replay/
+                  if-no-files-found: warn
+                  retention-days: 30
+
+    candidate:
+        name: manifest candidate (${{ matrix.os }}, shard ${{ matrix.shard }})
+        if: github.event_name == 'workflow_dispatch' && inputs.lane == 'candidate'
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 120 # Independently measured, provisional safety cap.
+        strategy:
+            fail-fast: false
+            max-parallel: 2
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+                shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        steps:
+            - uses: actions/checkout@v4
+            - name: Verify runner identity
+              shell: bash
+              run: node -e "if(process.env.RUNNER_ENVIRONMENT!=='github-hosted')process.exit(1)"
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: node scripts/semantic-replay/start.mjs work/semantic-replay/candidate-${{ matrix.shard }}
+            - run: npm ci
+            - run: npm run build
+            - name: All manifest IDs, default and full, serial within each shard
+              run: node scripts/semantic-replay/run.mjs candidate . work/semantic-replay/candidate-${{ matrix.shard }} ${{ matrix.shard }}
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: semantic-replay-candidate-${{ matrix.os }}-${{ matrix.shard }}
+                  path: work/semantic-replay/
+                  if-no-files-found: warn
+                  retention-days: 30
+
+    budget:
+        name: measure bounded replay budget
+        needs: [replay, negative]
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+            - uses: actions/download-artifact@v4
+              with:
+                  pattern: semantic-replay-pr-*
+                  path: work/replay-measurements
+            - run: node scripts/semantic-replay/budget.mjs work/replay-measurements
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: semantic-replay-measured-budget
+                  path: work/replay-measurements/measured-pr-budget.json
+                  if-no-files-found: warn
