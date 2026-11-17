@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.35.0 — 2026-11-18
+
+### Release scope
+
+- **Owner deferral (2026-11-04).** Still-open [#602](https://github.com/40oleg/nona/issues/602) and its preserved draft [PR #630](https://github.com/40oleg/nona/pull/630) move to v0.36.0. This is a scope decision, not a crash fix or successful diagnostic. Historical failures and raw evidence remain retained.
+- **Owner waiver (2026-11-04).** The mandatory three-hour native/all-route campaign in [#516](https://github.com/40oleg/nona/issues/516) is cancelled for this release. This is a waiver, not a passing long-run result; short correctness, current-head CI and exact-tag publication checks remain required.
+- **Release preparation.** [#634](https://github.com/40oleg/nona/issues/634) prepares the committed 0.35.0 candidate from main. Keep `NONA_WORK_AHEAD=0`, the non-release runnable queue off and the future `nona/issue-620` branch preserved until publication and milestone completion are verified. Fresh hosted measurements and candidate validation remain pending.
+
+The preparation notes below retain their original intermediate status and diagnostic limits. Final integrated-main acceptance is recorded in [#646](https://github.com/40oleg/nona/issues/646) and [#619](https://github.com/40oleg/nona/issues/619); it does not erase earlier failures or replace validation of the release candidate. See the [candidate handoff](docs/release-v0.35.0-candidate.md) for source receipts and remaining gates.
+
 ### Development
 
 - Add a dedicated GitHub-hosted public-compile semantic replay lane with exact T01/T02 inputs, effect traces, manifest samples, raw failure reports and a historical selector-omission control. Native acceptance and measured replay budget require real Windows/Linux reports. ([#617](https://github.com/40oleg/nona/issues/617))
@@ -33,6 +43,8 @@
 - **Partial hosted profiling support for the unresolved native GC diagnosis.** A single guarded Windows observation replays the retained original HTTP image with external instruction sampling and image-equality-gated address mapping. It preserves the original deadlines and failures and does not establish a cause, repair, issue completion or release acceptance. ([#646](https://github.com/40oleg/nona/issues/646))
 
 ### Fixes
+
+- **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))
 
 - **Optional built-ins in parameter defaults survive body shadowing.** Body `var`, `let` and function declarations no longer hide `Proxy` or `RegExp` references in parameter initializers from runtime selection. Actual parameter bindings still shadow the built-ins. ([#613](https://github.com/40oleg/nona/issues/613))
 
@@ -76,7 +88,6 @@
 - **The CLI protects every file read while compiling or resolving a package.** Outputs can no longer replace imported or required sources, JSON modules, package metadata or explicit icon, manifest and version information files. Canonical paths and file identity also catch symbolic links, links through parent directories and hard links. Refused builds preserve the input files and previous executable and remove temporary output. The protection is shared by the Node.js and native CLIs. ([#614](https://github.com/40oleg/nona/issues/614))
 - **Large chunked HTTP responses release keep-alive connections.** A queued socket write now preserves the response's completion owner, allowing the next response to finish on the same connection after synchronous writes larger than the send buffer. ([#601](https://github.com/40oleg/nona/issues/601))
 - **HTTP soak statistics tolerate collected buffers.** Heap snapshots skip dead ArrayBuffer cells awaiting lazy sweeping, avoiding stale backing-store accounting and an access violation when their backing pages have already been released. ([#601](https://github.com/40oleg/nona/issues/601))
-- **Full CI stays on GitHub-hosted runners.** Windows jobs no longer use the owner's self-hosted overflow for pull requests, main pushes or manual runs, so full suites cannot compete with the permitted small local agent checks. ([#620](https://github.com/40oleg/nona/issues/620))
 - **`globalThis[Symbol.toStringTag]` is `"global"`.** `Object.prototype.toString.call(globalThis)` is `[object global]`, as in Node.js. ([#514](https://github.com/40oleg/nona/issues/514))
 - **Error messages in spread, destructuring and iteration say `Value is not iterable`.** All three now throw a descriptive `TypeError` that says which value is not iterable, like Node.js, instead of `Invalid operation`. ([#593](https://github.com/40oleg/nona/issues/593))
 - **`assert.throws` and `assert.rejects` keep the message prefix.** A string message used to replace the whole error text when the function did not throw; now it becomes `Missing expected exception: <message>` (`Missing expected rejection: <message>`), with `(<ErrorName>)` after `exception` when an error class was expected, as in Node.js. ([#594](https://github.com/40oleg/nona/issues/594))
