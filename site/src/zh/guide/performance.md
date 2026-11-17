@@ -9,7 +9,7 @@
 :::
 
 ::: warning
-当前版本的测量结果、Node.js、Deno 和 Bun 的版本、测量提交和方法见[英文页面](/guide/performance)。以下保留 v0.7.0 测量的历史译文，其数字不代表当前版本。
+v0.35.0 于 2026-11-17 测得的结果、Node.js、Deno 和 Bun 版本、测量所用提交及原始产物的哈希值见[英文页面](/guide/performance)。下方保留 v0.7.0 测量的历史译文，其中的数字不代表当前版本。
 :::
 
 测量于 2026-10-01，对象为 Nona `v0.7.0`（提交 `b31c4d6`）。脚本位于 [`bench/`](https://github.com/40oleg/nona/blob/main/bench/)；`node bench/run.mjs` 可以复现下面的每一张表。

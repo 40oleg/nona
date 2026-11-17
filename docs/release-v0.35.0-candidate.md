@@ -1,15 +1,16 @@
 # v0.35.0 candidate handoff
 
-Preparation step 1 for [#634](https://github.com/40oleg/nona/issues/634),
-18 November 2026. This commit prepares the version and changelog inputs for
-hosted validation and measurement. Preparation, merge and publication remain
-separate gates.
+Preparation record for [#634](https://github.com/40oleg/nona/issues/634),
+18 November 2026. The committed version candidate and its hosted measurements
+now supply the release performance documentation. Final validation, merge and
+publication remain separate gates.
 
 ## Ownership and release scope
 
 - Continue the existing harness claim and `nona/issue-634` branch from main
   `3c2d3bae1402305811fae1fb2ba608fbc0a92160`. The issue timeline, Development
-  closure references and associated PR search showed no existing release PR.
+  closure references and associated PR search initially showed no release PR;
+  the coordinator subsequently opened draft [PR #650](https://github.com/40oleg/nona/pull/650).
   The current two-step harness plan matches this assignment; no foreign claim
   or status label was reset.
 - GitHub metadata was read back: open issue, exactly the `documentation` type,
@@ -75,31 +76,117 @@ matching successful [release run 41225837947](https://github.com/40oleg/nona/act
 The v0.34.0 milestone is closed with no open members. No published tag or
 artifact was changed.
 
+## Hosted benchmark receipt
+
+The coordinator's [release-benchmark run 44182184617](https://github.com/40oleg/nona/actions/runs/44182184617)
+completed successfully on the exact version-0.35.0 candidate
+**`b57979de3ab82fc85e4c3bcf752e80895e30871b`**. Its single benchmark job and
+all measurement/validation steps succeeded. Measurements began
+**2026-11-17 at 21:40:56 UTC**, distinct from the 18 November release date.
+
+All workloads ran sequentially on one GitHub-hosted Ubuntu 24.04.5 LTS runner:
+Intel Xeon 6975P-C, four vCPUs, 15.3 GiB RAM, Linux 7.0.0-1014-aws x64.
+The CPU governor was not exposed and infrastructure contention is unknown.
+Actual versions were Node.js **v26.9.0**, Deno **2.9.8**, Bun **1.4.4**,
+hyperfine **1.18.0** and valgrind **3.22.0**. Machine/tool output, affinity,
+vendor pins and the protocol are retained in the artifacts.
+
+| Artifact                                                                                                                     |  Bytes | SHA-256 of downloaded ZIP                                          |
+| ---------------------------------------------------------------------------------------------------------------------------- | -----: | ------------------------------------------------------------------ |
+| [Final report and HTTP evidence, 14375758451](https://github.com/40oleg/nona/actions/runs/44182184617/artifacts/14375758451) | 210186 | `329d6f965292f4b34d0fb1d8f8faaac32fc28afc47ba1256c5175bce87447709` |
+| [Seven-suite checkpoint, 14373638616](https://github.com/40oleg/nona/actions/runs/44182184617/artifacts/14373638616)         |  95198 | `c167801fdb3d14f14d544375368d589f382e912a4d63a29c37a56c9cb9429d8b` |
+
+Both downloaded ZIP digests match the GitHub artifact API. The final ZIP was
+independently compared byte-for-byte with every extracted input used for these
+documentation updates. Both artifacts are unexpired and retained until
+2027-02-15; preserve them before expiry if longer retention is needed.
+
+Clean-source provenance is the workflow's exact-SHA checkout and unpatched
+build, together with `source-sha.txt`, `source.txt`, the retained protocol and
+these `source-sha256.txt` entries, independently verified against Git blobs:
+
+| Input                  | SHA-256                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| `bench/report.mjs`     | `c48c971c6dedf994adcbf01ba5ff539879e0afb1a1c1d436250a80b7b217fd33` |
+| `bench/real/fetch.mjs` | `abfb4c4be87fff91bc7c4b4f52eb84cd50dce7a8f9d9927fdbafcab8fa06aecb` |
+| `bench/awfy/fetch.mjs` | `53a0049f1d81d1a51707b424f45407cc8706a8a63a88b55c22f45669c2d58a0e` |
+| `package-lock.json`    | `63ec74ea4d7d06696ad8a7ee415ca9d490d147c5a376cc9834c4d3a176bb9c63` |
+
+The benchmark workflow makes no tracked compiler or benchmark source patches.
+The later review edits change documentation only; compiler, package, build and
+benchmark inputs match the measured candidate. Any later input change requires
+remeasurement. No post-build clean-working-tree receipt was emitted, so the
+separate generated-version consistency check below remains required.
+
+The retained command was:
+
+```sh
+node bench/report.mjs --suite startup,corpus,micro,real,awfy,game,profile --runs 10 --startup-runs 30 --iterations 10 --scale 0.1 --runtimes node,deno,bun,nona --out work/release-benchmark
+```
+
+Independent read-only checks verified the seven JSON/Markdown suite pairs:
+2 startup cases, 10 corpus programs, 14 micro programs, 6 real programs,
+14 Are-We-Fast-Yet cases, 9 Benchmarks Game cases and 8 profiles. All expected
+successful sample counts, nine raw 30-sample hyperfine exports, recorded
+correctness checks, summary categories and ratios match. The validator reports
+`complete-with-documented-limitations`, zero problems and exactly two
+limitations: Deno cannot import the pinned lodash CommonJS default export in
+the startup and real suites. Their failures remain in the published tables
+and raw evidence; no rows were dropped.
+
+Both HTTP generators (`load` and `wrk`) ran all six cases at **1, 32 and 256**
+connections, with server CPU 0 and client CPU 1. Each cell has a two-second
+warm-up and five three-second measurements for Node and Nona. Each generator
+retains **216 successful invocations**, including **36 successful HTTP 200/body
+preflights**. Independent checks recomputed all 18 rows per generator from raw
+samples (median/min/max throughput, ratios and p99), with zero request/socket
+errors or unexpected stderr.
+
+`PERFORMANCE.md` now contains these measurements, preserving the v0.34.0 tables
+as superseded history. Both READMEs quote the new startup/category/wrk numbers;
+the English performance page includes the report and all eight translations
+link the v0.35.0 measurements while identifying their older tables as history.
+These Linux x64 measurements do not establish native validation for other
+targets, current-head CI acceptance or publication.
+
 ## Local validation
 
-Changed-file Prettier checks and `git diff --check` passed. After the small
+The initial version candidate's changed-file Prettier checks and
+`git diff --check` passed. After the small
 `node site/scripts/sync-docs.mjs` generation step, `npm run check:doc-links`
 passed (1,605 links in 310 documents). A source consistency audit verified the
 package/lock/generated version, CLI expectations, all 36 site version edits,
 unchanged dependencies, preserved historical changelog entries and unchanged
 benchmark documentation. Checks ran sequentially at BelowNormal priority.
-The full build, generated-version confirmation and CLI execution remain hosted
-follow-ups below, not local test passes.
+The hosted benchmark subsequently built the compiler successfully;
+generated-version consistency and CLI execution remain hosted follow-ups below,
+not local test passes.
 
-## Coordinator handoff and pending hosted work
+For the measured documentation update, changed-file Prettier and
+`git diff --check` passed. Regenerating the site's included Markdown and
+`npm run check:doc-links` passed (1,612 links in 310 documents). Small,
+sequential read-only audits verified artifact bytes, raw sample counts,
+correctness receipts, recomputed HTTP rows, exact publication of every report
+table, both README summaries and all nine performance pages. The historical
+performance section is byte-for-byte unchanged except for its superseded
+notice. A diff against the measured SHA confirms unchanged compiler, package,
+build and benchmark inputs. All local checks ran at BelowNormal priority;
+no local build, benchmarks, native validation or full suite was run.
 
-Use the exact step-1 commit SHA reported by the worker as the candidate; retain
-that SHA in the PR and benchmark receipts. This worker does not push, open a PR,
-merge, tag or publish.
+## Coordinator handoff and remaining hosted work
 
-1. Open the existing branch's **draft** PR against `main`, with a title beginning
-   **`[nona] Release `** and a description containing **`Closes #634`**. Apply
-   **documentation, complex, full-ci, gc-stress** and milestone **v0.35.0**;
-   read them back **before subsequent CI-triggering pushes**. Initial unlabeled
-   runs do not satisfy labeled validation. Preserve the draft until missing
-   measurements and validation are complete.
-2. Run the full `scripts/build.mjs` on GitHub-hosted runners and confirm it
-   leaves `src/version.ts` unchanged. Only its small version-emission block was
+Use the measured candidate SHA above for benchmark provenance. The coordinator
+opened draft PR #650 against `main`; its draft status, **documentation, complex,
+full-ci, gc-stress** labels and **v0.35.0** milestone were read back during this
+review update. This worker does not push, open a PR, merge, tag or publish.
+
+1. Keep PR #650 **draft** until final validation and independent review are
+   complete. Its current description uses **`Related to #634`**; change that to
+   **`Closes #634`** only when preparation is complete. Preserve its release
+   title and required labels/milestone; read them back **before subsequent
+   CI-triggering pushes**. Initial unlabeled runs do not satisfy labeled validation.
+2. On the final head, run `scripts/build.mjs` on GitHub-hosted runners and confirm
+   it leaves `src/version.ts` unchanged. Only its small version-emission block was
    executed locally to synchronize the committed module; no local compiler build
    was run. Hosted regeneration and CLI validation remain pending. After
    `npm ci` and `npm run build`, run:
@@ -112,20 +199,14 @@ merge, tag or publish.
     npm run check:doc-links
     ```
 
-3. Use the existing [release-benchmark workflow](../.github/workflows/release-benchmark.yml)
-   and [bench/report.mjs protocol](../bench/README.md) on the committed 0.35.0
-   candidate. Retain startup, corpus, micro, real, awfy, game and profile suites,
-   both HTTP generators at 1/32/256 connections, actual current Node/Deno/Bun
-   versions, one-machine identity, exact measured source SHA, clean-source
-   provenance and raw artifact hashes. Preserve genuine unsupported/runtime
-   failures. A compiler/package/benchmark input change requires remeasurement.
-4. Step 2 updates `PERFORMANCE.md`, both READMEs and all nine performance pages
-   from actual hosted results, marking the old section superseded. This commit
-   deliberately retains the existing dated v0.34.0 benchmark claims.
-5. Require independent final diff/measurement review and successful necessary
+3. The [hosted benchmark receipt](#hosted-benchmark-receipt) and performance
+   documentation complete the measurement portion of step 2. Retain the raw
+   artifacts and limitations. Use the existing [release-benchmark workflow](../.github/workflows/release-benchmark.yml)
+   and [protocol](../bench/README.md) again if compiler/package/benchmark inputs change.
+4. Require independent final diff/measurement review and successful necessary
    current-head CI before merge. All full/native/long validation stays hosted.
    Local work remains small, concurrency 1, BelowNormal, at most three workers.
-6. After preparation merges, separately verify the published non-draft release,
+5. After preparation merges, separately verify the published non-draft release,
    successful `release.yml` on the exact tag commit, eight nonempty native
    archives plus matching `SHA256SUMS`, extracted contents/version/notices,
    closed release issues and a closed milestone with no open members. Until
