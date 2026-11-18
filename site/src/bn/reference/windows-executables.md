@@ -30,3 +30,5 @@ nona build app.js -o app.exe --icon app.ico --manifest app.manifest --version-in
 ```
 
 একই অপশনগুলো `compile()`-এ `icon` (বাইট), `manifest` (স্ট্রিং) ও `versionInfo` (অবজেক্ট) হিসেবে পাওয়া যায়। এগুলোর জন্য `--target win32-x64` প্রয়োজন।
+
+`nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).

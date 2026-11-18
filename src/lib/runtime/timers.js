@@ -747,6 +747,11 @@ __nonaPromiseDrainJobs = (function (fullDrain) {
                 quit()
             )
                 return;
+            // A repeating callback can take longer than its interval. Give
+            // native I/O one nonblocking turn after each due-timer batch even
+            // when the next timer is already overdue (modeless GUI, #649).
+            // Preserve the exit decision above for unreferenced I/O watches.
+            if (ioWatching()) pollNetwork(0);
         }
     };
 })(__nonaPromiseDrainJobs);

@@ -1,5 +1,19 @@
 # Windows executables
 
+## Interactive settings example
+
+```sh
+nona build site/samples/settings.win32.mjs --target win32-x64 --subsystem windows -o settings.exe
+```
+
+The [sample](../site/samples/settings.win32.mjs) has a checkbox, seven choices,
+Save/Cancel, keyboard navigation and a visible background timer counter. Save
+commits the draft; Cancel or title-bar close discards it. It reopens after one
+second and disposes/exits explicitly after 60 seconds. Its PE subsystem is 2.
+The [modeless bridge contract](win32-settings.md) describes main-thread event
+delivery, exceptions, resource lifetime and the pauses caused by synchronous
+OS calls/native modal loops. It is supported only on Windows x64.
+
 ## Subsystem
 
 `nona build app.js -o app.exe --subsystem windows` marks the PE image as a

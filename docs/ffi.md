@@ -1,5 +1,12 @@
 # Native functions (FFI)
 
+For an interactive modeless settings window on **Windows x64**, use
+[`SettingsWindow` from `nona:win32/settings`](win32-settings.md). Its native
+dialog procedure records events without calling JavaScript; the existing I/O
+loop delivers them after dispatch returns. Timers and Promise jobs continue
+outside synchronous OS/native modal loops. This dedicated bridge does not add
+callbacks to the general FFI ABI and does not change `nona:win32` exports.
+
 Programs can call exported functions of shared libraries through the built-in
 `nona:ffi` module: DLLs on Windows, shared objects (`.so`) on Linux and dylibs
 or frameworks on macOS. Declarations are resolved at compile time: every

@@ -50,6 +50,8 @@ import { cloneRealms, realmSymbol } from "../realms.js";
 import { mergeAgentPrograms, agentSymbol } from "../agents.js";
 import { stringLiteral } from "../../runtime/value.js";
 import { emitFfi } from "../../runtime/ffi.js";
+import { win32SettingsHelpers } from "../../runtime/win32-settings.js";
+import { CompileError } from "../../diagnostics.js";
 import { emitFunction as emitFunctionCode } from "./operations.js";
 import { recordName } from "./function-names.js";
 import { linkedPreludes, lowerRuntimePrelude } from "./preludes.js";
@@ -737,6 +739,33 @@ function generateImage(
         // Event-loop primitives, captured and removed from the global object by the timer prelude.
         hostGlobal("__nonaHostNow", "rt.hostNow.code", 0);
         hostGlobal("__nonaHostWait", "rt.agentSleep.code", 1);
+    }
+    if (
+        module.functions.some((fn) =>
+            fn.blocks.some((block) =>
+                block.operations.some(
+                    (op) =>
+                        op.kind === "readGlobalProperty" &&
+                        op.name === "__nonaWin32Settings",
+                ),
+            ),
+        )
+    ) {
+        if (currentNativeTarget() !== "win32-x64" || options.agent)
+            throw new CompileError([
+                {
+                    code: "E_HOST_MODULE",
+                    message:
+                        "Win32 settings requires the main Windows x64 JavaScript thread",
+                    file: "nona:win32/settings",
+                    span: { start: 0, end: 0 },
+                },
+            ]);
+        const helpers = win32SettingsHelpers().bundle;
+        fragments.push(...helpers.fragments);
+        functions.push(...helpers.functions);
+        runtime.imports.push(...helpers.imports);
+        hostGlobal("__nonaWin32Settings", "win32.settings.code", 1);
     }
     if (hasPrelude && linked.includes("encoding")) {
         // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.

@@ -68,3 +68,5 @@ complete supported API and limitations.
 - `node:module`: `builtinModules` और `isBuiltin`। `createRequire` एक `require` लौटाता है जो केवल वे मॉड्यूल रिज़ॉल्व करता है जो प्रोग्राम बनाते समय उसमें होते हैं; कोई भी अन्य आईडी `MODULE_NOT_FOUND` थ्रो करती है।
 - `node:worker_threads`: `isMainThread` `true` है, `parentPort` और `workerData` `null` हैं; `Worker` `ERR_NONA_UNSUPPORTED` थ्रो करता है।
 - `node:child_process`: `spawn`, `exec`, `execFile`, उनके सिंक्रोनस रूप और `ChildProcess` Windows और Linux (x64) पर दूसरे प्रोग्राम चलाते हैं; `fork`, IPC और अन्य टारगेट `ERR_NONA_UNSUPPORTED` थ्रो करते हैं। विवरण: [Child processes](/reference/host-apis#child-processes)।
+
+`nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).
