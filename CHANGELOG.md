@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add `nona:win32/settings`, a Windows x64 modeless settings bridge with a
+  checkbox, seven choices, Save/Cancel, deferred native events, keyboard
+  navigation and explicit disposal. Include a GUI-subsystem sample, a documented
+  thread/lifetime/exception contract and hosted Windows control regressions in
+  normal and GC-stress modes. ([#649](https://github.com/40oleg/nona/issues/649))
 - Document when contributors and harness workers must update subsystem references, with a worked numeric IR guarantee and reassignment boundary. ([#648](https://github.com/40oleg/nona/issues/648))
 
 ## v0.35.0 — 2026-11-18

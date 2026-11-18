@@ -1,5 +1,14 @@
 # Host APIs
 
+Windows x64 programs can import `SettingsWindow` from `nona:win32/settings`
+for a modeless checkbox/seven-choice settings dialog. Windows belong to the
+main JavaScript thread, with native-only synchronous procedures and deferred
+I/O-poller delivery. Save returns draft values; Cancel and close discard them.
+Open windows keep the process alive; explicit close/dispose leaves background
+work running. Other targets, including Windows ARM64, reject the import.
+See the [full event, exception, lifetime and progress contract](win32-settings.md)
+and [GUI sample](../site/samples/settings.win32.mjs).
+
 The process adapter provides native signal delivery and independently registered
 diagnostic reports. Reports contain Nona allocator, OS resource and network
 snapshots; fatal output uses static native storage. See [process](process.md).

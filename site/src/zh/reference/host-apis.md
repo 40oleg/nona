@@ -68,3 +68,5 @@ complete supported API and limitations.
 - `node:module`：`builtinModules` 和 `isBuiltin`。`createRequire` 返回的 `require` 只解析程序在构建时包含的模块；其他标识符抛出 `MODULE_NOT_FOUND`。
 - `node:worker_threads`：`isMainThread` 为 `true`，`parentPort` 和 `workerData` 为 `null`；`Worker` 抛出 `ERR_NONA_UNSUPPORTED`。
 - `node:child_process`：`spawn`、`exec`、`execFile`、它们的同步版本和 `ChildProcess` 可在 Windows 和 Linux (x64) 上运行其他程序；`fork`、IPC 和其他目标会抛出 `ERR_NONA_UNSUPPORTED`。详见 [Child processes](/reference/host-apis#child-processes)。
+
+`nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).

@@ -127,6 +127,10 @@ The output cannot replace any file successfully read for compilation or package 
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
+Windows x64 also supports a [modeless settings window](docs/win32-settings.md)
+with a checkbox, seven choices and Save/Cancel. The [GUI sample](site/samples/settings.win32.mjs)
+keeps a background timer running, discards cancelled drafts and reopens safely.
+
 The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 
 ## Performance

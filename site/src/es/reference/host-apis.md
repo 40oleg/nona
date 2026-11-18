@@ -68,3 +68,5 @@ Estos módulos existen sobre todo para los [paquetes npm](/reference/npm), que l
 - `node:module`: `builtinModules` e `isBuiltin`. `createRequire` devuelve un `require` que solo resuelve los módulos que el programa contiene al compilarse; cualquier otro identificador lanza `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` es `true`, `parentPort` y `workerData` son `null`; `Worker` lanza `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: `spawn`, `exec`, `execFile`, sus variantes síncronas y `ChildProcess` ejecutan otros programas en Windows y Linux (x64); `fork`, el IPC y los demás destinos lanzan `ERR_NONA_UNSUPPORTED`. Detalles en [Child processes](/reference/host-apis#child-processes).
+
+`nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).

@@ -55,3 +55,5 @@ Path does not initialize the full process object. [Full reference](https://githu
 - `node:module`: `builtinModules` و`isBuiltin`. يُرجع `createRequire` دالة `require` لا تحلّ إلا الوحدات التي يحويها البرنامج عند بنائه، وأي معرّف آخر يرمي `MODULE_NOT_FOUND`.
 - `node:worker_threads`: `isMainThread` تساوي `true`، و`parentPort` و`workerData` تساويان `null`؛ وترمي `Worker` الخطأ `ERR_NONA_UNSUPPORTED`.
 - `node:child_process`: تعمل `spawn` و`exec` و`execFile` ونسخها المتزامنة و`ChildProcess` على تشغيل برامج أخرى في Windows وLinux (x64)؛ أما `fork` وIPC والمنصات الأخرى فتُطلق `ERR_NONA_UNSUPPORTED`. التفاصيل في [Child processes](/reference/host-apis#child-processes).
+
+`nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).

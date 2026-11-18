@@ -110,3 +110,5 @@ SystemParametersInfoW(
 ```
 
 `nona:win32` declara DLL, por lo que importarlo requiere un destino Windows.
+
+`nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).

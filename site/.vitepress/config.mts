@@ -94,6 +94,11 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
                 { text: s.fs, link: `${p}/reference/fs` },
                 { text: s.network, link: "/reference/network" },
                 { text: s.ffi, link: `${p}/reference/ffi` },
+                // Shared English contract until the API page is translated.
+                {
+                    text: "Win32 settings (x64)",
+                    link: "/reference/win32-settings",
+                },
             ],
         },
         {

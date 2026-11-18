@@ -278,6 +278,7 @@
                 "fast-paths",
                 "ffi",
                 "ffi-posix",
+                "win32-settings",
                 "finally",
                 "for-in",
                 "for-of",
