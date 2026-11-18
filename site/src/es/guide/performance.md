@@ -9,7 +9,7 @@ La comparación con C++ optimizado (aritmética, llamadas y cadenas UTF-16; 2026
 :::
 
 ::: warning
-Los resultados de la versión actual, las versiones de Node.js, Deno y Bun, el commit medido y el método están en la [página en inglés](/guide/performance). Abajo se conserva la traducción histórica de las mediciones de v0.7.0; sus cifras no corresponden a la versión actual.
+Los resultados de v0.35.0 del 2026-11-17, las versiones de Node.js, Deno y Bun, el commit medido y los hashes de los artefactos están en la [página en inglés](/guide/performance). Abajo se conserva la traducción histórica de las mediciones de v0.7.0; sus cifras no corresponden a la versión actual.
 :::
 
 Medido el 2026-10-01 con Nona `v0.7.0` (commit `b31c4d6`). Los scripts están en [`bench/`](https://github.com/40oleg/nona/blob/main/bench/); `node bench/run.mjs` reproduce todas las tablas de abajo.
