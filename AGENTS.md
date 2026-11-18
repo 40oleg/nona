@@ -105,6 +105,29 @@ exactly.
   `site/src/<locale>/` too, or at least keep them consistent with it (see
   `site/README.md`).
 
+## Subsystem guarantees
+
+Contributors and harness workers must update the relevant reference in the same
+PR whenever a change introduces or alters a guarantee that another component,
+tool or contributor relies on. This applies across Nona, including IR, GC,
+calling conventions, executable formats and release tooling.
+
+- Start at the [documentation index](docs/README.md): existing references include
+  [architecture and IR](docs/architecture.md#ir-optimization),
+  [runtime memory and GC](docs/runtime-memory.md),
+  [calling conventions](docs/architecture.md#code-generation-and-calling-convention),
+  [Windows executables](docs/windows-executables.md) and
+  [native platforms](docs/native-platforms.md); see also the [release rules](#releases).
+  Extend the relevant reference where possible. If none fits, create a focused
+  reference under `docs/` and link it from `docs/README.md`.
+- Before recording a previously undocumented guarantee, confirm its intended
+  behavior against the design, tests or an owner decision. If implementation and
+  documentation disagree and intent is unclear, surface the discrepancy for a
+  decision. A refactor preserving a documented guarantee needs no specification edit.
+- Describe who establishes the guarantee, who relies on it and where it does not
+  apply; link an existing check or test when available. See the
+  [numeric IR example](docs/architecture.md#numeric-ir-guarantee).
+
 ## Releases
 
 - Finish the current release before starting issue implementation, PR maintenance

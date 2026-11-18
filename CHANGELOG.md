@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Document when contributors and harness workers must update subsystem references, with a worked numeric IR guarantee and reassignment boundary. ([#648](https://github.com/40oleg/nona/issues/648))
+
 ## v0.35.0 — 2026-11-18
 
 ### Release scope

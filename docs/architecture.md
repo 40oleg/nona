@@ -157,6 +157,49 @@ A function object is an object followed by the fields below (`src/runtime/functi
 
 A temporary defined once by a constant has no frame location: the code generator keeps its Value in read-only data. Blocks are emitted in IR order, and a jump or the last conditional jump of a branch to the block emitted next is left out. A strict equality with an `undefined`, `null`, Boolean or Number constant operand is an inline tag test (with `ucomisd` for Numbers) instead of a call to `rt.strictEquals`; when the result only decides the block's branch, the test jumps to the branch targets directly. `switch` cases with such constants benefit the same way.
 
+### Numeric IR guarantee
+
+The binary operation's optional `numeric` annotation in
+[`src/ir/model.ts`](../src/ir/model.ts) guarantees that **both operands are
+Numbers at that operation on every incoming path**. The producer is
+[`src/ir/numbers.ts`](../src/ir/numbers.ts): `numberStates()` computes a forward
+must-analysis, intersecting Number facts at control-flow joins, and
+`markNumericOperations()` checks the facts at each operation before annotating
+supported binary operators. A `typeof x === "number"` guard establishes a fact
+only on the edge where it holds; assignments update or invalidate that fact.
+
+The consumer is [`src/backend/x64/operations.ts`](../src/backend/x64/operations.ts).
+For annotated addition, it uses `emitKnownNumberBinary()` to emit arithmetic
+without operand tag checks or the generic runtime fallback. An unproven addition
+must retain generic JavaScript behavior, including string concatenation.
+
+```js
+function guarded(x) {
+    if (typeof x !== "number") return 0;
+    return x * 2 + 1;
+}
+
+function reassigned(x) {
+    if (typeof x === "number") {
+        x = String(x);
+    }
+    return x + 1;
+}
+```
+
+In `guarded`, both operands of `x * 2` are proven Numbers, as are its result and
+the literal `1` used by the addition. Both operations qualify for `numeric`.
+In `reassigned`, the guard's fact no longer holds after `x = String(x)`, and the
+other incoming path provides no Number proof either. The final `x + 1` must stay
+unannotated: `reassigned(3)` returns `"31"`.
+
+[`tests/ir-number-facts.test.ts`](../tests/ir-number-facts.test.ts) confirms the
+intended behavior: "operations on guarded and Number-producing values are inline
+Number operations" asserts the guarded multiplication and addition annotations;
+"values that may be strings, BigInts or reassigned are not Numbers" asserts the
+absence of `numeric` on the reassigned addition. Its semantic test also compares
+these functions with Node.js under GC stress.
+
 ### Register-resident Numbers (#424)
 
 The last pass, `src/ir/representations.ts` (header comment: the proofs), annotates the IR; `src/backend/x64/register-loops.ts` (header comment: the code shape) and `operations.ts` use it. It changes no operation.
