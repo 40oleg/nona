@@ -127,10 +127,10 @@ nona --help | --version
 
 **Программы для Windows** могут быть оконными, без консоли (`--subsystem windows`), и содержать иконку, манифест и сведения о версии ([исполняемые файлы Windows](docs/windows-executables.md)).
 
-Windows x64 supports a [modeless settings window](docs/win32-settings.md)
-with a checkbox, seven choices and Save/Cancel. The [GUI sample](site/samples/settings.win32.mjs)
-keeps timers running, discards cancelled drafts and demonstrates reopening and
-explicit disposal. Windows ARM64 and other targets reject this API.
+Windows x64 также поддерживает [немодальное окно настроек](docs/win32-settings.md)
+с флажком, семью вариантами и кнопками Save/Cancel. [Пример](site/samples/settings.win32.mjs)
+показывает работу фонового таймера, отмену изменений, повторное открытие и
+явное освобождение ресурсов. Windows ARM64 и другие цели отклоняют этот API.
 
 Точное поведение и покрытие тестами — в [матрице поддержки языка](https://40oleg.github.io/nona/guide/language-support). Неподдерживаемый синтаксис отклоняется при компиляции.
 

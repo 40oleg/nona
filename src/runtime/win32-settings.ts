@@ -191,6 +191,13 @@ export function win32SettingsHelpers(): RuntimeBuilder {
         a.label(done);
     });
     // Builtin ABI: out Value*, argc, argv. One private Uint16Array(1536).
+    // Words 0..3: operation (open/close/poll/status), checked, choice, wait ms.
+    // Nine NUL-terminated 128-word text fields start at word 16 (title,
+    // checkbox, seven choices). Status reuses the title field. Return 0 for
+    // success/no event, -1 for failure, or type | checked<<3 | choice<<4;
+    // terminal types are Save=1, Cancel=2, Close=3.
+    // Frame: outgoing arguments at 32, MSG at 64..111, out at 128, borrowed
+    // buffer at 136, message quota at 144. No pointers survive this call.
     b.fn(s("code"), 168, (a) => {
         a.store(slot(128), "rcx");
         a.cmp("rdx", 1);
@@ -255,6 +262,8 @@ export function win32SettingsHelpers(): RuntimeBuilder {
         a.jcc("e", success);
         a.lea("rdx", { base: "r10", disp: 32 });
         api(a, "SetWindowTextW");
+        a.test("rax", "rax");
+        a.jcc("e", error);
         a.jmp(success);
         a.label(open);
         a.load("rax", memory("hwnd"));

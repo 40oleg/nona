@@ -33,6 +33,7 @@ if this or another settings window is already open, or after disposal. A
 failed native creation throws and releases all partially created controls;
 another open can be attempted. `isOpen` reflects the JavaScript session.
 `setStatus(text)` updates the visible status line while open (same text limit).
+If a native text update fails it throws, leaving the session open for retry or close.
 Closing and disposal are idempotent. Disposed instances cannot reopen.
 
 Save commits nothing automatically: its event contains the selected Boolean
@@ -68,10 +69,15 @@ The session is detached before calling `onEvent`, so handlers can close,
 dispose or reopen safely. Each ready event carries its JavaScript session
 identity; closing/disposal invalidates it, and it cannot affect a later open.
 The native slot is cleared before reuse. No event is delivered for explicit
-`close()` or `dispose()`. Exceptions in the listener follow the existing I/O
-poller's `uncaughtException` policy; they never unwind through Win32 frames.
+`close()` or `dispose()`. The listener runs synchronously with the
+`SettingsWindow` as `this`; its return value, including a Promise, is ignored.
+Synchronous listener exceptions follow the existing I/O poller's
+`uncaughtException` policy; they never unwind through Win32 frames. A rejected
+Promise follows the normal unhandled-rejection policy.
 Microtasks drain after the event (also after a handled exception), before the
-next I/O event. Unhandled exceptions terminate normally under Nona's policy.
+next I/O event. A handler that reopens synchronously finishes before its queued
+Promise jobs run; a reopen scheduled by a timer runs after those jobs. Unhandled
+exceptions terminate normally under Nona's policy.
 
 An open session and its pending event keep the process alive. A closed or
 disposed instance does not; keep a referenced timer or other I/O handle if

@@ -36,7 +36,7 @@ function runLocal(image: Uint8Array) {
         const executable = join(directory, "settings.exe");
         writeFileSync(executable, image);
         return spawnSync(executable, [], {
-            timeout: 10000,
+            timeout: 60_000,
             encoding: "utf8",
             windowsHide: true,
         });
@@ -61,16 +61,21 @@ function hiddenProgram(
     replaceImport(program, "win32.settings.ShowWindow", "settings.test.hide");
     if (failCreation) {
         b.data("settings.test.textCalls", new Uint8Array(8), ".data");
-        // Fail the checkbox text update after the parent and every child
-        // already exist. The retry forwards to the real user32 function.
+        // Fail the first checkbox text update after every child exists, then
+        // the first status update after a successful retry. Other calls forward
+        // to the real user32 function.
         b.fn("settings.test.setText", 40, (a) => {
             const forward = a.unique("forward"),
+                fail = a.unique("fail"),
                 done = a.unique("done");
             a.load("rax", { rip: "settings.test.textCalls" });
             a.add("rax", 1);
             a.store({ rip: "settings.test.textCalls" }, "rax");
             a.cmp("rax", 2);
+            a.jcc("e", fail);
+            a.cmp("rax", 5);
             a.jcc("ne", forward);
+            a.label(fail);
             // BOOL result: upper register bits are outside its ABI contract.
             a.mov("rax", 0xfeedbeef00000000n);
             a.jmp(done);
@@ -134,6 +139,10 @@ for (const gcStress of [false, true])
         try {window.open({checked:false,choice:6});} catch(e) {failed=true;}
         console.log('partial',failed,find(null,title)===0);
         window.open({checked:false,choice:6});
+        let statusFailed=false;
+        try {window.setStatus('failed');} catch(e) {statusFailed=true;}
+        console.log('status',statusFailed,window.isOpen);
+        window.setStatus('ready');
         const hwnd=find(null,title), pid=new Uint32Array(1); owner(hwnd,pid);
         if(!hwnd || pid[0]!==process.pid) process.exit(93);
         const checkbox=item(hwnd,100), save=item(hwnd,1);
@@ -151,10 +160,66 @@ for (const gcStress of [false, true])
             assert.equal(run.status, 0, run.stderr);
             assert.equal(
                 run.stdout.replaceAll("\r", ""),
-                "partial true true\nsave true 6\nfairness true true\ncaught\nmicrotask\ntimer\n",
+                "partial true true\nstatus true true\nsave true 6\nfairness true true\ncaught\nmicrotask\ntimer\n",
             );
         },
     );
+
+for (const gcStress of [false, true]) {
+    for (const unhandled of [false, true])
+        test(
+            `settings alone keeps the loop alive; listener failure ${unhandled} (GC stress ${gcStress})`,
+            { skip: process.platform !== "win32" || process.arch !== "x64" },
+            () => {
+                const program = hiddenProgram(
+                    `import {SettingsWindow} from 'nona:win32/settings';
+import {define} from 'nona:ffi';
+const find=define('user32.dll','FindWindowW','ptr(wstr,wstr)');
+const item=define('user32.dll','GetDlgItem','ptr(ptr,i32)');
+const post=define('user32.dll','PostMessageW','bool(ptr,u32,ptr,ptr)');
+const title='NonaLifetime-'+process.pid;
+const window=new SettingsWindow({title,choices:['0','1','2','3','4','5','6'],onEvent(e){
+    console.log('event',e.type,window.isOpen);
+    window.dispose();
+    ${unhandled ? "throw new Error('unhandled settings listener');" : "Promise.resolve().then(() => console.log('last job'));"}
+}});
+window.open({checked:false,choice:0});
+const cancel=item(find(null,title),2);
+post(cancel,0x201,1,0x80008);post(cancel,0x202,0,0x80008);
+// No referenced timer or other poller: only the open session keeps us alive.
+`,
+                    gcStress,
+                );
+                const run = runLocal(linkPe(program, { subsystem: "windows" }));
+                assert.equal(run.error, undefined);
+                assert.equal(
+                    run.stdout.replaceAll("\r", ""),
+                    "event cancel false\n" + (unhandled ? "" : "last job\n"),
+                );
+                if (unhandled) {
+                    assert.notEqual(run.status, 0);
+                    assert.match(run.stderr, /unhandled settings listener/);
+                } else assert.equal(run.status, 0, run.stderr);
+            },
+        );
+    test(
+        `explicit process exit with an open settings window (GC stress ${gcStress})`,
+        { skip: process.platform !== "win32" || process.arch !== "x64" },
+        () => {
+            const program = hiddenProgram(
+                `import {SettingsWindow} from 'nona:win32/settings';
+const window=new SettingsWindow({choices:['0','1','2','3','4','5','6'],onEvent(){process.exit(95);}});
+window.open({checked:true,choice:6});
+Promise.resolve().then(() => {console.log('exit',window.isOpen);process.exit(0);});`,
+                gcStress,
+            );
+            const run = runLocal(linkPe(program, { subsystem: "windows" }));
+            assert.equal(run.error, undefined);
+            assert.equal(run.status, 0, run.stderr);
+            assert.equal(run.stdout.replaceAll("\r", ""), "exit true\n");
+        },
+    );
+}
 
 test("settings bridge links only on Windows x64 and supports the GUI subsystem", () => {
     const result = compile(source, {
@@ -329,7 +394,7 @@ class Lines {
             this.error = error;
         });
     }
-    async next(pattern: RegExp, timeout = 10_000): Promise<string> {
+    async next(pattern: RegExp, timeout = 30_000): Promise<string> {
         const deadline = Date.now() + timeout;
         for (;;) {
             if (this.error) throw this.error;
@@ -356,21 +421,32 @@ class Lines {
     }
 }
 async function stop(child: ChildProcessWithoutNullStreams) {
-    if (child.exitCode !== null || child.pid === undefined) return;
-    const closed = new Promise<void>((resolve) =>
-        child.once("close", () => resolve()),
-    );
+    if (
+        child.exitCode !== null ||
+        child.signalCode !== null ||
+        child.pid === undefined
+    )
+        return;
+    const closed = exited(child);
     child.kill();
-    await Promise.race([
-        closed,
-        new Promise<never>((_, reject) => {
-            const timer = setTimeout(
-                () => reject(new Error("Child cleanup timed out")),
-                5000,
-            );
-            timer.unref();
-        }),
-    ]);
+    await closed;
+}
+async function exited(
+    child: ChildProcessWithoutNullStreams,
+): Promise<number | null> {
+    if (child.exitCode !== null || child.signalCode !== null)
+        return child.exitCode;
+    return new Promise((resolve, reject) => {
+        const finish = (code: number | null) => {
+            clearTimeout(timer);
+            resolve(code);
+        };
+        const timer = setTimeout(() => {
+            child.off("close", finish);
+            reject(new Error("Application exit timed out"));
+        }, 5000);
+        child.once("close", finish);
+    });
 }
 const application = `import { SettingsWindow } from 'nona:win32/settings';
 let saved={checked:false,choice:0}, stage=0, ticks=0, promises=0, window;
@@ -378,9 +454,9 @@ process.on('uncaughtException', e => {
     if (e.message !== 'expected listener failure') process.exit(90);
     console.log('CAUGHT');
 });
-const background=setInterval(() => { ticks++; Promise.resolve().then(() => {promises++; window.setStatus('T='+ticks+';P='+promises);}); },10);
+const background=setInterval(() => { ticks++; Promise.resolve().then(() => {promises++; if(window.isOpen) window.setStatus('T='+ticks+';P='+promises);}); },10);
 function open() {
-    window=new SettingsWindow({title:'NonaSettings:'+stage, choices:['0','1','2','3','4','5','6'],onEvent(e) {
+    window=new SettingsWindow({title:'NonaSettings:'+process.pid+':'+stage, choices:['0','1','2','3','4','5','6'],onEvent(e) {
         console.log('EVENT',stage,e.type,e.checked,e.choice,ticks,promises);
         if(e.type==='save') saved={checked:e.checked,choice:e.choice};
         console.log('SAVED',stage,saved.checked,saved.choice);
@@ -397,7 +473,62 @@ function open() {
     console.log('READY',stage,ticks,promises);
 }
 open();
-setTimeout(() => {window.dispose();process.exit(91);},30000);`;
+setTimeout(() => {window.dispose();process.exit(91);},120000);`;
+
+for (const gcStress of [false, true])
+    test(
+        `settings controller application survives disposed intervals (GC stress ${gcStress})`,
+        { skip: process.platform !== "win32" || process.arch !== "x64" },
+        () => {
+            // Exercise the same application/lifecycle protocol locally without
+            // showing windows or taking focus. Keyboard and visible control
+            // assertions remain in the hosted controller regression below.
+            const program = hiddenProgram(
+                application +
+                    `
+import {define} from 'nona:ffi';
+const find=define('user32.dll','FindWindowW','ptr(wstr,wstr)');
+const item=define('user32.dll','GetDlgItem','ptr(ptr,i32)');
+const post=define('user32.dll','PostMessageW','bool(ptr,u32,ptr,ptr)');
+const owner=define('user32.dll','GetWindowThreadProcessId','u32(ptr,buf)');
+const pid=new Uint32Array(1);
+setInterval(() => {
+    const hwnd=find(null,'NonaSettings:'+process.pid+':'+stage);
+    if(!hwnd) return;
+    owner(hwnd,pid);
+    if(pid[0]!==process.pid) process.exit(96);
+    const cancel=item(hwnd,2);
+    post(cancel,0x201,1,0x80008);post(cancel,0x202,0,0x80008);
+},50);`,
+                gcStress,
+            );
+            const run = runLocal(linkPe(program, { subsystem: "windows" }));
+            assert.equal(run.error, undefined);
+            assert.equal(run.status, 0, run.stderr);
+            const lines = run.stdout.replaceAll("\r", "").trim().split("\n");
+            for (let stage = 0; stage <= 15; stage++) {
+                assert.ok(lines.includes(`SAVED ${stage} false 0`), run.stdout);
+                assert.ok(lines.includes(`MICRO ${stage}`), run.stdout);
+                const event = lines.find((line) =>
+                    line.startsWith(`EVENT ${stage} `),
+                );
+                assert.ok(event, run.stdout);
+                assert.match(
+                    event,
+                    /^EVENT \d+ cancel undefined undefined [1-9]\d* [1-9]\d*$/,
+                );
+                assert.ok(
+                    lines.indexOf(event) < lines.indexOf(`MICRO ${stage}`),
+                );
+            }
+            assert.equal(
+                lines.filter((line) => line.startsWith("EVENT ")).length,
+                16,
+            );
+            assert.equal(lines.filter((line) => line === "CAUGHT").length, 1);
+            assert.match(lines.at(-1)!, /^EXIT [1-9]\d* [1-9]\d*$/);
+        },
+    );
 
 for (const gcStress of [false, true])
     test(
@@ -407,7 +538,7 @@ for (const gcStress of [false, true])
                 process.platform !== "win32" ||
                 process.arch !== "x64" ||
                 process.env.NONA_WIN32_GUI_TESTS !== "1",
-            timeout: 60_000,
+            timeout: 180_000,
         },
         async () => {
             // Keep every artifact in this checkout, including the controller process.
@@ -455,7 +586,7 @@ for (const gcStress of [false, true])
                     command: string,
                     expected: (value: string) => boolean,
                 ) => {
-                    const deadline = Date.now() + 5000;
+                    const deadline = Date.now() + 10_000;
                     for (;;) {
                         const value = await driver.command(command);
                         if (expected(value)) return value;
@@ -471,7 +602,7 @@ for (const gcStress of [false, true])
                     if (stage > 0)
                         await output.next(new RegExp("^READY " + stage + " "));
                     await waitFor(
-                        "find NonaSettings:" + stage,
+                        "find NonaSettings:" + app.pid + ":" + stage,
                         (value) => value !== "0",
                     );
                     assert.equal(await driver.command("visible"), "True");
@@ -482,6 +613,14 @@ for (const gcStress of [false, true])
                     const ticks = Number(state.split("T=")[1]!.split(";")[0]);
                     assert.ok(ticks > previousTicks);
                     previousTicks = ticks;
+                    // Every reopen starts from the committed state, including
+                    // after Cancel/Escape/title-bar close changed the draft.
+                    const expectedChoice =
+                        stage === 0 ? 0 : Math.min(stage - 1, 6);
+                    const expectedCheck =
+                        stage === 0 ? 0 : stage <= 7 ? stage % 2 : 1;
+                    assert.equal(Number(state.split("|")[0]), expectedCheck);
+                    assert.equal(Number(state.split("|")[1]), expectedChoice);
                     if (stage <= 6) {
                         // Initial checkbox focus, Space or real mouse button messages.
                         if (stage % 2 === 0) await driver.command("mouse 100");
@@ -544,17 +683,31 @@ for (const gcStress of [false, true])
                             ),
                         );
                     } else {
-                        if (stage === 7 || stage === 8) {
+                        if (stage >= 7 && stage <= 9) {
                             await driver.command("mouse 100"); // cancelled draft differs
                             await waitFor("state", (value) =>
                                 value.startsWith("0|"),
+                            );
+                            await driver.command("key 9");
+                            await waitFor("focus", (value) => value === "101");
+                            await driver.command("key 36");
+                            await waitFor("state", (value) =>
+                                value.startsWith("0|0|"),
                             );
                         }
                         if (stage === 9) await driver.command("close");
                         else if (stage === 10)
                             await driver.command("key 13"); // default Save
                         else if (stage === 8) await driver.command("mouse 2");
-                        else await driver.command("key 27");
+                        else if (stage === 11) {
+                            // Tab through the combo and Save to Cancel, then
+                            // Enter must activate the focused button.
+                            for (const id of ["101", "1", "2"]) {
+                                await driver.command("key 9");
+                                await waitFor("focus", (value) => value === id);
+                            }
+                            await driver.command("key 13");
+                        } else await driver.command("key 27");
                         const type =
                             stage === 9
                                 ? "close"
@@ -572,12 +725,7 @@ for (const gcStress of [false, true])
                     await output.next(new RegExp("^MICRO " + stage + "$"));
                 }
                 await output.next(/^EXIT /);
-                const exit =
-                    app.exitCode === null
-                        ? await new Promise<number | null>((resolve) =>
-                              app!.once("close", resolve),
-                          )
-                        : app.exitCode;
+                const exit = await exited(app);
                 assert.equal(exit, 0, output.stderr);
                 assert.equal(
                     output.lines.filter((line) => line.startsWith("EVENT"))

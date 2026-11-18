@@ -10,13 +10,13 @@ public static class SettingsController {
     public delegate bool EnumProc(IntPtr h, IntPtr arg);
     [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr arg);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-    [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder text, int size);
     [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr h, int id);
     [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr h);
     [DllImport("user32.dll")] static extern bool IsChild(IntPtr parent, IntPtr child);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
     [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr h, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out UIntPtr result);
+    [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)] static extern IntPtr ReadText(IntPtr h, uint msg, IntPtr w, StringBuilder text, uint flags, uint timeout, out UIntPtr result);
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int l,t,r,b; }
     [StructLayout(LayoutKind.Sequential)] struct GuiInfo {
         public uint size,flags; public IntPtr active,focus,capture,menuOwner,moveSize,caret; public Rect rect;
@@ -35,7 +35,13 @@ public static class SettingsController {
         },IntPtr.Zero);
         return found;
     }
-    static string Text(IntPtr h) { var text=new StringBuilder(512); GetWindowText(h,text,512); return text.ToString(); }
+    static string Text(IntPtr h) {
+        // WM_GETTEXT is marshalled across processes for both captions and
+        // child controls. Keep the read bounded if the application stalls.
+        var text=new StringBuilder(512); UIntPtr length;
+        if(ReadText(h,0xd,(IntPtr)text.Capacity,text,2,1000,out length)==IntPtr.Zero) throw new Exception("text timeout");
+        return text.ToString();
+    }
     static long Query(IntPtr h,uint msg) {
         UIntPtr value;
         if(SendMessageTimeout(h,msg,IntPtr.Zero,IntPtr.Zero,2,1000,out value)==IntPtr.Zero) throw new Exception("query timeout");
