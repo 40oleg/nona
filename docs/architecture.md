@@ -141,6 +141,13 @@ A function object is an object followed by the fields below (`src/runtime/functi
 
 ## IR optimization
 
+The [Lean proof scope and acceptance criteria](formal-verification.md) distinguish
+the checked pure, straight-line move-rule model from planned production-guard
+correspondence and int32 remainder, mask and switch-dispatch proofs. When a
+covered rule changes, review its assumptions, matching production tests and Lean
+statement in the same PR. Model verification does not replace tests of the
+production compiler or Node/native and OS integration checks.
+
 `optimizeFunction()` in `src/ir/lower.ts` runs these passes on every function after lowering, in this order; `annotateDirectCalls()` then runs once over the module, followed by `inlineDirectCalls()`, which optimizes every caller it changes again. Each pass keeps ECMAScript semantics exactly: it only uses facts that hold on every path, and an operation that could run user code (a conversion of an object, a getter, a Proxy trap) or throw is never assumed to be pure. The catalogue of further transformations and their correctness conditions is [#146](https://github.com/40oleg/nona/issues/146).
 
 | Pass               | File                    | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |

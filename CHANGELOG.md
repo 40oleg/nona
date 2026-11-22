@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Document Lean proof scope, planned coverage and acceptance criteria, including the fractional switch counterexample and required production regressions. ([#654](https://github.com/40oleg/nona/issues/654))
+
 - Add `nona:win32/settings`, a Windows x64 modeless settings bridge with a
   checkbox, seven choices, Save/Cancel, deferred native events, keyboard
   navigation and explicit disposal. Include a GUI-subsystem sample, a documented

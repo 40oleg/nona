@@ -127,6 +127,11 @@ calling conventions, executable formats and release tooling.
 - Describe who establishes the guarantee, who relies on it and where it does not
   apply; link an existing check or test when available. See the
   [numeric IR example](docs/architecture.md#numeric-ir-guarantee).
+- Follow the [Lean proof scope and acceptance criteria](docs/formal-verification.md)
+  for compiler rules covered by formal verification. Whenever a covered rule
+  changes, review its assumptions, matching production tests and Lean statement
+  in the same PR. Keep checked model guarantees distinct from planned production
+  correspondence and numeric proofs.
 
 ## Releases
 
