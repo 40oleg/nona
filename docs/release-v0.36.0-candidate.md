@@ -8,13 +8,19 @@ The source worker must commit without pushing or opening a PR; the existing
 harness/coordinator performs those operations. No tag or release is authorized
 for the source worker.
 
-**Local commit blocker:** staging was attempted after verification, but Git
-could not create the shared worktree's `index.lock`: permission denied. Its
-Git metadata lives outside this sandbox's writable checkout. No commit was
-created, no branch/ref was changed and no permission bypass was attempted.
-The coordinator must stage and commit these prepared files before pushing.
-An all-files patch is retained in ignored
-`work/release-656-evidence/candidate.patch` for that handoff.
+The coordinator committed the initial preparation as
+**`15b7f4b397dc3d20644beb2b0ec8e71e4ffd0e13`** and opened draft
+[PR #657](https://github.com/40oleg/nona/pull/657). Its head matches this
+checkout. The earlier local staging failure did not prevent that coordinator
+handoff. This review worker must still commit locally without pushing,
+opening another PR, tagging or publishing.
+
+**Review-update commit blocker:** staging the review document failed with
+permission denied while creating the shared worktree's `index.lock` outside
+the writable checkout. No review commit was created and no permission bypass
+was attempted. The current review diff is retained in ignored
+`work/release-656-evidence/review-update.patch`; the coordinator must stage
+and commit it through its normal worktree access.
 
 ## Ownership and scope
 
@@ -75,9 +81,28 @@ prioritize any current-release CI failure before proceeding.
 
 ## Hosted benchmark status
 
+Review readback at **05:54 UTC on 2026-11-23** found the candidate's
+[release-benchmark run 45120442439](https://github.com/40oleg/nona/actions/runs/45120442439)
+**queued**, with no conclusion and **zero artifacts**. It was created at
+05:52:06 UTC for the exact committed version-0.36.0 candidate
+**`15b7f4b397dc3d20644beb2b0ec8e71e4ffd0e13`**. The workflow checks out the
+PR head SHA and runs all seven report suites and both HTTP generators on
+one GitHub-hosted runner. Reuse this run; a duplicate dispatch is unnecessary.
+Neither completed measurements nor successful candidate validation can be
+claimed while it is queued. The review's blocking performance-refresh finding
+therefore remains open until its terminal result and complete artifacts have
+been verified and the tables below have been replaced.
+
+PR #657 is **draft**, uses `Part of #656`, and has exactly the
+**documentation** type plus **complex, full-ci, gc-stress**, with milestone
+**v0.36.0**. These were read back from GitHub. The applicable candidate check,
+corpus, formal-verification, pages, semantic-replay, native-platforms,
+self-hosting and HTTP runs were also still queued. They are not successful
+validation receipts. This worker has not pushed or changed the PR.
+
 The earlier [main run 45116873583](https://github.com/40oleg/nona/actions/runs/45116873583)
 was still **in progress, with no terminal conclusion**, when rechecked at
-05:49 UTC on 2026-11-23. Its report step succeeded and its load-generator
+05:54 UTC on 2026-11-23. Its report step succeeded and its load-generator
 HTTP step was running; wrk, completeness validation and final evidence upload
 were pending. Do not infer workflow success from the report artifact.
 
@@ -138,19 +163,27 @@ full suite was run. The CLI test was **not executed locally**; its execution
 and full/native validation remain hosted. Local commands use concurrency 1
 and BelowNormal priority; no background workload is started.
 
+The review update reran the sequential source audit, changed-file Prettier,
+site document synchronization, `npm run check:doc-links` (1,679 links in 313
+documents) and `git diff --check`; all passed. The source audit checked
+package/lock/generated-version consistency without building the compiler and
+reconfirmed that the available checkpoint measures **0.35.0**, lacks HTTP
+evidence and has no final validator result. It is not a candidate benchmark
+pass. The GitHub CLI is authenticated, but the recorded launcher PID remains
+unavailable to this worker; no live harness-health claim is made.
+
 ## Coordinator handoff and remaining gates
 
 1. Recheck the existing harness process, recent logs, actual #656 activity and
-   current-main CI. Report any authentication/startup blocker plainly. Reuse
-   exactly one draft PR, or have the harness open one titled
-   **`[nona] Release v0.36.0`**, targeting `main` on this existing branch.
-   Verify exactly the **documentation** type, **complex**, milestone
-   **v0.36.0**, and **full-ci, gc-stress**. Add/read back the two CI labels
-   before the relevant CI-triggering push. If an initial push is needed to
-   bootstrap PR creation, its unlabeled runs do not satisfy final validation.
+   current-main CI. Report any authentication/startup blocker plainly. Preserve
+   existing draft **PR #657**, targeting `main` on this branch, titled
+   **`[nona] Release v0.36.0`**. Recheck exactly the **documentation** type,
+   **complex**, milestone **v0.36.0**, and **full-ci, gc-stress** before the
+   relevant CI-triggering push. Initial unlabeled runs do not satisfy final
+   validation.
    Use `Part of #656` while preparation remains incomplete; change it to
    `Closes #656` only after preparation and review are complete.
-2. Push the committed 0.36.0 candidate through the harness and use the existing
+2. Await existing candidate **run 45120442439** of the
    [release-benchmark workflow](../.github/workflows/release-benchmark.yml).
    Record its exact full source SHA, terminal conclusion, artifact IDs,
    retention/expiry and actual downloaded ZIP SHA-256 hashes. Verify source
