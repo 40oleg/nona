@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the Lean move model with block-local alias validity, multi-definition
+  liveness, continuation observations, bounded dead-write elimination and adjacent
+  producer/copy coalescing proofs. Add matching production guard regressions and
+  native/Node comparisons, plus hosted Windows/Linux move validation; document
+  the remaining CFG, numeric and backend correspondence assumptions.
+  ([#658](https://github.com/40oleg/nona/issues/658))
+
 ## v0.36.0 — 2026-11-23
 
 - Document existing Lean proof scope and the policy for future production correspondence and numeric coverage, including the fractional switch counterexample and required production regressions. This is documentation of future work, not newly shipped proofs. ([#654](https://github.com/40oleg/nona/issues/654))
