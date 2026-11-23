@@ -12,11 +12,11 @@ Hello, from Nona!
 
 The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-> **Status:** version `0.35.0`, experimental. The last full Test262 audit (v0.8.0; later releases have not repeated it) passed on the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status:** version `0.36.0`, experimental. The last full Test262 audit (v0.8.0; later releases have not repeated it) passed on the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## Why Nona
 
-- **Small and fast to start.** In the v0.35.0 Linux x64 measurement (2026-11-17), hello world is 1.24 MiB, starts in 0.451 ms and uses 1.32 MiB peak RSS (Node.js: 18.0 ms and 47.6 MiB, Deno: 10.6 ms, Bun: 2.25 ms; [measurement](PERFORMANCE.md#current-release-v0350-against-nodejs-deno-and-bun)). Only reachable runtime parts are linked, including the RegExp engine, Unicode tables and built-in modules ([pruning](docs/builtin-module-pruning.md), [filesystem dependencies](docs/fs-path-dependencies.md)).
+- **Small and fast to start.** In the v0.36.0 Linux x64 measurement (2026-11-23), hello world is 1.24 MiB, starts in 0.565 ms and uses 1.32 MiB peak RSS (Node.js took 18.6 ms and used 47.6 MiB, Deno took 13.5 ms and Bun took 3.26 ms, [measurement](PERFORMANCE.md#current-release-v0360-against-nodejs-deno-and-bun)). Only reachable runtime parts are linked, including the RegExp engine, Unicode tables and built-in modules ([pruning](docs/builtin-module-pruning.md), [filesystem dependencies](docs/fs-path-dependencies.md)).
 - **No dependencies at run time.** Windows executables import system DLLs required by their selected services. Default Linux/BSD output uses direct kernel calls without libc; macOS may use the system dyld and libSystem. Explicit shared-library FFI adds loader/library dependencies.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
@@ -127,7 +127,7 @@ The output cannot replace any file successfully read for compilation or package 
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
-Windows x64 also supports a [modeless settings window](docs/win32-settings.md)
+The `win32-x64` target also supports a [modeless settings window](docs/win32-settings.md)
 with a checkbox, seven choices and Save/Cancel. The [GUI sample](site/samples/settings.win32.mjs)
 keeps a background timer running, discards cancelled drafts and reopens safely.
 
@@ -137,29 +137,29 @@ The [language support matrix](https://40oleg.github.io/nona/guide/language-suppo
 
 Nona's strengths are startup time, executable size and memory use. Inside the program, computation is still typically several times to tens of times slower than V8's JIT, and closing that gap is the main line of the [roadmap](docs/roadmap.md).
 
-Geometric mean of Nona / Node.js time ratios by category: v0.35.0 measured on 2026-11-17 on one GitHub-hosted Linux x64 machine against Node.js 26.9.0, Deno 2.9.8 and Bun 1.4.4 (below 1 favors Nona; [full tables and method](PERFORMANCE.md#current-release-v0350-against-nodejs-deno-and-bun)). Cases count operation timings; startup includes ten complete corpus programs:
+Geometric mean of Nona / Node.js time ratios by category: v0.36.0 measured on 2026-11-23 on one GitHub-hosted Linux x64 machine against Node.js 26.9.0, Deno 2.9.8 and Bun 1.4.5 (below 1 favors Nona; [full tables and method](PERFORMANCE.md#current-release-v0360-against-nodejs-deno-and-bun)). Cases count operation timings; startup includes ten complete corpus programs:
 
 | Category                                        | Cases | Nona / Node |
 | ----------------------------------------------- | ----- | ----------- |
 | Start-up (hello world, lodash, corpus programs) | 12    | ×0.1        |
-| Compute (calls, numbers, typed arrays)          | 17    | ×2.1        |
-| Allocation, objects and collections             | 10    | ×2.2        |
-| Strings, RegExp and JSON                        | 26    | ×3.1        |
-| I/O and the event loop                          | 5     | ×2.4        |
+| Compute (calls, numbers, typed arrays)          | 17    | ×2.3        |
+| Allocation, objects and collections             | 10    | ×2.1        |
+| Strings, RegExp and JSON                        | 26    | ×3.6        |
+| I/O and the event loop                          | 5     | ×2.5        |
 | Real programs                                   | 9     | ×13         |
-| Are-We-Fast-Yet (steady state)                  | 14    | ×14         |
-| Benchmarks Game (whole process)                 | 9     | ×8.4        |
+| Are-We-Fast-Yet (steady state)                  | 14    | ×17         |
+| Benchmarks Game (whole process)                 | 9     | ×8.8        |
 
-The same-program HTTP comparison below was measured on 2026-11-17 with Node.js v26.9.0 and Nona v0.35.0 on the same hosted Linux machine. It uses wrk, 32 connections and median throughput of five three-second runs after warm-up, with server and generator pinned to different CPUs. All connection counts, both generators, spread, latency, raw evidence and protocol are in [the release HTTP section](PERFORMANCE.md#release-http-server).
+The same-program HTTP comparison below was measured on 2026-11-23 with Node.js v26.9.0 and Nona v0.36.0 on the same hosted Linux machine. It uses wrk, 32 connections and median throughput of five three-second runs after warm-up, with server and generator pinned to different CPUs. All connection counts, both generators, spread, latency, raw evidence and protocol are in [the release HTTP section](PERFORMANCE.md#release-http-server).
 
 | Case                       | Node.js req/s | Nona req/s | Nona / Node | RSS Node.js / Nona, MiB |
 | -------------------------- | ------------- | ---------- | ----------- | ----------------------- |
-| hello (keep-alive)         | 118.0k        | 163.6k     | ×1.39       | 101 / 19                |
-| JSON response              | 116.1k        | 132.3k     | ×1.14       | 99 / 18                 |
-| ten headers read, five set | 93.0k         | 117.1k     | ×1.26       | 94 / 25                 |
-| new connection per request | 48.7k         | 47.4k      | ×0.97       | 154 / 18                |
-| 16 KiB request body        | 90.7k         | 83.4k      | ×0.92       | 113 / 18                |
-| 64 KiB response            | 44.0k         | 66.1k      | ×1.50       | 151 / 18                |
+| hello (keep-alive)         | 73.5k         | 93.5k      | ×1.27       | 96 / 19                 |
+| JSON response              | 72.9k         | 77.4k      | ×1.06       | 99 / 18                 |
+| ten headers read, five set | 58.7k         | 75.6k      | ×1.29       | 93 / 25                 |
+| new connection per request | 19.2k         | 19.1k      | ×1.00       | 145 / 18                |
+| 16 KiB request body        | 63.4k         | 58.3k      | ×0.92       | 113 / 18                |
+| 64 KiB response            | 36.7k         | 39.5k      | ×1.08       | 119 / 18                |
 
 [PERFORMANCE.md](PERFORMANCE.md) retains the complete comparison and documented limitations, including Deno's lodash import failure. The [optimized C++ comparison](docs/perf-cpp.md) is a separate historical measurement from 2026-10-20.
 
@@ -199,7 +199,7 @@ npm run compare          # compile the compatibility examples and compare with N
 
 The tests compile and run real executables, many of them under GC stress (a collection at every allocation), and compare their output with Node.js. CI runs them on all eight targets, including FreeBSD and OpenBSD guests, and checks that the native compiler rebuilds itself. Test262 audits use `scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux); see [Test262](docs/test262.md). The [program corpus](programs/README.md) holds 1,000 small applications with recorded results.
 
-A [Lean proof prototype](docs/formal-verification.md) checks selected IR move rules and a modeled dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. This proves the specified pure IR fragment; the production compiler is not yet formally verified.
+A [Lean proof prototype](docs/formal-verification.md) checks selected IR move rules and a modeled dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. This proves the specified pure IR fragment; the production compiler is not yet formally verified. The policy documents future production correspondence and numeric coverage; it does not add those proofs.
 
 ```text
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function, built-in modules
