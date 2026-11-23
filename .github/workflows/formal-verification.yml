@@ -15,10 +15,42 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    move-regressions:
+        # Keep proof-correspondence executions on hosted Windows and Linux,
+        # including the compact liveness representation and real GC stress.
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+                pinned: ["256", "0"]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+            - name: Record exact checked revision
+              run: git rev-parse HEAD
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - name: Production move and liveness regressions with GC stress
+              run: node --test --test-concurrency=1 dist/tests/ir-move-rules.test.js dist/tests/liveness.test.js dist/tests/ir-optimizations.test.js
+              env:
+                  NONA_PINNED_LOCALS: ${{ matrix.pinned }}
+                  NONA_GC_STRESS: "on"
+            - name: Production move and liveness regressions without GC stress
+              run: node --test --test-concurrency=1 dist/tests/ir-move-rules.test.js dist/tests/liveness.test.js dist/tests/ir-optimizations.test.js
+              env:
+                  NONA_PINNED_LOCALS: ${{ matrix.pinned }}
+                  NONA_GC_STRESS: "off"
     lean:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - name: Record exact checked revision
+              run: git rev-parse HEAD
             # lean-action downloads elan and the toolchain once, without
             # retries, so a transient TLS error from releases.lean-lang.org
             # fails the job. Install both here with retries; lean-action then
