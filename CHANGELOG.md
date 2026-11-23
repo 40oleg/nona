@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add reusable Lean Number semantics and proofs for int32 admission, signed
+  remainder and the exact static power-of-two divisor guard, with explicit
+  binary64/target assumptions and native Node comparison regressions.
+  ([#659](https://github.com/40oleg/nona/issues/659))
+
 ## v0.36.0 — 2026-11-23
 
 - Document existing Lean proof scope and the policy for future production correspondence and numeric coverage, including the fractional switch counterexample and required production regressions. This is documentation of future work, not newly shipped proofs. ([#654](https://github.com/40oleg/nona/issues/654))
