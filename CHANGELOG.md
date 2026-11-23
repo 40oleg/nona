@@ -2,14 +2,18 @@
 
 ## Unreleased
 
-- Document Lean proof scope, planned coverage and acceptance criteria, including the fractional switch counterexample and required production regressions. ([#654](https://github.com/40oleg/nona/issues/654))
+## v0.36.0 — 2026-11-23
 
-- Add `nona:win32/settings`, a Windows x64 modeless settings bridge with a
+- Document existing Lean proof scope and the policy for future production correspondence and numeric coverage, including the fractional switch counterexample and required production regressions. This is documentation of future work, not newly shipped proofs. ([#654](https://github.com/40oleg/nona/issues/654))
+
+- Add `nona:win32/settings`, a `win32-x64` modeless settings bridge with a
   checkbox, seven choices, Save/Cancel, deferred native events, keyboard
   navigation and explicit disposal. Include a GUI-subsystem sample, a documented
   thread/lifetime/exception contract and hosted Windows control regressions in
   normal and GC-stress modes. ([#649](https://github.com/40oleg/nona/issues/649))
 - Document when contributors and harness workers must update subsystem references, with a worked numeric IR guarantee and reassignment boundary. ([#648](https://github.com/40oleg/nona/issues/648))
+
+The still-open [#653](https://github.com/40oleg/nona/issues/653), [#602](https://github.com/40oleg/nona/issues/602) and preserved draft [PR #630](https://github.com/40oleg/nona/pull/630) belong to v0.37.0 and are excluded from this release. [PR #286](https://github.com/40oleg/nona/pull/286) was closed without merging and did not ship. See the [candidate handoff](docs/release-v0.36.0-candidate.md) for pending measurements and validation.
 
 ## v0.35.0 — 2026-11-18
 

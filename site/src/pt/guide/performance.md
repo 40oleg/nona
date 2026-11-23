@@ -1,6 +1,8 @@
 # Desempenho: Nona comparado a Node.js, Deno e Bun
 
 ::: info Tradução
+As medições do candidato v0.36.0 estão pendentes; os resultados da v0.35.0 citados aqui são históricos e não medem a v0.36.0.
+
 Esta página é uma tradução da página em inglês [Performance](/guide/performance), gerada a partir de [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md). A versão em inglês é a de referência e pode ser mais recente. `node bench/run.mjs` reproduz as medições.
 :::
 

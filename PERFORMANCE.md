@@ -1,8 +1,14 @@
 # Performance: Nona vs Node.js, Deno and Bun
 
-Current numbers are [the v0.35.0 measurement](#current-release-v0350-against-nodejs-deno-and-bun), taken on 2026-11-17. Older sections preserve their original versions, machines and dates and are superseded. Reproduce the current tables with bench/report.mjs using [the benchmark protocol](bench/README.md).
+Measurements for the v0.36.0 candidate are pending. The latest verified numbers remain [the historical v0.35.0 measurement](#current-release-v0350-against-nodejs-deno-and-bun), taken on 2026-11-17. Older sections preserve their original versions, machines and dates. Reproduce the tables with bench/report.mjs using [the benchmark protocol](bench/README.md).
+
+## v0.36.0 candidate — 2026-11-23
+
+Fresh measurements of the committed version-0.36.0 candidate are required before release review can complete. The earlier main run at `8a7b04fc865370c09def4b97531a157e9209efbc` built package version 0.35.0; its numbers cannot be relabeled as v0.36.0 because the build embeds the package version. See the [candidate handoff](docs/release-v0.36.0-candidate.md#hosted-benchmark-status) for the observed run/artifact status and the remaining hosted protocol. No v0.36.0 performance result is claimed here.
 
 ## Current release (v0.35.0) against Node.js, Deno and Bun
+
+_Historical results, superseded for current-version claims. The original heading is retained for existing links. The tables and limitations below still describe v0.35.0; replacement v0.36.0 measurements are pending._
 
 Measured on 2026-11-17 at [b57979de3ab8](https://github.com/40oleg/nona/commit/b57979de3ab82fc85e4c3bcf752e80895e30871b) by [the hosted release workflow](https://github.com/40oleg/nona/actions/runs/44182184617). All suites and both HTTP generators ran sequentially on one GitHub-hosted Ubuntu 24.04 machine: Intel(R) Xeon(R) 6975P-C, 4 vCPUs, 15.3 GiB RAM, linux 7.0.0-1014-aws x64; CPU governor not exposed. Host contention is unknown. These results measure Linux x64; other native targets were not benchmarked.
 

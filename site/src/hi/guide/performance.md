@@ -1,6 +1,8 @@
 # प्रदर्शन: Nona बनाम Node.js, Deno और Bun
 
 ::: info अनुवाद
+v0.36.0 उम्मीदवार के माप अभी लंबित हैं; यहाँ दिए गए v0.35.0 परिणाम ऐतिहासिक हैं और v0.36.0 के माप नहीं हैं।
+
 यह पेज अंग्रेज़ी पेज [Performance](/guide/performance) का अनुवाद है, जो [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md) से बनता है। अंग्रेज़ी संस्करण ही प्रामाणिक है और उसमें नई जानकारी हो सकती है। `node bench/run.mjs` माप दोबारा तैयार करता है।
 :::
 

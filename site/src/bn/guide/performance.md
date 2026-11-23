@@ -1,6 +1,8 @@
 # পারফরম্যান্স: Nona বনাম Node.js, Deno ও Bun
 
 ::: info অনুবাদ
+v0.36.0 প্রার্থীর পরিমাপ এখনও বাকি; এখানে উল্লিখিত v0.35.0 ফলাফল ঐতিহাসিক এবং v0.36.0-এর পরিমাপ নয়।
+
 এই পৃষ্ঠাটি ইংরেজি পৃষ্ঠা [Performance](/guide/performance)-এর অনুবাদ, যা [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md) থেকে তৈরি। ইংরেজি সংস্করণটিই প্রামাণিক এবং সেটি আরও নতুন হতে পারে। `node bench/run.mjs` পরিমাপগুলো পুনরায় তৈরি করে।
 :::
 

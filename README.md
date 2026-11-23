@@ -12,11 +12,11 @@ Hello, from Nona!
 
 The executable contains your program's machine code and Nona's runtime, and nothing else. It does not embed Node.js, V8 or an interpreter, and building it needs no C/C++ toolchain or LLVM.
 
-> **Status:** version `0.35.0`, experimental. The last full Test262 audit (v0.8.0; later releases have not repeated it) passed on the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
+> **Status:** version `0.36.0`, experimental. The last full Test262 audit (v0.8.0; later releases have not repeated it) passed on the pinned suite (ES2020 features and the supported later ones, such as ES2022 class elements) passes **22436/22492** language, **15868/15933** built-in, **268/268** Atomics and **996/1016** Annex B tests on Windows x64. Every remaining failure is classified on the [status page](https://40oleg.github.io/nona/guide/status). Nona is not a drop-in replacement for Node.js and has not had a security audit.
 
 ## Why Nona
 
-- **Small and fast to start.** In the v0.35.0 Linux x64 measurement (2026-11-17), hello world is 1.24 MiB, starts in 0.451 ms and uses 1.32 MiB peak RSS (Node.js: 18.0 ms and 47.6 MiB, Deno: 10.6 ms, Bun: 2.25 ms; [measurement](PERFORMANCE.md#current-release-v0350-against-nodejs-deno-and-bun)). Only reachable runtime parts are linked, including the RegExp engine, Unicode tables and built-in modules ([pruning](docs/builtin-module-pruning.md), [filesystem dependencies](docs/fs-path-dependencies.md)).
+- **Small and fast to start.** In the historical v0.35.0 Linux x64 measurement (2026-11-17), hello world is 1.24 MiB, starts in 0.451 ms and uses 1.32 MiB peak RSS (Node.js: 18.0 ms and 47.6 MiB, Deno: 10.6 ms, Bun: 2.25 ms; [measurement](PERFORMANCE.md#current-release-v0350-against-nodejs-deno-and-bun)). Only reachable runtime parts are linked, including the RegExp engine, Unicode tables and built-in modules ([pruning](docs/builtin-module-pruning.md), [filesystem dependencies](docs/fs-path-dependencies.md)).
 - **No dependencies at run time.** Windows executables import system DLLs required by their selected services. Default Linux/BSD output uses direct kernel calls without libc; macOS may use the system dyld and libSystem. Explicit shared-library FFI adds loader/library dependencies.
 - **Eight targets from any host.** Cross-compile with `--target`; one Linux binary per CPU runs on Mint, Ubuntu, Debian, Fedora and Alpine.
 - **Self-hosting.** The compiler compiles itself. The released `nona` is a native executable built by Nona, with no Node.js inside. On Windows and Linux x64 it rebuilds itself into a byte-identical second stage ([bootstrap](docs/self-hosting.md)).
@@ -127,13 +127,15 @@ The output cannot replace any file successfully read for compilation or package 
 
 **Windows executables** can be GUI programs without a console (`--subsystem windows`) and can embed an icon, a manifest and version information ([Windows executables](docs/windows-executables.md)).
 
-Windows x64 also supports a [modeless settings window](docs/win32-settings.md)
+The `win32-x64` target also supports a [modeless settings window](docs/win32-settings.md)
 with a checkbox, seven choices and Save/Cancel. The [GUI sample](site/samples/settings.win32.mjs)
 keeps a background timer running, discards cancelled drafts and reopens safely.
 
 The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 
 ## Performance
+
+Measurements of the v0.36.0 candidate are pending; the tables below retain historical v0.35.0 results. They do not measure v0.36.0. See the [candidate handoff](docs/release-v0.36.0-candidate.md) for the remaining gates.
 
 Nona's strengths are startup time, executable size and memory use. Inside the program, computation is still typically several times to tens of times slower than V8's JIT, and closing that gap is the main line of the [roadmap](docs/roadmap.md).
 
@@ -199,7 +201,7 @@ npm run compare          # compile the compatibility examples and compare with N
 
 The tests compile and run real executables, many of them under GC stress (a collection at every allocation), and compare their output with Node.js. CI runs them on all eight targets, including FreeBSD and OpenBSD guests, and checks that the native compiler rebuilds itself. Test262 audits use `scripts/test262-audit.ps1` (Windows) and `scripts/test262-audit.sh` (Linux); see [Test262](docs/test262.md). The [program corpus](programs/README.md) holds 1,000 small applications with recorded results.
 
-A [Lean proof prototype](docs/formal-verification.md) checks selected IR move rules and a modeled dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. This proves the specified pure IR fragment; the production compiler is not yet formally verified.
+A [Lean proof prototype](docs/formal-verification.md) checks selected IR move rules and a modeled dead-move optimizer. Run `npm run check:proofs` with Lean/elan installed. This proves the specified pure IR fragment; the production compiler is not yet formally verified. The policy documents future production correspondence and numeric coverage; it does not add those proofs.
 
 ```text
 src/frontend       lexer, parser, early errors, scope binding, compile-time eval/Function, built-in modules
