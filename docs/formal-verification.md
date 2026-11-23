@@ -1,7 +1,8 @@
 # Formal verification scope and acceptance criteria
 
 `verification/` is a standalone Lean 4.19.0 project for the move rules used by
-`src/ir/copies.ts` and the numeric guards used by `src/backend/x64/integer-ops.ts`.
+`src/ir/copies.ts`, the numeric guards used by `src/backend/x64/integer-ops.ts`,
+and dense switch construction and dispatch.
 It contains an interpreter, a dead-move optimizer, represented Number semantics
 and correctness theorems. These are proof models, not a proof of the entire
 Nona compiler or its TypeScript implementation.
@@ -10,8 +11,8 @@ The owner's coverage decision is to retain this checked model and extend proofs
 to production guard correspondence and selected numeric fast paths under
 [#653](https://github.com/40oleg/nona/issues/653). The sections below describe
 production IR move guards ([#658](https://github.com/40oleg/nona/issues/658))
-and integer arithmetic ([#659](https://github.com/40oleg/nona/issues/659)).
-Dense switch dispatch is tracked in [#660](https://github.com/40oleg/nona/issues/660).
+and integer arithmetic ([#659](https://github.com/40oleg/nona/issues/659)),
+with switch dispatch under [#660](https://github.com/40oleg/nona/issues/660).
 The earlier experiment
 [#284](https://github.com/40oleg/nona/issues/284) and
 [PR #286](https://github.com/40oleg/nona/pull/286) are historical evidence, not
@@ -26,6 +27,9 @@ repository root:
 ```sh
 npm run check:proofs
 # Equivalent: lake -d verification build
+# Re-evaluate the integrated audit, even when Lake replays cached modules:
+cd verification
+lake env lean -DwarningAsError=true Nona/Audit.lean
 ```
 
 The pinned [`lean-toolchain`](../verification/lean-toolchain) selects Lean 4.19.0. The project needs no Mathlib or
@@ -35,6 +39,14 @@ runs this same Lake build on pull requests and pushes to main. Separate hosted
 Windows/Linux jobs execute the three move/liveness regression files serially,
 with and without GC stress, at normal and pinned-local thresholds. Full
 production validation continues in the other required workflows.
+The workflow also invokes the dispatch, numeric and remainder regression files
+explicitly on hosted Linux/Windows x64 and ARM64, serially within each job,
+with and without GC stress. This avoids relying on the `windows-only` suite
+membership of `switch-table`: the ARM64 loader jobs do not select that suite.
+The Lean job retains its normal build/cache and then executes the audit command
+above. Its uploaded receipt records the actual checked-out SHA, Lean version,
+run URL and named transitive axiom reports. A cached `Replayed Nona.Audit`
+message alone is not the final integrated audit receipt.
 
 The build treats warnings as errors, so proof holes (`sorry`/`admit`) fail.
 [`Nona/Audit.lean`](../verification/Nona/Audit.lean) also inspects transitive dependencies of every theorem in the `Nona` namespace
@@ -116,12 +128,155 @@ because this observation does not expose them.
 both zeros with zero. `numberEq` compares canonical fractional identities,
 makes NaN unequal even to itself, and identifies the zeros. `negativeZero`
 observes the zero sign separately. Checked examples distinguish equal and
-unequal fractions and the two observations on zeros. This API supports future
-strict-equality dispatch work; it proves no switch selection theorem yet.
+unequal fractions and the two observations on zeros. The dispatch modules below
+connect this API to independent mathematical equality and switch selection.
 `finite` retains the finite/special distinction; `inInt32Range` describes the
 closed numerical interval even for fractions near its endpoints.
 `admission_finite_integral_range` restates exact admission using these separate
 finiteness, integrality and range predicates.
+
+## Dense switch dispatch and strict equality
+
+The switch model imports the merged numeric API from
+[#662](https://github.com/40oleg/nona/pull/662), starting at main commit
+`52095318bc31d7f3726b65877b8bb339c87d2834`. It does not import the rejected
+#286 equality. The checked handoff bridge is now tracked in
+[`FractionIdentity.lean`](../verification/Nona/FractionIdentity.lean).
+`fraction_identity` proves that sign agreement and cross multiplication of
+`whole * denominator + numerator` identify exactly the canonical fractional
+data. The proof handles different denominator exponents: equality would force
+the odd reduced numerator on the more deeply divided side to be even.
+`numberEq_fraction_iff` connects that independent rational identity to the
+numeric model's `numberEq`.
+
+[`SwitchEquality.lean`](../verification/Nona/SwitchEquality.lean) specifies
+`mathematicalNumberEq` separately: integers compare mathematical integer values,
+both zeros equal zero, NaN never matches, each infinity matches only itself,
+and fractions compare sign and cross products. Sign comparison is sufficient
+because proper fractional magnitudes are strictly positive. Integer/fraction
+branches are unequal because `fraction_nonintegral` rules out divisibility by
+the denominator. This is equality of the represented dyadics, rather than
+an equality test that treats all fractions alike. `strict_number_correct`
+and `strict_equality_correct` prove that the fallback predicate agrees with
+this specification. Strings, booleans, BigInts and opaque object/symbol
+identities compare within their own tags; no conversion or `valueOf` occurs.
+Opaque identities must be assigned injectively across object/symbol kinds.
+
+### Construction and emitter guards
+
+[`SwitchDispatch.lean`](../verification/Nona/SwitchDispatch.lean) starts from
+[`control.ts`](../src/ir/lower/control.ts)'s `switchTable` and switch lowering.
+Every non-default test must be a supported literal or unary signed numeric
+literal. `Label.signed` represents the already evaluated unary literal result;
+`Label.dynamic` rejects the whole table. Mapping parsed ASTs to these labels
+is a correspondence assumption, including rejection of other expression forms.
+Fractions, strings, null and other supported literal values do **not** reject
+the table: only their eligible integer keys enter its map.
+
+`valueKey` uses `integerValue`, which normalizes both zeros, and the exact
+`Math.abs(value) < 2 ** 31` bound. Thus **both** `-2147483648` and `2147483648`
+are excluded as keys, even though the former fits int32. First occurrences win.
+`buildTable` deduplicates the eligible keys, requires at least four, takes their
+minimum and maximum, and checks `span <= max(16, 4 * distinctCount)` and
+`span <= 1024`. Its cells cover every integer from low to high inclusive;
+a missing key is a hole. `distinct_keys_membership` and `distinct_keys_unique`
+justify the distinct-key count. Fold proofs establish endpoint bounds and
+coverage of every key; lookup is constructed from the first-occurrence map,
+not assumed to equal the independent search.
+
+The per-input sequence models
+[`switch-table.ts`](../src/backend/x64/switch-table.ts): Number tag check,
+signed 64-bit truncation `cvtt`, integer-to-binary64 round trip, unordered
+(parity) rejection, equality rejection, subtraction of low modulo `2^64`,
+then an **unsigned** comparison against table length. There is no int32
+sign-extension check in this emitter. The proof first uses `cvtt_fits` and
+[`SwitchIndex.lean`](../verification/Nona/SwitchIndex.lean)'s
+`unsigned_index_exact` to derive the mathematical table interval. Constructed
+endpoint bounds put an admitted converted word inside int32, so only then
+does it use `ExactInt32Encoding` and `ordered_equal`. It never assumes that
+every signed 64-bit integer has an exact binary64 encoding.
+
+| Theorem in `Nona.Switch` (unless qualified)                  | Checked guarantee and production counterpart                                                                                                   |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `first_key_correct`                                          | For supported tests and an eligible integer, first map occurrence equals independent source-ordered strict-equality search                     |
+| `constructed_key_coverage`, `constructed_interval`           | Every eligible key lies in the constructed interval; its endpoints bound admitted words inside int32                                           |
+| `constructed_lookup`                                         | Every in-range cell contains the first source target for its integer, or a hole                                                                |
+| `Nona.SwitchIndex.unsigned_index_exact`, `admitted_interval` | Wrapped 64-bit subtraction followed by unsigned bounds comparison selects precisely the half-open interval                                     |
+| `table_admission_exact`                                      | The complete emitted guards admit exactly finite integral inputs in the constructed interval, including either zero sign when zero is in range |
+| `all_chain_correct`                                          | The comparison chain selects the same first clause/default/end as the independently specified linear search                                    |
+| `table_chain_correct`, `selected_dispatch_correct`           | Table lookup plus the complete fallback chain, or an unselected table, agrees with that linear search                                          |
+| `selected_continuation_correct`                              | Applying any unchanged body continuation to the selected target preserves its observation                                                      |
+
+### Observation, witnesses and regressions
+
+The observation is the selected **entry target**: first matching source clause,
+otherwise the unique default, otherwise switch end. The parser's rejection of
+multiple defaults is part of the well-formed-input correspondence. Default is
+skipped during matching, so a later matching case wins over an earlier default.
+The body blocks and their source-ordered successors are unchanged by table
+selection. Thus the same continuation from the same entry also preserves
+default/fallthrough within this observation. The theorem does not prove the
+body interpreter, lexical/TDZ handling, abrupt completions or general CFG
+execution. Dynamic-label evaluations and their effects are outside the pure
+entry-target theorem: whole-table literal eligibility prevents skipping them;
+the all-chain theorem compares the supplied evaluated label values in order.
+Native tests additionally check actual label-call effects and fallthrough.
+
+[`SwitchWitnesses.lean`](../verification/Nona/SwitchWitnesses.lean) provides
+named kernel-checked witnesses, all transitively audited:
+
+- `mixed_construction` and `mixed_dispatch`: keys 1, 2, 4, 5 yield low 1 and
+  five cells. Integer hole 3 goes directly to default; 1.5 rejects table
+  admission and matches the first fractional clause in the chain; 2.5 defaults.
+- `missing_literal_guard_counterexample`: a dynamic first case matching 1
+  must win over a later literal 1. Removing whole-switch eligibility would
+  select the wrong source target and skip evaluation.
+- `faulty_fraction_equality_counterexample`: equating all fractions makes
+  2.5 match `case 1.5`. `mathematical_equality_witnesses` also separates 1.25
+  from 1.5 (different denominator exponents), NaN, both zeros and infinities.
+  `lost_fraction_identity_counterexample` shows that the rejected experiment's
+  always-false fractional equality loses even a matching 1.5 clause.
+- `missing_integrality_guard_counterexample`: truncating 1.5 to 1 is not
+  strict equality. `key_guard_endpoints` distinguishes key eligibility from
+  the numeric model's inclusive int32 admission.
+- `signed_index_counterexample` and `low_one_fallback`: with low 1, both 0
+  and `-2^63` reject the unsigned index test. A signed `0 - 1 < length` check
+  would incorrectly accept the negative index.
+
+[`switch-table.test.ts`](../tests/switch-table.test.ts) executes the actual
+compiler routes against Node.js using `runOnHost` and `runOracle`. It confirms
+the mixed table and all-chain routes in IR, first duplicate targets, a direct
+hole-to-default/end edge, and the full source-ordered fallback chain including
+fractional cases. It checks the x64 Number guard, conversion round trip, parity
+and equality branches and unsigned `jae`, without a sign-extension guard.
+Additional checks cover density/cap boundaries, signed zeros, int32 endpoints
+and neighbors, signed int64 sentinel/overflow/underflow inputs, adjacent
+binary64 fractions, infinities, NaN, other tags, absent/default-in-middle
+clauses, effectful labels and fallthrough. Runtime discriminants retain the
+guards. The hosted job names the file explicitly on x64 and ARM64; suite
+membership alone is not machine-execution evidence.
+
+### Hardware assumptions and validation receipts
+
+The numeric model's binary64 interpretation/canonicalization and restricted
+encoding law remain assumptions connecting the model to production. So do the
+Number tag representation, x64 signed conversion (including invalid sentinel),
+rounding and comparison flags, 64-bit wrapping/unsigned comparison, the ARM64
+assembler's translation of these operations, and executable jump-table layout.
+No hardware fact is introduced as a Lean axiom. In particular, all-int64 exact
+encoding is neither assumed nor proved. Native comparisons exercise observable
+conversions but do not independently prove every instruction/flag encoding.
+
+Local checks on Windows x64 use Node.js 26.9.0 and Lean 4.19.0, serially within
+two CPUs. The dispatch, numeric and remainder files pass without GC stress;
+this is local evidence on the working tree based on the SHA above. The new
+hosted matrix must pass after the harness publishes this change before claiming
+hosted x64/ARM64 coverage of this revision. Full/long validation remains hosted.
+Retain its actual checkout SHA, native target, Node version and run/job URLs;
+require `full-ci` on the PR **before** its triggering push. After integration,
+retain the **main checkout's** explicit axiom-audit receipt as well as the
+normal Lake result and native receipts. An earlier PR run or a cached audit
+message is insufficient evidence for that final revision.
 
 ### Admission, division and masking theorems
 
@@ -455,9 +610,10 @@ optimizer or ECMAScript semantics.
   above in [#659](https://github.com/40oleg/nona/issues/659), with production
   correspondence and hardware boundaries stated separately. Retain integrated
   Lake and native CI evidence when changing these guarantees.
-- **Dense switch dispatch:** establish agreement with JavaScript strict
-  equality and case selection, including conversion and index-range guards,
-  NaN, signed zero, duplicate cases and the identity of fractional cases.
+- **Dense switch dispatch:** #660 implements the entry-target model above,
+  including independent fractional equality and the actual conversion and
+  unsigned index guards. Hardware/AST correspondence and final integrated
+  hosted receipts remain separate obligations.
 
 For each covered rule, acceptance requires all of the following:
 
@@ -494,7 +650,7 @@ the matching fractional clause exists.
 
 Both sides of the experimental dispatch theorem use that same modeled
 fallback. Proving that the two executions agree therefore cannot establish
-JavaScript equality or correct case selection. Future dispatch coverage must
+JavaScript equality or correct case selection. Dispatch coverage must
 distinguish equal from unequal fractions and connect the fallback to production
 strict equality, with matching Node/native comparisons. PR #286 was closed
 without merging; its theorem claims are not part of the checked model above.
@@ -514,11 +670,11 @@ zero, and inspects emitted assembly for a mask path.
 [`tests/numeric.test.ts`](../tests/numeric.test.ts) includes binary64 special
 values and exact-remainder examples.
 [`tests/switch-table.test.ts`](../tests/switch-table.test.ts) compares native
-dispatch with Node.js for dense integer cases and sampled noninteger and
-non-Number inputs, and checks table eligibility and assembly. Its fractional
-inputs do not establish the missing equal-fraction case-label guarantee from
-PR #286. These finite checks exercise production code; they do not prove all
-numeric or switch semantics.
+dispatch with Node.js for dense integer cases, equal and unequal fractional
+labels, and sampled non-Number inputs on confirmed table and all-chain routes.
+It also checks construction, fallback IR edges and assembly guards. These
+finite checks exercise production code; they do not prove all numeric or
+switch semantics.
 
 Keep Node/native comparisons and OS integration checks for runtime, GUI,
 network, FFI and packaging behavior. These remain outside the current Lean

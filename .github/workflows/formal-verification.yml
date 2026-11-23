@@ -15,6 +15,40 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    dispatch-regressions:
+        # switch-table belongs to windows-only; the loader ARM64 jobs do not
+        # select that suite. Invoke the portable file explicitly on both CPUs.
+        strategy:
+            fail-fast: false
+            matrix:
+                os:
+                    [
+                        ubuntu-24.04,
+                        ubuntu-24.04-arm,
+                        windows-latest,
+                        windows-11-arm,
+                    ]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - name: Record exact native regression revision and runtime
+              run: |
+                  git rev-parse HEAD
+                  node -p "process.platform + '-' + process.arch + ' Node ' + process.version"
+            - run: npm ci
+            - run: npm run build
+            - name: Dispatch and matching numeric conversion regressions with GC stress
+              run: node --test --test-concurrency=1 dist/tests/switch-table.test.js dist/tests/numeric.test.js dist/tests/remainder.test.js
+              env:
+                  NONA_GC_STRESS: "on"
+            - name: Dispatch and matching numeric conversion regressions without GC stress
+              run: node --test --test-concurrency=1 dist/tests/switch-table.test.js dist/tests/numeric.test.js dist/tests/remainder.test.js
+              env:
+                  NONA_GC_STRESS: "off"
     move-regressions:
         # Keep proof-correspondence executions on hosted Windows and Linux,
         # including the compact liveness representation and real GC stress.
@@ -78,3 +112,19 @@ jobs:
                   test: "false"
                   lint: "false"
                   use-mathlib-cache: "false"
+            - name: Re-evaluate integrated transitive axiom audit
+              working-directory: verification
+              env:
+                  LEAN_NUM_THREADS: "1"
+              run: |
+                  set -o pipefail
+                  {
+                      git rev-parse HEAD
+                      lean --version
+                      echo "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+                      lake env lean -DwarningAsError=true Nona/Audit.lean
+                  } | tee audit-receipt.txt
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: integrated-axiom-audit-${{ github.sha }}
+                  path: verification/audit-receipt.txt

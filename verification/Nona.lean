@@ -2,4 +2,9 @@ import Nona.MoveRules
 import Nona.ProductionMoves
 import Nona.Examples
 import Nona.Numeric
+import Nona.FractionIdentity
+import Nona.SwitchIndex
+import Nona.SwitchEquality
+import Nona.SwitchDispatch
+import Nona.SwitchWitnesses
 import Nona.Audit

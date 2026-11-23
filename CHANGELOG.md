@@ -12,6 +12,12 @@
   remainder and the exact static power-of-two divisor guard, with explicit
   binary64/target assumptions and native Node comparison regressions.
   ([#659](https://github.com/40oleg/nona/issues/659))
+- Prove dense switch construction, unsigned table admission and first-clause
+  dispatch against independent mathematical strict equality, including fractional
+  identity, holes, duplicate labels and fallback. Add native differential and
+  IR/emission regressions, explicit hosted x64/ARM64 routing and fresh integrated
+  axiom-audit receipts; document the remaining hardware correspondence assumptions.
+  ([#660](https://github.com/40oleg/nona/issues/660))
 
 ## v0.36.0 — 2026-11-23
 
