@@ -10,17 +10,22 @@ for the source worker.
 
 The coordinator committed the initial preparation as
 **`15b7f4b397dc3d20644beb2b0ec8e71e4ffd0e13`** and opened draft
-[PR #657](https://github.com/40oleg/nona/pull/657). Its head matches this
-checkout. The earlier local staging failure did not prevent that coordinator
+[PR #657](https://github.com/40oleg/nona/pull/657). The earlier local staging failure did not prevent that coordinator
 handoff. This review worker must still commit locally without pushing,
 opening another PR, tagging or publishing.
 
-**Review-update commit blocker:** staging the review document failed with
+Staging the first review document failed with
 permission denied while creating the shared worktree's `index.lock` outside
-the writable checkout. No review commit was created and no permission bypass
-was attempted. The current review diff is retained in ignored
-`work/release-656-evidence/review-update.patch`; the coordinator must stage
-and commit it through its normal worktree access.
+the writable checkout. The coordinator subsequently committed that review as
+**`0b654f15abcf3b27b154558b29797129bcb41ab3`**, the current checkout and PR
+head at the second review readback. The earlier staging failure is historical;
+it does not mean the first review changes remain uncommitted.
+
+**Second review commit blocker:** `git add` again failed to create
+`index.lock` in the shared Git directory outside this writable checkout.
+This second review remains uncommitted; its diff is retained in ignored
+`work/release-656-evidence/review-round-2.patch` for the coordinator.
+No permission bypass, push, branch change, tag or release was attempted.
 
 ## Ownership and scope
 
@@ -80,6 +85,36 @@ baseline checks**, not candidate passes. Recheck their terminal results and
 prioritize any current-release CI failure before proceeding.
 
 ## Hosted benchmark status
+
+Second review readback at **05:58 UTC on 2026-11-23** reconfirmed that
+candidate run **45120442439** is **queued**, with no conclusion and **zero
+artifacts**. Current-head benchmark
+[run 45120823296](https://github.com/40oleg/nona/actions/runs/45120823296)
+is **pending**, also with no conclusion. The available local coordinator
+evidence remains only the pre-bump report checkpoint **14793410890**;
+there is no final version-0.36.0 artifact to audit or publish.
+
+The earlier main run **45116873583** is still **in progress**. Its load
+generator step has now succeeded, but wrk is running and completeness
+validation and final upload are pending. This progress does not establish a
+successful terminal result, and its package version remains **0.35.0**.
+The performance-refresh finding is therefore **unresolved**. Keep PR #657
+draft; do not substitute this checkpoint or trigger a duplicate benchmark.
+
+`git diff --name-only 15b7f4b397dc3d20644beb2b0ec8e71e4ffd0e13 HEAD --
+src package.json package-lock.json scripts bench .github/workflows` returned
+no changes: the first review changed only this handoff document. Candidate
+measurement inputs remain identical to the queued version-0.36.0 run.
+This input comparison permits reuse only after that run's complete evidence
+passes the checks below; it does not turn pending runs into measurements.
+
+All applicable current-head validation is also **queued or pending**:
+check, program corpus, formal-verification, pages, semantic replay,
+native-platforms, self-hosting and HTTP controls. Main's check remains queued;
+corpus, native-platforms and self-hosting are still running. Earlier main's
+successful checks do not validate the candidate or the final documentation
+head. Final-head hosted CI can only run after the coordinator's next push;
+this source worker is instructed not to push.
 
 Review readback at **05:54 UTC on 2026-11-23** found the candidate's
 [release-benchmark run 45120442439](https://github.com/40oleg/nona/actions/runs/45120442439)
@@ -171,6 +206,11 @@ reconfirmed that the available checkpoint measures **0.35.0**, lacks HTTP
 evidence and has no final validator result. It is not a candidate benchmark
 pass. The GitHub CLI is authenticated, but the recorded launcher PID remains
 unavailable to this worker; no live harness-health claim is made.
+
+The second review passed changed-file Prettier, site document synchronization,
+`npm run check:doc-links` (1,679 links in 313 documents) and `git diff --check`.
+No compiler, runtime, benchmark or full-suite command ran locally. These
+documentation checks do not resolve the missing hosted measurements or CI.
 
 ## Coordinator handoff and remaining gates
 
