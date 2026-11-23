@@ -207,6 +207,13 @@ every signed 64-bit integer has an exact binary64 encoding.
 | `table_chain_correct`, `selected_dispatch_correct`           | Table lookup plus the complete fallback chain, or an unselected table, agrees with that linear search                                          |
 | `selected_continuation_correct`                              | Applying any unchanged body continuation to the selected target preserves its observation                                                      |
 
+The bounds comparison and the table lookup both use the wrapped 64-bit
+subtraction result. On the admitted path, `admitted_offset_exact` proves that
+this word equals the mathematical difference from the table base. The cell
+lookup in `table_chain_correct` uses that equality to obtain the source key.
+Mapping a cell to its relocated machine address remains a backend and linker
+correspondence obligation.
+
 ### Observation, witnesses and regressions
 
 The observation is the selected **entry target**: first matching source clause,

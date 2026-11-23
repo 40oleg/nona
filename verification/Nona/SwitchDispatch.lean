@@ -304,12 +304,21 @@ theorem table_admission_exact {cs : List Clause} (encode : Int → Number)
     · simpa [conversion, encoding n fits] using flags.1
     · simpa [conversion, encoding n fits] using flags.2
 
+/-- After the unsigned admission check, the wrapped SUB result used to
+address the cell is exactly the mathematical difference from the table base. -/
+theorem admitted_offset_exact {cs : List Clause} (encode : Int → Number)
+    (t : Table cs) (x : Number) (h : tableAdmission encode t x) :
+    (cvtt x - t.low) % 18446744073709551616 = cvtt x - t.low := by
+  obtain ⟨lo, hi⟩ := (admitted_interval t x).mp h.2.2
+  have bounds := constructed_interval t
+  apply Int.emod_eq_of_lt <;> omega
+
 def dispatch {cs : List Clause} (encode : Int → Number) (t : Table cs)
     (x : Value) (endTarget : Nat) : Nat :=
   match x with
   | .number n =>
       if tableAdmission encode t n then
-        ((t.cells[(cvtt n - t.low).toNat]?).join).getD (defaultTarget cs endTarget)
+        ((t.cells[((cvtt n - t.low) % 18446744073709551616).toNat]?).join).getD (defaultTarget cs endTarget)
       else chain cs x endTarget
   | _ => chain cs x endTarget
 
@@ -343,7 +352,7 @@ theorem table_chain_correct {cs : List Clause} (encode : Int → Number)
       have conversion := cvtt_integral x n value fits
       have idx : (n - t.low).toNat < t.length := by omega
       have pos : t.low + ((n - t.low).toNat : Int) = n := by omega
-      rw [conversion, constructed_lookup t _ idx, pos]
+      rw [admitted_offset_exact encode t x admitted, conversion, constructed_lookup t _ idx, pos]
       change (firstKey cs n).getD (defaultTarget cs endTarget) = _
       rw [first_key_correct cs t.literal n (by unfold keyRange; omega)]
       simp [linear, integer_search cs x n value]
