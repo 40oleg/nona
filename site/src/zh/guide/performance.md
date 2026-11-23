@@ -1,8 +1,6 @@
 # 性能：Nona 对比 Node.js、Deno 和 Bun
 
 ::: info 翻译说明
-v0.36.0 候选版的测量尚未完成；此处引用的 v0.35.0 结果属于历史数据，并非 v0.36.0 的测量。
-
 本页译自英文页面 [Performance](/guide/performance)，其内容来自 [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md)。英文版为准，且可能更新。`node bench/run.mjs` 可复现这些测量结果。
 :::
 
@@ -11,7 +9,7 @@ v0.36.0 候选版的测量尚未完成；此处引用的 v0.35.0 结果属于历
 :::
 
 ::: warning
-v0.35.0 于 2026-11-17 测得的结果、Node.js、Deno 和 Bun 版本、测量所用提交及原始产物的哈希值见[英文页面](/guide/performance)。下方保留 v0.7.0 测量的历史译文，其中的数字不代表当前版本。
+v0.36.0 于 2026-11-23 测得的结果、Node.js、Deno 和 Bun 版本、测量所用提交及原始产物的哈希值见[英文页面](/guide/performance)。下方保留 v0.7.0 测量的历史译文，其中的数字不代表当前版本。
 :::
 
 测量于 2026-10-01，对象为 Nona `v0.7.0`（提交 `b31c4d6`）。脚本位于 [`bench/`](https://github.com/40oleg/nona/blob/main/bench/)；`node bench/run.mjs` 可以复现下面的每一张表。

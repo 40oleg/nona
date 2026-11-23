@@ -13,7 +13,7 @@
   normal and GC-stress modes. ([#649](https://github.com/40oleg/nona/issues/649))
 - Document when contributors and harness workers must update subsystem references, with a worked numeric IR guarantee and reassignment boundary. ([#648](https://github.com/40oleg/nona/issues/648))
 
-The still-open [#653](https://github.com/40oleg/nona/issues/653), [#602](https://github.com/40oleg/nona/issues/602) and preserved draft [PR #630](https://github.com/40oleg/nona/pull/630) belong to v0.37.0 and are excluded from this release. [PR #286](https://github.com/40oleg/nona/pull/286) was closed without merging and did not ship. See the [candidate handoff](docs/release-v0.36.0-candidate.md) for pending measurements and validation.
+The still-open [#653](https://github.com/40oleg/nona/issues/653), [#602](https://github.com/40oleg/nona/issues/602) and preserved draft [PR #630](https://github.com/40oleg/nona/pull/630) belong to v0.37.0 and are excluded from this release. [PR #286](https://github.com/40oleg/nona/pull/286) was closed without merging and did not ship. The [release verification record](docs/release-v0.36.0-candidate.md) links the measured source, reports and validation.
 
 ## v0.35.0 — 2026-11-18
 

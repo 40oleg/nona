@@ -1,8 +1,6 @@
 # Performances : Nona face à Node.js, Deno et Bun
 
 ::: info Traduction
-Les mesures du candidat v0.36.0 restent à effectuer ; les résultats de v0.35.0 cités ici sont historiques et ne mesurent pas v0.36.0.
-
 Cette page est une traduction de la page anglaise [Performance](/guide/performance), générée à partir de [`PERFORMANCE.md`](https://github.com/40oleg/nona/blob/main/PERFORMANCE.md). La version anglaise fait foi et peut être plus récente. `node bench/run.mjs` reproduit les mesures.
 :::
 
@@ -11,7 +9,7 @@ La comparaison avec du C++ optimisé (arithmétique, appels et chaînes UTF-16 ;
 :::
 
 ::: warning
-Les résultats de v0.35.0 du 2026-11-17, les versions de Node.js, Deno et Bun, le commit mesuré et les empreintes des artefacts figurent sur la [page anglaise](/guide/performance). La traduction historique des mesures de v0.7.0 est conservée ci-dessous ; ses chiffres ne décrivent pas la version actuelle.
+Les résultats de v0.36.0 du 2026-11-23, les versions de Node.js, Deno et Bun, le commit mesuré et les empreintes des artefacts figurent sur la [page anglaise](/guide/performance). La traduction historique des mesures de v0.7.0 est conservée ci-dessous ; ses chiffres ne décrivent pas la version actuelle.
 :::
 
 Mesuré le 2026-10-01 avec Nona `v0.7.0` (commit `b31c4d6`). Les scripts se trouvent dans [`bench/`](https://github.com/40oleg/nona/blob/main/bench/) ; `node bench/run.mjs` reproduit tous les tableaux ci-dessous.
