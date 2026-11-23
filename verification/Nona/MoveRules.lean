@@ -30,7 +30,7 @@ def reads : Expr V → List Slot
   | .unary _ a => reads a
   | .binary _ a b => reads a ++ reads b
 
-/-- Only constants and copies are removed, matching the production move pass.
+/-- Only constants and copies are removed in this original model's subset.
 The TDZ marker can be represented as a literal in the abstract value domain. -/
 def isMove : Expr V → Bool
   | .literal _ | .read _ => true

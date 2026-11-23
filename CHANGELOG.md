@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the Lean move model with block-local alias validity, multi-definition
+  liveness, continuation observations, bounded dead-write elimination and adjacent
+  producer/copy coalescing proofs. Add matching production guard regressions and
+  native/Node comparisons, plus hosted Windows/Linux move validation; document
+  the remaining CFG, numeric and backend correspondence assumptions.
+  ([#658](https://github.com/40oleg/nona/issues/658))
 - Add reusable Lean Number semantics and proofs for int32 admission, signed
   remainder and the exact static power-of-two divisor guard, with explicit
   binary64/target assumptions and native Node comparison regressions.

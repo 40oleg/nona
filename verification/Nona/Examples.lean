@@ -1,4 +1,5 @@
 import Nona.MoveRules
+import Nona.ProductionMoves
 
 namespace Nona
 
@@ -11,6 +12,31 @@ example : (run (optimizeDead sample [3]) (fun _ => 0)) 3 = 15 := by decide
 example : (optimizeDead sample [3]).length = 3 := by decide
 
 end Nona
+
+namespace Nona.Production
+
+def aliases : Alias := fun k => if k = 2 then some 0 else if k = 3 then some 1 else none
+-- Secondary definitions invalidate both keys and targets; block reset forgets
+-- even aliases whose source has not changed.
+example : invalidate aliases [0, 1] 2 = none := by decide
+example : invalidate aliases [0, 1] 3 = none := by decide
+example : invalidate aliases [2, 3] 2 = none := by decide
+example : resolve empty 2 = 2 := by decide
+example : Live 256 [] 1 := by simp [Live]
+example : ¬ Live 256 [] 256 := by simp [Live]
+
+def multi : Op Nat Unit :=
+  ⟨[(false, 2)], [2, 3], fun values _ => values.length, fun _ => []⟩
+-- Kill all definitions before adding reads: same-slot operand 2 remains live,
+-- secondary definition 3 is killed. A handler observation adds it back.
+example : transfer multi (fun k => k = 3) (fun _ => False) 2 := by
+  simp [transfer, reads, multi]
+example : ¬ transfer multi (fun k => k = 3) (fun _ => False) 3 := by
+  simp [transfer, reads, multi]
+example : transfer multi (fun _ => False) (fun k => k = 3) 3 := by
+  simp [transfer, reads, multi]
+
+end Nona.Production
 
 namespace Nona
 
