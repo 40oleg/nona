@@ -2,6 +2,7 @@ import Lean
 import Nona.MoveRules
 import Nona.ProductionMoves
 import Nona.Examples
+import Nona.Numeric
 
 open Lean Elab Command
 
@@ -27,5 +28,15 @@ run_cmd do
       `Nona.Production.transfer_correct, `Nona.Production.continuation_correct,
       `Nona.Production.dead_producer_continuation,
       `Nona.Production.coalesce_producer_continuation,
-      `Nona.Production.eliminate_correct, `Nona.Production.bounded_dce_correct] do
+      `Nona.Production.eliminate_correct, `Nona.Production.bounded_dce_correct,
+      `Nona.Numeric.admission_exact, `Nona.Numeric.signExtend32_fixed,
+      `Nona.Numeric.admission_finite_integral_range,
+      `Nona.Numeric.remainder_eligibility,
+      `Nona.Numeric.remainder_decomposition, `Nona.Numeric.remainder_bounds,
+      `Nona.Numeric.division_fits, `Nona.Numeric.remainder_zero_sign,
+      `Nona.Numeric.division_result_correct, `Nona.Numeric.dynamic_fast_path_correct,
+      `Nona.Numeric.integer_remainder_zero_sign, `Nona.Numeric.guarded_toInt32,
+      `Nona.Numeric.static_guard_exact, `Nona.Numeric.number_static_guard_exact,
+      `Nona.Numeric.static_mask_remainder, `Nona.Numeric.static_mask_number,
+      `Nona.Numeric.static_fast_path_correct] do
     logInfo m!"{name}: axioms {(← collectAxioms name)}"
