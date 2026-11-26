@@ -1,6 +1,7 @@
 import type { ModuleHost } from "./modules.js";
 import { ffiModuleSource } from "../ffi.js";
 import { win32SettingsModuleSource } from "./win32-settings-module.js";
+import { guiModuleSource } from "./gui-module.js";
 import { fsModuleSource, fsPromisesModuleSource } from "./fs-module.js";
 import { CompileError } from "../diagnostics.js";
 import { getTarget, type Target } from "../target.js";
@@ -128,6 +129,7 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:ffi", () => ffiModuleSource],
     ["nona:win32", () => win32ModuleSource],
     ["nona:win32/settings", win32SettingsModuleSource],
+    ["nona:gui", guiModuleSource],
     ["nona:fs", fsModuleSource],
     ["node:fs", fsModuleSource],
     ...["node:fs/promises", "nona:fs/promises"].map(
