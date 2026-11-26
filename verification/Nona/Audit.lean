@@ -3,6 +3,11 @@ import Nona.MoveRules
 import Nona.ProductionMoves
 import Nona.Examples
 import Nona.Numeric
+import Nona.FractionIdentity
+import Nona.SwitchIndex
+import Nona.SwitchEquality
+import Nona.SwitchDispatch
+import Nona.SwitchWitnesses
 
 open Lean Elab Command
 
@@ -38,5 +43,18 @@ run_cmd do
       `Nona.Numeric.integer_remainder_zero_sign, `Nona.Numeric.guarded_toInt32,
       `Nona.Numeric.static_guard_exact, `Nona.Numeric.number_static_guard_exact,
       `Nona.Numeric.static_mask_remainder, `Nona.Numeric.static_mask_number,
-      `Nona.Numeric.static_fast_path_correct] do
+      `Nona.Numeric.static_fast_path_correct,
+      `Nona.Numeric.fraction_identity, `Nona.Numeric.numberEq_fraction_iff,
+      `Nona.Switch.strict_number_correct, `Nona.Switch.strict_equality_correct,
+      `Nona.Switch.first_key_correct, `Nona.Switch.constructed_lookup,
+      `Nona.Switch.distinct_keys_unique, `Nona.Switch.constructed_key_coverage,
+      `Nona.Switch.constructed_interval, `Nona.SwitchIndex.unsigned_index_exact,
+      `Nona.Switch.admitted_interval, `Nona.Switch.admitted_offset_exact,
+      `Nona.Switch.table_admission_exact,
+      `Nona.Switch.all_chain_correct, `Nona.Switch.table_chain_correct,
+      `Nona.Switch.selected_dispatch_correct, `Nona.Switch.selected_continuation_correct,
+      `Nona.Switch.missing_literal_guard_counterexample,
+      `Nona.Switch.faulty_fraction_equality_counterexample,
+      `Nona.Switch.lost_fraction_identity_counterexample,
+      `Nona.Switch.signed_index_counterexample] do
     logInfo m!"{name}: axioms {(← collectAxioms name)}"
