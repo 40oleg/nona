@@ -98,3 +98,7 @@ Nona प्रोग्राम Node.js के बिना चलते है
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 ये उपनाम ग्लोबल `Buffer`, `Blob` और `File` कंस्ट्रक्टर, बाइट वैलिडेटर, base64 हेल्पर, ट्रांसकोडिंग, इंस्पेक्शन सेटिंग और कॉन्स्टेंट एक्सपोर्ट करते हैं। Blob की बाइट और टेक्स्ट स्ट्रीम, BYOB रीडर और ऑब्जेक्ट URL का रजिस्ट्रेशन उपलब्ध हैं। सामान्य URL पार्सिंग ग्लोबल [`URL`](/hi/reference/host-apis#url) करता है; मनमानी Web Stream बनाना अब भी एक अलग डिपेंडेंसी API है। देखें [बाइनरी डेटा](/reference/host-apis#buffer-and-binary-data) और [चलाने योग्य उदाहरण](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs)।
+
+## `nona:gui` — Ubuntu native desktop
+
+`nona:gui` provides experimental native GTK windows, retained layout/drawing, buttons, text entry, toggles, focus/shortcuts and asynchronous system folder selection on Ubuntu 24.04 x64 with GTK 4.14. See the shared English [API and installation contract](/reference/gui), [retained API](/reference/gui-elements) and [two-screen example](/examples/gui). Hosted X11/Wayland receipts at scales 1/2 and a live scale change remain pending; stock Ubuntu 20.04 dependencies are unsupported.

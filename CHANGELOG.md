@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Add the Nona-owned Ubuntu service-console example with service/log and settings
+  screens, local image/font assets, native input, state updates and real periodic
+  child stdout. Add mapped GDK surface diagnostics and bounded hosted X11/Xvfb and
+  Wayland/Weston acceptance at scales 1/2, native compositor-seat input, live scale
+  transition, chooser/lifecycle progress checks, retained traces/images/failures,
+  merge-base dependency controls and a separate stock Ubuntu 20.04 outcome.
+  Document build/install commands and unsupported environments. Native acceptance
+  receipts remain pending until hosted execution
+  ([#664](https://github.com/40oleg/nona/issues/664)).
+
 - Add GTK buttons, native text entry and toggles to the retained Ubuntu GUI,
   deferred control events, focus and keyboard shortcuts, accessible names/roles
   and asynchronous system folder selection. Bound native input storage and retain

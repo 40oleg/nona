@@ -6,6 +6,13 @@ retained native GTK scene. See the [window/lifecycle reference](gui.md) and
 Buttons, native text entry, toggles, deferred input and asynchronous system
 folder selection require Ubuntu 24.04 x64/GTK 4.14. Complete desktop acceptance
 receipts remain pending; unrelated ELF programs keep their dependency baseline.
+The [service-console sample](../site/samples/gui.linux.mjs) covers service/log and
+settings screens, local assets, real child stdout, IM composition, folder
+selection/cancellation and disposal. See its [build and installation commands](gui.md#acceptance-application)
+and [hosted receipt requirements](gui.md#validation-and-acceptance-receipts).
+`Window.inspectSurface()` copies actual mapped GDK backend, scale, dimensions and
+recent presentation timing for diagnostics; requested environment values are not
+substitutes for those observations.
 
 Windows x64 programs can import `SettingsWindow` from `nona:win32/settings`
 for a modeless checkbox/seven-choice settings dialog. Windows belong to the

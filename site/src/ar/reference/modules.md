@@ -96,3 +96,7 @@
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 تصدّر هذه الأسماء البديلة المُنشئات العامة `Buffer` و`Blob` و`File`، ومدقّقات البايتات، وأدوات base64، والتحويل بين الترميزات، وإعدادات الفحص، والثوابت. وتتاح تدفقات البايتات والنصوص لـ Blob، وقارئات BYOB، وتسجيل عناوين URL للكائنات وحلّها. أما التحليل العام لعناوين URL فيتولاه الكائن العام [`URL`](/ar/reference/host-apis#url)؛ ويبقى إنشاء Web Streams اعتباطية واجهةً تابعة منفصلة. راجع [البيانات الثنائية (بالإنجليزية)](/reference/host-apis#buffer-and-binary-data) و[المثال القابل للتشغيل](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+
+## `nona:gui` — Ubuntu native desktop
+
+`nona:gui` provides experimental native GTK windows, retained layout/drawing, buttons, text entry, toggles, focus/shortcuts and asynchronous system folder selection on Ubuntu 24.04 x64 with GTK 4.14. See the shared English [API and installation contract](/reference/gui), [retained API](/reference/gui-elements) and [two-screen example](/examples/gui). Hosted X11/Wayland receipts at scales 1/2 and a live scale change remain pending; stock Ubuntu 20.04 dependencies are unsupported.

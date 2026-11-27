@@ -28,6 +28,47 @@ const source = `import {Window} from 'nona:gui';
 const w = new Window({title:'Nona bridge',width:320,height:240});
 w.open(); w.resize(400,300); w.show(); w.dispose();`;
 
+test("GUI surface inspection requires an open session and copies native observations", () => {
+    const m = managed();
+    const window = new m.Window();
+    assert.throws(() => window.inspectSurface(), /not open/);
+    window.open();
+    // No mapped surface is available in this managed-only double.
+    const observation = window.inspectSurface();
+    assert.equal(observation.mapped, false);
+    assert.equal(observation.session, 1);
+    assert.equal(observation.backend, "");
+    assert.equal(observation.presentationTime, 0);
+    assert.equal(m.calls.at(-1)?.[0], 11);
+    window.dispose();
+    assert.throws(() => window.inspectSurface(), /disposed/);
+});
+
+for (const gcStress of [false, true]) {
+    test(
+        `GUI surface inspection copies mapped GDK data across the native ABI (GC ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const program = guiProbe(
+                `${guiWrapper}
+const w = new Window(); w.open();
+const s = w.inspectSurface();
+console.log(s.backend, s.surface, s.mapped, s.width, s.height, s.scaleFactor,
+    s.frame, s.presentationTime, s.complete, s.slot, s.session);
+w.dispose();`,
+                gcStress,
+                { surface: true },
+            );
+            const result = runGuiProbe(program);
+            assert.equal(result.status, 0, result.stderr);
+            assert.equal(
+                result.stdout.trim(),
+                "GdkWaylandDisplay 12345678:87654321 true 760 650 2 16 4294967303 true 0 1",
+            );
+        },
+    );
+}
+
 // This double tests only the JS wrapper. Native ownership and GTK dispatch
 // have separate executable tests below; a fake display establishes neither.
 function managed() {

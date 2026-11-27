@@ -30,3 +30,5 @@ nona build examples/fibonacci.js -o build/fibonacci --target linux-x64
 :::
 
 Примеры этого сайта лежат в [`site/samples`](https://github.com/40oleg/nona/tree/main/site/samples); CI компилирует каждый из них для его целей.
+
+- [Native Ubuntu desktop](/ru/examples/gui) — service/log and settings screens, GTK input and background stdout; hosted acceptance receipts pending.

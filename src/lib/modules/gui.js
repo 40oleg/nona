@@ -287,6 +287,27 @@ export class Window {
     get root() {
         return this._root;
     }
+    inspectSurface() {
+        this._requireOpen();
+        command(11, this._session);
+        scratch.fill(0, 3);
+        call();
+        return {
+            slot: this._session.slot,
+            session: this._session.generation,
+            mapped: !!scratch[3],
+            width: scratch[4],
+            height: scratch[5],
+            scaleFactor: scratch[6],
+            surface: scratch[8].toString(16) + ":" + scratch[7].toString(16),
+            frame: scratch[10] * 4294967296 + scratch[9],
+            presentationTime: scratch[12] * 4294967296 + scratch[11],
+            complete: !!scratch[13],
+            backend: decoder.decode(
+                new Uint8Array(scratch.buffer, 64, scratch[15]),
+            ),
+        };
+    }
     setRoot(element) {
         if (this._disposed) throw new Error("GUI Window is disposed");
         setWindowRoot(this, element);

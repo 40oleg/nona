@@ -22,6 +22,7 @@ import {
     guiHelpers,
     GuiRecord as R,
     guiSlots,
+    guiSurfaceCalls,
 } from "../../src/runtime/gui-bridge.js";
 import { replaceImport } from "./native.js";
 import { hostTarget, linkHost } from "./program.js";
@@ -112,6 +113,7 @@ type Options = {
     render?: boolean;
     failImage?: boolean;
     drawOnIteration?: boolean;
+    surface?: boolean;
 };
 // Executable native doubles isolate Nona's machine code from GTK. Stats are
 // test-only builtins, never production exports. The real GTK fixture is separate.
@@ -184,6 +186,45 @@ export function guiProbe(
         b.fn("gui.test." + name, frame, body);
         replaceImport(program, "gui.import." + name, "gui.test." + name);
     }
+    b.data("gui.test.backend", new TextEncoder().encode("GdkWaylandDisplay\0"));
+    for (const name of [...guiSurfaceCalls, "g_type_name_from_instance"])
+        stub(name, (a) => {
+            if (!options.surface) {
+                a.mov("rax", 0);
+                return;
+            }
+            if (name === "g_type_name_from_instance") {
+                a.lea("rax", { rip: "gui.test.backend" });
+                return;
+            }
+            if (name === "gdk_frame_clock_get_timings") {
+                a.mov("rax", "rsi"); // use the frame counter as a fake timing handle
+                return;
+            }
+            if (name === "gdk_frame_timings_get_complete") {
+                const done = a.unique("complete");
+                a.mov("rax", 0xfeedbeef00000000n);
+                a.cmp("rdi", 17); // current timing is incomplete; previous is complete
+                a.jcc("e", done);
+                a.add("rax", 1);
+                a.label(done);
+                return;
+            }
+            const results: Record<string, number | bigint> = {
+                gtk_native_get_surface: 0x1234567887654321n,
+                gdk_surface_get_mapped: 1,
+                gdk_surface_get_display: 0x1000,
+                gdk_surface_get_width: 760,
+                gdk_surface_get_height: 650,
+                gdk_surface_get_scale_factor: 2,
+                gdk_surface_get_frame_clock: 0x2000,
+                gdk_frame_clock_get_frame_counter: 17,
+                gdk_frame_clock_get_timings: 0x3000,
+                gdk_frame_timings_get_presentation_time: 4294967303,
+                gdk_frame_timings_get_complete: 1,
+            };
+            a.mov("rax", results[name] ?? 0);
+        });
     stub("gtk_init_check", (a) => {
         bump(a, 6);
         a.mov(

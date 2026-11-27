@@ -5,6 +5,7 @@
         "gui-bridge",
         "gui-elements",
         "gui-controls",
+        "gui-desktop",
         "events",
         "gc",
         "http-backpressure",

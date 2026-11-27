@@ -1,7 +1,18 @@
 # Retained GUI fixtures
 
-These fixtures belong to Nona and exercise stage 2 of #664. They are not the
-interactive desktop acceptance application for stage 4.
+These fixtures belong to Nona and exercise #664. The two-screen interactive
+application is [`site/samples/gui.linux.mjs`](../../../site/samples/gui.linux.mjs).
+Stage 4's `desktop.py` owns the isolated display, D-Bus and application process
+groups. `weston-input.c` injects native seat input on a disposable Weston 13
+compositor and changes its live output scale; it must never be installed on a
+person's desktop. `desktop-layout.json` independently specifies the sample's
+initial logical bounds and device conversions at scales 1/2. The driver uses
+the mapped surface's measured scale for those conversions. `desktop_receipts.py`
+rejects incomplete observations; `test_desktop_receipts.py` tests those rejection
+paths without a display. `build-desktop.mjs` explicitly selects compiler GC
+instrumentation. `no-display.mjs` checks failure without a display and `console.js`
+is the identical-source dependency/headless control for both compiler revisions.
+See [installation, commands and pending receipt status](../../../docs/gui.md).
 
 Stage 3's `controls.mjs` and `drive-controls.py` exercise native controls,
 AT-SPI roles/names, Unicode text, folder selection/cancellation and close/reopen

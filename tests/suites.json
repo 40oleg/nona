@@ -8,6 +8,7 @@
                 "gui-bridge",
                 "gui-elements",
                 "gui-controls",
+                "gui-desktop",
                 "runtime-link-numeric",
                 "semantic-replay",
                 "semantic-replay-selector",

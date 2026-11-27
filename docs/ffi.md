@@ -1,5 +1,16 @@
 # Native functions (FFI)
 
+For a native Ubuntu desktop, use [`Window` and `Element` from `nona:gui`](gui.md).
+Its private GTK bridge adapts native callbacks into deferred runtime-thread events;
+general FFI callbacks remain unsupported. GUI programs opt into system GTK 4,
+GLib/GObject/GIO, Cairo, Pango and Fontconfig imports. The supported floor is Ubuntu
+24.04 x64/GTK 4.14; see [installation and the exact ELF build command](gui.md#acceptance-application).
+The [hosted dependency control](gui.md#validation-and-acceptance-receipts) compares
+identical non-GUI sources/flags with merge-base and candidate compilers. A console
+ELF without library FFI retains no `DT_NEEDED` entries and starts headlessly.
+This bridge does not broaden the public FFI callback ABI or add GUI dependencies
+to unrelated programs. Native desktop receipt status is tracked in the GUI reference.
+
 For an interactive modeless settings window on **Windows x64**, use
 [`SettingsWindow` from `nona:win32/settings`](win32-settings.md). Its native
 dialog procedure records events without calling JavaScript; the existing I/O

@@ -1,6 +1,6 @@
 # Retained GUI elements
 
-This is the stage 2 API and ownership reference for [nona:gui](gui.md), #664.
+This is the retained API and ownership reference for [nona:gui](gui.md), #664.
 The managed wrapper establishes tree/layout guarantees; the private native
 renderer establishes recording ownership and atomic replacement. Applications
 rely on both. These guarantees apply to Linux x64 main-thread GUI programs,
@@ -308,7 +308,7 @@ callback and prevents that key from editing a control. Rules are restored on
 reopen. A removed rule's queued callback is ignored. This explicit native
 policy works even though its JS callback runs after dispatch. Input overflow
 can drop the queued callback after the key was consumed; see the
-[bounded event transport](gui.md#private-bridge-protocol-version-3).
+[bounded event transport](gui.md#private-bridge-protocol-version-4).
 
 See [folder selection](gui.md#asynchronous-folder-selection) for asynchronous
 chooser ownership and cancellation during parent close/disposal. Actual IME

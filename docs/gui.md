@@ -1,11 +1,11 @@
 # Ubuntu native GUI foundation
 
 `nona:gui` is an opt-in, experimental Linux x64 host module for #664. The
-first three stages implement native GTK 4 windows, deferred events, retained
+module implements native GTK 4 windows, deferred events, retained
 elements, layout, styling, drawing, local assets, native controls, input and
-asynchronous folder selection. The complete issue
-acceptance criteria remain open. Keep the eventual PR draft until native
-acceptance evidence and the remaining stages are complete.
+asynchronous folder selection. A Nona-owned service-console example and hosted
+desktop acceptance workflow are included. The complete issue acceptance criteria
+remain open until the native receipts pass. Keep the eventual PR draft until then.
 
 ## Platform and dependencies
 
@@ -137,7 +137,81 @@ once and releases its native objects/path/error; an old session cannot deliver
 a selected path into a reopened window. Closing the last window therefore waits
 for cancelled chooser completion as well as other referenced work.
 
-## Private bridge protocol, version 3
+## Acceptance application
+
+Install the runtime packages on **Ubuntu 24.04 Desktop x86-64**:
+
+```sh
+sudo apt-get update
+sudo apt-get install libgtk-4-1 libpangoft2-1.0-0 python3
+```
+
+Python is used only by this example's real periodic stdout child. The GUI runtime
+does not require Python. Compile the example into a Nona-owned Linux ELF and copy
+its assets beside the executable:
+
+```sh
+npm ci
+npm run build
+mkdir -p work/gui-demo/gui-assets
+node dist/cli.js build site/samples/gui.linux.mjs --target linux-x64 -o work/gui-demo/gui
+cp site/samples/gui-assets/* work/gui-demo/gui-assets/
+./work/gui-demo/gui
+```
+
+[`gui.linux.mjs`](../site/samples/gui.linux.mjs) implements a service list with
+editable service name, a scrolling stdout log, state-driven action counter,
+local PNG image, custom drawing and a separate settings page with a native toggle
+and system folder chooser. Tab/Shift+Tab traverse controls; Enter/Space activate
+native buttons. Ctrl+S switches pages, Ctrl+L changes the log scroll offset and
+Ctrl+R requests an 820×700 content size. The Scroll log button also changes the
+offset; automatic scrollbars/wheel scrolling are not implemented. GTK owns text
+entry, IM composition, focus and accessible roles/names.
+
+Closing the native window deliberately reopens the retained tree after 100 ms.
+Finish demo disposes it while timers and child stdout are still pending. The
+example observes another 400 ms of background progress, stops its timer and child,
+then lets the event loop drain normally. It does not call `process.exit()` on
+success. An 80-second safety deadline sets a nonzero exit code. In acceptance
+mode (`NONA_GUI_ACCEPTANCE=1`) the fourth folder request disposes its parent while
+that request is pending; this mode is set only by the integration driver.
+
+Local PNG/font paths resolve relative to the executable, not its working
+directory. Distribute the `gui-assets/` directory with the ELF. Its pinned Abel
+font includes its OFL license. See [asset limits and ownership](gui-elements.md)
+and the [fixture provenance](../tests/fixtures/gui/README.md).
+
+Supported backend targets are native **GDK X11 and GDK Wayland on Linux x64**.
+The application runs without Node.js, a browser or a WebView. Other architectures,
+desktop stacks, Ubuntu 22.04's stock GTK 4.6, and Ubuntu 20.04's stock GTK 3 are
+unsupported. The minimum supported graphics-library versions are listed above;
+they are validation floors, not a claim that every older library lacks every API.
+Import/element construction works without a display; opening fails as described
+under [platform and dependencies](#platform-and-dependencies). A GUI ELF still
+needs its libraries even when it only imports the module without opening a window.
+
+## Mapped-surface diagnostics
+
+`window.inspectSurface()` requires an open window and returns a copied, read-only
+observation: `slot`, `session` (generation), `surface` (opaque process-local identity
+string), `mapped`, `backend` (actual GDK display runtime type), `width`, `height`,
+`scaleFactor`, `frame`, `complete` and `presentationTime`. It performs no event
+dispatch and exposes no callable native handle. Compare surface identity only
+within one process/session; native pointers can be reused after destruction.
+
+The bridge obtains the [native GDK surface](https://docs.gtk.org/gtk4/method.Native.get_surface.html),
+queries its mapped state, dimensions, integer scale and display type, then checks
+the current and up to seven preceding GDK frame timings. It reports a frame only
+when its timing is complete and its actual presentation timestamp is positive.
+`presentationTime` uses GLib's monotonic microsecond timebase; zero means no such
+recent timing is available. A mapped surface or a
+[complete timing](https://docs.gtk.org/gdk4/method.FrameTimings.get_complete.html)
+alone is insufficient evidence of presentation. Call again after asynchronous
+dispatch/redraw. Width/height are surface logical pixels and can include native
+decoration extents; retained `Element.bounds` uses content coordinates. Device
+fixture conversion multiplies logical bounds by the measured integer scale.
+
+## Private bridge protocol, version 4
 
 The module captures/removes `__nonaGui`. Its single argument is a Uint32Array
 with at least 160 elements over a fixed, nonshared, attached ArrayBuffer,
@@ -149,12 +223,21 @@ Window commands supply 2048 elements; scene commands supply a larger packet. Wor
 6 event type; 7 observed width; 8 observed height; 9 observed integer scale.
 Bytes 64..575 hold a NUL-terminated UTF-8 title (512 bytes). Operations are
 1 create/present, 2 destroy/discard, 3 poll/take, 4 present, 5 resize, 6 replace scene,
-7 focus control, 8 choose folder, 9 cancel request, 10 replace shortcuts.
+7 focus control, 8 choose folder, 9 cancel request, 10 replace shortcuts,
+11 inspect the mapped native surface.
 Create writes slot/generation; poll writes event fields. Return is 0 (success
 or no event), 1 (one event), -1 (initialization), -2 (capacity/generation),
 -3 (stale/invalid command), -4 (partial creation), -5 (wrong thread),
 -6 (candidate graphics/asset failure).
 The protocol is private and may change alongside its only caller.
+
+Inspection uses a zeroed output region: word 3 mapped, 4/5 logical width/height,
+6 integer surface scale, 7/8 opaque native identity, 9/10 frame counter, 11/12
+presentation timestamp, 13 timing complete, 15 display-name byte length (max 63),
+and UTF-8 display type at byte 64. Two-word fields are low/high u32 halves.
+Zero fields represent unavailable data. The caller must zero words 3 onward
+before issuing the command. Native inspection validates the session generation
+and borrows all GDK objects only for the synchronous call.
 
 Scene words 10/11 are record count and exact packet byte length (max 8 MiB).
 At byte 640 are up to 16384 128-byte records: u32 opcode at 0, primary string
@@ -242,111 +325,143 @@ is maintained. A GLib source's own unbounded callback can still block the thread
 
 ## Validation and acceptance receipts
 
-[gui-bridge.test.ts](../tests/gui-bridge.test.ts) is registered in the frontend
-suite and the always-GC-stress list. Its layers establish different guarantees:
+The [GUI desktop workflow](../.github/workflows/gui-desktop.yml) runs only on
+GitHub-hosted Ubuntu 24.04 runners. Its eight rows cover X11/Xvfb and
+Wayland/headless Weston at initial scales 1 and 2, with compiler GC instrumentation
+off and on. Rows execute serially. It requires the PR's `enhancement`, `complex`,
+`full-ci` and `gc-stress` labels and the issue's shipping milestone. The harness
+must apply and read back this metadata **before its CI-triggering push**. This
+checkout has no PR yet; this step does not push or create one. Existing `check`,
+`native-platforms`, `self-hosting`, program corpus, formal-verification and pages
+workflows remain required for full repository and platform validation. Full/long
+validation stays hosted; local test execution uses concurrency 1.
 
-| Check                                                  | Established boundary                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| VM wrapper tests                                       | Validation before native work, independent session ownership, invalidation between `poll` and `run`, stale generations, silent disposal, close/reopen before listener invocation and timer budget conversion.                                                                                       |
-| Executable native probes, GC stress off/on             | Win64/SysV register preservation (full 128-bit XMM6..15), aligned calls, distinct fifth/sixth arguments, narrow GTK returns, borrowed-buffer validation, main-thread rejection branch, partial cleanup, capacity, generation retirement, round-robin/coalesced delivery and bounded dispatch/sleep. |
-| Compiled wrapper and real timer loop, GC stress off/on | Poller roots keep otherwise unreachable windows/listeners alive, multiple pollers progress, handled exceptions checkpoint Promises, unhandled exceptions fail, close handlers may reopen, last-window close drains its final Promise and allows normal exit.                                        |
-| Cross-compilation and ELF inspection                   | Unsupported targets/agents reject the bridge, public FFI callback types remain reserved, unrelated programs link on all eight targets without GUI imports; Linux console images retain no `DT_NEEDED` entries.                                                                                      |
-| Opt-in real GTK fixture                                | A real native close request, multiple windows, resize/scale observations, reopen, disposal while stdout is pending, and continuing timers, Promises and child stdout. Requires Linux x64 and a display; skipped elsewhere.                                                                          |
+The bounded [desktop driver](../tests/fixtures/gui/desktop.py) owns its display,
+D-Bus session and application process groups, and reaps them in failure paths as
+well as success paths. Cleanup gives the entire driver group a bounded grace
+period after its launcher exits; the outer supervisor retains the application
+group ID, and Linux subreaper mode permits reaping orphaned descendants.
+The issue-specific PR metadata assertions apply only to #664's PR; later source
+PRs still run the reusable desktop regression without inheriting that issue's
+type or milestone. X11 clears `WAYLAND_DISPLAY`, fixes `GDK_BACKEND=x11` and
+waits for `xdpyinfo`. Wayland clears `DISPLAY` and `GDK_SCALE`, creates a private
+mode-0700 `XDG_RUNTIME_DIR`, sets a private Wayland socket and
+`GDK_BACKEND=wayland`, and waits for a successful `wayland-info` round trip.
+Environment requests never count as backend/scale observations.
 
-The executable probes replace only external GTK/GLib calls with native stubs
-using [test composition](../tests/helpers/gui-native.ts). On Windows they also
-replace Linux thread-identity syscalls; on Linux normal probes use real kernel
-thread IDs. A separate probe forces the wrong-thread branch before any GTK
-call. These probes establish Nona bridge behavior, not GTK window-system
-behavior. The standalone ABI probes exercise both directions of the callback
-boundary without adding public FFI callbacks or production test hooks.
+The test-only [Weston 13 module](../tests/fixtures/gui/weston-input.c) creates a
+native libweston seat and accepts bounded commands over a private Unix socket.
+It injects native pointer and keyboard events, including IM composition, through
+the compositor. X11 uses XTest/xdotool. Neither path invokes JavaScript handlers.
+AT-SPI inspects roles/names, focus and bounds and accepts/dismisses the real GTK
+folder dialog. The module also authorizes screenshots on this isolated disposable
+display; never install or load it on a person's desktop. Its private exported
+input ABI is pinned to Weston 13 and is not a Nona application dependency.
 
-The bounded [real window fixture](../tests/fixtures/gui-window.mjs) uses GTK's
-own [close request](https://docs.gtk.org/gtk4/method.Window.close.html) to exercise
-the installed native signal callback. Build/run on an Ubuntu desktop:
+After presentation, the driver requires `GdkX11Display` or `GdkWaylandDisplay`,
+positive native surface dimensions and the measured initial scale. It retains PID,
+slot/generation, opaque surface identity, completed frame/presentation timestamp,
+content bounds and ordered JavaScript event traces. Each Wayland scale-1 row
+separately changes the live compositor output to scale 2; acceptance requires a
+scale callback and two presented observations for the **same surface and session**.
+Independent initial-scale launches cannot satisfy that assertion.
+
+The application and driver exercise pointer press/release and state updates,
+Tab/Shift+Tab, Enter/Space, consumed shortcuts, real GTK simple-IM preedit across
+stdout redraws, Unicode composition commit/cancellation, resize, scrolling,
+drawing, both screens, a selected folder and dismissal. They check timers,
+Promise continuations and real child stdout during the chooser and after every
+dismissal. A native close request reopens the retained tree; final disposal with
+a chooser and background work pending must produce no disposed-control callbacks.
+The application must exit normally after its remaining work drains and its child
+is reaped. This tests GTK's simple input method, not IBus/Fcitx integration.
+
+Artifacts under `work/gui-evidence/` include environment/library/Ubuntu versions,
+source commit and compiler mode, display readiness output, compositor and driver
+logs, ordered `events.jsonl`, `input.json`, accessibility tree, services/settings
+PNG captures, a live-scale PNG, and `PASS.json` or failure traceback plus partial
+logs. `PASS.json` is written only after all assertions and a zero process exit.
+The pure [receipt rejection tests](../tests/fixtures/gui/test_desktop_receipts.py)
+reject missing lifecycle/input events, false progress, an incorrect backend/scale,
+unpresented frames and a replacement surface masquerading as a scale transition.
+
+The same workflow runs formatting, document-link checks, all sample builds and
+`npm run compare -- --linux`. [gui-baseline.sh](../scripts/gui-baseline.sh) builds
+one committed console source with the merge-base and candidate compilers on the
+same machine, using identical CLI flags. It retains source hash, commit IDs,
+flags, raw `readelf -h/-d`, normalized `DT_NEEDED` sets, dependency/stdout diffs,
+headless stdout/stderr and exit statuses. Both dependency sets must match and
+remain empty, and both console programs must start with display variables cleared.
+A separate GUI probe must catch initialization failure without a display when
+the desktop libraries are installed.
+
+A separate **actual Ubuntu 20.04 container** records its OS/architecture and stock
+package query/install failure, runs the candidate GUI ELF and captures its loader
+failure for missing `libgtk-4.so.1`, then checks headless console startup. Its
+expected outcome is explicitly **unsupported stock dependencies**, not GUI
+acceptance. Container execution does not establish a 20.04 desktop session.
+Missing or unexpected results fail the job; no backport support is claimed.
+
+The optional VI Toolkit commands `./proto/build-proto` and
+`python3 proto/probe.py --source-cli desktop main` run only when that checkout is
+present. It is unavailable in this checkout and on the normal hosted Nona runner;
+the workflow records that fact. Hosted acceptance depends only on Nona's fixtures,
+not VI Toolkit, Vue or Electron. The two native screens cover its representative
+service/log/settings/folder use case, not an automatic port of the seven-page app.
+
+### Focused checks and current receipt status
+
+[gui-bridge.test.ts](../tests/gui-bridge.test.ts) checks validation, independent
+session ownership, deferred callbacks, invalidation, GC roots, Win64/SysV ABI,
+timeout budgets, fairness and close/reopen. The new inspection probes check copied
+native data in both GC modes. [gui-elements.test.ts](../tests/gui-elements.test.ts)
+checks independently owned layout/scale/drawing fixtures and, on Ubuntu, actual
+Cairo pixels. [gui-controls.test.ts](../tests/gui-controls.test.ts) checks native
+control transactions, bounded queues, focus, state revisions and chooser lifetime.
+The [bridge workflow](../.github/workflows/gui-bridge.yml) runs those focused files
+at concurrency 1 against real X11/GTK, including the earlier input/chooser fixture.
+[gui-desktop.test.ts](../tests/gui-desktop.test.ts) compiles the acceptance
+application and headless GUI probe in both GC modes. Stubbed executable ABI probes
+and managed tests supplement, and do not substitute for, native display receipts.
 
 ```sh
-npm ci
 npm run build
-node dist/cli.js build tests/fixtures/gui-window.mjs --target linux-x64 -o work/gui-window
-./work/gui-window
+node --test --test-concurrency=1 dist/tests/gui-desktop.test.js dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js dist/tests/gui-controls.test.js
+python3 tests/fixtures/gui/test_desktop_receipts.py
 ```
 
-For the focused tests after building:
+For local native testing on Ubuntu, install the test packages listed in the
+workflow, compile its Weston module, run `build-desktop.mjs`, then invoke
+`desktop.py launch` with the desired backend/scale. The workflow contains the exact
+commands. Real bridge tests additionally use `NONA_GTK_GUI_TESTS=1` and
+`NONA_GTK_INPUT_TESTS=1` inside an isolated X11/D-Bus session.
 
-```sh
-NONA_GTK_GUI_TESTS=1 node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js dist/tests/gui-controls.test.js
-```
+**This revision was authored on Windows x64. Native hosted execution is pending
+until the harness push. No actual X11/Wayland desktop, live-scale or Ubuntu 20.04
+receipt is claimed here.** Record workflow URLs and artifact hashes after they
+pass; do not infer success from configured jobs or compilation.
 
-Each native case requests GC stress both disabled and enabled. Leave
-`NONA_GC_STRESS` unset or set to `on`; `off` overrides even the stress-enabled
-compiler requests. The fixture has a four-second application deadline, and
-the test runner imposes a fifteen-second process deadline.
-[The hosted window-bridge job](../.github/workflows/gui-bridge.yml) configures
-Ubuntu 24.04 with GTK and an isolated Xvfb X11 display, runs the focused file
-at concurrency 1, records package versions, source commit, raw native output
-and headless console `readelf` output, and retains artifacts on failures.
-Its Xvfb launcher owns and reaps its display process.
+| Acceptance evidence                                                           | Current result                           |
+| ----------------------------------------------------------------------------- | ---------------------------------------- |
+| Ubuntu 24.04 X11/Xvfb, scales 1 and 2, both GC modes                          | Pending hosted receipts                  |
+| Ubuntu 24.04 Wayland/headless Weston, scales 1 and 2, both GC modes           | Pending hosted receipts                  |
+| Same live Wayland surface, scale 1 → 2, both GC modes                         | Pending hosted receipts                  |
+| Identical-source merge-base/candidate dependency comparison and headless runs | Pending hosted receipts                  |
+| Actual Ubuntu 20.04 stock-library outcome                                     | Pending; expected unsupported GTK stack  |
+| VI Toolkit private checkout                                                   | Unavailable; Nona-owned fixture included |
 
-Local Windows native probes do not establish Linux desktop support. Hosted
-execution of this revision is pending until the harness pushes it. No actual
-Wayland, mapped-surface backend/scale or Ubuntu 20.04 result is claimed here.
-The minimal window fixture is not the complete acceptance example. Stage 2's
-separate retained fixture exercises text, images, drawing, updates, scrolling,
-resize, removal and reopen:
+Issue #664 acceptance criteria remain open until their native receipts pass:
 
-```sh
-mkdir -p work/gui-retained
-node dist/cli.js build tests/fixtures/gui/retained.mjs --target linux-x64 -o work/gui-retained/demo
-cp tests/fixtures/gui/Abel-Regular.ttf tests/fixtures/gui/pixels.png work/gui-retained/
-./work/gui-retained/demo
-```
+- [ ] The documented command builds a Linux ELF that opens a native window, lays
+      out text/image, accepts text, handles keyboard/pointer activation and updates
+      a state label on Ubuntu.
+- [ ] The same example exercises scrolling, resize and custom drawing; deterministic
+      Nona-owned fixtures check layout bounds, scale conversion and drawing.
+- [ ] Live-window evidence demonstrates timer/Promise/I/O progress, close/reopen,
+      safe pending-event disposal and normal exit after remaining referenced work.
+- [ ] Native Wayland/X11 receipts record Ubuntu and scale; installation, supported
+      backends/architecture, minimum libraries and headless behavior are documented,
+      and a non-GUI binary preserves its dependency baseline.
 
-Stage 2's local evidence is focused Windows x64 executable probes in both GC
-modes, plus cross-compilation. Its real Cairo pixel checks at scales 1/2 and
-local-asset/rollback checks are configured for hosted Ubuntu execution after
-the harness push. They capture the committed recording through test-only
-composition and compare independent pixel fixtures and pinned-font ink bounds;
-they do not establish mapped GDK scale or Wayland behavior. No local Linux
-rendering receipt is claimed. The interactive acceptance application and full
-X11/Wayland evidence remain for stage 4.
-
-Stage 3 adds [gui-controls.test.ts](../tests/gui-controls.test.ts): managed
-state/generation tests and executable native queue/control/chooser probes in
-both GC modes. It also provides a bounded
-[controls fixture](../tests/fixtures/gui/controls.mjs) and
-[AT-SPI driver](../tests/fixtures/gui/drive-controls.py). On Ubuntu, install
-`python3-pyatspi at-spi2-core xdotool` in addition to the libraries/display above,
-then run the focused tests with `NONA_GTK_INPUT_TESTS=1` and `GTK_A11Y=atspi`
-inside `dbus-run-session`. The driver records native accessibility roles/names,
-Unicode entry edits, chooser selection/cancellation, parent close/reopen during
-selection, parent disposal before completion and continuing timers/Promises/child
-stdout while the chooser is modal and after dismissal. Its X11 path also injects
-pointer, Tab/Shift+Tab, Enter/Space and shortcut keys, and drives
-[GtkIMContextSimple](https://docs.gtk.org/gtk4/class.IMContextSimple.html)
-Unicode composition through physical key sequences. It checks that uncommitted
-preedit survives application redraws without leaking into `input`, that commit
-produces U+1F408, and that cancelling another composition allows ordinary text
-insertion afterward, without committing its abandoned preedit.
-Receipts (including
-failures) remain under `work/gui-evidence/controls-*`, separated by requested
-backend, scale and GC mode. `controls.input.json` records the injected keys and
-completed composition checks; stdout/stderr and the accessibility snapshot are
-also retained on failure. These tests are configured, not local Linux receipts:
-this Windows host has no Linux environment. IBus/Fcitx integration, Wayland
-physical input, actual mapped backend/scale and Ubuntu 20.04 execution remain
-explicit receipt gaps for stage 4. Ubuntu 20.04's stock packages lack the
-supported GTK baseline.
-
-The final hosted matrix must run on Ubuntu 24.04, X11/Xvfb and Wayland/headless
-Weston at scales 1 and 2. Isolate each display, wait for `xdpyinfo` or a
-`wayland-info` round trip, and bound/reap all launcher processes. Record actual
-mapped surface backend type, positive size, scale after a presented frame,
-PID/session/generation and ordered timer, Promise, real I/O, close/reopen and
-disposal traces. Two launches at different scales establish initial scales,
-not a scale-change callback; the latter requires two values on one surface.
-Mapped-surface backend diagnostics are still a later-stage gap. Keep raw logs,
-reference traces and failures as workflow artifacts. Compare `readelf -d`
-direct dependencies of identical console sources built by base and candidate,
-and run the console binary with both display variables cleared. Source tests
-of dependency isolation supplement but do not replace those native receipts.
+The P1 use case also remains subject to the hosted input, folder selection and
+cancellation, background progress and disposal assertions described above.

@@ -34,6 +34,20 @@ const mem = (name: string) => ({ rip: "gui." + name });
 const field = (offset: number) => ({ base: "r10" as const, disp: offset });
 const api = (a: Assembler, name: string) => a.call("gui.abi." + name);
 
+export const guiSurfaceCalls = [
+    "gtk_native_get_surface",
+    "gdk_surface_get_mapped",
+    "gdk_surface_get_display",
+    "gdk_surface_get_width",
+    "gdk_surface_get_height",
+    "gdk_surface_get_scale_factor",
+    "gdk_surface_get_frame_clock",
+    "gdk_frame_clock_get_frame_counter",
+    "gdk_frame_clock_get_timings",
+    "gdk_frame_timings_get_presentation_time",
+    "gdk_frame_timings_get_complete",
+];
+
 /** Linux x64 only. All calls are leaf with respect to the managed heap: GTK
  * may allocate native memory but cannot enter JS or trigger Nona GC. No Values
  * survive managed safepoints, so these helpers deliberately need no rootedFn.
@@ -42,6 +56,8 @@ export function guiHelpers(): RuntimeBuilder {
     const b = new RuntimeBuilder();
     guiRendering(b);
     guiInput(b);
+    for (const name of guiSurfaceCalls) guiSystemCall(b, "libgtk-4.so.1", name);
+    guiSystemCall(b, "libgobject-2.0.so.0", "g_type_name_from_instance");
     for (const name of [
         "gtk_init_check",
         "gtk_window_new",
@@ -66,6 +82,104 @@ export function guiHelpers(): RuntimeBuilder {
     for (const name of ["init", "cursor"])
         b.data("gui." + name, new Uint8Array(8), ".data");
     b.data("gui.closeSignal", new TextEncoder().encode("close-request\0"));
+
+    // Read-only diagnostics. Borrowed GDK objects never outlive this call.
+    // A completed timing alone does not prove presentation: expose its actual
+    // timestamp separately, with zero meaning unavailable. Inspect recent frames
+    // because the current frame may still be in flight.
+    b.fn("gui.inspect", 104, (a) => {
+        a.store(slot(48), "rdx");
+        a.load("rcx", { base: "rcx", disp: R.window });
+        api(a, "gtk_native_get_surface");
+        a.store(slot(56), "rax");
+        const done = a.unique("inspectDone");
+        a.test("rax", "rax");
+        a.jcc("e", done);
+        a.load("r10", slot(48));
+        a.store({ base: "r10", disp: 28 }, "rax");
+        for (const [name, word] of [
+            ["gdk_surface_get_mapped", 3],
+            ["gdk_surface_get_width", 4],
+            ["gdk_surface_get_height", 5],
+            ["gdk_surface_get_scale_factor", 6],
+        ] as const) {
+            a.load("rcx", slot(56));
+            api(a, name);
+            a.load("r10", slot(48));
+            a.store({ base: "r10", disp: word * 4 }, "rax", 32);
+        }
+        a.load("rcx", slot(56));
+        api(a, "gdk_surface_get_display");
+        a.mov("rcx", "rax");
+        api(a, "g_type_name_from_instance");
+        const copy = a.unique("inspectCopy"),
+            copied = a.unique("inspectCopied");
+        a.mov("r9", "rax");
+        a.mov("r11", 0);
+        a.load("r10", slot(48));
+        a.label(copy);
+        a.load("rax", { base: "r9" }, 8);
+        a.test("rax", "rax");
+        a.jcc("e", copied);
+        a.store({ base: "r10", disp: 64 }, "rax", 8);
+        a.add("r9", 1);
+        a.add("r10", 1);
+        a.add("r11", 1);
+        a.cmp("r11", 63);
+        a.jcc("b", copy);
+        a.label(copied);
+        a.load("r10", slot(48));
+        a.store({ base: "r10", disp: 60 }, "r11", 32);
+        a.load("rcx", slot(56));
+        api(a, "gdk_surface_get_frame_clock");
+        a.test("rax", "rax");
+        a.jcc("e", done);
+        a.store(slot(64), "rax");
+        a.mov("rcx", "rax");
+        api(a, "gdk_frame_clock_get_frame_counter");
+        a.store(slot(72), "rax");
+        a.mov("rax", 8);
+        a.store(slot(88), "rax");
+        const frame = a.unique("inspectFrame"),
+            next = a.unique("inspectNext");
+        a.label(frame);
+        a.load("rcx", slot(64));
+        a.load("rdx", slot(72));
+        a.cmp("rdx", 0);
+        a.jcc("l", done);
+        api(a, "gdk_frame_clock_get_timings");
+        a.test("rax", "rax");
+        a.jcc("e", next);
+        a.store(slot(80), "rax");
+        a.mov("rcx", "rax");
+        api(a, "gdk_frame_timings_get_complete");
+        // gboolean is a 32-bit return; upper register bits are unspecified.
+        a.shl("rax", 32);
+        a.shr("rax", 32);
+        a.test("rax", "rax");
+        a.jcc("e", next);
+        a.load("rcx", slot(80));
+        api(a, "gdk_frame_timings_get_presentation_time");
+        a.test("rax", "rax");
+        a.jcc("e", next);
+        a.load("r10", slot(48));
+        a.store({ base: "r10", disp: 44 }, "rax");
+        a.load("rax", slot(72));
+        a.store({ base: "r10", disp: 36 }, "rax");
+        a.mov("rax", 1);
+        a.store({ base: "r10", disp: 52 }, "rax", 32);
+        a.jmp(done);
+        a.label(next);
+        a.load("rax", slot(72));
+        a.sub("rax", 1);
+        a.store(slot(72), "rax");
+        a.load("rax", slot(88));
+        a.sub("rax", 1);
+        a.store(slot(88), "rax");
+        a.jcc("ne", frame);
+        a.label(done);
+        a.mov("rax", 0);
+    });
 
     b.fn("gui.recordClose", 8, (a) => {
         const done = a.unique("done");
@@ -251,7 +365,8 @@ export function guiHelpers(): RuntimeBuilder {
         const cancel = a.unique("cancel"),
             folder = a.unique("folder"),
             focus = a.unique("focus"),
-            shortcuts = a.unique("shortcuts");
+            shortcuts = a.unique("shortcuts"),
+            inspect = a.unique("inspect");
         a.cmp("rax", 9);
         a.jcc("e", cancel);
         // Every mutating command validates both slot and generation.
@@ -278,11 +393,17 @@ export function guiHelpers(): RuntimeBuilder {
             [7, focus],
             [8, folder],
             [10, shortcuts],
+            [11, inspect],
         ] as const) {
             a.cmp("rax", op);
             a.jcc("e", label);
         }
         a.jmp(invalid);
+        a.label(inspect);
+        a.load("rcx", slot(80));
+        a.load("rdx", slot(72));
+        a.call("gui.inspect");
+        a.jmp(success);
         a.label(cancel);
         a.load("rdx", { base: "r10", disp: 60 }, 32);
         a.call("gui.folder.cancelRequest");

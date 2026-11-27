@@ -98,3 +98,7 @@ Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译�
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 这些别名导出全局 `Buffer`、`Blob` 和 `File` 构造函数、字节校验函数、base64 辅助函数、转码、inspect 设置和常量。Blob 的字节流和文本流、BYOB 读取器以及对象 URL 的注册均可用。通用 URL 解析由全局 [`URL`](/zh/reference/host-apis#url) 提供；任意 Web Stream 的构造仍是单独的依赖 API。参见[二进制数据（英文）](/reference/host-apis#buffer-and-binary-data)和[可运行示例](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs)。
+
+## `nona:gui` — Ubuntu native desktop
+
+`nona:gui` provides experimental native GTK windows, retained layout/drawing, buttons, text entry, toggles, focus/shortcuts and asynchronous system folder selection on Ubuntu 24.04 x64 with GTK 4.14. See the shared English [API and installation contract](/reference/gui), [retained API](/reference/gui-elements) and [two-screen example](/examples/gui). Hosted X11/Wayland receipts at scales 1/2 and a live scale change remain pending; stock Ubuntu 20.04 dependencies are unsupported.
