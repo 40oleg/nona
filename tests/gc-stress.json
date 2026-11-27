@@ -3,6 +3,7 @@
     "always": [
         "win32-settings",
         "gui-bridge",
+        "gui-elements",
         "events",
         "gc",
         "http-backpressure",

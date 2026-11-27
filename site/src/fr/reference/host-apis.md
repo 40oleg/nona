@@ -61,3 +61,5 @@ Ces modules existent surtout pour les [paquets npm](/reference/npm), qui les cha
 - `node:child_process` : `spawn`, `exec`, `execFile`, leurs variantes synchrones et `ChildProcess` lancent d'autres programmes sous Windows et Linux (x64) ; `fork`, l'IPC et les autres cibles lèvent `ERR_NONA_UNSUPPORTED`. Détails dans [Child processes](/reference/host-apis#child-processes).
 
 `nona:win32/settings` provides a modeless checkbox/seven-choice settings window on Windows x64. Save commits the draft; Cancel and close discard it. Timers and Promise jobs continue outside native modal loops. Windows ARM64 and other targets reject the import. See the [current API contract](/reference/win32-settings) and [GUI sample](https://github.com/40oleg/nona/blob/main/site/samples/settings.win32.mjs).
+
+`nona:gui` is an experimental Ubuntu x64 GTK module with retained rows/columns/stacks, styled text and PNG assets, clipping, scroll offsets and custom drawing. Controls and input are still in development. See the shared English [window contract](/reference/gui) and [retained API](/reference/gui-elements).

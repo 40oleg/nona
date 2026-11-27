@@ -131,6 +131,10 @@ The `win32-x64` target also supports a [modeless settings window](docs/win32-set
 with a checkbox, seven choices and Save/Cancel. The [GUI sample](site/samples/settings.win32.mjs)
 keeps a background timer running, discards cancelled drafts and reopens safely.
 
+Ubuntu x64 also has an experimental [native GTK GUI](docs/gui.md) with retained
+rows, columns and stacks, styled text/PNG images, clipping, scrolling and custom
+drawing. Controls and input remain in development; GUI libraries are opt-in.
+
 The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 
 ## Performance

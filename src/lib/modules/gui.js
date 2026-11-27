@@ -1,3 +1,11 @@
+import {
+    Element,
+    setWindowRoot,
+    disposeWindowElements,
+} from "nona:internal/gui-elements";
+import { scene, publishBounds } from "nona:internal/gui-layout";
+import { scenePacket } from "nona:internal/gui-scene";
+export { Element };
 // Private, synchronous buffer borrowing. No managed pointers escape to GTK.
 const native = __nonaGui;
 delete globalThis.__nonaGui;
@@ -82,6 +90,7 @@ const poller = {
         if (event.code === 1) {
             sessions[session.slot] = null;
             window._session = null;
+            window._hasScene = false;
             count--;
         }
         const detail =
@@ -90,6 +99,11 @@ const poller = {
                 : event.code === 2
                   ? { type: "resize", width: event.width, height: event.height }
                   : { type: "scale", scaleFactor: event.scaleFactor };
+        if (event.code === 2) {
+            window._width = event.width;
+            window._height = event.height;
+            window._render();
+        }
         // runReady owns exception handling and the microtask checkpoint.
         window._onEvent(detail);
     },
@@ -113,6 +127,8 @@ export class Window {
         this._onEvent = options.onEvent || function () {};
         this._session = null;
         this._disposed = false;
+        this._root = null;
+        this._elements = new Set();
     }
     get isOpen() {
         return this._session !== null;
@@ -137,7 +153,33 @@ export class Window {
         sessions[session.slot] = session;
         this._session = session;
         count++;
+        try {
+            this._render();
+        } catch (error) {
+            this.close();
+            throw error;
+        }
         return this;
+    }
+    get root() {
+        return this._root;
+    }
+    setRoot(element) {
+        if (this._disposed) throw new Error("GUI Window is disposed");
+        setWindowRoot(this, element);
+        return this;
+    }
+    _render() {
+        if (!this._session) return;
+        // Empty windows need no drawing widget until their first root.
+        if (!this._root && !this._hasScene) return;
+        const result = scene(this._root, this._width, this._height);
+        const packet = scenePacket(result, this._session);
+        const status = native(packet);
+        if (status < 0)
+            throw new Error("GUI scene update failed (" + status + ")");
+        publishBounds(result);
+        this._hasScene = true;
     }
     _requireOpen() {
         if (this._disposed) throw new Error("GUI Window is disposed");
@@ -172,11 +214,13 @@ export class Window {
         }
         sessions[session.slot] = null;
         this._session = null;
+        this._hasScene = false;
         count--;
         if (ready && ready.session === session) ready = null;
     }
     dispose() {
         this.close();
+        disposeWindowElements(this);
         this._disposed = true;
     }
 }

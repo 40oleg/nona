@@ -26,26 +26,45 @@ import {
 import { replaceImport } from "./native.js";
 import { hostTarget, linkHost } from "./program.js";
 import type { NativeProgram } from "../../src/backend/machine/model.js";
+import { guiRenderCalls } from "../../src/runtime/gui-render-api.js";
+import type { Target } from "../../src/target.js";
 
 export const canRunGuiProbe =
     (process.platform === "win32" || process.platform === "linux") &&
     process.arch === "x64";
-export const guiWrapper = readFileSync("src/lib/modules/gui.js", "utf8")
+export const guiManagedSource = [
+    "gui-elements",
+    "gui-layout",
+    "gui-scene",
+    "gui",
+]
+    .map((name) =>
+        readFileSync("src/lib/modules/" + name + ".js", "utf8")
+            .replace(/^import [\s\S]*?;\r?\n/gm, "")
+            .replace(/^export \{ Element \};\r?\n/gm, "")
+            .replace(/export (class|function) /g, "$1 "),
+    )
+    .join("\n");
+export const guiWrapper = guiManagedSource
     .replace(
         "const native = __nonaGui;",
         "const native = globalThis.guiNative;",
     )
     .replace("export class Window", "class Window");
 
-export function probeProgram(source: string, gcStress: boolean): NativeProgram {
-    return withNativeTarget(hostTarget, () => {
+export function probeProgram(
+    source: string,
+    gcStress: boolean,
+    target: Target = hostTarget,
+): NativeProgram {
+    return withNativeTarget(target, () => {
         const { result, usage } = collectSourceUsage(() =>
             compileModuleToIR(
                 source,
                 resolve("gui-probe.mjs"),
                 undefined,
                 "",
-                hostTarget,
+                target,
             ),
         );
         return generate(result, { link: usage, gcStress });
@@ -89,6 +108,9 @@ type Options = {
     closeOnIteration?: number;
     widthFromIterations?: boolean;
     iterationWait?: number;
+    render?: boolean;
+    failImage?: boolean;
+    drawOnIteration?: boolean;
 };
 // Executable native doubles isolate Nona's machine code from GTK. Stats are
 // test-only builtins, never production exports. The real GTK fixture is separate.
@@ -133,7 +155,7 @@ export function guiProbe(
     prependFunctionBuiltin(b, "gui", "guiNative", 1, "rt.globalObject");
     // Counts: creations, destructions, disconnects, iterations, sleep us,
     // clock us, initialization calls, signal connection attempts.
-    b.data("gui.test.stats", new Uint8Array(64), ".data");
+    b.data("gui.test.stats", new Uint8Array(192), ".data");
     b.data("gui.test.windows", new Uint8Array(1024), ".data");
     const stat = (index: number) => ({
         rip: "gui.test.stats",
@@ -292,6 +314,22 @@ export function guiProbe(
             a.cmp("rsi", 0);
             failIf(a, "ne");
             bump(a, 3);
+            if (options.drawOnIteration) {
+                a.mov("rax", 1);
+                a.store(stat(18), "rax");
+                a.load("r8", stat(17));
+                const noArea = a.unique("noArea");
+                a.test("r8", "r8");
+                a.jcc("e", noArea);
+                a.mov("rdi", 0x2000);
+                a.mov("rsi", 0x3000);
+                a.mov("rdx", 640);
+                a.mov("rcx", 480);
+                a.call("gui.drawCallback");
+                a.label(noArea);
+                a.mov("rax", 0);
+                a.store(stat(18), "rax");
+            }
             if (options.closeOnIteration !== undefined) {
                 const done = a.unique("noClose");
                 a.cmp("rax", options.closeOnIteration);
@@ -313,5 +351,85 @@ export function guiProbe(
         },
         40,
     );
+    // Window-only probes never invoke rendering. Resolve its optional native
+    // imports so CPU/ABI probes remain runnable on a Windows host without GTK.
+    for (const [, name] of guiRenderCalls)
+        stub(
+            name,
+            (a) => {
+                if (!options.render) {
+                    a.mov("rax", 0);
+                    return;
+                }
+                if (name.startsWith("gtk_")) {
+                    a.load("rax", stat(18));
+                    a.test("rax", "rax");
+                    failIf(a, "ne");
+                }
+                if (name === "cairo_recording_surface_create") {
+                    bump(a, 8);
+                    a.mov("rax", 0x1000);
+                } else if (name === "cairo_surface_destroy") bump(a, 9);
+                else if (name === "cairo_create") {
+                    bump(a, 10);
+                    a.mov("rax", 0x3000);
+                } else if (name === "cairo_destroy") bump(a, 11);
+                else if (name === "cairo_paint") bump(a, 12);
+                else if (name === "gtk_drawing_area_new") {
+                    bump(a, 13);
+                    a.mov("rax", 0x2000);
+                } else if (name === "gtk_widget_queue_draw") bump(a, 14);
+                else if (name === "gtk_drawing_area_set_draw_func") {
+                    a.store(stat(16), "rsi");
+                    a.store(stat(17), "rdx");
+                    a.mov("rax", 0);
+                } else if (name === "cairo_image_surface_create_from_png") {
+                    bump(a, 19);
+                    a.mov("rax", 0x5000);
+                } else if (
+                    name === "cairo_image_surface_get_width" ||
+                    name === "cairo_image_surface_get_height"
+                )
+                    a.mov("rax", 0xfeedbeef00000002n);
+                else if (name === "cairo_surface_status" && options.failImage) {
+                    const good = a.unique("good"),
+                        end = a.unique("end");
+                    a.cmp("rdi", 0x5000);
+                    a.jcc("ne", good);
+                    a.mov("rax", 0xfeedbeef00000012n);
+                    a.jmp(end);
+                    a.label(good);
+                    a.mov("rax", 0xfeedbeef00000000n);
+                    a.label(end);
+                } else if (
+                    name === "cairo_status" ||
+                    name === "cairo_surface_status"
+                )
+                    a.mov("rax", 0xfeedbeef00000000n);
+                else if (name === "FcConfigAppFontAddFile")
+                    a.mov("rax", 0xfeedbeef00000001n);
+                else if (
+                    [
+                        "pango_cairo_font_map_new",
+                        "pango_font_map_create_context",
+                        "pango_layout_new",
+                        "pango_font_description_new",
+                        "FcInitLoadConfigAndFonts",
+                    ].includes(name)
+                ) {
+                    bump(a, 20);
+                    a.mov("rax", 0x4000);
+                } else if (
+                    [
+                        "pango_font_description_free",
+                        "g_object_unref",
+                        "FcConfigDestroy",
+                    ].includes(name)
+                )
+                    bump(a, 21);
+                else a.mov("rax", 0);
+            },
+            40,
+        );
     return program;
 }

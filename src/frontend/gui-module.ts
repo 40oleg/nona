@@ -1,5 +1,14 @@
 import { CompileError } from "../diagnostics.js";
-import { modulesGui } from "../lib/sources.generated.js";
+import {
+    modulesGui,
+    modulesGuiElements,
+    modulesGuiLayout,
+    modulesGuiScene,
+} from "../lib/sources.generated.js";
+
+export const guiElementsSource = modulesGuiElements;
+export const guiLayoutSource = modulesGuiLayout;
+export const guiSceneSource = modulesGuiScene;
 
 export function guiModuleSource(target: string): string {
     if (target !== "linux-x64")

@@ -6,6 +6,7 @@
             "files": [
                 "frontend",
                 "gui-bridge",
+                "gui-elements",
                 "runtime-link-numeric",
                 "semantic-replay",
                 "semantic-replay-selector",

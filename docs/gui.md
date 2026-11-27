@@ -1,9 +1,9 @@
 # Ubuntu native GUI foundation
 
 `nona:gui` is an opt-in, experimental Linux x64 host module for #664. This
-first stage implements native GTK 4 top-level windows and deferred events.
-Retained elements, layout, styling, drawing, assets, controls, input and
-accessibility are later stages, not implemented exports. The complete issue
+first two stages implement native GTK 4 windows, deferred events, retained
+elements, layout, styling, drawing and local assets. Controls, input, folder
+selection and accessibility are later stages. The complete issue
 acceptance criteria remain open. Keep the eventual PR draft until native
 acceptance evidence and the remaining stages are complete.
 
@@ -13,7 +13,14 @@ The hosted window-bridge job targets Ubuntu 24.04 LTS x86-64. This is a
 configured validation target, not a completed desktop smoke receipt. The
 bridge uses GTK 4.0 APIs; [GTK 4.0 requires GLib 2.66 or newer](https://github.com/GNOME/gtk/blob/4.0.0/meson.build).
 Install `libgtk-4-1`; the loader resolves `libgtk-4.so.1`,
-`libgobject-2.0.so.0` and `libglib-2.0.so.0` and their system dependencies.
+`libgobject-2.0.so.0`, `libglib-2.0.so.0`, `libcairo.so.2`,
+`libpango-1.0.so.0`, `libpangocairo-1.0.so.0`, `libpangoft2-1.0.so.0` and
+`libfontconfig.so.1` and their system dependencies. The rendering baseline is
+GTK 4.0, GLib 2.66, Cairo 1.16, Pango 1.48 and Fontconfig 2.13. Use Ubuntu
+22.04 LTS or newer with distribution packages; the configured hosted target
+remains Ubuntu 24.04. Stock Ubuntu 20.04 is unsupported because it does not
+provide the required GTK 4 desktop stack. No Ubuntu 20.04 execution receipt
+or backported-library support is claimed.
 No C compiler, application helper library, browser, WebView, DOM, Node.js or
 Electron is used by a compiled application. Missing libraries fail at ELF
 load time. With libraries installed but no working display, `open()` throws
@@ -81,34 +88,51 @@ work. Disposing all windows disconnects handlers and releases GTK toplevel
 ownership. The default context/display and fixed native records remain process
 resources; explicit process exit is reclaimed by the OS.
 
-## Retained API boundary for subsequent stages
+## Retained elements, layout and rendering
 
-The intended extension is a Window-owned retained element tree: elements have
-stable IDs, typed properties, children and explicit disposal; updates validate
-before applying, events refer to IDs plus session generations, and disposal
-invalidates pending events before releasing assets. No public raw GTK handles,
-native pointers or general FFI callbacks will be exposed. Rows, columns,
-stacking, positions, clipping, scrolling, precise style, custom drawing,
-assets and accessible controls must extend this document with tested semantics
-before becoming supported exports. There is currently no `Element`, `update`,
-input or drawing API; this paragraph specifies the extension boundary only.
+`Window.setRoot(elementOrNull)` attaches a retained tree constructed with the
+exported `Element` class. Rows, columns, stacks, text, PNG images and drawing
+surfaces are available. `Element.update`, `setChildren` and subtree `dispose`
+validate changes and preserve the previous scene if native preparation fails.
+IDs are stable; elements belong to their first window until disposal, including
+while detached. Closing retains the tree; window disposal releases all owned
+elements. Controls, input, focus, IME, chooser and accessibility remain later work.
 
-## Private bridge protocol, version 1
+The [retained API reference](gui-elements.md) specifies typed properties,
+layout and clipping rules, scale conversion, drawing commands, native storage,
+asset path resolution and ownership, rollback and limits. Its guarantees are
+checked by [gui-elements.test.ts](../tests/gui-elements.test.ts) with
+[local fixtures](../tests/fixtures/gui/README.md). GTK draw callbacks only
+replay native-owned recordings, with no JS, asset decoding or widget mutation,
+following [GTK's drawing restrictions](https://docs.gtk.org/gtk4/method.DrawingArea.set_draw_func.html).
+
+## Private bridge protocol, version 2
 
 The module captures/removes `__nonaGui`. Its single argument is a Uint32Array
 with at least 160 elements over a fixed, nonshared, attached ArrayBuffer,
 borrowed only for a synchronous call. A view with a nonzero byte offset is
 valid; the bridge borrows that view's bytes. Other element types, undersized,
 detached, shared and resizable backing stores throw before GTK is touched.
-The wrapper supplies exactly 160 elements. Words:
+Window commands supply 160 elements; scene commands supply a larger packet. Words:
 0 operation; 1 slot (0..31); 2 generation; 3 width; 4 height; 5 timeout ms;
 6 event type; 7 observed width; 8 observed height; 9 observed integer scale.
 Bytes 64..575 hold a NUL-terminated UTF-8 title (512 bytes). Operations are
-1 create/present, 2 destroy/discard, 3 poll/take, 4 present, 5 resize.
+1 create/present, 2 destroy/discard, 3 poll/take, 4 present, 5 resize, 6 replace scene.
 Create writes slot/generation; poll writes event fields. Return is 0 (success
 or no event), 1 (one event), -1 (initialization), -2 (capacity/generation),
--3 (stale/invalid command), -4 (partial creation), -5 (wrong thread).
+-3 (stale/invalid command), -4 (partial creation), -5 (wrong thread),
+-6 (candidate graphics/asset failure).
 The protocol is private and may change alongside its only caller.
+
+Scene words 10/11 are record count and exact packet byte length (max 8 MiB).
+At byte 640 are up to 16384 128-byte records: u32 opcode at 0, primary string
+offset at 4, fourteen f64 slots at 8..119, family/font offsets at 120/124.
+UTF-8 NUL-terminated strings follow all records; zero offset means empty.
+Opcodes are save, restore, rounded clip, rounded fill, rounded stroke, text,
+PNG, line, circle (1..9). Native validation bounds counts/offsets, requires
+terminated strings, finite scalar slots within 2^30 and a balanced save stack
+of at most 65 before allocating graphics resources. Native records hold only
+GTK/Cairo handles; no managed pointers survive the synchronous call.
 
 Each native slot contains a GTK pointer, signal ID, generation, pending close
 bit, observed dimensions/scale and coalesced dirty bits. There is no unbounded
@@ -121,7 +145,11 @@ Ownership is cleared and signals disconnected before synchronous destruction,
 so nested signals cannot revive a session. Slots are reused only after cleanup.
 
 Win64-shaped runtime calls cross dedicated SysV wrappers, preserving RDI/RSI
-and XMM6..15 with aligned calls and marshalled fifth/sixth arguments. The
+and full XMM6..15 with aligned calls. Private scalar signatures stage Win64's
+position-based register/stack inputs into independent SysV GP/FP banks (up to
+six GP/eight FP arguments), including floating returns and the AL vector count.
+Unsupported signatures fail at code generation. Drawing callbacks adapt SysV's
+five integer/pointer arguments and preserve SysV nonvolatile registers. The
 SysV close callback adapts to the internal Win64 record helper while preserving
 SysV nonvolatile registers. The public `nona:ffi` ABI is unchanged. Helpers
 perform no managed allocation; future helpers retaining Values across allocating
@@ -178,7 +206,7 @@ node dist/cli.js build tests/fixtures/gui-window.mjs --target linux-x64 -o work/
 For the focused tests after building:
 
 ```sh
-NONA_GTK_GUI_TESTS=1 node --test --test-concurrency=1 dist/tests/gui-bridge.test.js
+NONA_GTK_GUI_TESTS=1 node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js
 ```
 
 Each native case requests GC stress both disabled and enabled. Leave
@@ -194,8 +222,25 @@ Its Xvfb launcher owns and reaps its display process.
 Local Windows native probes do not establish Linux desktop support. Hosted
 execution of this revision is pending until the harness pushes it. No actual
 Wayland, mapped-surface backend/scale or Ubuntu 20.04 result is claimed here.
-The minimal window fixture is not the complete acceptance example: layout,
-text/image, controls, input, drawing and fixtures remain for stages 2..4.
+The minimal window fixture is not the complete acceptance example. Stage 2's
+separate retained fixture exercises text, images, drawing, updates, scrolling,
+resize, removal and reopen:
+
+```sh
+mkdir -p work/gui-retained
+node dist/cli.js build tests/fixtures/gui/retained.mjs --target linux-x64 -o work/gui-retained/demo
+cp tests/fixtures/gui/Abel-Regular.ttf tests/fixtures/gui/pixels.png work/gui-retained/
+./work/gui-retained/demo
+```
+
+Stage 2's local evidence is focused Windows x64 executable probes in both GC
+modes, plus cross-compilation. Its real Cairo pixel checks at scales 1/2 and
+local-asset/rollback checks are configured for hosted Ubuntu execution after
+the harness push. They capture the committed recording through test-only
+composition and compare independent pixel fixtures and pinned-font ink bounds;
+they do not establish mapped GDK scale or Wayland behavior. No local Linux
+rendering receipt is claimed. The interactive acceptance application and full
+X11/Wayland evidence remain for stages 3 and 4.
 
 The final hosted matrix must run on Ubuntu 24.04, X11/Xvfb and Wayland/headless
 Weston at scales 1 and 2. Isolate each display, wait for `xdpyinfo` or a

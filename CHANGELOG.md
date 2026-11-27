@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add retained elements to the experimental Ubuntu GUI: transactional trees,
+  deterministic layout, clipping/scroll offsets, text and local PNG/font assets,
+  styling and native-owned Cairo drawing recordings. Extend the private mixed
+  GP/FP ABI, test ownership and resource cleanup with GC stress, and add pinned
+  layout/pixel fixtures. Controls and complete desktop evidence remain pending.
+  ([#664](https://github.com/40oleg/nona/issues/664))
+
 - Validate the experimental Ubuntu GTK window bridge with focused wrapper and
   executable ABI, ownership, GC and event-loop regressions. Correct native
   timeout conversion and honor timer deadlines after earlier pollers; add a

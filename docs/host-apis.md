@@ -1,5 +1,10 @@
 # Host APIs
 
+Ubuntu x64 programs can opt into `Window` and `Element` from `nona:gui` for a
+retained native GTK scene. See the [window/lifecycle reference](gui.md) and
+[element, layout, asset and drawing reference](gui-elements.md). Controls/input
+are still in development; unrelated ELF programs keep their dependency baseline.
+
 Windows x64 programs can import `SettingsWindow` from `nona:win32/settings`
 for a modeless checkbox/seven-choice settings dialog. Windows belong to the
 main JavaScript thread, with native-only synchronous procedures and deferred

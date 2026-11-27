@@ -5,11 +5,12 @@ import { TypedArrayKind, TypedArrayLayout as T } from "./typed-array.js";
 import { ArrayBufferKind, ArrayBufferLayout as AB } from "./array-buffer.js";
 import { emitViewCheck } from "./view-bounds.js";
 import { guiSystemCall } from "./gui-abi.js";
+import { guiRendering } from "./gui-render.js";
 
 // Image-owned native records; none of these words contains a managed pointer.
 export const guiSlots = 32;
 export const GuiRecord = {
-    size: 64,
+    size: 128,
     window: 0,
     signal: 8,
     generation: 16,
@@ -18,6 +19,8 @@ export const GuiRecord = {
     height: 40,
     scale: 48,
     dirty: 56,
+    drawingArea: 64,
+    surface: 72,
 } as const;
 const R = GuiRecord;
 const mem = (name: string) => ({ rip: "gui." + name });
@@ -30,6 +33,7 @@ const api = (a: Assembler, name: string) => a.call("gui.abi." + name);
  */
 export function guiHelpers(): RuntimeBuilder {
     const b = new RuntimeBuilder();
+    guiRendering(b);
     for (const name of [
         "gtk_init_check",
         "gtk_window_new",
@@ -93,6 +97,28 @@ export function guiHelpers(): RuntimeBuilder {
         a.mov("rcx", "rax");
         api(a, "g_signal_handler_disconnect");
         a.label(disconnected);
+        // Disable draw entry and release the committed recording before the
+        // window releases its child. No callback can see freed scene storage.
+        a.load("r10", slot(48));
+        a.load("rcx", field(R.drawingArea));
+        const noArea = a.unique("noArea");
+        a.test("rcx", "rcx");
+        a.jcc("e", noArea);
+        a.mov("rdx", 0);
+        a.mov("r8", 0);
+        a.mov("r9", 0);
+        api(a, "gtk_drawing_area_set_draw_func");
+        a.label(noArea);
+        a.load("r10", slot(48));
+        a.load("rcx", field(R.surface));
+        a.mov("rax", 0);
+        a.store(field(R.surface), "rax");
+        a.store(field(R.drawingArea), "rax");
+        const noSurface = a.unique("noSurface");
+        a.test("rcx", "rcx");
+        a.jcc("e", noSurface);
+        api(a, "cairo_surface_destroy");
+        a.label(noSurface);
         a.load("rcx", slot(56));
         api(a, "gtk_window_destroy");
         a.label(done);
@@ -170,6 +196,8 @@ export function guiHelpers(): RuntimeBuilder {
         a.load("rax", field(T.length));
         a.cmp("rax", 160);
         failIf(a, "b", "rt.throwTypeError");
+        a.shl("rax", 2);
+        a.store(slot(112), "rax");
         a.load("rax", field(T.byteOffset));
         a.load("r10", field(T.buffer));
         a.load("r11", field(O.kind));
@@ -199,7 +227,8 @@ export function guiHelpers(): RuntimeBuilder {
             poll = a.unique("poll"),
             destroy = a.unique("destroy"),
             present = a.unique("present"),
-            resize = a.unique("resize");
+            resize = a.unique("resize"),
+            scene = a.unique("scene");
         a.jcc("ne", wrongThread);
         a.load("r10", slot(72));
         a.load("rax", { base: "r10" }, 32);
@@ -211,7 +240,7 @@ export function guiHelpers(): RuntimeBuilder {
         a.load("rax", { base: "r10", disp: 4 }, 32);
         a.cmp("rax", guiSlots);
         a.jcc("ae", invalid);
-        a.shl("rax", 6);
+        a.shl("rax", 7);
         a.lea("r11", mem("records"));
         a.add("r11", "rax");
         a.store(slot(80), "r11");
@@ -227,11 +256,18 @@ export function guiHelpers(): RuntimeBuilder {
             [2, destroy],
             [4, present],
             [5, resize],
+            [6, scene],
         ] as const) {
             a.cmp("rax", op);
             a.jcc("e", label);
         }
         a.jmp(invalid);
+        a.label(scene);
+        a.load("rcx", slot(80));
+        a.load("rdx", slot(72));
+        a.load("r8", slot(112));
+        a.call("gui.scene");
+        a.jmp(done);
         a.label(destroy);
         a.load("rcx", slot(80));
         a.call("gui.destroy");
@@ -397,7 +433,7 @@ export function guiHelpers(): RuntimeBuilder {
         a.add("r11", 1);
         a.and("r11", guiSlots - 1);
         a.store(mem("cursor"), "r11");
-        a.shl("rax", 6);
+        a.shl("rax", 7);
         a.lea("r10", mem("records"));
         a.add("r10", "rax");
         a.store(slot(80), "r10");

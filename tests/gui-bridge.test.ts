@@ -16,13 +16,14 @@ import {
     canRunGuiProbe,
     guiProbe,
     guiWrapper,
+    guiManagedSource,
     probeProgram,
     runGuiProbe,
 } from "./helpers/gui-native.js";
 import type { Reg, Xmm } from "../src/backend/machine/context.js";
 import { runNative } from "./helpers/native.js";
 
-const wrapper = readFileSync("src/lib/modules/gui.js", "utf8");
+const wrapper = guiManagedSource;
 const source = `import {Window} from 'nona:gui';
 const w = new Window({title:'Nona bridge',width:320,height:240});
 w.open(); w.resize(400,300); w.show(); w.dispose();`;
@@ -89,10 +90,7 @@ function managed() {
         },
     };
     runInNewContext(
-        wrapper.replace(
-            "export class Window",
-            "globalThis.Window = class Window",
-        ),
+        wrapper.replace("class Window", "globalThis.Window = class Window"),
         context,
     );
     return {
@@ -333,7 +331,16 @@ test("GUI imports are opt-in across every supported native target", () => {
                 program.imports.filter(isFfiLibraryImport).map((i) => i.dll),
             ),
         ].sort(),
-        ["libglib-2.0.so.0", "libgobject-2.0.so.0", "libgtk-4.so.1"],
+        [
+            "libcairo.so.2",
+            "libfontconfig.so.1",
+            "libglib-2.0.so.0",
+            "libgobject-2.0.so.0",
+            "libgtk-4.so.1",
+            "libpango-1.0.so.0",
+            "libpangocairo-1.0.so.0",
+            "libpangoft2-1.0.so.0",
+        ],
     );
     const result = compile(source, {
         fileName: "gui.mjs",
@@ -341,9 +348,14 @@ test("GUI imports are opt-in across every supported native target", () => {
     });
     assert.ok(result.ok, JSON.stringify(result));
     assert.deepEqual(elfNeeded(result.image).sort(), [
+        "libcairo.so.2",
+        "libfontconfig.so.1",
         "libglib-2.0.so.0",
         "libgobject-2.0.so.0",
         "libgtk-4.so.1",
+        "libpango-1.0.so.0",
+        "libpangocairo-1.0.so.0",
+        "libpangoft2-1.0.so.0",
     ]);
 });
 
