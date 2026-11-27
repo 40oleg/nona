@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <libweston/libweston.h>
 #include <libweston/desktop.h>
+#include <libweston/windowed-output-api.h>
 
 /* Exported by libweston-13; declarations live in upstream backend.h and
  * libweston-internal.h rather than the installed public development headers.
@@ -47,6 +48,48 @@ static struct weston_view *main_view(struct driver *d) {
     return NULL;
 }
 
+static int reconfigure_scale(struct driver *d, struct weston_view *v, int scale) {
+    const struct weston_windowed_output_api *api = weston_windowed_output_get_api(d->compositor);
+    if (!api || !v || wl_list_length(&d->compositor->output_list) != 1) return -1;
+    struct weston_output *old = wl_container_of(d->compositor->output_list.next, old, link);
+    struct weston_head *head = weston_output_get_first_head(old);
+    if (!head || weston_output_iterate_heads(old, head)) return -1;
+    int width = old->current_mode->width, height = old->current_mode->height;
+    if (width % scale || height % scale) return -1;
+    uint32_t transform = old->transform;
+    struct weston_coord_global position = old->pos;
+    struct weston_surface *surface = v->surface;
+
+    /* Scale and headless output size are initial configuration. Recreate the
+     * compositor output on its existing head, configuring it BEFORE enable.
+     * Do not recreate the client, desktop surface or application window. */
+    weston_output_disable(old);
+    if (old->enabled) return -1; /* Never re-enable an asynchronously disabling output. */
+    weston_output_destroy(old);
+    struct weston_output *output = weston_compositor_create_output(d->compositor, head,
+                                                                  weston_head_get_name(head));
+    if (!output) return -1;
+    weston_output_set_scale(output, scale);
+    weston_output_set_transform(output, transform);
+    if (api->output_set_size(output, width / scale, height / scale) < 0 ||
+        weston_output_enable(output) < 0) {
+        weston_output_destroy(output);
+        return -1;
+    }
+    weston_output_move(output, position);
+    v = main_view(d);
+    if (!v || v->surface != surface || output->current_scale != scale) return -1;
+    /* The logical output shrinks at scale 2. Keep the SAME surface visible
+     * so subsequent compositor-seat input still reaches the application. */
+    position.c.x += 32;
+    position.c.y += 32;
+    weston_view_set_position(v, position);
+    weston_view_update_transform(v);
+    weston_view_schedule_repaint(v);
+    weston_output_damage(output);
+    return 0;
+}
+
 static int command(int fd, uint32_t mask, void *data) {
     (void)mask;
     struct driver *d = data;
@@ -78,16 +121,10 @@ static int command(int fd, uint32_t mask, void *data) {
     } else if (strcmp(line, "close") == 0 && v) {
         weston_desktop_surface_close(weston_surface_get_desktop_surface(v->surface));
     } else if (sscanf(line, "scale %u", &code) == 1 && (code == 1 || code == 2)) {
-        struct weston_output *o;
-        wl_list_for_each(o, &d->compositor->output_list, link) weston_output_set_scale(o, code);
-        /* The logical output shrinks at scale 2. Keep the SAME view/surface
-         * within it so later physical input still reaches the application. */
-        if (v) {
-            struct weston_coord_global origin = { .c = weston_coord(32, 32) };
-            weston_view_set_position(v, origin);
-            weston_view_update_transform(v);
-            weston_view_schedule_repaint(v);
-        }
+        if (reconfigure_scale(d, v, code) < 0)
+            snprintf(reply, sizeof(reply), "error output reconfiguration or surface preservation failed");
+        else
+            snprintf(reply, sizeof(reply), "ok reconfigured scale %u same surface", code);
     } else {
         snprintf(reply, sizeof(reply), "error invalid command or unmapped main surface");
     }

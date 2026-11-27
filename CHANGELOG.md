@@ -8,6 +8,9 @@
   Wayland/Weston acceptance at scales 1/2, native compositor-seat input, live scale
   transition, chooser/lifecycle progress checks, retained traces/images/failures,
   merge-base dependency controls and a separate stock Ubuntu 20.04 outcome.
+  Resolve empty control text and accessible labels to native empty strings.
+  Reconfigure the Weston output on its existing head for live scale validation,
+  preserving the application surface and retaining the compositor acknowledgement.
   Document build/install commands and unsupported environments. Native acceptance
   receipts remain pending until hosted execution
   ([#664](https://github.com/40oleg/nona/issues/664)).

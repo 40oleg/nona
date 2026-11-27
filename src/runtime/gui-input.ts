@@ -151,6 +151,7 @@ export function guiInput(b: RuntimeBuilder): void {
     ])
         b.data("gui.input." + signal, new TextEncoder().encode(signal + "\0"));
     b.data("gui.input.zero", new Uint8Array(8));
+    b.data("gui.input.empty", new Uint8Array(1));
     inputQueue(b);
     inputCallbacks(b);
     inputControls(b);
@@ -1091,10 +1092,22 @@ function controlsTransaction(b: RuntimeBuilder) {
         a.load("rax", f(C.wrapper));
         a.store(slot(104), "rax");
         // All strings have been validated and GTK copies them synchronously.
-        a.load("r10", slot(88));
-        a.load("rax", { base: "r10", disp: 4 }, 32);
-        a.load("rdx", slot(56));
-        a.add("rax", "rdx");
+        // Zero denotes empty text, not a pointer to the scene packet header.
+        const stringPointer = (field: number) => {
+            const empty = a.unique("empty"),
+                ready = a.unique("ready");
+            a.load("r10", slot(88));
+            a.load("rax", { base: "r10", disp: field }, 32);
+            a.test("rax", "rax");
+            a.jcc("e", empty);
+            a.load("rdx", slot(56));
+            a.add("rax", "rdx");
+            a.jmp(ready);
+            a.label(empty);
+            a.lea("rax", mem("empty"));
+            a.label(ready);
+        };
+        stringPointer(4);
         a.store(slot(112), "rax");
         a.load("r10", slot(80));
         a.load("rax", f(C.kind));
@@ -1137,10 +1150,7 @@ function controlsTransaction(b: RuntimeBuilder) {
         call(a, "gtk_check_button_set_active", [slot(96), "rdx"]);
         a.label(noToggle);
         a.label(unchanged);
-        a.load("r10", slot(88));
-        a.load("rax", { base: "r10", disp: 120 }, 32);
-        a.load("rdx", slot(56));
-        a.add("rax", "rdx");
+        stringPointer(120);
         // GTK_ACCESSIBLE_PROPERTY_LABEL = 4; varargs terminator is signed -1.
         call(a, "gtk_accessible_update_property", [slot(96), 4, "rax", -1]);
         a.load("r10", slot(88));

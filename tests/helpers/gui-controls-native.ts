@@ -16,6 +16,7 @@ export function guiControlProbe(
         failArea?: boolean;
         failImage?: boolean;
         poisonScene?: boolean;
+        controlStrings?: string[];
     } = {},
 ) {
     const program = guiProbe(source, stress, {
@@ -145,6 +146,54 @@ export function guiControlProbe(
         a.lea("rax", { rip: "gui.test.text" }),
     );
     replace("gtk_editable_set_text", (a) => bump(a, 8));
+    if (options.controlStrings) {
+        const expected = options.controlStrings;
+        b.data(
+            "gui.test.controlStrings",
+            new TextEncoder().encode(expected.join("\0") + "\0"),
+        );
+        for (const name of [
+            "gtk_editable_set_text",
+            "gtk_button_set_label",
+            "gtk_check_button_set_label",
+            "gtk_accessible_update_property",
+        ])
+            replace(name, (a) => {
+                // Compare actual SysV GTK arguments byte-for-byte, including
+                // the terminator. A managed property/packet check misses a
+                // decoder that points zero offsets at the scene header.
+                a.mov(
+                    "r9",
+                    name === "gtk_accessible_update_property" ? "rdx" : "rsi",
+                );
+                if (name === "gtk_accessible_update_property") {
+                    a.cmp("rsi", 4);
+                    failIf(a, "ne");
+                    a.cmp("rcx", -1);
+                    failIf(a, "ne");
+                }
+                if (name === "gtk_editable_set_text") bump(a, 8);
+                a.load("rax", m(80));
+                a.cmp("rax", expected.length);
+                failIf(a, "ae");
+                bump(a, 80);
+                a.load("r10", m(88));
+                a.lea("r11", { rip: "gui.test.controlStrings" });
+                a.add("r10", "r11");
+                const loop = a.unique("string");
+                a.label(loop);
+                a.load("rax", { base: "r9" }, 8);
+                a.load("r8", { base: "r10" }, 8);
+                a.cmp("rax", "r8");
+                failIf(a, "ne");
+                a.add("r9", 1);
+                a.add("r10", 1);
+                a.test("rax", "rax");
+                a.jcc("ne", loop);
+                a.sub("r10", "r11");
+                a.store(m(88), "r10");
+            });
+    }
     replace("gtk_check_button_get_active", (a) => a.mov("rax", 1));
     replace("gtk_check_button_set_active", (a) => bump(a, 16));
     replace("g_strdup", (a) => {

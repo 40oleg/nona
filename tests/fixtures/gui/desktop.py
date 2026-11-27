@@ -91,6 +91,7 @@ def weston(command):
             connection.sendto(command.encode(), os.environ["NONA_WESTON_INPUT"])
             reply = connection.recv(256).decode()
             assert reply.startswith("ok"), reply
+            return reply
         finally:
             Path(client).unlink(missing_ok=True)
 
@@ -295,8 +296,10 @@ def drive(args):
                     if request == 2 and args.live_scale:
                         first = next(e for e in events() if e["type"] == "surface" and e["presentationTime"] > 0)
                         requested_at = time.monotonic_ns() // 1000
-                        weston("scale 2")
-                        inputs.append({"scale_request": 2, "surface": first["surface"], "monotonic_us": requested_at})
+                        reply = weston("scale 2")
+                        assert reply == "ok reconfigured scale 2 same surface", reply
+                        inputs.append({"scale_request": 2, "surface": first["surface"], "monotonic_us": requested_at,
+                                       "compositor_reply": reply})
                         observe(lambda: any(e["type"] == "surface" and e["surface"] == first["surface"]
                                             and e["session"] == first["session"] and e["scaleFactor"] == 2
                                             and e["presentationTime"] > requested_at for e in events()))

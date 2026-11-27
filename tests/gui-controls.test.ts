@@ -329,6 +329,36 @@ w.chooseFolder().then(p=>console.log('disposed',p));w.dispose();console.log('ret
 
 for (const gcStress of [false, true]) {
     test(
+        `GUI passes empty and Unicode control text and accessible labels to GTK (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const source = `${guiWrapper}
+globalThis.__nonaIoLoop=()=>{};
+for(const kind of ['entry','button','toggle']){
+    const control=new Element(kind),w=new Window().setRoot(control).open();
+    control.update({text:'日本語 é 🐈',accessibleName:'Label 🐈'});
+    control.update({text:'',accessibleName:''});
+    w.dispose();
+}
+console.log('checked strings',globalThis.guiControlStat(80));`;
+            const run = runGuiProbe(
+                guiControlProbe(source, gcStress, {
+                    controlStrings: Array.from({ length: 3 }, () => [
+                        "",
+                        "",
+                        "日本語 é 🐈",
+                        "Label 🐈",
+                        "",
+                        "",
+                    ]).flat(),
+                }),
+            );
+            assert.equal(run.error, undefined, run.stdout);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(run.stdout, "checked strings 18\n");
+        },
+    );
+    test(
         `GUI failed graphics candidate cannot roll back live controls (GC stress ${gcStress})`,
         { skip: !canRunGuiProbe },
         () => {

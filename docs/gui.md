@@ -364,7 +364,14 @@ slot/generation, opaque surface identity, completed frame/presentation timestamp
 content bounds and ordered JavaScript event traces. Each Wayland scale-1 row
 separately changes the live compositor output to scale 2; acceptance requires a
 scale callback and two presented observations for the **same surface and session**.
-Independent initial-scale launches cannot satisfy that assertion.
+The module disables and destroys the old compositor output, then configures a
+replacement on the same head before enabling it. Scale and headless size setters
+are used only for initial output configuration, following the
+[Weston output lifecycle](https://mvlad.pages.freedesktop.org/weston/toc/libweston/output.html).
+It checks that the application surface survives and the replacement output has
+the requested scale before acknowledging the command; the driver retains this
+reply alongside the independent GDK observations. Independent initial-scale
+launches cannot satisfy that assertion. Both GC modes run this transition.
 
 The application and driver exercise pointer press/release and state updates,
 Tab/Shift+Tab, Enter/Space, consumed shortcuts, real GTK simple-IM preedit across
