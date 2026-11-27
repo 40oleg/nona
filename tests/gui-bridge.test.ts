@@ -40,6 +40,7 @@ function managed() {
     const calls: number[][] = [];
     const context: any = {
         TextEncoder,
+        TextDecoder,
         performance: {
             now() {
                 return 100;
@@ -334,6 +335,7 @@ test("GUI imports are opt-in across every supported native target", () => {
         [
             "libcairo.so.2",
             "libfontconfig.so.1",
+            "libgio-2.0.so.0",
             "libglib-2.0.so.0",
             "libgobject-2.0.so.0",
             "libgtk-4.so.1",
@@ -350,6 +352,7 @@ test("GUI imports are opt-in across every supported native target", () => {
     assert.deepEqual(elfNeeded(result.image).sort(), [
         "libcairo.so.2",
         "libfontconfig.so.1",
+        "libgio-2.0.so.0",
         "libglib-2.0.so.0",
         "libgobject-2.0.so.0",
         "libgtk-4.so.1",

@@ -1,9 +1,9 @@
 # Ubuntu native GUI foundation
 
-`nona:gui` is an opt-in, experimental Linux x64 host module for #664. This
-first two stages implement native GTK 4 windows, deferred events, retained
-elements, layout, styling, drawing and local assets. Controls, input, folder
-selection and accessibility are later stages. The complete issue
+`nona:gui` is an opt-in, experimental Linux x64 host module for #664. The
+first three stages implement native GTK 4 windows, deferred events, retained
+elements, layout, styling, drawing, local assets, native controls, input and
+asynchronous folder selection. The complete issue
 acceptance criteria remain open. Keep the eventual PR draft until native
 acceptance evidence and the remaining stages are complete.
 
@@ -11,14 +11,18 @@ acceptance evidence and the remaining stages are complete.
 
 The hosted window-bridge job targets Ubuntu 24.04 LTS x86-64. This is a
 configured validation target, not a completed desktop smoke receipt. The
-bridge uses GTK 4.0 APIs; [GTK 4.0 requires GLib 2.66 or newer](https://github.com/GNOME/gtk/blob/4.0.0/meson.build).
+supported baseline is **Ubuntu 24.04 x86-64, GTK 4.14 and GLib/GObject/GIO 2.80**.
+The chooser uses [GtkFileDialog, introduced in GTK 4.10](https://docs.gtk.org/gtk4/class.FileDialog.html);
+the earlier GTK 4.0/Ubuntu 22.04 compatibility claim no longer applies.
 Install `libgtk-4-1`; the loader resolves `libgtk-4.so.1`,
-`libgobject-2.0.so.0`, `libglib-2.0.so.0`, `libcairo.so.2`,
+`libgobject-2.0.so.0`, `libglib-2.0.so.0`, `libgio-2.0.so.0`, `libcairo.so.2`,
 `libpango-1.0.so.0`, `libpangocairo-1.0.so.0`, `libpangoft2-1.0.so.0` and
 `libfontconfig.so.1` and their system dependencies. The rendering baseline is
-GTK 4.0, GLib 2.66, Cairo 1.16, Pango 1.48 and Fontconfig 2.13. Use Ubuntu
-22.04 LTS or newer with distribution packages; the configured hosted target
-remains Ubuntu 24.04. Stock Ubuntu 20.04 is unsupported because it does not
+GTK 4.14, GLib/GObject/GIO 2.80, Cairo 1.18, Pango 1.52 and Fontconfig 2.15,
+using Ubuntu 24.04 distribution packages. These are supported library floors;
+the newest directly imported GTK API is `GtkFileDialog` (4.10), while imported
+GLib/GObject/GIO APIs predate 2.80. Older combinations are unvalidated and
+unsupported. Stock Ubuntu 20.04 is unsupported because it does not
 provide the required GTK 4 desktop stack. No Ubuntu 20.04 execution receipt
 or backported-library support is claimed.
 No C compiler, application helper library, browser, WebView, DOM, Node.js or
@@ -96,7 +100,8 @@ surfaces are available. `Element.update`, `setChildren` and subtree `dispose`
 validate changes and preserve the previous scene if native preparation fails.
 IDs are stable; elements belong to their first window until disposal, including
 while detached. Closing retains the tree; window disposal releases all owned
-elements. Controls, input, focus, IME, chooser and accessibility remain later work.
+elements. See [native controls and input](gui-elements.md#native-controls-and-input)
+for editing, focus, accessibility and native propagation policies.
 
 The [retained API reference](gui-elements.md) specifies typed properties,
 layout and clipping rules, scale conversion, drawing commands, native storage,
@@ -106,18 +111,45 @@ checked by [gui-elements.test.ts](../tests/gui-elements.test.ts) with
 replay native-owned recordings, with no JS, asset decoding or widget mutation,
 following [GTK's drawing restrictions](https://docs.gtk.org/gtk4/method.DrawingArea.set_draw_func.html).
 
-## Private bridge protocol, version 2
+## Asynchronous folder selection
+
+```js
+const folder = await window.chooseFolder({
+    title: "Choose workspace", // optional, same limits as window title
+    initialFolder: "/home/me", // optional absolute local path, <=4095 UTF-8 bytes
+});
+if (folder !== null) console.log(folder);
+// window.cancelFolder(); // cancel outstanding requests for this window
+```
+
+Requires an open window. The GTK system chooser runs asynchronously through
+the default context; timers, Promises and child I/O continue. It resolves to
+an absolute local path, or `null` for dismissal, explicit cancellation or parent
+close/disposal. Backend failures and nonlocal selections reject. The chooser is
+modal to its parent; it does not run a nested main loop. Up to 32 requests may
+be outstanding across all windows.
+
+Each request keeps its native dialog, cancellable and managed resolver rooted
+until GTK finishes, even after cancellation or destruction of its parent.
+Both poller `active()` and `total()` include that work. Cancellation does not
+prematurely release or recycle the record. Late completion is consumed exactly
+once and releases its native objects/path/error; an old session cannot deliver
+a selected path into a reopened window. Closing the last window therefore waits
+for cancelled chooser completion as well as other referenced work.
+
+## Private bridge protocol, version 3
 
 The module captures/removes `__nonaGui`. Its single argument is a Uint32Array
 with at least 160 elements over a fixed, nonshared, attached ArrayBuffer,
 borrowed only for a synchronous call. A view with a nonzero byte offset is
 valid; the bridge borrows that view's bytes. Other element types, undersized,
 detached, shared and resizable backing stores throw before GTK is touched.
-Window commands supply 160 elements; scene commands supply a larger packet. Words:
+Window commands supply 2048 elements; scene commands supply a larger packet. Words:
 0 operation; 1 slot (0..31); 2 generation; 3 width; 4 height; 5 timeout ms;
 6 event type; 7 observed width; 8 observed height; 9 observed integer scale.
 Bytes 64..575 hold a NUL-terminated UTF-8 title (512 bytes). Operations are
-1 create/present, 2 destroy/discard, 3 poll/take, 4 present, 5 resize, 6 replace scene.
+1 create/present, 2 destroy/discard, 3 poll/take, 4 present, 5 resize, 6 replace scene,
+7 focus control, 8 choose folder, 9 cancel request, 10 replace shortcuts.
 Create writes slot/generation; poll writes event fields. Return is 0 (success
 or no event), 1 (one event), -1 (initialization), -2 (capacity/generation),
 -3 (stale/invalid command), -4 (partial creation), -5 (wrong thread),
@@ -129,7 +161,10 @@ At byte 640 are up to 16384 128-byte records: u32 opcode at 0, primary string
 offset at 4, fourteen f64 slots at 8..119, family/font offsets at 120/124.
 UTF-8 NUL-terminated strings follow all records; zero offset means empty.
 Opcodes are save, restore, rounded clip, rounded fill, rounded stroke, text,
-PNG, line, circle (1..9). Native validation bounds counts/offsets, requires
+PNG, line, circle (1..9), button, entry, checkbox (10..12). Control scalar slots
+are ID, element generation, x/y/width/height, checked, enabled, state revision,
+clip x/y/width/height. Strings are text and accessible label; font is unused.
+Native validation bounds counts/offsets, requires
 terminated strings, finite scalar slots within 2^30 and a balanced save stack
 of at most 65 before allocating graphics resources. Native records hold only
 GTK/Cairo handles; no managed pointers survive the synchronous call.
@@ -137,12 +172,44 @@ GTK/Cairo handles; no managed pointers survive the synchronous call.
 Each native slot contains a GTK pointer, signal ID, generation, pending close
 bit, observed dimensions/scale and coalesced dirty bits. There is no unbounded
 queue: one terminal record plus the latest resize and scale per slot is the
-entire capacity. Close dominates other notifications. Round-robin extraction
+window-notification capacity. Close dominates other notifications. Round-robin extraction
 prevents one window starving another. Generations never wrap: a slot reaching
 2147483647 is retired. Callbacks copy scalar data to image-owned records;
 they never retain transient signal data, invoke JS or allocate managed memory.
 Ownership is cleared and signals disconnected before synchronous destruction,
 so nested signals cannot revive a session. Slots are reused only after cleanup.
+
+Input uses a separate 256-record process-wide FIFO. Native handlers copy scalar
+event data and duplicate transient UTF-8 entry text before returning; they never
+retain a GTK text pointer or a managed address. A record carries the window
+generation, element ID/generation and state revision. Poll copies text into the
+borrowed output buffer and frees native ownership before JS delivery. Each entry
+is limited to 1024 Unicode characters (up to 4096 UTF-8 bytes); no truncation is
+used. Focus/key/pointer and semantic events preserve native signal order.
+Window notifications precede this FIFO; Promise checkpoints follow each JS
+event through `runReady`. Pointer coordinates are control-local logical pixels.
+
+On capacity overflow the newest input event is dropped, and its text is never
+allocated. An out-of-band `{type: "overflow", dropped}` window event reports
+the loss after queued input; applications should replace state if needed.
+Close has independent reserved storage, and chooser completions have 32 reserved
+records, so neither can be lost to input pressure. Close purges owned queued
+text synchronously. Holes left by another window's purge consume FIFO capacity
+until extraction; if no events remain the FIFO resets immediately. Stale
+generations/removed controls are ignored; their payloads are still freed.
+No native slot holds a managed pointer. Retained entry widgets survive layout
+updates, preserving GTK selection, caret and IME composition. Programmatic text
+or checked updates intentionally replace state, suppress their synchronous GTK
+notifications and invalidate older queued state events by revision.
+
+Folder command 8 places request ID in word 15, title at byte 64, initial path
+at byte 640 (4096 bytes). Completion code 20 reports request ID in word 15,
+error status in word 12, UTF-8 byte count in word 14 and local path at byte 64.
+Control events use words 10/11 for ID/generation, 12/13 for value/modifiers,
+9 for revision and 14 for UTF-8 length; pointer x/y are float32 at bytes 28/32.
+Codes 4..11 are activate/input/change/focus/blur/keydown/keyup/pointerdown;
+12 is a consumed shortcut, 13 pointerup, 14 overflow. Shortcut command 10
+holds count in word 10 and up to 32 `(id,keyval,modifiers)` triples at byte 64.
 
 Win64-shaped runtime calls cross dedicated SysV wrappers, preserving RDI/RSI
 and full XMM6..15 with aligned calls. Private scalar signatures stage Win64's
@@ -240,7 +307,25 @@ the harness push. They capture the committed recording through test-only
 composition and compare independent pixel fixtures and pinned-font ink bounds;
 they do not establish mapped GDK scale or Wayland behavior. No local Linux
 rendering receipt is claimed. The interactive acceptance application and full
-X11/Wayland evidence remain for stages 3 and 4.
+X11/Wayland evidence remain for stage 4.
+
+Stage 3 adds [gui-controls.test.ts](../tests/gui-controls.test.ts): managed
+state/generation tests and executable native queue/control/chooser probes in
+both GC modes. It also provides a bounded
+[controls fixture](../tests/fixtures/gui/controls.mjs) and
+[AT-SPI driver](../tests/fixtures/gui/drive-controls.py). On Ubuntu, install
+`python3-pyatspi at-spi2-core xdotool` in addition to the libraries/display above,
+then run the focused tests with `NONA_GTK_INPUT_TESTS=1` and `GTK_A11Y=atspi`
+inside `dbus-run-session`. The driver records native accessibility roles/names,
+Unicode entry edits, chooser selection/cancellation, parent close/reopen during
+selection and continuing timers/Promises/child stdout. Its X11 path also injects
+pointer, Tab/Shift+Tab, Enter/Space and shortcut keys. Receipts (including
+failures) remain under `work/gui-evidence/controls-*`, separated by requested
+backend, scale and GC mode. AT-SPI edits establish native Unicode editing,
+not an actual IME composition session. Real IME preedit/commit, Wayland physical
+input, actual mapped backend/scale and Ubuntu 20.04 execution remain explicit
+receipt gaps for stage 4. No such local receipt is claimed on this Windows
+host. Ubuntu 20.04's stock packages lack the supported GTK baseline.
 
 The final hosted matrix must run on Ubuntu 24.04, X11/Xvfb and Wayland/headless
 Weston at scales 1 and 2. Isolate each display, wait for `xdpyinfo` or a

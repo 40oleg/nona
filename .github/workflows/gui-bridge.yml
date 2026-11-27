@@ -5,8 +5,10 @@ on:
             - "src/**"
             - "tests/gui-bridge.test.ts"
             - "tests/gui-elements.test.ts"
+            - "tests/gui-controls.test.ts"
             - "tests/helpers/gui-native.ts"
             - "tests/helpers/gui-render-native.ts"
+            - "tests/helpers/gui-controls-native.ts"
             - "tests/fixtures/gui-window.mjs"
             - "tests/fixtures/gui/**"
             - "package*.json"
@@ -31,7 +33,7 @@ jobs:
               run: |
                   test '${{ runner.environment }}' = github-hosted
                   sudo apt-get update -qq
-                  sudo apt-get install -y libgtk-4-1 libpangoft2-1.0-0 xvfb xauth dbus-x11
+                  sudo apt-get install -y libgtk-4-1 libpangoft2-1.0-0 xvfb xauth dbus-x11 python3-pyatspi at-spi2-core xdotool
             - run: npm ci
             - run: npm run build
             - name: Record environment
@@ -41,6 +43,9 @@ jobs:
             - name: Run focused bridge tests and real window in both compiler GC modes
               env:
                   NONA_GTK_GUI_TESTS: "1"
+                  NONA_GTK_INPUT_TESTS: "1"
+                  GTK_A11Y: atspi
+                  LC_ALL: C.UTF-8
                   NONA_GC_STRESS: "on"
                   NONA_EXECUTION_EVIDENCE: work/gui-evidence/executions
                   GDK_BACKEND: x11
@@ -49,7 +54,7 @@ jobs:
                   GSK_RENDERER: cairo
               run: |
                   set -o pipefail
-                  timeout 10m xvfb-run -a dbus-run-session -- node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js 2>&1 | tee work/gui-evidence/tests.txt
+                  timeout 10m xvfb-run -a dbus-run-session -- node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js dist/tests/gui-controls.test.js 2>&1 | tee work/gui-evidence/tests.txt
             - name: Retain console ELF direct dependencies and headless output
               run: |
                   printf "console.log('headless console');\n" > work/gui-evidence/console.js

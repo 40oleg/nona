@@ -1,7 +1,15 @@
 # Retained GUI fixtures
 
 These fixtures belong to Nona and exercise stage 2 of #664. They are not the
-interactive desktop acceptance application for stages 3 and 4.
+interactive desktop acceptance application for stage 4.
+
+Stage 3's `controls.mjs` and `drive-controls.py` exercise native controls,
+AT-SPI roles/names, Unicode text, folder selection/cancellation and close/reopen
+with background timers, Promises and child stdout. X11 additionally injects
+pointer and keyboard input through XTest/xdotool. The driver retains raw output
+and accessibility snapshots per backend/scale/GC mode under
+`work/gui-evidence/controls-*`. These are configured tests, not a claim that
+this Windows checkout has run a Linux desktop or a real IME session.
 
 - `layout.json`: independently specified logical bounds at 200×120 and 240×160.
 - `pixels.json`: analytically specified interior ARGB pixels for clipping,

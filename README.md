@@ -133,7 +133,9 @@ keeps a background timer running, discards cancelled drafts and reopens safely.
 
 Ubuntu x64 also has an experimental [native GTK GUI](docs/gui.md) with retained
 rows, columns and stacks, styled text/PNG images, clipping, scrolling and custom
-drawing. Controls and input remain in development; GUI libraries are opt-in.
+drawing, native buttons/text entry/toggles and asynchronous folder selection.
+The baseline is Ubuntu 24.04 x64 with GTK 4.14; GUI libraries are opt-in.
+Complete desktop acceptance evidence remains in development.
 
 The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 

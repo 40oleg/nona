@@ -10,7 +10,12 @@ function extent(element, axis, available) {
     let value = p[name];
     if (value === "fill") value = available;
     else if (typeof value !== "number") {
-        if (s.kind === "text")
+        if (["button", "entry", "toggle"].includes(s.kind))
+            value =
+                axis === 0
+                    ? Math.min(available, s.kind === "entry" ? 240 : 120)
+                    : 36;
+        else if (s.kind === "text")
             value =
                 axis === 0
                     ? Math.max(0, available - before - after)
@@ -50,16 +55,31 @@ function rgba(value) {
 export function scene(root, width, height) {
     const commands = [],
         bounds = [];
+    const clips = new Map();
     const push = (op, args = [], text = "", family = "", font = "") => {
         if (commands.length >= 16384)
             throw new RangeError("GUI scene command capacity exceeded");
         commands.push({ op, args, text, family, font });
     };
-    const visit = (element, x, y, w, h) => {
+    const visit = (element, x, y, w, h, inheritedClip) => {
         const s = state(element),
             p = s.props;
         x += p.x;
         y += p.y;
+        let clip = inheritedClip;
+        if (p.clip || p.scroll) {
+            const right = Math.min(clip.x + clip.width, x + w),
+                bottom = Math.min(clip.y + clip.height, y + h);
+            clip = {
+                x: Math.max(clip.x, x),
+                y: Math.max(clip.y, y),
+                width: 0,
+                height: 0,
+            };
+            clip.width = Math.max(0, right - clip.x);
+            clip.height = Math.max(0, bottom - clip.y);
+        }
+        clips.set(element, clip);
         bounds.push({ element, x, y, width: w, height: h });
         push(1);
         if (p.background !== "#00000000")
@@ -209,6 +229,7 @@ export function scene(root, width, height) {
                 cy + dy - (p.scroll ? p.scrollY : 0),
                 sw,
                 sh,
+                clip,
             );
             cursor += (row ? sw : sh) + p.gap;
         }
@@ -230,9 +251,10 @@ export function scene(root, width, height) {
                 p.minHeight,
                 p.maxHeight,
             ),
+            { x: 0, y: 0, width, height },
         );
     }
-    return { commands, bounds };
+    return { commands, bounds, clips };
 }
 export function publishBounds(result) {
     for (const b of result.bounds)

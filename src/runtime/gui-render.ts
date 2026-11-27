@@ -242,7 +242,7 @@ function textRenderer(b: RuntimeBuilder) {
         a.store(slot(80), "r8");
         // map, FcConfig, Pango context, layout, description, result
         a.mov("rax", 0);
-        for (const offset of [88, 96, 104, 112, 120, 128])
+        for (const offset of [88, 96, 104, 112, 120, 128, 160])
             a.store(slot(offset), "rax");
         const fail = a.unique("fail"),
             cleanup = a.unique("cleanup"),
@@ -470,7 +470,7 @@ function sceneRenderer(b: RuntimeBuilder) {
         a.load("rax", { base: "r10" }, 32);
         a.cmp("rax", 1);
         a.jcc("b", invalid);
-        a.cmp("rax", 9);
+        a.cmp("rax", 12);
         a.jcc("a", invalid);
         const notSave = a.unique("notSave"),
             notRestore = a.unique("notRestore");
@@ -556,9 +556,14 @@ function sceneRenderer(b: RuntimeBuilder) {
         a.load("rcx", slot(96));
         a.load("rdx", slot(112));
         a.load("r8", slot(72));
+        a.load("rax", { base: "rdx" }, 32);
+        const skipControl = a.unique("skipControl");
+        a.cmp("rax", 10);
+        a.jcc("ae", skipControl);
         a.call("gui.drawCommand");
         a.test("rax", "rax");
         a.jcc("ne", failed);
+        a.label(skipControl);
         a.load("rax", slot(112));
         a.add("rax", 128);
         a.store(slot(112), "rax");
@@ -571,6 +576,13 @@ function sceneRenderer(b: RuntimeBuilder) {
         narrow(a);
         a.test("rax", "rax");
         a.jcc("ne", failed);
+        a.load("rcx", slot(64));
+        a.load("rdx", slot(72));
+        a.call("gui.input.prepare");
+        a.test("rax", "rax");
+        a.jcc("ne", failed);
+        a.mov("rax", 1);
+        a.store(slot(160), "rax");
         a.load("r10", slot(64));
         a.load("rax", { base: "r10", disp: 64 });
         const haveArea = a.unique("haveArea");
@@ -592,6 +604,11 @@ function sceneRenderer(b: RuntimeBuilder) {
         a.load("r10", slot(64));
         call(a, "gtk_window_set_child", [{ base: "r10" }, slot(144)]);
         a.label(haveArea);
+        a.load("rcx", slot(64));
+        a.load("rdx", slot(72));
+        a.call("gui.input.commit");
+        a.mov("rax", 0);
+        a.store(slot(160), "rax");
         a.load("r10", slot(64));
         a.load("rax", { base: "r10", disp: 72 });
         a.store(slot(152), "rax");
@@ -613,6 +630,13 @@ function sceneRenderer(b: RuntimeBuilder) {
         a.store(slot(128), "rax");
         a.jmp(cleanup);
         a.label(failed);
+        a.load("rax", slot(160));
+        const noStaged = a.unique("noStaged");
+        a.test("rax", "rax");
+        a.jcc("e", noStaged);
+        a.load("rcx", slot(64));
+        a.call("gui.input.rollback");
+        a.label(noStaged);
         a.mov("rax", -6);
         a.store(slot(128), "rax");
         a.label(cleanup);

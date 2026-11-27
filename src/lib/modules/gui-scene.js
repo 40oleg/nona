@@ -7,6 +7,7 @@ function assetPath(value) {
     return executable.slice(0, executable.lastIndexOf("/") + 1) + value;
 }
 export function scenePacket(result, session) {
+    for (const c of result.controls || []) result.commands.push(c);
     const recordsEnd = 640 + result.commands.length * 128;
     let bytes = recordsEnd;
     const strings = [];

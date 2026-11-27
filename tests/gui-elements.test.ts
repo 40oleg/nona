@@ -28,6 +28,7 @@ function managed() {
     const calls: Uint32Array[] = [];
     const context: any = {
         TextEncoder,
+        TextDecoder,
         process: { execPath: "/app/bin/demo" },
         performance: { now: () => 0 },
         __nonaGui(buffer: Uint32Array) {
@@ -98,7 +99,7 @@ test("GUI typed properties and drawing snapshots reject malformed updates before
         },
     ])
         assert.throws(() => e.update(patch));
-    assert.throws(() => new E("button"));
+    assert.throws(() => new E("unknown-control"));
     assert.throws(() => new E("image", { text: "wrong kind" }));
     assert.throws(() => new E("text", { fontSize: 0 }));
     assert.throws(() => new E("text", { text: "NUL\0" }));

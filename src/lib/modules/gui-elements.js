@@ -1,7 +1,29 @@
 // Private retained state: public snapshots cannot bypass validation/ownership.
 const elementState = new WeakMap();
 let nextElementId = 1;
-const kinds = ["row", "column", "stack", "text", "image", "drawing"];
+const kinds = [
+    "row",
+    "column",
+    "stack",
+    "text",
+    "image",
+    "drawing",
+    "button",
+    "entry",
+    "toggle",
+];
+const controlRoles = { button: "button", entry: "textbox", toggle: "checkbox" };
+const elementEvents = [
+    "activate",
+    "input",
+    "change",
+    "focus",
+    "blur",
+    "keydown",
+    "keyup",
+    "pointerdown",
+    "pointerup",
+];
 const numeric = [
     "x",
     "y",
@@ -133,6 +155,10 @@ function properties(kind, input, previous) {
               lineHeight: 19.2,
               imageFit: "contain",
               commands: Object.freeze([]),
+              checked: false,
+              enabled: true,
+              accessibleName: "",
+              role: controlRoles[kind] || "",
           };
     for (const key of Object.keys(input)) {
         const value = input[key];
@@ -150,13 +176,31 @@ function properties(kind, input, previous) {
                     key === "x" || key === "y" ? -1048576 : 0,
                 );
         } else if (strings.includes(key)) {
-            if ((key === "text" || key.startsWith("font")) && kind !== "text")
+            if (
+                (key === "text" && kind !== "text" && !controlRoles[kind]) ||
+                (key.startsWith("font") && kind !== "text")
+            )
                 throw new TypeError("Text properties require a text element");
             if (key === "src" && kind !== "image")
                 throw new TypeError("src requires an image element");
             out[key] = string(value);
             if ((key === "font" || key === "src") && !value)
                 throw new TypeError("Empty GUI asset path");
+        } else if (key === "accessibleName" || key === "role") {
+            if (
+                !controlRoles[kind] ||
+                (key === "role" && value !== controlRoles[kind])
+            )
+                throw new TypeError("GUI role must match the native control");
+            out[key] = string(value);
+        } else if (key === "checked" || key === "enabled") {
+            if (
+                !controlRoles[kind] ||
+                (key === "checked" && kind !== "toggle") ||
+                typeof value !== "boolean"
+            )
+                throw new TypeError("Invalid GUI control state");
+            out[key] = value;
         } else if (["color", "background", "borderColor"].includes(key))
             out[key] = color(value);
         else if (key === "padding") {
@@ -214,7 +258,27 @@ function properties(kind, input, previous) {
         out.lineHeight <= 0
     )
         throw new RangeError("Inconsistent GUI sizing constraints");
+    if (kind === "entry" && Array.from(out.text).length > 1024)
+        throw new RangeError("GUI entry text exceeds 1024 Unicode characters");
     return Object.freeze(out);
+}
+export function acceptControlState(element, event) {
+    const s = state(element);
+    if (event.code === 5)
+        s.props = Object.freeze({ ...s.props, text: event.text });
+    if (event.code === 6)
+        s.props = Object.freeze({ ...s.props, checked: !!event.value });
+}
+export function deliverElementEvent(element, detail) {
+    const s = state(element),
+        listeners = s.listeners.get(detail.type);
+    if (!listeners) return;
+    // Snapshot additions, but honor removal/disposal during delivery.
+    for (const listener of Array.from(listeners)) {
+        if (s.disposed) break;
+        if (!listeners.has(listener)) continue;
+        listener.call(element, detail);
+    }
 }
 export function state(element) {
     const s = elementState.get(element);
@@ -267,6 +331,7 @@ export function disposeWindowElements(window) {
         s.parent = null;
         s.owner = null;
         s.root = null;
+        s.listeners.clear();
     }
     window._elements.clear();
     window._root = null;
@@ -287,6 +352,9 @@ export class Element {
             root: null,
             disposed: false,
             bounds: null,
+            listeners: new Map(),
+            epoch: 0,
+            revision: 1,
         });
         this.setChildren(children);
     }
@@ -313,14 +381,41 @@ export class Element {
     }
     update(patch) {
         const s = state(this),
-            old = s.props;
+            old = s.props,
+            revision = s.revision;
         s.props = properties(s.kind, patch, old);
+        if (patch.text !== undefined || patch.checked !== undefined)
+            s.revision++;
         try {
             if (s.owner) s.owner._render();
         } catch (error) {
             s.props = old;
+            s.revision = revision;
             throw error;
         }
+        return this;
+    }
+    on(type, listener) {
+        const s = state(this);
+        if (
+            !controlRoles[s.kind] ||
+            !elementEvents.includes(type) ||
+            typeof listener !== "function"
+        )
+            throw new TypeError("Expected a native control event and listener");
+        let listeners = s.listeners.get(type);
+        if (!listeners) {
+            listeners = new Set();
+            s.listeners.set(type, listeners);
+        }
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    }
+    focus() {
+        const s = state(this);
+        if (!s.owner || !controlRoles[s.kind])
+            throw new Error("GUI control is not attached");
+        s.owner._focus(this);
         return this;
     }
     setChildren(children) {
@@ -375,6 +470,7 @@ export class Element {
             c.root = null;
             c.owner = null;
             c.bounds = null;
+            c.listeners.clear();
         };
         release(this);
     }

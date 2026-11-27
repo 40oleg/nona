@@ -6,6 +6,7 @@ import { ArrayBufferKind, ArrayBufferLayout as AB } from "./array-buffer.js";
 import { emitViewCheck } from "./view-bounds.js";
 import { guiSystemCall } from "./gui-abi.js";
 import { guiRendering } from "./gui-render.js";
+import { guiInput, GuiControl } from "./gui-input.js";
 
 // Image-owned native records; none of these words contains a managed pointer.
 export const guiSlots = 32;
@@ -21,6 +22,12 @@ export const GuiRecord = {
     dirty: 56,
     drawingArea: 64,
     surface: 72,
+    fixed: 80,
+    overlay: 88,
+    overflow: 96,
+    staged: 104,
+    controls: 112,
+    shortcuts: 120,
 } as const;
 const R = GuiRecord;
 const mem = (name: string) => ({ rip: "gui." + name });
@@ -34,6 +41,7 @@ const api = (a: Assembler, name: string) => a.call("gui.abi." + name);
 export function guiHelpers(): RuntimeBuilder {
     const b = new RuntimeBuilder();
     guiRendering(b);
+    guiInput(b);
     for (const name of [
         "gtk_init_check",
         "gtk_window_new",
@@ -91,6 +99,10 @@ export function guiHelpers(): RuntimeBuilder {
         a.load("rax", slot(56));
         a.test("rax", "rax");
         a.jcc("e", done);
+        a.load("rcx", slot(48));
+        a.call("gui.input.destroy");
+        a.load("rcx", slot(48));
+        a.load("rax", slot(56));
         a.load("rdx", { base: "rcx", disp: R.signal });
         a.test("rdx", "rdx");
         a.jcc("e", disconnected);
@@ -236,6 +248,12 @@ export function guiHelpers(): RuntimeBuilder {
         a.jcc("e", create);
         a.cmp("rax", 3);
         a.jcc("e", poll);
+        const cancel = a.unique("cancel"),
+            folder = a.unique("folder"),
+            focus = a.unique("focus"),
+            shortcuts = a.unique("shortcuts");
+        a.cmp("rax", 9);
+        a.jcc("e", cancel);
         // Every mutating command validates both slot and generation.
         a.load("rax", { base: "r10", disp: 4 }, 32);
         a.cmp("rax", guiSlots);
@@ -257,11 +275,86 @@ export function guiHelpers(): RuntimeBuilder {
             [4, present],
             [5, resize],
             [6, scene],
+            [7, focus],
+            [8, folder],
+            [10, shortcuts],
         ] as const) {
             a.cmp("rax", op);
             a.jcc("e", label);
         }
         a.jmp(invalid);
+        a.label(cancel);
+        a.load("rdx", { base: "r10", disp: 60 }, 32);
+        a.call("gui.folder.cancelRequest");
+        a.jmp(success);
+        a.label(folder);
+        a.load("rax", slot(112));
+        a.cmp("rax", 4736);
+        a.jcc("b", invalid);
+        a.load("rax", { base: "r10", disp: 575 }, 8);
+        a.test("rax", "rax");
+        a.jcc("ne", invalid);
+        a.load("rax", { base: "r10", disp: 4735 }, 8);
+        a.test("rax", "rax");
+        a.jcc("ne", invalid);
+        a.load("rax", { base: "r10", disp: 60 }, 32);
+        a.test("rax", "rax");
+        a.jcc("e", invalid);
+        a.cmp("rax", 0x7fffffff);
+        a.jcc("a", invalid);
+        a.load("rcx", slot(80));
+        a.load("rdx", slot(72));
+        a.call("gui.folder.start");
+        a.jmp(done);
+        a.label(focus);
+        a.load("r11", slot(80));
+        a.load("r11", { base: "r11", disp: R.controls });
+        a.mov("r9", 255);
+        const focusLoop = a.unique("focusLoop"),
+            focusNext = a.unique("focusNext");
+        a.label(focusLoop);
+        a.load("rax", { base: "r11", disp: GuiControl.id });
+        a.load("rdx", { base: "r10", disp: 40 }, 32);
+        a.cmp("rax", "rdx");
+        a.jcc("ne", focusNext);
+        a.load("rax", { base: "r11", disp: GuiControl.epoch });
+        a.load("rdx", { base: "r10", disp: 44 }, 32);
+        a.cmp("rax", "rdx");
+        a.jcc("ne", focusNext);
+        a.load("rcx", { base: "r11", disp: GuiControl.widget });
+        a.test("rcx", "rcx");
+        a.jcc("e", invalid);
+        api(a, "gtk_widget_grab_focus");
+        a.jmp(success);
+        a.label(focusNext);
+        a.add("r11", GuiControl.size);
+        a.sub("r9", 1);
+        a.jcc("ne", focusLoop);
+        a.jmp(invalid);
+        a.label(shortcuts);
+        a.load("rax", { base: "r10", disp: 40 }, 32);
+        a.cmp("rax", 32);
+        a.jcc("a", invalid);
+        a.mov("r9", "rax");
+        a.load("r11", slot(80));
+        a.load("r11", { base: "r11", disp: R.shortcuts });
+        a.add("r10", 64);
+        for (let i = 0; i < 32; i++) {
+            const empty = a.unique("emptyShortcut"),
+                copied = a.unique("copiedShortcut");
+            a.cmp("r9", i);
+            a.jcc("be", empty);
+            for (let j = 0; j < 3; j++) {
+                a.load("rax", { base: "r10", disp: i * 12 + j * 4 }, 32);
+                a.store({ base: "r11", disp: i * 16 + j * 4 }, "rax", 32);
+            }
+            a.jmp(copied);
+            a.label(empty);
+            a.mov("rax", 0);
+            a.store({ base: "r11", disp: i * 16 }, "rax", 32);
+            a.label(copied);
+        }
+        a.jmp(success);
         a.label(scene);
         a.load("rcx", slot(80));
         a.load("rdx", slot(72));
@@ -372,6 +465,11 @@ export function guiHelpers(): RuntimeBuilder {
         a.store(field(R.signal), "rax");
         a.test("rax", "rax");
         a.jcc("e", partial);
+        a.load("rcx", slot(80));
+        a.load("r10", slot(72));
+        a.load("rdx", { base: "r10", disp: 4 }, 32);
+        a.call("gui.input.initialize");
+        a.load("r10", slot(80));
         a.load("rcx", field(R.window));
         api(a, "gtk_window_present");
         a.jmp(success);
@@ -495,6 +593,41 @@ export function guiHelpers(): RuntimeBuilder {
         a.store(slot(88), "rax");
         a.jcc("ne", scan);
         a.label(noEvent);
+        a.load("rcx", slot(72));
+        a.load("rdx", slot(112));
+        a.call("gui.folder.take");
+        a.test("rax", "rax");
+        a.jcc("ne", done);
+        a.load("rcx", slot(72));
+        a.load("rdx", slot(112));
+        a.call("gui.input.take");
+        a.test("rax", "rax");
+        a.jcc("ne", done);
+        // Overflow lives outside the FIFO and terminal close storage.
+        a.lea("r10", mem("records"));
+        a.mov("r11", 0);
+        const overLoop = a.unique("overLoop"),
+            overNext = a.unique("overNext");
+        a.label(overLoop);
+        a.load("rax", field(R.overflow));
+        a.test("rax", "rax");
+        a.jcc("e", overNext);
+        a.load("rdx", slot(72));
+        a.store({ base: "rdx", disp: 4 }, "r11", 32);
+        a.store({ base: "rdx", disp: 48 }, "rax", 32);
+        a.load("rax", field(R.generation));
+        a.store({ base: "rdx", disp: 8 }, "rax", 32);
+        a.mov("rax", 14);
+        a.store({ base: "rdx", disp: 24 }, "rax", 32);
+        a.mov("rax", 0);
+        a.store(field(R.overflow), "rax");
+        a.mov("rax", 1);
+        a.jmp(done);
+        a.label(overNext);
+        a.add("r10", R.size);
+        a.add("r11", 1);
+        a.cmp("r11", guiSlots);
+        a.jcc("b", overLoop);
         api(a, "g_get_monotonic_time");
         a.load("rcx", slot(96));
         a.sub("rcx", "rax");

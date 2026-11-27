@@ -49,7 +49,8 @@ window.dispose();
 ## Trees and transactions
 
 `new Element(kind, properties = {}, children = [])` supports `row`, `column`,
-`stack`, `text`, `image` and `drawing`. Only the three containers accept children.
+`stack`, `text`, `image`, `drawing`, `button`, `entry` and `toggle`. Only the
+three containers accept children.
 `id` is a process-unique monotonically increasing safe integer, never reused,
 and remains readable after disposal. `kind`, `properties`, `children`, `bounds`
 and `disposed` are readable. Properties, padding and copied drawing commands
@@ -217,3 +218,93 @@ destruction; stale draw-area identities are ignored. All graphics/callbacks
 remain on the main runtime thread and perform no managed allocation. Future
 helpers retaining Values across allocation must use the documented
 [runtime rooting rules](runtime-memory.md).
+
+## Native controls and input
+
+```js
+const name = new Element("entry", {
+    text: "Service",
+    accessibleName: "Service name",
+});
+const run = new Element("button", { text: "Run service" });
+const enabled = new Element("toggle", { text: "Enabled", checked: true });
+window.setRoot(new Element("column", { gap: 8 }, [name, run, enabled])).open();
+const unsubscribe = run.on("activate", () => console.log(name.properties.text));
+enabled.on("change", (event) => console.log(event.checked));
+name.on("input", (event) => console.log(event.text));
+name.focus();
+const removeShortcut = window.addShortcut(115, 4, () =>
+    console.log("Control+s"),
+);
+```
+
+GTK `GtkButton`, `GtkEntry` and `GtkCheckButton` own control painting, native
+editing, selection, clipboard, focus and IME preedit/commit. Nona does not
+reimplement text entry from raw key events. Entries hold at most 1024 Unicode
+characters. Default control extent is 120 by 36 logical pixels (entry width
+240), constrained by the available width; explicit sizing uses the retained
+layout. Native GTK minimums can exceed the content allocation and are clipped
+by the control viewport. Controls form an overlay above the Cairo scene, in
+retained traversal order; Cairo content does not paint over native controls.
+Ancestor scroll offsets and rectangular clipping apply to the control viewport.
+Native widgets retain the system theme, fonts and corner treatment; the precise
+text/font/drawing properties documented above apply to rendered text/drawing
+elements. Rounded ancestor clipping of native controls is rectangular for now.
+
+Control properties add `text`, `enabled` (default true), `accessibleName` and,
+for toggles, `checked` (default false). `role` may assert the kind's native role:
+`button`, `textbox`, `checkbox`, respectively; incompatible roles reject before
+native work. Accessible names default to `text`; use an explicit label for an
+entry so its accessible name does not change with typed content. Names are
+published via GTK's accessible label property. GTK supplies the actual role,
+checked/disabled/focus state and text interfaces to the native accessibility
+tree. The hosted input probe queries AT-SPI rather than inferring a tree from
+the JavaScript properties.
+
+At most 128 controls may be attached to a window. Control IDs, attachment
+generations and state revisions must fit positive signed 32-bit integers;
+exhaustion fails rather than wrapping. New native widgets are staged before
+committing a scene; an existing entry is reused by ID and attachment generation.
+
+`element.on(type, listener)` returns an idempotent unsubscribe function. Events
+are `activate`, `input`, `change`, `focus`, `blur`, `keydown`, `keyup`,
+`pointerdown`, `pointerup`. Only native controls accept these subscriptions.
+The receiver and `event.target` are the element. `input` supplies `text`,
+`change` supplies `checked`, key events supply a GDK `keyval` and `modifiers`,
+pointer events supply `button`, control-local logical `x`/`y` and `modifiers`.
+Text/checked properties are updated before listeners, without resetting the
+native widget. Programmatic `update` emits no synthetic user input event.
+
+GTK dispatch runs first, and JavaScript observes queued native signals later.
+Within input, events are FIFO in native signal order: captured pointer/key
+notifications precede semantic activation/change, and IME input is emitted when
+GTK changes committed text. GTK can emit multiple intermediate changes for one
+edit; each copied snapshot is delivered separately. Keyboard observers return
+false to GTK, gestures do not claim sequences, and JS listener return values
+are ignored. There is no `preventDefault`, synchronous JS propagation decision,
+DOM bubbling or promise that the current native state equals an older queued
+snapshot. Listener additions take effect on the next event; removals/disposal
+take effect during delivery. Exceptions follow the normal I/O-loop policy.
+
+Tab/Shift+Tab follow GTK focus traversal. Space uses GTK's native activation;
+Enter/KP_Enter activate buttons and toggles once during native key dispatch;
+an entry retains GTK's native Enter behavior and emits `activate`. `focus()`
+requires an attached control in an open window. Detached/disposed generations
+cannot receive pending events. Native widget identity survives layout updates,
+so those updates do not cancel composition or reset the caret.
+
+`window.addShortcut(keyval, modifiers, listener)` installs up to 32 synchronous
+native capture rules and returns a remover. Keyvals are GDK integers; modifiers
+use Shift=1, Control=4, Alt=8, Super=0x04000000, Hyper=0x08000000,
+Meta=0x10000000. Lock/button bits are ignored. The first matching rule consumes
+the key press before GTK target/default processing, queues `shortcut` to its
+callback and prevents that key from editing a control. Rules are restored on
+reopen. A removed rule's queued callback is ignored. This explicit native
+policy works even though its JS callback runs after dispatch. Input overflow
+can drop the queued callback after the key was consumed; see the
+[bounded event transport](gui.md#private-bridge-protocol-version-3).
+
+See [folder selection](gui.md#asynchronous-folder-selection) for asynchronous
+chooser ownership and cancellation during parent close/disposal. Actual IME
+composition and backend-specific desktop evidence remain required acceptance
+receipts; Unicode transport probes alone do not establish them.

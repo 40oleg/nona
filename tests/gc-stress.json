@@ -4,6 +4,7 @@
         "win32-settings",
         "gui-bridge",
         "gui-elements",
+        "gui-controls",
         "events",
         "gc",
         "http-backpressure",

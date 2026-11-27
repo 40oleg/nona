@@ -27,6 +27,7 @@ import { replaceImport } from "./native.js";
 import { hostTarget, linkHost } from "./program.js";
 import type { NativeProgram } from "../../src/backend/machine/model.js";
 import { guiRenderCalls } from "../../src/runtime/gui-render-api.js";
+import { guiInputCalls } from "../../src/runtime/gui-input.js";
 import type { Target } from "../../src/target.js";
 
 export const canRunGuiProbe =
@@ -220,6 +221,11 @@ export function guiProbe(
     stub(
         "g_signal_connect_data",
         (a) => {
+            const input = a.unique("input"),
+                endSignal = a.unique("endSignal");
+            a.lea("rax", { rip: "gui.closeSignal" });
+            a.cmp("rsi", "rax");
+            a.jcc("ne", input);
             // These are actual SysV arguments after the production Win64 adapter.
             a.load("rax", { base: "rcx", disp: R.window });
             a.cmp("rdi", "rax");
@@ -246,15 +252,21 @@ export function guiProbe(
                 a.mov("rax", 11);
                 a.label(end);
             } else a.mov("rax", 11);
+            a.jmp(endSignal);
+            a.label(input);
+            a.mov("rax", 12);
+            a.label(endSignal);
         },
         40,
     );
     stub(
         "g_signal_handler_disconnect",
         (a) => {
+            const input = a.unique("input");
             a.cmp("rsi", 11);
-            failIf(a, "ne");
+            a.jcc("ne", input);
             bump(a, 2);
+            a.label(input);
         },
         40,
     );
@@ -428,6 +440,19 @@ export function guiProbe(
                 )
                     bump(a, 21);
                 else a.mov("rax", 0);
+            },
+            40,
+        );
+    for (const [, name] of guiInputCalls)
+        stub(
+            name,
+            (a) => {
+                a.mov(
+                    "rax",
+                    name.endsWith("_new") || name === "g_object_ref_sink"
+                        ? 0x6000
+                        : 0,
+                );
             },
             40,
         );

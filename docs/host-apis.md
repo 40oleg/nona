@@ -2,8 +2,10 @@
 
 Ubuntu x64 programs can opt into `Window` and `Element` from `nona:gui` for a
 retained native GTK scene. See the [window/lifecycle reference](gui.md) and
-[element, layout, asset and drawing reference](gui-elements.md). Controls/input
-are still in development; unrelated ELF programs keep their dependency baseline.
+[element, layout, asset, drawing and native control reference](gui-elements.md).
+Buttons, native text entry, toggles, deferred input and asynchronous system
+folder selection require Ubuntu 24.04 x64/GTK 4.14. Complete desktop acceptance
+receipts remain pending; unrelated ELF programs keep their dependency baseline.
 
 Windows x64 programs can import `SettingsWindow` from `nona:win32/settings`
 for a modeless checkbox/seven-choice settings dialog. Windows belong to the
