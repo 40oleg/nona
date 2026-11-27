@@ -384,7 +384,10 @@ export class Element {
             old = s.props,
             revision = s.revision;
         s.props = properties(s.kind, patch, old);
-        if (patch.text !== undefined || patch.checked !== undefined)
+        if (
+            (s.kind === "entry" && patch.text !== undefined) ||
+            (s.kind === "toggle" && patch.checked !== undefined)
+        )
             s.revision++;
         try {
             if (s.owner) s.owner._render();

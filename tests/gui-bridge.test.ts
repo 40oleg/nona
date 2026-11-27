@@ -132,11 +132,13 @@ function managed() {
         },
     };
     runInNewContext(
-        wrapper.replace("class Window", "globalThis.Window = class Window"),
+        wrapper.replace("class Window", "globalThis.Window = class Window") +
+            "\nglobalThis.Element = Element;",
         context,
     );
     return {
         Window: context.Window,
+        Element: context.Element,
         get poller() {
             return poller;
         },
@@ -236,6 +238,49 @@ test("GUI keeps independent windows and invalidates stale and taken notification
     assert.equal(second.isOpen, true);
     second.dispose();
     assert.equal(m.poller.active(), 0);
+});
+
+test("GUI layout keeps observed dimensions after an ignored resize request", () => {
+    const m = managed(),
+        root = new m.Element("column", { width: "fill", height: "fill" }),
+        seen: number[][] = [],
+        w = new m.Window({
+            width: 640,
+            height: 480,
+            onEvent(event: any) {
+                if (event.type === "resize") {
+                    // Layout must reflect the observation before user code runs.
+                    seen.push([root.bounds.width, root.bounds.height]);
+                }
+            },
+        })
+            .setRoot(root)
+            .open();
+    const bounds = () => [root.bounds.width, root.bounds.height];
+    m.events.push([0, 1, 2, 800, 600]);
+    assert.equal(m.poller.poll(0), 1);
+    m.poller.run();
+    assert.deepEqual(bounds(), [800, 600]);
+
+    // The native double accepts the request but reports no changed allocation.
+    assert.equal(w.resize(1200, 900), w);
+    assert.deepEqual(m.calls.at(-1)!.slice(0, 5), [5, 0, 1, 1200, 900]);
+    assert.equal(m.poller.poll(0), 0);
+    root.update({ background: "#112233" });
+    assert.deepEqual(bounds(), [800, 600]);
+    assert.deepEqual(seen, [[800, 600]]);
+
+    // A later real allocation may differ from both the request and old bounds.
+    m.events.push([0, 1, 2, 1000, 700]);
+    assert.equal(m.poller.poll(0), 1);
+    m.poller.run();
+    root.update({ background: "#334455" });
+    assert.deepEqual(bounds(), [1000, 700]);
+    assert.deepEqual(seen, [
+        [800, 600],
+        [1000, 700],
+    ]);
+    w.dispose();
 });
 
 test("GUI detaches terminal sessions before handlers, reopen and listener exceptions", () => {

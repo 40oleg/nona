@@ -126,6 +126,45 @@ test("GUI toggle events update state, listener removal and disposal stop deliver
     w.dispose();
 });
 
+for (const taken of [false, true])
+    test(`GUI toggle captions preserve ${taken ? "taken" : "queued"} changes while checked updates replace state`, () => {
+        const m = managed(),
+            toggle = new m.Element("toggle", {
+                text: "Enabled",
+                checked: false,
+            }),
+            w = new m.Window().setRoot(toggle).open(),
+            seen: boolean[] = [];
+        toggle.on("change", (event: any) => {
+            assert.equal(event.checked, toggle.properties.checked);
+            seen.push(event.checked);
+        });
+        const deliver = () => {
+            if (taken) m.poller.run();
+            else m.drain();
+        };
+        m.events.push({ code: 6, id: toggle.id, value: 1, revision: 1 });
+        if (taken) assert.equal(m.poller.poll(0), 1);
+        toggle.update({ text: "New caption" });
+        deliver();
+        assert.deepEqual(seen, [true]);
+        assert.equal(toggle.properties.text, "New caption");
+        assert.equal(toggle.properties.checked, true);
+
+        m.events.push({ code: 6, id: toggle.id, value: 0, revision: 1 });
+        if (taken) assert.equal(m.poller.poll(0), 1);
+        // Even an explicit write of the current value supersedes queued input.
+        toggle.update({ checked: true });
+        deliver();
+        assert.deepEqual(seen, [true]);
+        assert.equal(toggle.properties.checked, true);
+        m.events.push({ code: 6, id: toggle.id, value: 0, revision: 2 });
+        m.drain();
+        assert.deepEqual(seen, [true, false]);
+        assert.equal(toggle.properties.checked, false);
+        w.dispose();
+    });
+
 test("GUI state revisions and disposal invalidate already-taken input", () => {
     const m = managed(),
         entry = new m.Element("entry", { text: "initial" }),
@@ -328,6 +367,32 @@ w.chooseFolder().then(p=>console.log('disposed',p));w.dispose();console.log('ret
     );
 
 for (const gcStress of [false, true]) {
+    test(
+        `GUI caption updates preserve queued native toggle state (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const source = `${guiWrapper}
+let loop;globalThis.__nonaIoLoop=p=>{loop=p;};
+const emit=globalThis.guiEmit,stat=globalThis.guiControlStat;
+const toggle=new Element('toggle',{text:'Enabled',checked:false});
+const w=new Window().setRoot(toggle).open();
+function drain(){for(let i=0;i<10;i++){if(!loop.poll(0))break;loop.run();}}
+drain();let changes=0;toggle.on('change',()=>changes++);
+const sets=stat(16);emit(3);toggle.update({text:'New caption'});
+console.log('caption preserves native state',stat(16)===sets);drain();
+console.log('user change',changes,toggle.properties.checked,toggle.properties.text);
+emit(3);toggle.update({checked:false});drain();
+console.log('application state',changes,toggle.properties.checked,stat(16)===sets+1);
+w.dispose();`;
+            const run = runGuiProbe(guiControlProbe(source, gcStress));
+            assert.equal(run.error, undefined, run.stdout);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(
+                run.stdout,
+                "caption preserves native state true\nuser change 1 true New caption\napplication state 1 false true\n",
+            );
+        },
+    );
     test(
         `GUI passes empty and Unicode control text and accessible labels to GTK (GC stress ${gcStress})`,
         { skip: !canRunGuiProbe },

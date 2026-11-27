@@ -72,7 +72,10 @@ Events are `{type: "resize", width, height}`, `{type: "scale", scaleFactor}`
 and `{type: "close"}`. Resize/scale report observations after GLib dispatch;
 their first positive observation is also delivered. Changes coalesce to the
 latest observed value. A request is not evidence that the compositor applied
-it. Close-request records a terminal event and inhibits GTK default closing;
+it. Retained layout keeps the last observed dimensions until a resize event
+arrives, including element updates after an ignored request. Before the first
+observation it uses the constructor dimensions. Close-request records a terminal
+event and inhibits GTK default closing;
 the poller destroys the window before delivering `close`. It detaches the
 session before user code, allowing reopen from a listener. Explicit close or
 dispose discards pending notifications and delivers no close event.
@@ -283,9 +286,10 @@ text synchronously. Holes left by another window's purge consume FIFO capacity
 until extraction; if no events remain the FIFO resets immediately. Stale
 generations/removed controls are ignored; their payloads are still freed.
 No native slot holds a managed pointer. Retained entry widgets survive layout
-updates, preserving GTK selection, caret and IME composition. Programmatic text
-or checked updates intentionally replace state, suppress their synchronous GTK
-notifications and invalidate older queued state events by revision.
+updates, preserving GTK selection, caret and IME composition. Programmatic entry
+`text` or toggle `checked` updates intentionally replace state, suppress their
+synchronous GTK notifications and invalidate older queued state events by revision.
+Toggle caption (`text`) updates preserve checked state and queued change events.
 
 Folder command 8 places request ID in word 15, title at byte 64, initial path
 at byte 640 (4096 bytes). Completion code 20 reports request ID in word 15,
@@ -443,10 +447,19 @@ workflow, compile its Weston module, run `build-desktop.mjs`, then invoke
 commands. Real bridge tests additionally use `NONA_GTK_GUI_TESTS=1` and
 `NONA_GTK_INPUT_TESTS=1` inside an isolated X11/D-Bus session.
 
-**This revision was authored on Windows x64. Native hosted execution is pending
-until the harness push. No actual X11/Wayland desktop, live-scale or Ubuntu 20.04
-receipt is claimed here.** Record workflow URLs and artifact hashes after they
-pass; do not infer success from configured jobs or compilation.
+**Native acceptance remains blocked.** On 2026-11-28, the Windows x64 review
+worker attempted `workflow_dispatch` for both `gui-desktop.yml` and
+`gui-bridge.yml` at the published branch `nona/issue-664`
+(`5df7c0de9f7a7ef1b6ea55b58aad410f3f04184b`). Both GitHub API requests returned
+HTTP 404. Neither workflow was registered in the repository workflow list, and
+the branch had no PR or workflow runs. The review task prohibits pushing or
+opening a PR, so it cannot trigger the configured PR workflows or validate these
+local fixes on hosted Ubuntu. The harness must publish the fixes and create the
+PR with `full-ci` and `gc-stress`, then run and resolve the desktop and bridge
+checks. Record successful workflow URLs, tested commit IDs and artifact hashes
+here before treating this branch as resolving #664. No actual X11/Wayland desktop,
+live-scale, dependency-comparison or Ubuntu 20.04 receipt is claimed here;
+configured jobs, compilation and stubbed executable probes do not establish them.
 
 | Acceptance evidence                                                           | Current result                           |
 | ----------------------------------------------------------------------------- | ---------------------------------------- |

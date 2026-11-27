@@ -9,6 +9,8 @@
   transition, chooser/lifecycle progress checks, retained traces/images/failures,
   merge-base dependency controls and a separate stock Ubuntu 20.04 outcome.
   Resolve empty control text and accessible labels to native empty strings.
+  Preserve queued toggle changes across caption updates and observed layout
+  dimensions after resize requests that GTK may ignore.
   Reconfigure the Weston output on its existing head for live scale validation,
   preserving the application surface and retaining the compositor acknowledgement.
   Document build/install commands and unsupported environments. Native acceptance

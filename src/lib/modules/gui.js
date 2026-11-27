@@ -502,8 +502,8 @@ export class Window {
         scratch[3] = width;
         scratch[4] = height;
         call();
-        this._width = width;
-        this._height = height;
+        // GTK may ignore this request. Only resize observations change the
+        // dimensions used by retained layout and subsequent element updates.
         return this;
     }
     close() {
