@@ -771,19 +771,24 @@ function generateImage(
     if (
         module.functions.some((fn) =>
             fn.blocks.some((block) =>
-                block.operations.some((op) =>
-                    op.kind === "readGlobalProperty" && op.name === "__nonaGui",
+                block.operations.some(
+                    (op) =>
+                        op.kind === "readGlobalProperty" &&
+                        op.name === "__nonaGui",
                 ),
             ),
         )
     ) {
         if (currentNativeTarget() !== "linux-x64" || options.agent)
-            throw new CompileError([{
-                code: "E_HOST_MODULE",
-                message: "nona:gui requires the main Linux x64 JavaScript thread",
-                file: "nona:gui",
-                span: { start: 0, end: 0 },
-            }]);
+            throw new CompileError([
+                {
+                    code: "E_HOST_MODULE",
+                    message:
+                        "nona:gui requires the main Linux x64 JavaScript thread",
+                    file: "nona:gui",
+                    span: { start: 0, end: 0 },
+                },
+            ]);
         const helpers = guiHelpers().bundle;
         fragments.push(...helpers.fragments);
         functions.push(...helpers.functions);

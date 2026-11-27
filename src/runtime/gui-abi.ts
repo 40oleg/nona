@@ -2,7 +2,11 @@ import { RuntimeBuilder, slot } from "./abi.js";
 import type { Xmm } from "../backend/machine/context.js";
 
 /** Private integer/pointer-only GTK calls. Public FFI declarations are unchanged. */
-export function guiSystemCall(b: RuntimeBuilder, library: string, name: string): void {
+export function guiSystemCall(
+    b: RuntimeBuilder,
+    library: string,
+    name: string,
+): void {
     b.bundle.imports.push({ dll: library, name, symbol: "gui.import." + name });
     // Win64 entry: RDI/RSI and XMM6..15 are nonvolatile, unlike SysV.
     // 216 = 8 mod 16. Outgoing SysV arguments all fit in registers; keep

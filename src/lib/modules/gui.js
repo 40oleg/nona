@@ -18,7 +18,8 @@ function title(value) {
     if (typeof value !== "string" || value.includes("\0"))
         throw new TypeError("GUI title must be a string without NUL");
     const bytes = encoder.encode(value);
-    if (bytes.length > 511) throw new RangeError("GUI title exceeds 511 UTF-8 bytes");
+    if (bytes.length > 511)
+        throw new RangeError("GUI title exceeds 511 UTF-8 bytes");
     return bytes;
 }
 function command(op, session) {
@@ -30,22 +31,34 @@ function command(op, session) {
 function call() {
     const result = native(scratch);
     if (result < 0) {
-        if (result === -1) throw new Error("GTK initialization failed: no usable display");
+        if (result === -1)
+            throw new Error("GTK initialization failed: no usable display");
         throw new Error("GUI operation failed (" + result + ")");
     }
     return result;
 }
 const poller = {
-    active() { return count; },
-    total() { return count; },
-    poll(timeout) {
+    active() {
+        return count;
+    },
+    total() {
+        return count;
+    },
+    poll(timeout, deadline) {
         ready = null;
         if (count === 0) return 0;
         command(3);
-        // The existing loop already limits timeout to the earliest timer and
-        // slices blocking waits when other pollers exist. Native dispatch time
-        // is subtracted from this budget before sleeping.
-        scratch[5] = timeout < 0 ? 10 : Math.min(10, Math.max(0, timeout));
+        // Earlier nonblocking pollers may have consumed the original timeout.
+        // The outer loop also supplies its earliest absolute timer deadline,
+        // in performance.now() units. Recompute what remains before native
+        // dispatch; native dispatch time is then subtracted before sleeping.
+        let budget = timeout < 0 ? 10 : Math.min(10, Math.max(0, timeout));
+        if (deadline !== undefined)
+            budget = Math.min(
+                budget,
+                Math.max(0, Math.ceil(deadline - performance.now())),
+            );
+        scratch[5] = budget;
         if (call() === 0) return 0;
         const session = sessions[scratch[1]];
         if (!session || session.generation !== scratch[2]) return 0;
@@ -62,33 +75,48 @@ const poller = {
         const event = ready;
         ready = null;
         if (!event) return;
-        const session = event.session, window = session.window;
-        if (sessions[session.slot] !== session || window._session !== session) return;
+        const session = event.session,
+            window = session.window;
+        if (sessions[session.slot] !== session || window._session !== session)
+            return;
         if (event.code === 1) {
             sessions[session.slot] = null;
             window._session = null;
             count--;
         }
-        const detail = event.code === 1 ? { type: "close" }
-            : event.code === 2 ? { type: "resize", width: event.width, height: event.height }
-            : { type: "scale", scaleFactor: event.scaleFactor };
+        const detail =
+            event.code === 1
+                ? { type: "close" }
+                : event.code === 2
+                  ? { type: "resize", width: event.width, height: event.height }
+                  : { type: "scale", scaleFactor: event.scaleFactor };
         // runReady owns exception handling and the microtask checkpoint.
         window._onEvent(detail);
     },
 };
 export class Window {
     constructor(options = {}) {
-        if (!options || typeof options !== "object") throw new TypeError("Expected GUI window options");
-        this._title = title(options.title === undefined ? "Nona" : options.title);
+        if (!options || typeof options !== "object")
+            throw new TypeError("Expected GUI window options");
+        this._title = title(
+            options.title === undefined ? "Nona" : options.title,
+        );
         this._width = size(options.width === undefined ? 640 : options.width);
-        this._height = size(options.height === undefined ? 480 : options.height);
-        if (options.onEvent !== undefined && typeof options.onEvent !== "function")
+        this._height = size(
+            options.height === undefined ? 480 : options.height,
+        );
+        if (
+            options.onEvent !== undefined &&
+            typeof options.onEvent !== "function"
+        )
             throw new TypeError("Expected GUI onEvent function");
         this._onEvent = options.onEvent || function () {};
         this._session = null;
         this._disposed = false;
     }
-    get isOpen() { return this._session !== null; }
+    get isOpen() {
+        return this._session !== null;
+    }
     open() {
         if (this._disposed) throw new Error("GUI Window is disposed");
         if (this.isOpen) throw new Error("GUI Window is already open");
@@ -101,7 +129,8 @@ export class Window {
         command(1);
         scratch[3] = this._width;
         scratch[4] = this._height;
-        for (let i = 0; i < 512; i++) titleBytes[i] = i < this._title.length ? this._title[i] : 0;
+        for (let i = 0; i < 512; i++)
+            titleBytes[i] = i < this._title.length ? this._title[i] : 0;
         call();
         session.slot = scratch[1];
         session.generation = scratch[2];
@@ -122,11 +151,14 @@ export class Window {
     }
     resize(width, height) {
         this._requireOpen();
-        size(width); size(height);
+        size(width);
+        size(height);
         command(5, this._session);
-        scratch[3] = width; scratch[4] = height;
+        scratch[3] = width;
+        scratch[4] = height;
         call();
-        this._width = width; this._height = height;
+        this._width = width;
+        this._height = height;
         return this;
     }
     close() {

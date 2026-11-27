@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Validate the experimental Ubuntu GTK window bridge with focused wrapper and
+  executable ABI, ownership, GC and event-loop regressions. Correct native
+  timeout conversion and honor timer deadlines after earlier pollers; add a
+  bounded real-window fixture and hosted X11 validation job. Retained UI,
+  controls and complete desktop acceptance evidence remain pending.
+  ([#664](https://github.com/40oleg/nona/issues/664))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent
   producer/copy coalescing proofs. Add matching production guard regressions and
