@@ -6,6 +6,8 @@ let ticks = 0,
     jobs = 0,
     lines = 0,
     selections = 0,
+    parentDisposed = false,
+    lateEvents = 0,
     finished = false;
 const entry = new Element("entry", {
     text: "initial",
@@ -39,6 +41,20 @@ function log(...args) {
 }
 entry.on("input", (e) => log("input", e.text));
 for (const control of [entry, run, toggle, choose, finish]) {
+    for (const type of [
+        "activate",
+        "input",
+        "change",
+        "focus",
+        "blur",
+        "keydown",
+        "keyup",
+        "pointerdown",
+        "pointerup",
+    ])
+        control.on(type, () => {
+            if (parentDisposed) lateEvents++;
+        });
     control.on("focus", () => log("focus", control.kind));
     control.on("keydown", (e) => log("keydown", e.keyval, e.modifiers));
     control.on("pointerdown", (e) => log("pointer", control.kind, e.button));
@@ -65,12 +81,17 @@ const timer = setInterval(() => {
     ticks++;
     Promise.resolve().then(() => {
         jobs++;
+        if (ticks % 5 === 0) log("background", ticks, jobs, lines);
     });
-    if (!finished) label.update({ text: "Background " + ticks });
+    if (!finished && !parentDisposed)
+        label.update({ text: "Background " + ticks });
 }, 50);
 choose.on("activate", () => {
     const index = ++selections,
-        before = lines;
+        before = lines,
+        beforeTicks = ticks,
+        beforeJobs = jobs;
+    let completed = false;
     log("choosing", index);
     window
         .chooseFolder({
@@ -79,29 +100,55 @@ choose.on("activate", () => {
         })
         .then(
             (path) => {
+                completed = true;
                 log("folder", index, path === null ? "null" : path);
-                setTimeout(
-                    () =>
+                setTimeout(() => {
+                    log(
+                        "after-folder",
+                        index,
+                        lines > before,
+                        ticks > beforeTicks,
+                        jobs > beforeJobs,
+                    );
+                    if (index === 4) {
+                        log("disposed-events", lateEvents);
                         log(
-                            "after-folder",
-                            index,
+                            "progress",
+                            ticks > beforeTicks,
+                            jobs > beforeJobs,
                             lines > before,
-                            ticks > 0,
-                            jobs > 0,
-                        ),
-                    100,
-                );
+                        );
+                        stop(0);
+                    }
+                }, 150);
             },
             (error) => {
                 console.error(error.message);
                 stop(93);
             },
         );
+    if (index <= 2)
+        setTimeout(() => {
+            if (!completed)
+                log(
+                    "modal-progress",
+                    index,
+                    lines > before,
+                    ticks > beforeTicks,
+                    jobs > beforeJobs,
+                );
+        }, 250);
     if (index === 3)
         setTimeout(() => {
             window.close();
             window.open();
             log("reopened");
+        }, 100);
+    if (index === 4)
+        setTimeout(() => {
+            parentDisposed = true;
+            window.dispose();
+            log("parent-disposed");
         }, 100);
 });
 finish.on("activate", () => {

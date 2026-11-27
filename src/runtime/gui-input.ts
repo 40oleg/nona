@@ -38,11 +38,23 @@ export const GuiEvent = {
 } as const;
 const C = GuiControl,
     E = GuiEvent;
+// A transaction may replace every live control before retiring the old tree.
+// Keep all 256 slots for 128 live + 128 staged widgets; window shortcuts have
+// their own record and cannot consume a staging slot.
+export const guiControlSlots = 256;
 const mem = (name: string, addend = 0) => ({
     rip: "gui.input." + name,
     addend,
 });
 const f = (offset: number) => ({ base: "r10" as const, disp: offset });
+// R10: window record (128 bytes) -> its synthetic control (256 bytes).
+function windowControl(a: Assembler) {
+    a.lea("r11", { rip: "gui.records" });
+    a.sub("r10", "r11");
+    a.shl("r10", 1);
+    a.lea("r11", mem("windows"));
+    a.add("r10", "r11");
+}
 const narrow = (a: Assembler) => {
     a.shl("rax", 32);
     a.shr("rax", 32);
@@ -79,6 +91,7 @@ export const guiInputCalls: [string, string, string][] = [
         ["gtk_widget_activate", "p"],
         ["gtk_widget_add_controller", "pp"],
         ["gtk_widget_set_focusable", "pp"],
+        ["gtk_widget_insert_after", "ppp"],
         ["gtk_event_controller_key_new", ""],
         ["gtk_event_controller_focus_new", ""],
         ["gtk_gesture_click_new", ""],
@@ -114,7 +127,12 @@ export const guiInputCalls: [string, string, string][] = [
 export function guiInput(b: RuntimeBuilder): void {
     for (const [lib, name, sig] of guiInputCalls)
         guiSystemCall(b, lib, name, sig);
-    b.data("gui.input.controls", new Uint8Array(32 * 256 * C.size), ".data");
+    b.data(
+        "gui.input.controls",
+        new Uint8Array(32 * guiControlSlots * C.size),
+        ".data",
+    );
+    b.data("gui.input.windows", new Uint8Array(32 * C.size), ".data");
     b.data("gui.input.shortcuts", new Uint8Array(32 * 32 * 16), ".data");
     b.data("gui.input.queue", new Uint8Array(256 * E.size), ".data");
     b.data("gui.input.indices", new Uint8Array(24), ".data"); // read, write, count
@@ -522,11 +540,11 @@ function inputCallbacks(b: RuntimeBuilder) {
         a.mov("rax", 0);
         a.jmp(done);
         a.label(matched);
-        // A synthetic control record in the final native slot represents the
+        // An independently owned synthetic control record represents the
         // window, so shortcuts share the bounded FIFO and generation checks.
         a.load("r10", slot(48));
-        a.load("rcx", { base: "r10", disp: 112 });
-        a.add("rcx", 255 * C.size);
+        windowControl(a);
+        a.mov("rcx", "r10");
         a.mov("rdx", 12);
         a.call("gui.input.reserve");
         const dropped = a.unique("dropped");
@@ -576,8 +594,8 @@ function inputControls(b: RuntimeBuilder) {
         a.lea("r11", mem("controls"));
         a.add("rax", "r11");
         a.store({ base: "rcx", disp: 112 }, "rax");
-        a.add("rax", 255 * C.size);
-        a.mov("r10", "rax");
+        a.mov("r10", "rcx");
+        windowControl(a);
         a.load("rax", { base: "rcx" });
         a.store(f(C.widget), "rax");
         a.store(f(C.owner), "rcx");
@@ -595,13 +613,11 @@ function inputControls(b: RuntimeBuilder) {
         call(a, "gtk_event_controller_key_new", []);
         a.store(slot(64), "rax");
         a.load("r10", slot(48));
-        a.load("r10", f(112));
-        a.add("r10", 255 * C.size);
+        windowControl(a);
         a.store(f(C.key), "rax");
         connect(a, 64, "key-pressed", "shortcut", 48);
         a.load("r10", slot(48));
-        a.load("r10", f(112));
-        a.add("r10", 255 * C.size);
+        windowControl(a);
         a.store(f(144), "rax");
         call(a, "gtk_event_controller_set_propagation_phase", [slot(64), 1]);
         a.load("r10", slot(48));
@@ -656,7 +672,7 @@ function inputControls(b: RuntimeBuilder) {
         a.store(slot(48), "rcx");
         a.load("rax", { base: "rcx", disp: 112 });
         a.store(slot(56), "rax");
-        a.mov("rax", 255);
+        a.mov("rax", guiControlSlots);
         a.store(slot(64), "rax");
         const loop = a.unique("loop"),
             skip = a.unique("skip"),
@@ -682,11 +698,8 @@ function inputControls(b: RuntimeBuilder) {
         // The window key controller may be held by an in-flight GTK event;
         // disconnect its callback before this window slot can be reused.
         a.load("r10", slot(48));
-        a.load("r10", f(112));
         const noShortcut = a.unique("noShortcut");
-        a.test("r10", "r10");
-        a.jcc("e", noShortcut);
-        a.add("r10", 255 * C.size);
+        windowControl(a);
         a.mov("rax", 0);
         a.store(f(C.widget), "rax");
         a.load("rcx", f(C.key));
@@ -715,7 +728,7 @@ function controlsTransaction(b: RuntimeBuilder) {
         b.fn("gui.input." + name, 72, (a) => {
             a.load("rax", { base: "rcx", disp: 112 });
             a.store(slot(48), "rax");
-            a.mov("rax", 255);
+            a.mov("rax", guiControlSlots);
             a.store(slot(56), "rax");
             const loop = a.unique("loop"),
                 next = a.unique("next");
@@ -752,7 +765,7 @@ function controlsTransaction(b: RuntimeBuilder) {
         a.mov("rax", 0);
         a.store(slot(80), "rax");
         a.load("r10", { base: "rcx", disp: 112 });
-        a.mov("r11", 255);
+        a.mov("r11", guiControlSlots);
         const clear = a.unique("clear");
         a.label(clear);
         a.store(f(C.seen), "rax");
@@ -797,7 +810,7 @@ function controlsTransaction(b: RuntimeBuilder) {
         a.store(slot(96), "rax");
         a.load("r10", slot(48));
         a.load("r10", f(112));
-        a.mov("r11", 255);
+        a.mov("r11", guiControlSlots);
         a.mov("rax", 0);
         a.store(slot(104), "rax");
         const scan = a.unique("scan"),
@@ -1059,6 +1072,8 @@ function controlsTransaction(b: RuntimeBuilder) {
         a.load("rax", slot(72));
         a.store(f(88), "rax");
         a.label(haveContainer);
+        a.mov("rax", 0);
+        a.store(slot(128), "rax"); // previous wrapper in retained order
         a.lea("rax", mem("pending"));
         a.store(slot(72), "rax");
         const loop = a.unique("loop"),
@@ -1160,6 +1175,13 @@ function controlsTransaction(b: RuntimeBuilder) {
         a.mov("rax", 1);
         a.store(f(C.attached), "rax");
         a.label(placed);
+        // Reorder already-parented wrappers without unparenting their entry
+        // widgets: preserve caret/preedit while matching retained z/focus order.
+        a.load("r10", slot(48));
+        a.load("rdx", f(80));
+        call(a, "gtk_widget_insert_after", [slot(104), "rdx", slot(128)]);
+        a.load("rax", slot(104));
+        a.store(slot(128), "rax");
         a.load("r10", slot(88));
         a.movsd("xmm0", { base: "r10", disp: 80 });
         a.storesd(slot(112), "xmm0");

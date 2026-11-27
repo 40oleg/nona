@@ -30,6 +30,7 @@ function managed() {
         text?: string;
         value?: number;
         request?: number;
+        revision?: number;
     }[] = [];
     const calls: Uint32Array[] = [];
     const context: any = {
@@ -54,6 +55,7 @@ function managed() {
             p[10] = e.id || 0;
             p[11] = e.epoch || 1;
             p[12] = e.value || 0;
+            p[9] = e.revision || 1;
             p[15] = e.request || 0;
             const bytes = new TextEncoder().encode(e.text || "");
             p[14] = bytes.length;
@@ -124,6 +126,62 @@ test("GUI toggle events update state, listener removal and disposal stop deliver
     w.dispose();
 });
 
+test("GUI state revisions and disposal invalidate already-taken input", () => {
+    const m = managed(),
+        entry = new m.Element("entry", { text: "initial" }),
+        w = new m.Window().setRoot(entry).open();
+    let inputs = 0;
+    entry.on("input", () => inputs++);
+    m.events.push({
+        code: 5,
+        id: entry.id,
+        text: "old native text",
+        revision: 1,
+    });
+    assert.equal(m.poller.poll(0), 1);
+    entry.update({ text: "application text" });
+    m.poller.run();
+    assert.equal(entry.properties.text, "application text");
+    assert.equal(inputs, 0);
+    m.events.push({ code: 5, id: entry.id, text: "current", revision: 2 });
+    m.drain();
+    assert.equal(entry.properties.text, "current");
+    assert.equal(inputs, 1);
+    m.events.push({
+        code: 5,
+        id: entry.id,
+        text: "after disposal",
+        revision: 2,
+    });
+    assert.equal(m.poller.poll(0), 1);
+    w.dispose();
+    m.poller.run();
+    assert.equal(inputs, 1);
+    assert.equal(m.poller.total(), 0);
+});
+
+test("GUI listeners observe FIFO snapshots and honor removal/disposal during delivery", () => {
+    const m = managed(),
+        e = new m.Element("entry"),
+        w = new m.Window().setRoot(e).open(),
+        seen: string[] = [];
+    let off = () => {};
+    e.on("input", (event: any) => {
+        seen.push(event.text);
+        off();
+        if (event.text === "second") w.dispose();
+    });
+    off = e.on("input", () => seen.push("removed"));
+    e.on("input", () => seen.push("observer"));
+    m.events.push(
+        { code: 5, id: e.id, text: "first" },
+        { code: 5, id: e.id, text: "second" },
+    );
+    m.drain();
+    m.drain();
+    assert.deepEqual(seen, ["first", "observer", "second"]);
+});
+
 test("GUI chooser stays referenced through late cancellation and settles across parent reopen", async () => {
     const m = managed(),
         w = new m.Window().open();
@@ -152,6 +210,27 @@ test("GUI chooser stays referenced through late cancellation and settles across 
     m.events.push({ code: 20, request: last });
     m.drain();
     assert.equal(await pending, null);
+    assert.equal(m.poller.total(), 0);
+});
+
+test("GUI chooser cancellation after native extraction overrides a selected path", async () => {
+    const m = managed(),
+        w = new m.Window().open();
+    const selection = w.chooseFolder(),
+        request = m.calls.at(-1)![15]!;
+    m.events.push({ code: 20, request, text: "/selected" });
+    assert.equal(m.poller.poll(0), 1);
+    w.cancelFolder();
+    assert.equal(m.poller.active(), 2);
+    m.poller.run();
+    assert.equal(await selection, null);
+    const failure = w.chooseFolder(),
+        failed = m.calls.at(-1)![15]!;
+    const rejected = assert.rejects(failure, /folder selection failed/);
+    m.events.push({ code: 20, request: failed, value: 2 });
+    m.drain();
+    await rejected;
+    w.dispose();
     assert.equal(m.poller.total(), 0);
 });
 
@@ -250,6 +329,132 @@ w.chooseFolder().then(p=>console.log('disposed',p));w.dispose();console.log('ret
 
 for (const gcStress of [false, true]) {
     test(
+        `GUI failed graphics candidate cannot roll back live controls (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const source = `${guiWrapper}
+let loop;globalThis.__nonaIoLoop=p=>{loop=p;};
+function drain(){for(let i=0;i<10;i++)if(loop.poll(0))loop.run();}
+const w=new Window().open();drain();
+const entry=new Element('entry'),root=new Element('column',{},[entry]);w.setRoot(root);
+entry.on('input',e=>console.log('usable',e.text));
+const disconnects=globalThis.guiStat(2),sets=globalThis.guiControlStat(8);
+try{root.setChildren([entry,new Element('image',{src:'/missing.png'})]);}catch(e){console.log('rollback',root.children.length===1,globalThis.guiStat(2)===disconnects,globalThis.guiControlStat(8)===sets);}
+globalThis.guiEmit(1);drain();w.dispose();`;
+            const run = runGuiProbe(
+                guiControlProbe(source, gcStress, {
+                    failImage: true,
+                    poisonScene: true,
+                }),
+            );
+            assert.equal(run.error, undefined, run.stdout);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(
+                run.stdout,
+                "rollback true true true\nusable 日本語 é 🐈\n",
+            );
+        },
+    );
+    test(
+        `GUI native sibling reorder and insertion preserve entry state (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const source = `${guiWrapper}
+globalThis.__nonaIoLoop=()=>{};
+const stat=globalThis.guiControlStat,a=new Element('entry'),b=new Element('button');
+const root=new Element('stack',{},[a,b]),w=new Window().setRoot(root).open();
+const sets=stat(8);console.log('initial',stat(64));
+root.setChildren([b,a]);console.log('reorder',stat(64));
+root.setChildren([new Element('button'),b,a]);console.log('insert',stat(64),stat(72),stat(8)===sets);w.dispose();`;
+            const run = runGuiProbe(guiControlProbe(source, gcStress));
+            assert.equal(run.error, undefined, run.stdout);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(
+                run.stdout,
+                "initial 12\nreorder 1221\ninsert 1221421 102042 true\n",
+            );
+        },
+    );
+    test(
+        `GUI independent window shortcuts survive another window's disposal and reopen (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const source = `${guiWrapper}
+let loop;globalThis.__nonaIoLoop=p=>{loop=p;};
+const emit=globalThis.guiEmit,a=new Window().open(),b=new Window().open();
+a.addShortcut(115,4,()=>console.log('first'));
+b.addShortcut(115,4,()=>console.log('second'));
+function drain(){for(let i=0;i<20;i++)if(loop.poll(0))loop.run();}
+drain();emit(9,a._session.slot);emit(9,b._session.slot);a.close();drain();
+a.open();emit(9,a._session.slot);emit(9,b._session.slot);drain();
+a.dispose();emit(9,b._session.slot);drain();b.dispose();console.log('empty',loop.total());`;
+            const run = runGuiProbe(guiControlProbe(source, gcStress));
+            assert.equal(run.error, undefined, run.stdout);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(
+                run.stdout,
+                "second\nfirst\nsecond\nsecond\nempty 0\n",
+            );
+        },
+    );
+    test(
+        `GUI release events, stale state and terminal close survive input pressure (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const source = `${guiWrapper}
+let loop;globalThis.__nonaIoLoop=p=>{loop=p;};
+const emit=globalThis.guiEmit,stat=globalThis.guiControlStat;
+const entry=new Element('entry'),button=new Element('button',{text:'Run'});
+const w=new Window({onEvent(e){if(e.type==='close')console.log('closed');}}).setRoot(new Element('column',{},[entry,button])).open();
+function drain(){for(let i=0;i<270;i++){if(!loop.poll(0))break;loop.run();}}
+drain();let inputs=0;
+entry.on('input',()=>inputs++);
+button.on('keyup',e=>console.log('keyup',e.keyval));
+button.on('pointerup',e=>console.log('pointerup',e.button,e.x,e.y));
+emit(10);emit(11);emit(1);entry.update({text:'application'});drain();
+console.log('state',inputs,entry.properties.text);
+for(let i=0;i<260;i++)emit(1);
+const copies=stat(24);emit(12);drain();
+console.log('terminal',!w.isOpen,loop.total(),stat(32)===copies,inputs);
+w.open();drain();w.dispose();`;
+            const run = runGuiProbe(guiControlProbe(source, gcStress));
+            assert.equal(run.error, undefined, run.stdout);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(
+                run.stdout,
+                "pointerup 1 12 7\nkeyup 65293\nstate 0 application\nclosed\nterminal true 0 true 0\n",
+            );
+        },
+    );
+    test(
+        `GUI atomically replaces all 128 native controls (GC stress ${gcStress})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            // Build one native scene without managed layout/string churn so
+            // forcing a GC at every allocation remains a short, bounded probe.
+            const source = `
+const native=globalThis.guiNative,p=new Uint32Array(4257),v=new DataView(p.buffer);
+p[0]=1;p[3]=640;p[4]=480;native(p);
+p[0]=6;p[10]=128;p[11]=p.byteLength;
+for(let i=0;i<128;i++){
+ const r=640+i*128;
+ v.setUint32(r,10,true);v.setUint32(r+4,17024,true);v.setUint32(r+120,17024,true);
+ v.setFloat64(r+8,i+1,true);v.setFloat64(r+16,1,true);
+ v.setFloat64(r+40,100,true);v.setFloat64(r+48,36,true);
+ v.setFloat64(r+64,1,true);v.setFloat64(r+72,1,true);
+ v.setFloat64(r+96,100,true);v.setFloat64(r+104,36,true);
+}
+console.log('initial',native(p));
+for(let i=0;i<128;i++)v.setFloat64(648+i*128,i+129,true);
+console.log('replacement',native(p));
+p[0]=2;native(p);`;
+            const run = runGuiProbe(guiControlProbe(source, gcStress));
+            assert.equal(run.error, undefined);
+            assert.equal(run.status, 0, run.stderr + run.stdout);
+            assert.equal(run.stdout, "initial 0\nreplacement 0\n");
+        },
+    );
+    test(
         `GUI failed first scene releases staged controls (GC stress ${gcStress})`,
         { skip: !canRunGuiProbe },
         () => {
@@ -258,7 +463,9 @@ globalThis.__nonaIoLoop = () => {};
 const w=new Window().open(),entry=new Element('entry',{text:'preserved'});
 try {w.setRoot(entry);} catch(e) {console.log('rollback',w.root===null,entry.properties.text==='preserved',globalThis.guiStat(21)===2);}
 w.dispose();`;
-            const run = runGuiProbe(guiControlProbe(source, gcStress, true));
+            const run = runGuiProbe(
+                guiControlProbe(source, gcStress, { failArea: true }),
+            );
             assert.equal(run.error, undefined);
             assert.equal(run.status, 0, run.stderr);
             assert.equal(run.stdout, "rollback true true true\n");

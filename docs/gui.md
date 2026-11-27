@@ -179,7 +179,9 @@ they never retain transient signal data, invoke JS or allocate managed memory.
 Ownership is cleared and signals disconnected before synchronous destruction,
 so nested signals cannot revive a session. Slots are reused only after cleanup.
 
-Input uses a separate 256-record process-wide FIFO. Native handlers copy scalar
+Input uses a separate 256-record process-wide FIFO. Each window's 256 control
+slots support 128 live plus 128 staged widgets; a separate native record owns
+its shortcut controller. Native handlers copy scalar
 event data and duplicate transient UTF-8 entry text before returning; they never
 retain a GTK text pointer or a managed address. A record carries the window
 generation, element ID/generation and state revision. Poll copies text into the
@@ -273,7 +275,7 @@ node dist/cli.js build tests/fixtures/gui-window.mjs --target linux-x64 -o work/
 For the focused tests after building:
 
 ```sh
-NONA_GTK_GUI_TESTS=1 node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js
+NONA_GTK_GUI_TESTS=1 node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js dist/tests/gui-controls.test.js
 ```
 
 Each native case requests GC stress both disabled and enabled. Leave
@@ -318,14 +320,23 @@ both GC modes. It also provides a bounded
 then run the focused tests with `NONA_GTK_INPUT_TESTS=1` and `GTK_A11Y=atspi`
 inside `dbus-run-session`. The driver records native accessibility roles/names,
 Unicode entry edits, chooser selection/cancellation, parent close/reopen during
-selection and continuing timers/Promises/child stdout. Its X11 path also injects
-pointer, Tab/Shift+Tab, Enter/Space and shortcut keys. Receipts (including
+selection, parent disposal before completion and continuing timers/Promises/child
+stdout while the chooser is modal and after dismissal. Its X11 path also injects
+pointer, Tab/Shift+Tab, Enter/Space and shortcut keys, and drives
+[GtkIMContextSimple](https://docs.gtk.org/gtk4/class.IMContextSimple.html)
+Unicode composition through physical key sequences. It checks that uncommitted
+preedit survives application redraws without leaking into `input`, that commit
+produces U+1F408, and that cancelling another composition allows ordinary text
+insertion afterward, without committing its abandoned preedit.
+Receipts (including
 failures) remain under `work/gui-evidence/controls-*`, separated by requested
-backend, scale and GC mode. AT-SPI edits establish native Unicode editing,
-not an actual IME composition session. Real IME preedit/commit, Wayland physical
-input, actual mapped backend/scale and Ubuntu 20.04 execution remain explicit
-receipt gaps for stage 4. No such local receipt is claimed on this Windows
-host. Ubuntu 20.04's stock packages lack the supported GTK baseline.
+backend, scale and GC mode. `controls.input.json` records the injected keys and
+completed composition checks; stdout/stderr and the accessibility snapshot are
+also retained on failure. These tests are configured, not local Linux receipts:
+this Windows host has no Linux environment. IBus/Fcitx integration, Wayland
+physical input, actual mapped backend/scale and Ubuntu 20.04 execution remain
+explicit receipt gaps for stage 4. Ubuntu 20.04's stock packages lack the
+supported GTK baseline.
 
 The final hosted matrix must run on Ubuntu 24.04, X11/Xvfb and Wayland/headless
 Weston at scales 1 and 2. Isolate each display, wait for `xdpyinfo` or a

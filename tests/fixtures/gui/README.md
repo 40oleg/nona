@@ -6,8 +6,11 @@ interactive desktop acceptance application for stage 4.
 Stage 3's `controls.mjs` and `drive-controls.py` exercise native controls,
 AT-SPI roles/names, Unicode text, folder selection/cancellation and close/reopen
 with background timers, Promises and child stdout. X11 additionally injects
-pointer and keyboard input through XTest/xdotool. The driver retains raw output
-and accessibility snapshots per backend/scale/GC mode under
+pointer and keyboard input through XTest/xdotool, including GTK simple-IM
+composition commit/cancellation across redraws. The chooser checks cover modal
+background progress and parent disposal before late completion. The driver
+retains raw output, accessibility snapshots and an injected-input trace per
+backend/scale/GC mode under
 `work/gui-evidence/controls-*`. These are configured tests, not a claim that
 this Windows checkout has run a Linux desktop or a real IME session.
 

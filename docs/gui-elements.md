@@ -265,6 +265,12 @@ At most 128 controls may be attached to a window. Control IDs, attachment
 generations and state revisions must fit positive signed 32-bit integers;
 exhaustion fails rather than wrapping. New native widgets are staged before
 committing a scene; an existing entry is reused by ID and attachment generation.
+Successful commits synchronize native sibling order without unparenting retained
+widgets. A graphics failure before control preparation leaves the committed
+controls usable, including their native entry state.
+Each window has 256 native control records for the 128 live widgets and up to
+128 staged replacements. The synthetic shortcut record has separate storage,
+so replacing an entire tree at the public limit does not exhaust staging.
 
 `element.on(type, listener)` returns an idempotent unsubscribe function. Events
 are `activate`, `input`, `change`, `focus`, `blur`, `keydown`, `keyup`,

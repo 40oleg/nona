@@ -7,8 +7,10 @@
   and asynchronous system folder selection. Bound native input storage and retain
   cancelled chooser ownership through late completion. Establish Ubuntu 24.04
   x64 with GTK 4.14/GLib 2.80 as the supported baseline; add focused GC and
-  hosted accessibility/input probes. Complete desktop and IME receipts remain
-  pending ([#664](https://github.com/40oleg/nona/issues/664)).
+  hosted accessibility/input probes, atomic full-capacity control replacement,
+  retained native sibling order and configured X11 composition/chooser-disposal
+  checks. Complete desktop and IME receipts remain pending
+  ([#664](https://github.com/40oleg/nona/issues/664)).
 
 - Add retained elements to the experimental Ubuntu GUI: transactional trees,
   deterministic layout, clipping/scroll offsets, text and local PNG/font assets,

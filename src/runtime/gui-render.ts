@@ -242,7 +242,7 @@ function textRenderer(b: RuntimeBuilder) {
         a.store(slot(80), "r8");
         // map, FcConfig, Pango context, layout, description, result
         a.mov("rax", 0);
-        for (const offset of [88, 96, 104, 112, 120, 128, 160])
+        for (const offset of [88, 96, 104, 112, 120, 128])
             a.store(slot(offset), "rax");
         const fail = a.unique("fail"),
             cleanup = a.unique("cleanup"),
@@ -438,7 +438,9 @@ function sceneRenderer(b: RuntimeBuilder) {
         a.store(slot(72), "rdx");
         a.store(slot(80), "r8");
         a.mov("rax", 0);
-        for (const offset of [88, 96, 104, 112, 120, 128])
+        // Only roll back controls after this invocation staged them. Graphics
+        // failures before prepare must not retire a previous committed scene.
+        for (const offset of [88, 96, 104, 112, 120, 128, 160])
             a.store(slot(offset), "rax");
         const invalid = a.unique("invalid"),
             failed = a.unique("failed"),

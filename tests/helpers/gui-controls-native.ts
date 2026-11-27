@@ -1,7 +1,10 @@
 // CPU probes execute the production callbacks, queue, scene transaction and
 // chooser ownership with external GTK calls replaced. They are not GDK input.
 import { RuntimeBuilder, slot, failIf } from "../../src/runtime/abi.js";
-import { GuiControl as C } from "../../src/runtime/gui-input.js";
+import {
+    GuiControl as C,
+    guiControlSlots,
+} from "../../src/runtime/gui-input.js";
 import { prependFunctionBuiltin } from "../../src/runtime/function-builtin.js";
 import { guiProbe } from "./gui-native.js";
 import type { Assembler } from "../../src/backend/machine/context.js";
@@ -9,9 +12,16 @@ import type { Assembler } from "../../src/backend/machine/context.js";
 export function guiControlProbe(
     source: string,
     stress: boolean,
-    failArea = false,
+    options: {
+        failArea?: boolean;
+        failImage?: boolean;
+        poisonScene?: boolean;
+    } = {},
 ) {
-    const program = guiProbe(source, stress, { render: true });
+    const program = guiProbe(source, stress, {
+        render: true,
+        failImage: options.failImage,
+    });
     const b = new RuntimeBuilder();
     b.bundle = program;
     const m = (offset: number) => ({ rip: "gui.test.input", addend: offset });
@@ -41,7 +51,76 @@ export function guiControlProbe(
         a.add("rax", 1);
         a.store(m(offset), "rax");
     }
-    if (failArea) replace("gtk_drawing_area_new", (a) => a.mov("rax", 0));
+    if (options.failArea)
+        replace("gtk_drawing_area_new", (a) => a.mov("rax", 0));
+    if (options.poisonScene) {
+        const frame = program.functions.find(
+            (f) => f.begin === "gui.scene",
+        )!.stackAllocation;
+        for (const fragment of program.fragments)
+            for (const fixup of fragment.fixups)
+                if (fixup.target === "gui.scene")
+                    fixup.target = "gui.test.scene";
+        b.fn("gui.test.scene", 40, (a) => {
+            // Seed the future callee's rollback flag with nonzero stack garbage.
+            // There are no intervening calls before the callee owns this word.
+            a.mov("rax", 1);
+            a.store(slot(160 - frame - 8), "rax");
+            a.call("gui.scene");
+        });
+    }
+    replace("gtk_widget_insert_after", (a) => {
+        // Observe the real Nona->GTK boundary: child and previous-sibling IDs,
+        // with the owning GtkFixed verified. No mock widget ordering is asserted.
+        a.lea("r10", { rip: "gui.records" });
+        a.mov("r11", 32);
+        const parent = a.unique("parent"),
+            found = a.unique("found");
+        a.label(parent);
+        a.load("rax", { base: "r10", disp: 80 });
+        a.cmp("rax", "rsi");
+        a.jcc("e", found);
+        a.add("r10", 128);
+        a.sub("r11", 1);
+        a.jcc("ne", parent);
+        failIf(a, "e");
+        a.label(found);
+        a.load("r10", { base: "r10", disp: 112 });
+        a.mov("r11", guiControlSlots);
+        a.mov("r8", 0);
+        a.mov("r9", 0);
+        const scan = a.unique("scan"),
+            next = a.unique("next"),
+            previous = a.unique("previous");
+        a.label(scan);
+        a.load("rax", { base: "r10" });
+        a.test("rax", "rax");
+        a.jcc("e", next);
+        a.load("rax", { base: "r10", disp: C.wrapper });
+        a.cmp("rax", "rdi");
+        a.jcc("ne", previous);
+        a.load("r8", { base: "r10", disp: C.id });
+        a.label(previous);
+        a.cmp("rax", "rdx");
+        a.jcc("ne", next);
+        a.load("r9", { base: "r10", disp: C.id });
+        a.label(next);
+        a.add("r10", C.size);
+        a.sub("r11", 1);
+        a.jcc("ne", scan);
+        a.test("r8", "r8");
+        failIf(a, "e");
+        for (const [offset, reg] of [
+            [64, "r8"],
+            [72, "r9"],
+        ] as const) {
+            a.load("rax", m(offset));
+            a.mov("r10", 10);
+            a.imul("rax", "r10");
+            a.add("rax", reg);
+            a.store(m(offset), "rax");
+        }
+    });
     for (const name of [
         "gtk_button_new",
         "gtk_entry_new",
@@ -98,7 +177,7 @@ export function guiControlProbe(
     });
     replace("gtk_widget_activate", (a) => {
         a.load("r10", { rip: "gui.records", addend: 112 });
-        a.mov("r11", 255);
+        a.mov("r11", guiControlSlots);
         const loop = a.unique("loop"),
             found = a.unique("found");
         a.label(loop);
@@ -150,15 +229,30 @@ export function guiControlProbe(
     replace("gtk_event_controller_get_current_event_state", (a) =>
         a.mov("rax", 4),
     );
-    prependFunctionBuiltin(b, "gui.emit", "guiEmit", 1, "rt.globalObject");
+    prependFunctionBuiltin(b, "gui.emit", "guiEmit", 2, "rt.globalObject");
     b.fn("gui.emit.code", 104, (a) => {
         a.store(slot(48), "rcx");
+        // Optional window slot lets probes verify independent synthetic records.
+        a.mov("rax", 0);
+        const firstWindow = a.unique("firstWindow");
+        a.cmp("rdx", 2); // builtin ABI: RDX=argc, R8=argv
+        a.jcc("b", firstWindow);
+        a.movsd("xmm0", { base: "r8", disp: 24 });
+        a.cvttsd2si("rax", "xmm0");
+        a.cmp("rax", 32);
+        failIf(a, "ae");
+        a.label(firstWindow);
+        a.shl("rax", 7);
+        a.lea("r10", { rip: "gui.records" });
+        a.add("rax", "r10");
+        a.store(slot(72), "rax");
         a.movsd("xmm0", { base: "r8", disp: 8 });
         a.cvttsd2si("rax", "xmm0");
         a.store(slot(56), "rax");
         const done = a.unique("done"),
             mutate = a.unique("mutate"),
             folder = a.unique("folder"),
+            close = a.unique("close"),
             shortcut = a.unique("shortcut");
         a.cmp("rax", 2);
         a.jcc("e", mutate);
@@ -166,6 +260,8 @@ export function guiControlProbe(
         a.jcc("ae", folder);
         a.cmp("rax", 9);
         a.jcc("e", shortcut);
+        a.cmp("rax", 12);
+        a.jcc("e", close);
         a.mov("r9", 11);
         a.cmp("rax", 3);
         const kindSet = a.unique("kindSet");
@@ -177,8 +273,9 @@ export function guiControlProbe(
         a.jcc("b", notButton);
         a.mov("r9", 10);
         a.label(notButton);
-        a.load("r10", { rip: "gui.records", addend: 112 });
-        a.mov("r11", 255);
+        a.load("r10", slot(72));
+        a.load("r10", { base: "r10", disp: 112 });
+        a.mov("r11", guiControlSlots);
         const loop = a.unique("loop"),
             next = a.unique("next"),
             found = a.unique("found");
@@ -213,16 +310,27 @@ export function guiControlProbe(
             a.jmp(done);
             a.label(skip);
         }
-        const pointer = a.unique("pointer");
+        const pointer = a.unique("pointer"),
+            key = a.unique("key");
+        a.cmp("rax", 11);
+        a.jcc("e", key);
         a.cmp("rax", 8);
         a.jcc("ae", pointer);
+        a.label(key);
         a.mov("rsi", 65293);
         a.mov("rdx", 36);
         a.mov("rcx", 0);
         a.load("r8", slot(64));
+        const releaseKey = a.unique("releaseKey");
+        a.load("rax", slot(56));
+        a.cmp("rax", 11);
+        a.jcc("e", releaseKey);
         a.call("gui.input.key-pressedCallback");
         a.cmp("rax", 1);
         failIf(a, "ne");
+        a.jmp(done);
+        a.label(releaseKey);
+        a.call("gui.input.key-releasedCallback");
         a.jmp(done);
         a.label(pointer);
         a.mov("rsi", 1);
@@ -231,7 +339,14 @@ export function guiControlProbe(
         a.cvtsi2sd("xmm0", "rax");
         a.mov("rax", 7);
         a.cvtsi2sd("xmm1", "rax");
+        const releasePointer = a.unique("releasePointer");
+        a.load("rax", slot(56));
+        a.cmp("rax", 10);
+        a.jcc("e", releasePointer);
         a.call("gui.input.pressedCallback");
+        a.jmp(done);
+        a.label(releasePointer);
+        a.call("gui.input.releasedCallback");
         a.jmp(done);
         a.label(mutate);
         a.lea("r10", { rip: "gui.test.text" });
@@ -239,7 +354,7 @@ export function guiControlProbe(
         a.store({ base: "r10" }, "rax", 8);
         a.jmp(done);
         a.label(shortcut);
-        a.lea("r8", { rip: "gui.records" });
+        a.load("r8", slot(72));
         a.mov("rsi", 115);
         a.mov("rcx", 4);
         a.mov("rdi", 0);
@@ -256,6 +371,11 @@ export function guiControlProbe(
         a.mov("rdi", 0);
         a.mov("rsi", 0);
         a.call("gui.folder.callback");
+        a.jmp(done);
+        a.label(close);
+        a.load("rsi", slot(72));
+        a.load("rdi", { base: "rsi" });
+        a.call("gui.closeCallback");
         a.label(done);
         a.load("rcx", slot(48));
         a.mov("rax", 2);

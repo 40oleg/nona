@@ -6,7 +6,7 @@ import { ArrayBufferKind, ArrayBufferLayout as AB } from "./array-buffer.js";
 import { emitViewCheck } from "./view-bounds.js";
 import { guiSystemCall } from "./gui-abi.js";
 import { guiRendering } from "./gui-render.js";
-import { guiInput, GuiControl } from "./gui-input.js";
+import { guiInput, GuiControl, guiControlSlots } from "./gui-input.js";
 
 // Image-owned native records; none of these words contains a managed pointer.
 export const guiSlots = 32;
@@ -309,7 +309,7 @@ export function guiHelpers(): RuntimeBuilder {
         a.label(focus);
         a.load("r11", slot(80));
         a.load("r11", { base: "r11", disp: R.controls });
-        a.mov("r9", 255);
+        a.mov("r9", guiControlSlots);
         const focusLoop = a.unique("focusLoop"),
             focusNext = a.unique("focusNext");
         a.label(focusLoop);
