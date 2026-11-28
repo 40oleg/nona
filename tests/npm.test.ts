@@ -18,7 +18,11 @@ import {
     parsePackageSpecifier,
     type NodeFileSystem,
 } from "../src/frontend/node-resolution.js";
-import { analyzeCommonJs, detectFormat } from "../src/frontend/commonjs.js";
+import {
+    analyzeCommonJs,
+    analyzeCreateRequire,
+    detectFormat,
+} from "../src/frontend/commonjs.js";
 import { lex } from "../src/frontend/lexer.js";
 import { parse } from "../src/frontend/parser.js";
 import { removeTemporaryDirectory } from "./helpers/cleanup.js";
@@ -854,6 +858,64 @@ console.log(makeRequire(__filename)('./only-created.cjs'), require('module').cre
         },
         "main.mjs",
     ));
+
+for (const [kind, declaration] of [
+    ["namespace", "import * as m from 'node:module';"],
+    ["default", "import m from 'module';"],
+]) {
+    test(`createRequire destructured from a ${kind} import registers literal dependencies`, () =>
+        agree(
+            {
+                "main.mjs": `${declaration}
+const {createRequire} = m;
+const load = createRequire(import.meta.url);
+console.log(typeof load('fs').readFileSync);
+const {createRequire: make} = m;
+const other = make(import.meta.url);
+function read() { return other('./value.json').value; }
+console.log(read(), other.resolve('node:path'));
+`,
+                "value.json": '{"value":42}',
+            },
+            "main.mjs",
+        ));
+
+    test(`createRequire from a ${kind} import respects namespace, factory and loader bindings`, () => {
+        const source = `${declaration}
+const {createRequire: make} = m;
+const load = make(import.meta.url);
+function read() { return load('fs'); }
+function resolve() { return load.resolve('node:path'); }
+function shadowNamespace(m) {
+    const {createRequire: make} = m;
+    const load = make();
+    return load('./namespace.mjs');
+}
+function shadowFactory(make) {
+    const load = make();
+    return load('./factory.mjs');
+}
+function shadowLoader(load) { return load('./loader.mjs'); }
+{
+    const m = {createRequire: () => value => value};
+    const {createRequire: make} = m;
+    const load = make();
+    load('./block.mjs');
+}
+function sibling() {
+    const {createRequire: make} = {createRequire: () => value => value};
+    const load = make();
+    return load('./sibling.mjs');
+}
+`;
+        assert.deepEqual(
+            analyzeCreateRequire(
+                parse(lex(source, { module: true }), { module: true }),
+            ),
+            { requires: ["fs"], resolves: ["node:path"] },
+        );
+    });
+}
 
 test("createRequire aliases from an awaited dynamic module import register literal dependencies", () =>
     agree(

@@ -425,25 +425,32 @@ function createRequireBindings(program: A.Program) {
  * The literal `require('x')` and `require.resolve('x')` calls of a module
  * through the functions `module.createRequire` makes: `const require =
  * createRequire(import.meta.url)` (also through `module.createRequire`, an
- * imported alias or `const { createRequire: alias } = require('module')`) and
- * `createRequire(...)('x')`.
+ * imported alias or destructuring from a module namespace/default import,
+ * `require('module')` or `await import('module')`) and `createRequire(...)('x')`.
  */
 export function analyzeCreateRequire(
     program: A.Program,
 ): Pick<CommonJsAnalysis, "requires" | "resolves"> {
     const binding = createRequireBindings(program);
     const factories = new Set<A.Identifier | string>(["createRequire"]);
+    const moduleImports = new Set<A.Identifier | string>();
     for (const statement of program.body)
         if (
             statement.kind === "Import" &&
             /^(node:)?module$/.test(statement.source)
         )
-            for (const specifier of statement.specifiers)
+            for (const specifier of statement.specifiers) {
                 if (
                     specifier.kind === "named" &&
                     specifier.imported === "createRequire"
                 )
                     factories.add(binding(specifier.local));
+                else if (
+                    specifier.kind !== "named" ||
+                    specifier.imported === "default"
+                )
+                    moduleImports.add(binding(specifier.local));
+            }
     const makesRequire = (node: A.Node | null | undefined): boolean => {
         if (node?.kind !== "Call") return false;
         const callee = (node as A.Call).callee;
@@ -463,7 +470,11 @@ export function analyzeCreateRequire(
                     : requireCall(init ?? undefined);
             if (
                 id.kind !== "ObjectPattern" ||
-                !/^(node:)?module$/.test(moduleName ?? "")
+                !(
+                    /^(node:)?module$/.test(moduleName ?? "") ||
+                    (init?.kind === "Identifier" &&
+                        moduleImports.has(binding(init)))
+                )
             )
                 continue;
             for (const property of id.properties)

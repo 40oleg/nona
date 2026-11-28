@@ -8,7 +8,8 @@
   tables, globals, exact i64 and Emscripten callback modules, with native/Node
   execution and GC-stress regressions. Add the offline local-asset boot adapter,
   scoped audited platform checks and mandatory hosted Linux SELECT/close coverage;
-  recognize scoped createRequire aliases from dynamic module imports and reuse immutable
+  recognize scoped createRequire aliases from dynamic and namespace/default
+  module imports and reuse immutable
   WASM numeric signatures instead of allocating them per instruction. Add real
   filesystem descriptors, positioned binary I/O, fstat/ftruncate, synchronization
   and filesystem capacity metadata; extend the standalone fixture with separate

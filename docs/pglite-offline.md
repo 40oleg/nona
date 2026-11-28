@@ -105,8 +105,9 @@ for the workload and subsequent profile adapter:
   checks restoration of the process properties. Resource errors exit with status 1.
 
 The compiler's CommonJS planner also recognizes `createRequire` aliases
-destructured from literal `import("module")` or `import("node:module")`, including
-an awaited import inside a function. It embeds their literal require targets
+destructured from namespace/default imports of `module` or `node:module`, and
+from literal `import("module")` or `import("node:module")`, including an awaited
+import inside a function. It embeds their literal require targets
 in the module's require table, just as for statically imported factories.
 This supplies Emscripten's `require("fs")` and `require("path")` without runtime
 package resolution. Alias tracking respects lexical bindings and closures;

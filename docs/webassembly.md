@@ -39,7 +39,10 @@ already supply the required primitives.
 
 The supported families cover the frozen [PGlite 0.3.14 inventory](../tests/fixtures/pglite/AUDIT.md).
 The [offline PGlite adapter](pglite-offline.md) supplies the local boot resources
-and scoped platform checks. Native persistent profiles remain a subsequent step.
+and scoped platform checks. Its standalone workload implements SELECT, disk
+profile writes and reopen in a second process, and byte-for-byte binary COPY
+verification. Native Linux PostgreSQL acceptance remains pending hosted CI;
+passing Node or adapter tests alone does not establish native acceptance.
 Streaming/fetch APIs, shared WASM memory, memory64, multiple memories, SIMD,
 atomics, tail calls, WASM GC, tags and WASM exception instructions are absent.
 Unknown instructions, types and section encodings fail closed with CompileError.
