@@ -44,14 +44,17 @@ export function linuxShims(
                 },
             ],
         });
-        // Windows-target Path declarations can also be linked into an ELF image.
-        // Foreign Windows cwd/drive APIs are unavailable there, like the host FFI
-        // stubs. Linux-target Path uses its actual getcwd syscall adapter instead.
+        // Foreign Windows cwd/drive and filesystem volume/flush APIs fail here,
+        // like the host FFI stubs. POSIX modules use their actual syscalls.
         if (
             dll.toLowerCase() === "kernel32.dll" &&
             (symbol === name || symbol.startsWith("ffi.")) &&
             (name === "GetCurrentDirectoryW" ||
-                name === "GetEnvironmentVariableW")
+                name === "GetEnvironmentVariableW" ||
+                name === "FlushFileBuffers" ||
+                name === "GetVolumePathNameW" ||
+                name === "GetDiskFreeSpaceW" ||
+                name === "GetDiskFreeSpaceExW")
         )
             fn("linux." + symbol + ".code", 40, (a) => a.mov("rax", 0));
     }

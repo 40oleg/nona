@@ -34,6 +34,7 @@ import { linkDarwin } from "../../src/backend/darwin/index.js";
 import { linkLinux } from "../../src/backend/linux/index.js";
 import { linkBsd } from "../../src/backend/bsd/index.js";
 import { withNativeTarget } from "../../src/backend/machine/context.js";
+import { fsDescriptorProbe } from "./fs-descriptor-probe.js";
 
 export const loaderProbeOutput = "hello\n";
 /** Small language/runtime probes with hand-derived observable results. */
@@ -493,6 +494,18 @@ export function runtimeProbes(target: Target): {
             });
         }
     }
+    const descriptors = compile(fsDescriptorProbe.source, {
+        fileName: "fs-descriptors.mjs",
+        module: true,
+        target,
+    });
+    if (!descriptors.ok)
+        throw new Error(JSON.stringify(descriptors.diagnostics));
+    probes.push({
+        name: fsDescriptorProbe.name,
+        image: descriptors.image,
+        expected: fsDescriptorProbe.expected,
+    });
     if (getTarget(target)!.os !== "win32") {
         const read =
                 target === "linux-arm64" ? 63 : target === "linux-x64" ? 0 : 3,

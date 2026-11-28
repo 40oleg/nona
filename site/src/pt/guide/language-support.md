@@ -1,6 +1,6 @@
 # Suporte à linguagem
 
-**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). The pinned [offline PGlite adapter](https://github.com/40oleg/nona/blob/main/docs/pglite-offline.md) supplies local assets for in-memory boot and SELECT 1; native persistence remains in progress.
+**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). The pinned [offline PGlite adapter](https://github.com/40oleg/nona/blob/main/docs/pglite-offline.md) supplies local assets for SELECT 1, disk profiles and binary COPY through `/dev/blob`. Hosted native validation compiles once and checks Unicode and every byte in separate writer/reader processes ([#667](https://github.com/40oleg/nona/issues/667)).
 
 O Nona tem como alvo a 11ª edição do ECMA-262 (ES2020), com exceções documentadas. Esta página resume o que é suportado na **v0.36.0**. Os números do Test262 vêm da última auditoria completa (v0.8.0) da revisão fixada descrita na página [Test262](/pt/reference/test262).
 

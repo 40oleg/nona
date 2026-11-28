@@ -16,6 +16,12 @@ const sysTruncate = define("syscall", "76", "i64(buf,i64)");
 const sysGetdents = define("syscall", "217", "i64(i64,buf,i64)");
 const sysChmod = define("syscall", "90", "i64(buf,i64)");
 const sysUtimes = define("syscall", "280", "i64(i64,buf,buf,i64)");
+const sysPread = define("syscall", "17", "i64(i64,buf,i64,i64)");
+const sysPwrite = define("syscall", "18", "i64(i64,buf,i64,i64)");
+const sysFtruncate = define("syscall", "77", "i64(i64,i64)");
+const sysFsync = define("syscall", "74", "i64(i64)");
+const sysFdatasync = define("syscall", "75", "i64(i64)");
+const sysStatfs = define("syscall", "137", "i64(buf,buf)");
 const O_WRONLY = 1,
     O_CREAT = 0x40,
     O_TRUNC = 0x200,
@@ -25,6 +31,7 @@ const O_WRONLY = 1,
 const codes = {
     1: "EPERM",
     2: "ENOENT",
+    4: "EINTR",
     5: "EIO",
     9: "EBADF",
     13: "EACCES",
@@ -37,6 +44,9 @@ const codes = {
     22: "EINVAL",
     26: "ETXTBSY",
     27: "EFBIG",
+    28: "ENOSPC",
+    29: "ESPIPE",
+    40: "ELOOP",
     39: "ENOTEMPTY",
 };
 // libuv error numbers (negated native errno); the BSD sources patch the
@@ -44,6 +54,7 @@ const codes = {
 const errnos = {
     EPERM: -1,
     ENOENT: -2,
+    EINTR: -4,
     EIO: -5,
     EBADF: -9,
     EACCES: -13,
@@ -55,6 +66,9 @@ const errnos = {
     EINVAL: -22,
     ENOTEMPTY: -39,
     ELOOP: -40,
+    ENOSPC: -28,
+    ESPIPE: -29,
+    EROFS: -30,
     UNKNOWN: -4094,
 };
 function check(result, syscall, path, dest) {
@@ -133,11 +147,64 @@ function writeAllFd(fd, bytes, path) {
     while (offset < bytes.length) {
         const n = sysWrite(fd, bytes.subarray(offset), bytes.length - offset);
         if (n === -4) continue;
-        offset += check(n, "write", path);
+        check(n, "write", path);
+        if (n === 0) fail("EIO", "write");
+        offset += n;
     }
 }
 const sys = {
     separator: "/",
+    open(path, flags, mode) {
+        return check(
+            sysOpen(cpath(path), flags | O_CLOEXEC, mode),
+            "open",
+            path,
+        );
+    },
+    close(fd) {
+        // Never retry close after EINTR: Linux has already released the fd.
+        check(sysClose(fd), "close");
+    },
+    read(fd, bytes, position) {
+        for (;;) {
+            const n =
+                position === null
+                    ? sysRead(fd, bytes, bytes.length)
+                    : sysPread(fd, bytes, bytes.length, position);
+            if (n !== -4) return check(n, "read");
+        }
+    },
+    write(fd, bytes, position) {
+        for (;;) {
+            const n =
+                position === null
+                    ? sysWrite(fd, bytes, bytes.length)
+                    : sysPwrite(fd, bytes, bytes.length, position);
+            if (n !== -4) return check(n, "write");
+        }
+    },
+    fstat(fd) {
+        check(sysFstat(fd, statBuffer), "fstat");
+        return statResult();
+    },
+    ftruncate(fd, length) {
+        check(sysFtruncate(fd, length), "ftruncate");
+    },
+    sync(fd, dataOnly) {
+        for (;;) {
+            const n = dataOnly ? sysFdatasync(fd) : sysFsync(fd);
+            if (n !== -4) {
+                check(n, dataOnly ? "fdatasync" : "fsync");
+                return;
+            }
+        }
+    },
+    statfs(path) {
+        const buffer = new Uint8Array(4096),
+            view = new DataView(buffer.buffer);
+        check(sysStatfs(cpath(path), buffer), "statfs", path);
+        return statfsResult(view);
+    },
     readAllFd(fd) {
         return readAllFd(fd, undefined);
     },
@@ -321,3 +388,16 @@ const sys = {
         }
     },
 };
+// struct statfs, Linux 64-bit. Other native ABIs replace this decoder.
+function statfsResult(view) {
+    const n = (offset) => Number(view.getBigUint64(offset, true));
+    return {
+        type: n(0),
+        bsize: n(8),
+        blocks: n(16),
+        bfree: n(24),
+        bavail: n(32),
+        files: n(40),
+        ffree: n(48),
+    };
+}

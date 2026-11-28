@@ -156,4 +156,7 @@ output appears on the result as `.blob`. The fixture uses PostgreSQL binary COPY
 framing and compares the entire exported stream plus each recovered `bytea`
 byte. Text-only COPY and a nonzero payload length would not prove embedded-zero
 or 0x80–0xff preservation. Browser storage, optional extensions, arbitrary SQL,
-crash durability and native ELF execution remain later acceptance work.
+and crash durability are outside this fixture. The standalone writer/reader
+fixture now covers native ELF persistence and COPY on hosted CI; its execution
+must pass there before claiming native acceptance. Filesystem descriptor
+semantics and platform fallbacks are documented in [fs.md](../../../docs/fs.md#file-descriptors).

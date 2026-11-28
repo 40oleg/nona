@@ -197,8 +197,8 @@ jobs:
               run: |
                   npm --prefix tests/fixtures/pglite ci --ignore-scripts --no-audit --no-fund
                   npm --prefix tests/fixtures/pglite run prepare:assets
-            - name: Standalone offline PGlite ELF boot
-              timeout-minutes: 40
+            - name: Standalone offline PGlite ELF profiles and binary COPY
+              timeout-minutes: 75
               env:
                   NONA_PGLITE_INTEGRATION: "1"
                   NONA_TEST_CONCURRENCY: "1"

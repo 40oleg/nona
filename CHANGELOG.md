@@ -9,8 +9,11 @@
   execution and GC-stress regressions. Add the offline local-asset boot adapter,
   scoped audited platform checks and mandatory hosted Linux SELECT/close coverage;
   recognize scoped createRequire aliases from dynamic module imports and reuse immutable
-  WASM numeric signatures instead of allocating them per instruction. Native persistent
-  profiles and COPY remain pending.
+  WASM numeric signatures instead of allocating them per instruction. Add real
+  filesystem descriptors, positioned binary I/O, fstat/ftruncate, synchronization
+  and filesystem capacity metadata; extend the standalone fixture with separate
+  writer/reader profiles and byte-for-byte binary COPY verification after reopen.
+  Long native PostgreSQL validation remains mandatory on hosted CI.
   ([#667](https://github.com/40oleg/nona/issues/667))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent

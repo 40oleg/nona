@@ -37,10 +37,15 @@ function readResource(directory, name) {
     }
 }
 
-export async function createOfflinePGlite(assetDirectory) {
+export async function createOfflinePGlite(assetDirectory, profileDirectory) {
     if (typeof assetDirectory !== "string" || assetDirectory.length === 0)
         throw new Error("PGlite requires an explicit local asset directory");
     const directory = resolve(assetDirectory);
+    if (
+        profileDirectory !== undefined &&
+        (typeof profileDirectory !== "string" || profileDirectory.length === 0)
+    )
+        throw new Error("PGlite requires a nonempty profile directory");
     // Validate BOTH files before entering upstream's asynchronous initialization.
     const wasm = readResource(directory, "pglite.wasm");
     const data = readResource(directory, "pglite.data");
@@ -55,7 +60,13 @@ export async function createOfflinePGlite(assetDirectory) {
     }
     return withPGlitePlatform(async () => {
         const { PGlite } = await import("@electric-sql/pglite");
-        return PGlite.create({ wasmModule, fsBundle: new Blob([data]) });
+        return PGlite.create({
+            wasmModule,
+            fsBundle: new Blob([data]),
+            ...(profileDirectory === undefined
+                ? {}
+                : { dataDir: join(resolve(profileDirectory), "pgdata") }),
+        });
     });
 }
 

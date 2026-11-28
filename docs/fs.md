@@ -26,21 +26,64 @@ and `require('fs')` work.
 | `chmodSync(path, mode)`, `chmod(path, mode, callback)`                    | Changes file permissions. On Windows, `chmod` maps the write bit (0o200) to the read-only attribute (other bits are ignored).                                                                                                                                                                                                                                                                                                           |
 | `utimesSync(path, atime, mtime)`, `utimes(path, atime, mtime, callback)`  | Changes file access and modification times. Times can be numbers (seconds), Dates, or numeric strings.                                                                                                                                                                                                                                                                                                                                  |
 
-Every function also has a callback form (same name without `Sync`) and, except
+Every function in the table also has a callback form (same name without `Sync`) and, except
 `exists`, a promise form in `fs.promises` (the same object as `node:fs/promises`);
 see [Callbacks and promises](#callbacks-and-promises) for the complete list. The
 module also exports the `Dirent` and `Stats` classes (returned by `readdirSync`
 with `withFileTypes` and by `statSync`) and the `constants` object
 (`COPYFILE_EXCL`, `F_OK`, `R_OK`, `W_OK`, `X_OK`).
 
-`readFileSync`, `writeFileSync` and `appendFileSync` also accept the file
-descriptors `0` (stdin), `1` (stdout) and `2` (stderr) instead of a path, so
+## File descriptors
+
+The synchronous descriptor APIs support PGlite's audited disk NODEFS adapter
+([#667](https://github.com/40oleg/nona/issues/667)):
+
+- `openSync(path, flags = 'r', mode = 0o666)` and `closeSync(fd)` own real OS files.
+  Flags can be target-specific `fs.constants` bits or `r`, `r+`, `rs`, `rs+`,
+  `w`, `w+`, `wx`, `wx+`, `a`, `a+`, `ax`, `ax+`, `as`, `as+`.
+- `readSync(fd, buffer, offset?, length?, position?)` and the binary form of
+  `writeSync` operate on byte ranges of Buffer, TypedArray and DataView views,
+  including nonzero `byteOffset`. They return the actual transfer count: reads
+  may be short and return zero at EOF; writes may be short. Callers must loop
+  when they require a complete transfer. An options object with `offset`,
+  `length`, `position` can replace the final positional arguments. The UTF-8
+  string overload `writeSync(fd, text, position?, encoding?)` is also supported.
+- A numeric position leaves the descriptor's current offset unchanged; omitted,
+  `null` or `-1` uses and advances it. Append descriptors write at EOF even with
+  an explicit position. Positions are safe nonnegative integer Numbers; BigInt
+  positions and the read overload that allocates a buffer are unsupported.
+- `ftruncateSync(fd, len = 0)` shortens or zero-extends a writable file without
+  moving its offset. Negative lengths count as zero.
+- `fstatSync(fd, options?)` returns the same metadata and `Stats` methods as
+  `statSync`, from the open file rather than reopening its path. The documented
+  platform stat fallbacks apply to both.
+- `fsyncSync(fd)` and `fdatasyncSync(fd)` call the OS synchronization operation
+  (both use `FlushFileBuffers` on Windows, fsync on OpenBSD). OS errors propagate;
+  synchronization is never reported as success after a failed flush.
+- `statfsSync(path, {bigint}?)` returns `type`, `bsize`, `blocks`, `bfree`,
+  `bavail`, `files`, `ffree`. Windows reports type/files/ffree as zero; OpenBSD
+  reports type as zero. `{bigint: true}` converts these values to BigInt after
+  decoding; counters beyond Number's safe integer range may lose precision.
+
+These new descriptor/capacity APIs are synchronous only; `FileHandle`, async
+descriptor operations, vectored I/O and watchers are not implemented. The
+platform layer establishes the byte/count/cursor guarantees relied on by
+NODEFS; [fs-fd.test.ts](../tests/fs-fd.test.ts) compares them with Node, including
+closed descriptors, exclusive creation, read-only write errors, truncation,
+short I/O, interrupted POSIX I/O and write failures. POSIX reads/writes and
+flushes retry EINTR; close is not retried to avoid closing a reused descriptor.
+Whole-file write helpers loop over short writes and reject zero progress with
+`EIO`. A clean PGlite close/reopen establishes sequential persistence, not
+power-loss durability; see the [profile contract](pglite-offline.md).
+
+`readFileSync`, `writeFileSync` and `appendFileSync` also accept open file
+descriptors, including `0` (stdin), `1` (stdout) and `2` (stderr), instead of a path, so
 `fs.readFileSync(0, 'utf8')` reads all of standard input until end of file and
 `fs.writeFileSync(1, text)` writes all bytes to standard output, on every
 target. For a descriptor, `writeFileSync` and `appendFileSync` behave the same
 and the `flag` and `mode` options are ignored. A non-integer descriptor throws
 `ERR_INVALID_ARG_TYPE`, a negative or too large one `ERR_OUT_OF_RANGE`, and
-any other descriptor `EBADF`. Invalid path or data types throw a `TypeError`
+an unopened or closed descriptor `EBADF`. Invalid path or data types throw a `TypeError`
 with `code: 'ERR_INVALID_ARG_TYPE'`.
 
 Paths are strings (or UTF-8 `Uint8Array`s). Only the `utf8` encoding is

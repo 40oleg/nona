@@ -24,7 +24,7 @@ const enabled = process.env.NONA_PGLITE_INTEGRATION === "1";
 const hosted = process.env.RUNNER_ENVIRONMENT === "github-hosted";
 
 test(
-    "PGlite standalone offline boot and resource failures",
+    "PGlite standalone offline profiles, binary COPY and resource failures",
     { skip: !enabled },
     async (t) => {
         mkdirSync(join(fixture, ".work"), { recursive: true });
@@ -32,7 +32,12 @@ test(
         try {
             const inputs = join(directory, "compile-inputs");
             mkdirSync(inputs);
-            for (const name of ["boot.mjs", "offline.mjs"])
+            for (const name of [
+                "boot.mjs",
+                "offline.mjs",
+                "workload.mjs",
+                "payload.mjs",
+            ])
                 copyFileSync(join(fixture, name), join(inputs, name));
             cpSync(
                 join(fixture, "node_modules/@electric-sql/pglite"),
@@ -69,20 +74,24 @@ test(
                         join(assets, name),
                     );
             }
-            function run(timeout: number) {
-                const child = spawnSync(executable, [assets], {
-                    cwd: directory,
-                    encoding: "utf8",
-                    timeout,
-                    maxBuffer: 64 * 1024,
-                    windowsHide: true,
-                    env: {
-                        ...process.env,
-                        PATH: "",
-                        NODE_OPTIONS: "",
-                        NODE_PATH: "",
+            function run(timeout: number, mode = "select", profile?: string) {
+                const child = spawnSync(
+                    executable,
+                    [assets, mode, ...(profile ? [profile] : [])],
+                    {
+                        cwd: directory,
+                        encoding: "utf8",
+                        timeout,
+                        maxBuffer: 64 * 1024,
+                        windowsHide: true,
+                        env: {
+                            ...process.env,
+                            PATH: "",
+                            NODE_OPTIONS: "",
+                            NODE_PATH: "",
+                        },
                     },
-                });
+                );
                 assert.equal(
                     child.error,
                     undefined,
@@ -144,13 +153,94 @@ test(
                         assertBoot(child);
                     },
                 );
+            // Node and native databases must never share a profile: each engine
+            // must produce its own on-disk data before a new process reads it.
             await t.test(
-                "SELECT 1 and awaited close from another working directory",
+                "offline adapter profile oracle with network denied",
+                () => {
+                    restore();
+                    const profile = join(directory, "oracle-profile");
+                    mkdirSync(profile);
+                    try {
+                        for (const mode of ["write", "reopen"]) {
+                            const child = spawnSync(
+                                process.execPath,
+                                [
+                                    "--max-old-space-size=256",
+                                    "--wasm-num-compilation-tasks=1",
+                                    "--permission",
+                                    `--allow-fs-read=${fixture}`,
+                                    `--allow-fs-write=${profile}`,
+                                    join(fixture, "boot.mjs"),
+                                    assets,
+                                    mode,
+                                    profile,
+                                ],
+                                {
+                                    cwd: directory,
+                                    encoding: "utf8",
+                                    timeout: 30_000,
+                                    maxBuffer: 64 * 1024,
+                                    windowsHide: true,
+                                    env: {
+                                        ...process.env,
+                                        PATH: "",
+                                        NODE_OPTIONS: "",
+                                        NODE_PATH: "",
+                                    },
+                                },
+                            );
+                            assert.ifError(child.error);
+                            assert.equal(child.signal, null);
+                            assert.equal(
+                                child.status,
+                                0,
+                                child.stderr + child.stdout,
+                            );
+                            assert.equal(child.stderr, "");
+                            assert.equal(
+                                child.stdout.trim(),
+                                `${mode} select=1 bytes=259 copy=true closed=true fetch=undefined`,
+                            );
+                        }
+                    } finally {
+                        rmSync(profile, {
+                            recursive: true,
+                            force: true,
+                            maxRetries: 3,
+                        });
+                    }
+                },
+            );
+            await t.test(
+                "disk writer and fresh reader verify Unicode, every byte and persisted binary COPY",
                 { skip: !hosted },
                 () => {
                     restore();
-                    const child = run(30 * 60_000);
-                    assertBoot(child);
+                    const profile = join(directory, "native-profile");
+                    mkdirSync(profile);
+                    try {
+                        // One compilation above, two independent processes here.
+                        for (const mode of ["write", "reopen"]) {
+                            const child = run(30 * 60_000, mode, profile);
+                            assert.equal(
+                                child.status,
+                                0,
+                                child.stderr + child.stdout,
+                            );
+                            assert.equal(child.stderr, "");
+                            assert.equal(
+                                child.stdout.trim(),
+                                `${mode} select=1 bytes=259 copy=true closed=true fetch=undefined`,
+                            );
+                        }
+                    } finally {
+                        rmSync(profile, {
+                            recursive: true,
+                            force: true,
+                            maxRetries: 3,
+                        });
+                    }
                 },
             );
             for (const [name, change] of [
@@ -198,7 +288,7 @@ test(
                 );
             }
         } finally {
-            rmSync(directory, { recursive: true, force: true });
+            rmSync(directory, { recursive: true, force: true, maxRetries: 3 });
         }
     },
 );

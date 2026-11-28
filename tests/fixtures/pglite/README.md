@@ -3,8 +3,8 @@
 This is step 1 of [#667](https://github.com/40oleg/nona/issues/667): a reproducible
 Node oracle and a frozen package audit for the subsequent Nona implementation.
 The subsequent [offline native boot adapter](../../../docs/pglite-offline.md)
-uses the same unchanged package and pins for an in-memory SELECT/close workload.
-Native profiles and binary COPY remain step 4.
+uses the same unchanged package and pins for SELECT/close, disk profiles and
+binary COPY. Its compiled writer/reader acceptance case runs on hosted CI.
 The published package is used unchanged, with an **exact**
 `@electric-sql/pglite@0.3.14` dependency and npm lockfile. No service, PostgreSQL
 installation, VI Toolkit checkout, browser, downloaded image or network fetch
@@ -60,14 +60,14 @@ the audit and oracle results together; do not substitute a newer release's API.
 2. `case.mjs write PROFILE` creates a table containing Unicode text and a
    generated 259-byte `bytea`: every byte value 0–255, leading/trailing zeroes
    and a repeated 255. It writes the binary COPY result to `PROFILE/copy.bin`,
-   checks PostgreSQL's binary COPY signature and closes.
+   checks PostgreSQL's binary COPY signature, imports it through `/dev/blob`
+   into a second table, verifies both tables and the re-exported stream, and closes.
 3. After that child exits, `case.mjs reopen PROFILE` opens the same disk profile
-   in a **new process**, checks the text and every byte, uses the saved Blob with
-   `COPY ... FROM '/dev/blob' WITH (FORMAT binary)` into another table, checks
-   that table and compares the entire re-exported binary COPY stream.
+   in a **new process**, checks the text and every byte in both persisted tables
+   and compares the entire re-exported binary COPY stream with the saved file.
 4. Separate negative cases remove and corrupt each prepared asset and check the
-   resource-specific error. These validate the fixture preflight, not a future
-   Nona diagnostic implementation.
+   resource-specific error. Native negative cases separately exercise the offline
+   adapter's resource diagnostics.
 
 Each child runs with `--permission` and no `--allow-net`, worker, child-process
 or addon permissions. It verifies an attempted connection is denied and sets
@@ -107,6 +107,16 @@ for the main module and the 28 WASM side modules embedded in `pglite.data`.
 refresh the snapshot after review, use `node --wasm-num-compilation-tasks=1 audit.mjs`.
 Static presence is not evidence that every import or opcode ran in these cases;
 passing Node oracles are not native Nona acceptance evidence.
+
+`workload.mjs` contains the shared SQL and byte assertions; `case.mjs` remains
+the independent Node driver while `boot.mjs` uses the actual offline adapter
+compiled by Nona. Each driver awaits close, checks the closed state and reports
+failure through its exit status. The native integration test compiles once,
+deletes its input sources and starts separate writer and reader processes with
+empty PATH and absent fetch. Native and oracle profiles are separate, bounded
+children are checked for exit status/signal/output/timeout, and profiles are
+removed in `finally`. See the [offline reference](../../../docs/pglite-offline.md)
+for the hosted-only execution bounds and durability limits.
 
 After the root `npm run build`, `npm run validate:engine` in this fixture runs
 Nona's original source decoder/validator against all 29 pinned modules, comparing

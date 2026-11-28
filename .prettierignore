@@ -2,6 +2,9 @@
 dist/
 build/
 work/
+tests/fixtures/pglite/.work/
+tests/fixtures/pglite/.npm-cache/
+tests/fixtures/pglite/assets/
 # Historical #632 input: exact bytes are evidence, SHA-pinned by the probe/tests.
 tests/fixtures/abort-timeout/original.mjs
 tests/fixtures/abort-timeout/platform-original.mjs
