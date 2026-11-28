@@ -51,6 +51,7 @@ import { mergeAgentPrograms, agentSymbol } from "../agents.js";
 import { stringLiteral } from "../../runtime/value.js";
 import { emitFfi } from "../../runtime/ffi.js";
 import { win32SettingsHelpers } from "../../runtime/win32-settings.js";
+import { guiHelpers } from "../../runtime/gui-bridge.js";
 import { CompileError } from "../../diagnostics.js";
 import { emitFunction as emitFunctionCode } from "./operations.js";
 import { recordName } from "./function-names.js";
@@ -766,6 +767,33 @@ function generateImage(
         functions.push(...helpers.functions);
         runtime.imports.push(...helpers.imports);
         hostGlobal("__nonaWin32Settings", "win32.settings.code", 1);
+    }
+    if (
+        module.functions.some((fn) =>
+            fn.blocks.some((block) =>
+                block.operations.some(
+                    (op) =>
+                        op.kind === "readGlobalProperty" &&
+                        op.name === "__nonaGui",
+                ),
+            ),
+        )
+    ) {
+        if (currentNativeTarget() !== "linux-x64" || options.agent)
+            throw new CompileError([
+                {
+                    code: "E_HOST_MODULE",
+                    message:
+                        "nona:gui requires the main Linux x64 JavaScript thread",
+                    file: "nona:gui",
+                    span: { start: 0, end: 0 },
+                },
+            ]);
+        const helpers = guiHelpers().bundle;
+        fragments.push(...helpers.fragments);
+        functions.push(...helpers.functions);
+        runtime.imports.push(...helpers.imports);
+        hostGlobal("__nonaGui", "gui.code", 1);
     }
     if (hasPrelude && linked.includes("encoding")) {
         // UTF-8 transcoding, captured and removed from the global object by the encoding prelude.

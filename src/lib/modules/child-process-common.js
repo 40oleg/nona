@@ -234,23 +234,23 @@ function pipeReadable(handle) {
     }
     target = makeTarget(handle, READ, {
         _ready() {
-            // Up to 1 MiB per turn, so that one busy pipe does not starve the loop.
-            for (let total = 0; target !== null && total < 1048576;) {
-                const n = sys.read(target.handle, readBuffer);
-                if (n === EAGAIN || n === EINTR) return;
-                if (n <= 0) {
-                    unwatch(target);
-                    sys.close(target.handle);
-                    target = null;
-                    if (n < 0) stream.destroy(errnoException(n, "read"));
-                    else stream.push(null);
-                    return;
-                }
-                total += n;
-                if (!stream.push(Buffer.from(readBuffer.subarray(0, n)))) {
-                    unwatch(target);
-                    return;
-                }
+            // One chunk per readiness turn. A byte budget alone cannot bound
+            // synchronous data handlers (for example a retained GUI redraw).
+            const n = sys.read(target.handle, readBuffer);
+            if (n === EAGAIN || n === EINTR) return;
+            if (n <= 0) {
+                unwatch(target);
+                sys.close(target.handle);
+                target = null;
+                if (n < 0) stream.destroy(errnoException(n, "read"));
+                else stream.push(null);
+                return;
+            }
+            if (
+                !stream.push(Buffer.from(readBuffer.subarray(0, n))) &&
+                target !== null
+            ) {
+                unwatch(target);
             }
         },
     });

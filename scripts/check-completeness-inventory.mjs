@@ -368,6 +368,31 @@ export function validateInventory(matrix, { checkGit = false } = {}) {
         }
         references(entry.evidence, `${entry.id} evidence`);
     }
+    // Later registrations track the live provider table without rewriting the
+    // frozen audit's capability, blob or execution evidence.
+    for (const entry of array(
+        audit.registrationAdditions ?? [],
+        "audit.registrationAdditions",
+        true,
+    )) {
+        const name = entry.specifier;
+        require(["public", "internal"].includes(
+            entry.visibility,
+        ), `${name}: visibility required`);
+        require(Number.isInteger(entry.issue) &&
+            entry.issue > 0, `${name}: introducing issue required`);
+        require(nonempty(entry.note), `${name}: availability note required`);
+        for (const alias of [
+            name,
+            ...array(entry.aliases, `${name} aliases`, true),
+        ]) {
+            require(nonempty(alias) &&
+                !specifiers.has(
+                    alias,
+                ), `invalid/duplicate module specifier: ${alias}`);
+            specifiers.add(alias);
+        }
+    }
     // These boundaries must stay represented even if the broad family survives.
     for (const name of [
         "node:worker_threads",

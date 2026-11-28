@@ -1,5 +1,19 @@
 # Host APIs
 
+Ubuntu x64 programs can opt into `Window` and `Element` from `nona:gui` for a
+retained native GTK scene. See the [window/lifecycle reference](gui.md) and
+[element, layout, asset, drawing and native control reference](gui-elements.md).
+Buttons, native text entry, toggles, deferred input and asynchronous system
+folder selection require Ubuntu 24.04 x64/GTK 4.14. Complete desktop acceptance
+receipts remain pending; unrelated ELF programs keep their dependency baseline.
+The [service-console sample](../site/samples/gui.linux.mjs) covers service/log and
+settings screens, local assets, real child stdout, IM composition, folder
+selection/cancellation and disposal. See its [build and installation commands](gui.md#acceptance-application)
+and [hosted receipt requirements](gui.md#validation-and-acceptance-receipts).
+`Window.inspectSurface()` copies actual mapped GDK backend, scale, dimensions and
+recent presentation timing for diagnostics; requested environment values are not
+substitutes for those observations.
+
 Windows x64 programs can import `SettingsWindow` from `nona:win32/settings`
 for a modeless checkbox/seven-choice settings dialog. Windows belong to the
 main JavaScript thread, with native-only synchronous procedures and deferred
@@ -500,6 +514,12 @@ stderr)`; `util.promisify` resolves to `{stdout, stderr}`),
   is a `Writable` of the [stream module](#streams). The pipe ends are
   non-blocking and watched by the event loop next to sockets and timers, so
   a pending child keeps the program alive and large outputs do not deadlock.
+  The shared asynchronous pipe reader dispatches at most one 64 KiB chunk per
+  readiness turn, yielding to other I/O pollers and timers between data callbacks.
+  This prevents a continuous producer from monopolizing a turn through repeated
+  synchronous callbacks; each individual callback still runs to completion.
+  See the native and deterministic regressions in
+  [`tests/child-process-fairness.test.ts`](../tests/child-process-fairness.test.ts).
   Synchronous variants write `input` and drain stdout and stderr together.
 - **Events**, in order: `spawn` (the process started), then, as the child
   ends, `exit` (`code`, `signal`) and, after its stdio streams ended,

@@ -98,3 +98,9 @@ For functions that are not listed, declare them yourself with `define` from [`no
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 The aliases export the global `Buffer`, `Blob` and `File` constructors, byte validators, base64 helpers, transcoding, inspection settings and constants. Blob byte and text streams, BYOB readers and object URL registration are available. General URL parsing is the global [`URL`](/reference/host-apis#url); arbitrary Web Stream construction remains a separate dependency API. See [binary data](/reference/host-apis#buffer-and-binary-data) and the [runnable sample](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+
+## `nona:gui` — Ubuntu native desktop
+
+`nona:gui` provides experimental native GTK windows, retained layout/drawing, buttons, text entry, toggles, focus/shortcuts and asynchronous system folder selection on Ubuntu 24.04 x64 with GTK 4.14. See the shared English [API and installation contract](/reference/gui), [retained API](/reference/gui-elements) and [two-screen example](/examples/gui). Hosted X11/Wayland receipts at scales 1/2 and a live scale change remain pending; stock Ubuntu 20.04 dependencies are unsupported.
+
+`Window` owns native sessions and supports `open`, `show`, `resize`, `setRoot`, `chooseFolder`, `cancelFolder`, `addShortcut`, `inspectSurface`, `close` and `dispose`. `Element` provides retained properties, children, events and disposal. This private native bridge leaves public FFI callbacks unsupported and keeps desktop libraries opt-in.

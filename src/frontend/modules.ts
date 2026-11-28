@@ -38,7 +38,8 @@ export interface ModuleHost {
     /** Specifiers a computed import() in the referrer may name; these modules are compiled in. */
     candidates?(referrer: string): string[];
     builtinAliases?(path: string): string[] | undefined;
-    builtinCandidates?(): string[];
+    /** Computed lookup excludes opt-in host dependencies unless explicitly requested. */
+    builtinCandidates?(includeOptIn?: boolean): string[];
     /** A module the host builds as an AST rather than text (a CommonJS factory, src/frontend/commonjs.ts). */
     program?(path: string): A.Program | undefined;
 }
@@ -507,13 +508,15 @@ export function builtinModuleRequests(
         }
     });
     if (lookup || computed) requireRuntimePrelude("process");
-    const candidates = host.builtinCandidates?.() ?? [];
-    if (computed) return candidates;
-    return candidates.filter((path) =>
+    const candidates = host.builtinCandidates?.(true) ?? [];
+    const requested = candidates.filter((path) =>
         (host.builtinAliases?.(path) ?? []).some((alias) =>
             literals.has(alias),
         ),
     );
+    return computed
+        ? [...new Set([...(host.builtinCandidates?.() ?? []), ...requested])]
+        : requested;
 }
 
 /**

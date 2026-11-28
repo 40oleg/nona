@@ -27,10 +27,9 @@ test("module inventory covers explicit provider registrations and path flavors",
     const { readInventory } = await validator();
     const matrix = readInventory();
     const names = new Set<string>(
-        matrix.entryPoints.flatMap((e: Inventory) => [
-            e.specifier,
-            ...e.aliases,
-        ]),
+        [...matrix.entryPoints, ...matrix.audit.registrationAdditions].flatMap(
+            (e: Inventory) => [e.specifier, ...e.aliases],
+        ),
     );
     for (const path of [
         "src/frontend/builtin-modules.ts",
@@ -85,6 +84,19 @@ test("a test filename cannot promote a capability to verified", async () => {
     const problems = validateInventory(matrix, { checkGit: false }).join("\n");
     assert.match(problems, /verified requires passing build and run/);
     assert.match(problems, /verified lacks run evidence for linux-arm64/);
+});
+
+test("post-audit registrations retain distinct names, issue provenance and availability notes", async () => {
+    const { readInventory, validateInventory } = await validator();
+    const matrix = readInventory();
+    const entry = matrix.audit.registrationAdditions[0];
+    entry.specifier = matrix.entryPoints[0].specifier;
+    entry.issue = 0;
+    entry.note = "";
+    const problems = validateInventory(matrix).join("\n");
+    assert.match(problems, /invalid\/duplicate module specifier/);
+    assert.match(problems, /introducing issue required/);
+    assert.match(problems, /availability note required/);
 });
 
 test("inventory rejects unpinned evidence, missing limitations and private/public confusion", async () => {

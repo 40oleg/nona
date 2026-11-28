@@ -1,6 +1,12 @@
 import type { ModuleHost } from "./modules.js";
 import { ffiModuleSource } from "../ffi.js";
 import { win32SettingsModuleSource } from "./win32-settings-module.js";
+import {
+    guiModuleSource,
+    guiElementsSource,
+    guiLayoutSource,
+    guiSceneSource,
+} from "./gui-module.js";
 import { fsModuleSource, fsPromisesModuleSource } from "./fs-module.js";
 import { CompileError } from "../diagnostics.js";
 import { getTarget, type Target } from "../target.js";
@@ -128,6 +134,10 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:ffi", () => ffiModuleSource],
     ["nona:win32", () => win32ModuleSource],
     ["nona:win32/settings", win32SettingsModuleSource],
+    ["nona:gui", guiModuleSource],
+    ["nona:internal/gui-elements", () => guiElementsSource],
+    ["nona:internal/gui-layout", () => guiLayoutSource],
+    ["nona:internal/gui-scene", () => guiSceneSource],
     ["nona:fs", fsModuleSource],
     ["node:fs", fsModuleSource],
     ...["node:fs/promises", "nona:fs/promises"].map(
@@ -298,7 +308,10 @@ export function withBuiltinModules(
             (path.startsWith("nona:internal/") && sources.has(path)
                 ? []
                 : undefined),
-        builtinCandidates: () => inventory.map((record) => record.path),
+        builtinCandidates: (includeOptIn = false) =>
+            inventory
+                .filter((record) => includeOptIn || record.path !== "nona:gui")
+                .map((record) => record.path),
         ...(host.candidates
             ? { candidates: (referrer: string) => host.candidates!(referrer) }
             : {}),

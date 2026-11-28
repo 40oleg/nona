@@ -33,6 +33,43 @@
             "typescript": "7.0.2"
         },
         "runtimeTargetsExecuted": ["win32-x64", "linux-x64"],
+        "registrationAdditions": [
+            {
+                "specifier": "nona:gui",
+                "aliases": [],
+                "visibility": "public",
+                "issue": 664,
+                "note": "Experimental Ubuntu Linux x64 GUI added after this audit; no baseline capability or passing desktop receipt is claimed."
+            },
+            {
+                "specifier": "nona:internal/gui-elements",
+                "aliases": [],
+                "visibility": "internal",
+                "issue": 664,
+                "note": "Private retained elements provider added after this audit; not a public API."
+            },
+            {
+                "specifier": "nona:internal/gui-layout",
+                "aliases": [],
+                "visibility": "internal",
+                "issue": 664,
+                "note": "Private layout provider added after this audit; not a public API."
+            },
+            {
+                "specifier": "nona:internal/gui-scene",
+                "aliases": [],
+                "visibility": "internal",
+                "issue": 664,
+                "note": "Private scene provider added after this audit; not a public API."
+            },
+            {
+                "specifier": "nona:win32/settings",
+                "aliases": [],
+                "visibility": "public",
+                "issue": 649,
+                "note": "Windows settings module added after this audit; not covered by its frozen Win32 capability row."
+            }
+        ],
         "claim": {
             "labels": [
                 "blocked",

@@ -1,0 +1,134 @@
+name: GUI desktop acceptance
+on:
+    pull_request:
+        types: [opened, synchronize, reopened, labeled, milestoned]
+        paths:
+            - "src/**"
+            - "tests/**gui**"
+            - "tests/fixtures/gui/**"
+            - "site/samples/gui*"
+            - "site/samples/gui-assets/**"
+            - "docs/gui*.md"
+            - "scripts/gui-*.sh"
+            - ".github/workflows/gui-desktop.yml"
+    workflow_dispatch:
+permissions:
+    contents: read
+    pull-requests: read
+    issues: read
+concurrency:
+    group: gui-desktop-${{ github.ref }}
+    cancel-in-progress: true
+env:
+    NONA_TEST_CONCURRENCY: "1"
+    LC_ALL: C.UTF-8
+jobs:
+    metadata:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/github-script@v7
+              if: github.event_name == 'pull_request'
+              with:
+                  script: |
+                      const {data: pr} = await github.rest.pulls.get({...context.repo, pull_number: context.issue.number});
+                      const issue664 = /(?:^|\/)issue-664(?:-|$)/.test(pr.head.ref) || /(?:closes|fixes|resolves|part of)\s+(?:40oleg\/nona)?#664\b/i.test(pr.body || '');
+                      if (!issue664) return core.info('Reusable GUI regression: issue #664 metadata requirements do not apply to this PR.');
+                      const {data: issue} = await github.rest.issues.get({...context.repo, issue_number: 664});
+                      const labels = pr.labels.map(x => x.name);
+                      for (const required of ['enhancement', 'complex', 'full-ci', 'gc-stress']) {
+                        if (!labels.includes(required)) core.setFailed(`Missing PR label: ${required}`);
+                      }
+                      if (labels.filter(x => ['bug', 'enhancement', 'documentation'].includes(x)).length !== 1)
+                        core.setFailed('PR must have exactly one type label');
+                      if (!pr.milestone || pr.milestone.number !== issue.milestone?.number)
+                        core.setFailed('PR must use the issue shipping milestone');
+                      core.info(JSON.stringify({pr: pr.number, labels, milestone: pr.milestone?.title, issueMilestone: issue.milestone?.title}));
+    desktop:
+        needs: metadata
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            max-parallel: 1
+            matrix:
+                backend: [x11, wayland]
+                scale: [1, 2]
+                gc: ["off", "on"]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - name: Install native desktop and test-only automation
+              run: |
+                  test '${{ runner.environment }}' = github-hosted
+                  sudo apt-get update -qq
+                  sudo apt-get install -y libgtk-4-1 libpangoft2-1.0-0 xvfb x11-utils xdotool dbus-x11 python3-pyatspi at-spi2-core weston libweston-13-dev libwayland-dev wayland-utils imagemagick build-essential pkg-config
+            - run: npm ci
+            - run: npm run build
+            - name: Build compositor-seat driver and application
+              run: |
+                  mkdir -p work/gui-evidence
+                  cc -Wall -Wextra -Werror -shared -fPIC tests/fixtures/gui/weston-input.c $(pkg-config --cflags --libs libweston-13 wayland-server) -o work/gui-evidence/weston-input.so
+                  node tests/fixtures/gui/build-desktop.mjs work/gui-evidence/app '${{ matrix.gc }}'
+                  python3 tests/fixtures/gui/test_desktop_receipts.py
+            - name: Isolated native window, input, chooser, progress and lifecycle receipts
+              shell: bash
+              run: |
+                  live=()
+                  if test '${{ matrix.backend }}-${{ matrix.scale }}' = wayland-1; then live=(--live-scale); fi
+                  python3 tests/fixtures/gui/desktop.py launch --backend '${{ matrix.backend }}' --scale '${{ matrix.scale }}' --binary work/gui-evidence/app/desktop --output 'work/gui-evidence/${{ matrix.backend }}-${{ matrix.scale }}-${{ matrix.gc }}' "${live[@]}"
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: gui-desktop-${{ matrix.backend }}-${{ matrix.scale }}-${{ matrix.gc }}
+                  path: work/gui-evidence
+    validation:
+        needs: metadata
+        runs-on: ubuntu-24.04
+        timeout-minutes: 40
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - run: npm run format:check
+            - run: npm run check:doc-links
+            - run: npm --prefix site ci
+            - run: npm --prefix site run check:samples
+            - run: npm run compare -- --linux
+            - name: Identical console sources and flags with merge-base and candidate compilers
+              env:
+                  BASE_SHA: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+              run: bash scripts/gui-baseline.sh "$(git merge-base "$BASE_SHA" HEAD)"
+            - name: GUI failure without a display
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -y libgtk-4-1 libpangoft2-1.0-0
+                  node tests/fixtures/gui/build-desktop.mjs work/gui-evidence/compat off
+                  env -u DISPLAY -u WAYLAND_DISPLAY -u GDK_BACKEND timeout 10s work/gui-evidence/compat/no-display > work/gui-evidence/headless-gui.stdout.txt 2> work/gui-evidence/headless-gui.stderr.txt
+                  grep -q 'expected GUI initialization failure' work/gui-evidence/headless-gui.stdout.txt
+            - name: Separate actual Ubuntu 20.04 stock dependency outcome
+              run: |
+                  container="nona-gui-ubuntu20-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+                  trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+                  timeout 5m docker run --name "$container" --init --rm -v "$PWD:/repo" ubuntu:20.04 bash /repo/scripts/gui-ubuntu20.sh
+            - name: Optional VI Toolkit checkout
+              run: |
+                  if test -x proto/build-proto && test -f proto/probe.py; then
+                      timeout 5m ./proto/build-proto > work/gui-evidence/vi-build.txt 2>&1
+                      timeout 2m python3 proto/probe.py --source-cli desktop main > work/gui-evidence/vi-probe.txt 2>&1
+                  else
+                      printf '%s\n' 'VI Toolkit checkout unavailable; hosted acceptance uses Nona-owned fixtures only.' > work/gui-evidence/vi-toolkit.txt
+                  fi
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: gui-desktop-validation
+                  path: work/gui-evidence

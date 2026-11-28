@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+- Keep continuous child stdout from starving GUI input and timers. Bound GUI
+  fixture startup separately from interaction, use native checkbox input on GTK
+  4.14, and retain Xvfb window captures when compositor presentation feedback is
+  unavailable ([#664](https://github.com/40oleg/nona/issues/664)).
+
+- Fix GUI CI regressions: keep GTK out of computed console built-in discovery,
+  realign private SysV calls for Linux entry, and repair desktop fixture builds
+  and fresh-checkout validation ([#664](https://github.com/40oleg/nona/issues/664)).
+
+- Add the Nona-owned Ubuntu service-console example with service/log and settings
+  screens, local image/font assets, native input, state updates and real periodic
+  child stdout. Add mapped GDK surface diagnostics and bounded hosted X11/Xvfb and
+  Wayland/Weston acceptance at scales 1/2, native compositor-seat input, live scale
+  transition, chooser/lifecycle progress checks, retained traces/images/failures,
+  merge-base dependency controls and a separate stock Ubuntu 20.04 outcome.
+  Resolve empty control text and accessible labels to native empty strings.
+  Preserve queued toggle changes across caption updates and observed layout
+  dimensions after resize requests that GTK may ignore.
+  Reconfigure the Weston output on its existing head for live scale validation,
+  preserving the application surface and retaining the compositor acknowledgement.
+  Document build/install commands and unsupported environments. Native acceptance
+  receipts remain pending until hosted execution
+  ([#664](https://github.com/40oleg/nona/issues/664)).
+
+- Add GTK buttons, native text entry and toggles to the retained Ubuntu GUI,
+  deferred control events, focus and keyboard shortcuts, accessible names/roles
+  and asynchronous system folder selection. Bound native input storage and retain
+  cancelled chooser ownership through late completion. Establish Ubuntu 24.04
+  x64 with GTK 4.14/GLib 2.80 as the supported baseline; add focused GC and
+  hosted accessibility/input probes, atomic full-capacity control replacement,
+  retained native sibling order and configured X11 composition/chooser-disposal
+  checks. Complete desktop and IME receipts remain pending
+  ([#664](https://github.com/40oleg/nona/issues/664)).
+
+- Add retained elements to the experimental Ubuntu GUI: transactional trees,
+  deterministic layout, clipping/scroll offsets, text and local PNG/font assets,
+  styling and native-owned Cairo drawing recordings. Extend the private mixed
+  GP/FP ABI, test ownership and resource cleanup with GC stress, and add pinned
+  layout/pixel fixtures. Controls and complete desktop evidence remain pending.
+  ([#664](https://github.com/40oleg/nona/issues/664))
+
+- Validate the experimental Ubuntu GTK window bridge with focused wrapper and
+  executable ABI, ownership, GC and event-loop regressions. Correct native
+  timeout conversion and honor timer deadlines after earlier pollers; add a
+  bounded real-window fixture and hosted X11 validation job. Retained UI,
+  controls and complete desktop acceptance evidence remain pending.
+  ([#664](https://github.com/40oleg/nona/issues/664))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent
   producer/copy coalescing proofs. Add matching production guard regressions and

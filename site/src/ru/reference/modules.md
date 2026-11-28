@@ -98,3 +98,7 @@
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 Эти псевдонимы экспортируют глобальные конструкторы `Buffer`, `Blob` и `File`, проверки байтов, вспомогательные функции base64, перекодирование, настройки инспекции и константы. Доступны байтовые и текстовые потоки Blob, читатели BYOB, а также регистрация и разрешение объектных URL. Общий разбор URL выполняет глобальный [`URL`](/ru/reference/host-apis#url); построение произвольных Web Streams остаётся отдельным зависимым API. См. [двоичные данные (англ.)](/reference/host-apis#buffer-and-binary-data) и [запускаемый пример](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+
+## `nona:gui` — Ubuntu native desktop
+
+`nona:gui` provides experimental native GTK windows, retained layout/drawing, buttons, text entry, toggles, focus/shortcuts and asynchronous system folder selection on Ubuntu 24.04 x64 with GTK 4.14. See the shared English [API and installation contract](/reference/gui), [retained API](/reference/gui-elements) and [two-screen example](/examples/gui). Hosted X11/Wayland receipts at scales 1/2 and a live scale change remain pending; stock Ubuntu 20.04 dependencies are unsupported.

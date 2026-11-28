@@ -99,6 +99,11 @@ function sidebar(d: Dictionary): DefaultTheme.SidebarItem[] {
                     text: "Win32 settings (x64)",
                     link: "/reference/win32-settings",
                 },
+                { text: "Ubuntu GUI (x64)", link: "/reference/gui" },
+                {
+                    text: "GUI retained elements",
+                    link: "/reference/gui-elements",
+                },
             ],
         },
         {

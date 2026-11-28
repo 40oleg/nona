@@ -98,3 +98,7 @@ Para funções que não estão na lista, declare-as você mesmo com `define` de 
 ## `node:buffer`, `buffer`, `nona:buffer`
 
 Os aliases exportam os construtores globais `Buffer`, `Blob` e `File`, validadores de bytes, utilitários de base64, transcodificação, configurações de inspeção e constantes. Streams de bytes e de texto de Blob, leitores BYOB e o registro e a resolução de URLs de objeto estão disponíveis. A análise geral de URLs é feita pelo [`URL`](/pt/reference/host-apis#url) global; a construção arbitrária de Web Streams continua sendo uma API de dependência separada. Veja [dados binários (em inglês)](/reference/host-apis#buffer-and-binary-data) e o [exemplo executável](https://github.com/40oleg/nona/blob/main/site/samples/buffer.mjs).
+
+## `nona:gui` — Ubuntu native desktop
+
+`nona:gui` provides experimental native GTK windows, retained layout/drawing, buttons, text entry, toggles, focus/shortcuts and asynchronous system folder selection on Ubuntu 24.04 x64 with GTK 4.14. See the shared English [API and installation contract](/reference/gui), [retained API](/reference/gui-elements) and [two-screen example](/examples/gui). Hosted X11/Wayland receipts at scales 1/2 and a live scale change remain pending; stock Ubuntu 20.04 dependencies are unsupported.

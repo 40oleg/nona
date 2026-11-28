@@ -131,6 +131,16 @@ The `win32-x64` target also supports a [modeless settings window](docs/win32-set
 with a checkbox, seven choices and Save/Cancel. The [GUI sample](site/samples/settings.win32.mjs)
 keeps a background timer running, discards cancelled drafts and reopens safely.
 
+Ubuntu x64 also has an experimental [native GTK GUI](docs/gui.md) with retained
+rows, columns and stacks, styled text/PNG images, clipping, scrolling and custom
+drawing, native buttons/text entry/toggles and asynchronous folder selection.
+The baseline is Ubuntu 24.04 x64 with GTK 4.14; GUI libraries are opt-in.
+The [service-console example](site/samples/gui.linux.mjs) includes service/log and
+settings screens, local assets, native input and a real stdout child. See the
+[exact ELF build command](docs/gui.md#acceptance-application). Hosted X11/Xvfb and
+Wayland/Weston acceptance at scales 1/2, live scale change and Ubuntu 20.04's
+unsupported stock-library outcome are configured; native receipts remain pending.
+
 The [language support matrix](https://40oleg.github.io/nona/guide/language-support) lists exact behaviour and test coverage. Unsupported syntax is rejected at compile time.
 
 ## Performance

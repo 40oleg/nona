@@ -1373,7 +1373,10 @@ Read mixed outcomes in `execution.results`; a summary failure does not mean
 every application on that platform fails. These sample summaries are separate
 from whole-row capability status. Dated `audit.reviewAddendum` and
 `audit.correctionEvidence` are additive schema-v1 fields; they never replace
-the frozen baseline or release registry.
+the frozen baseline or release registry. `audit.registrationAdditions` records
+module names introduced after the audit, their visibility and introducing issue.
+The live registration check includes these names without assigning them audited
+capabilities or changing the pinned source and execution evidence.
 
 Status vocabulary:
 

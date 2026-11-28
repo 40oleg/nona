@@ -130,7 +130,7 @@ export function isFfiLibraryImport(i: {
 }): boolean {
     return (
         i.dll !== "syscall" &&
-        i.symbol.startsWith("ffi.") &&
+        (i.symbol.startsWith("ffi.") || i.symbol.startsWith("gui.import.")) &&
         !/\.dll$/i.test(i.dll)
     );
 }

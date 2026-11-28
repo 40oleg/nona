@@ -42,6 +42,8 @@ These pages include a document from the repository; edit the source, not the pag
 | `/reference/process`             | `docs/process.md`             |
 | `/reference/fs`                  | `docs/fs.md`                  |
 | `/reference/ffi`                 | `docs/ffi.md`                 |
+| `/reference/gui`                 | `docs/gui.md`                 |
+| `/reference/gui-elements`        | `docs/gui-elements.md`        |
 | `/reference/windows-executables` | `docs/windows-executables.md` |
 | `/reference/completeness-audit`  | `docs/completeness-audit.md`  |
 | `/reference/test262`             | `docs/test262.md`             |

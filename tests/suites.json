@@ -5,6 +5,10 @@
             "description": "Frontend, lowering and language checks (Linux check job).",
             "files": [
                 "frontend",
+                "gui-bridge",
+                "gui-elements",
+                "gui-controls",
+                "gui-desktop",
                 "runtime-link-numeric",
                 "semantic-replay",
                 "semantic-replay-selector",
