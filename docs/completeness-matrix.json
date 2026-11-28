@@ -699,6 +699,15 @@
             "note": "Alias availability is target-dependent; read capability rows. Importable stubs do not establish working services."
         },
         {
+            "id": "module.dns",
+            "specifier": "node:dns",
+            "aliases": ["dns"],
+            "visibility": "public",
+            "capabilities": ["api.dns-udp"],
+            "evidence": ["src/frontend/builtin-modules.ts"],
+            "note": "Added after the audit baseline in #665: callback dns.lookup on win32-x64/linux-x64 only; resolve, promises and UDP remain unsupported. The capability row retains the historical audit results."
+        },
+        {
             "id": "module.net",
             "specifier": "node:net",
             "aliases": ["net", "nona:net"],
