@@ -1,5 +1,7 @@
 # Language support
 
+**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). PGlite boot and persistence remain in progress.
+
 Nona targets the ECMA-262 11th edition (ES2020) with documented exceptions. This page summarises what is supported in **v0.36.0**. The Test262 numbers come from the last full audit (v0.8.0) of the pinned revision described on the [Test262](/reference/test262) page.
 
 **Supported** means implemented and covered by unit tests and Test262 within the limits in the Notes column. An older per-feature matrix with test names, last checked for v0.5.0, is archived in [`docs/history/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/history/language-support.md) (Russian).

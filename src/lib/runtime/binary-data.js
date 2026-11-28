@@ -59,6 +59,10 @@ __nonaRegexpVm.arrayBufferCopyAndDetach = function (
             : __nonaRegexpVm.bufferToIndex(newLength);
     if (__nonaRegexpVm.arrayBufferResizable(buffer) <= -2)
         throw new __nonaRegexpVm.bufferTypeError("ArrayBuffer is detached");
+    if (__nonaRegexpVm.wasm && __nonaRegexpVm.wasm.buffers.has(buffer))
+        throw new __nonaRegexpVm.bufferTypeError(
+            "WebAssembly memory buffers cannot be transferred",
+        );
     var options;
     if (preserve && state >= 0) {
         if (newByteLength > state)

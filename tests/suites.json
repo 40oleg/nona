@@ -137,6 +137,8 @@
                 "array-builtins",
                 "array-from-async",
                 "array-buffer",
+                "webassembly",
+                "webassembly-source",
                 "typed-array-fast-path",
                 "typed-array-inline",
                 "typed-array-bce",

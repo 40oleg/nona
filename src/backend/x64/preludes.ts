@@ -42,6 +42,7 @@ import { errorStackPreludeSource } from "../../runtime/error-stack-source.js";
 import { regexpProtocolPreludeSource } from "../../runtime/regexp-protocol-source.js";
 import { regexpEscapePreludeSource } from "../../runtime/regexp-escape-source.js";
 import { binaryDataPreludeSource } from "../../runtime/binary-data-source.js";
+import { wasmPreludeSource } from "../../runtime/wasm-source.js";
 import { arraySortPreludeSource } from "../../runtime/array-sort-source.js";
 import { objectIntegrityPreludeSource } from "../../runtime/object-integrity-source.js";
 import { arrayFromAsyncPreludeSource } from "../../runtime/array-from-async-source.js";
@@ -120,6 +121,7 @@ export function lowerRuntimePrelude(
             ["moduleRecords", moduleRecordsPreludeSource],
             ["topLevelAwait", topLevelAwaitPreludeSource],
             ["encoding", encodingPreludeSource],
+            ["webAssembly", wasmPreludeSource],
             ["url", urlPreludeSource],
             [
                 "buffer",

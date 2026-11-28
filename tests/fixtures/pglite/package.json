@@ -6,7 +6,8 @@
     "scripts": {
         "prepare:assets": "node prepare.mjs",
         "test": "node --max-old-space-size=256 --wasm-num-compilation-tasks=1 --test --test-concurrency=1 oracle.test.mjs",
-        "audit:check": "node --max-old-space-size=256 --wasm-num-compilation-tasks=1 audit.mjs --check"
+        "audit:check": "node --max-old-space-size=256 --wasm-num-compilation-tasks=1 audit.mjs --check",
+        "validate:engine": "node --max-old-space-size=256 --wasm-num-compilation-tasks=1 engine-validate.mjs"
     },
     "dependencies": {
         "@electric-sql/pglite": "0.3.14"

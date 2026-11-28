@@ -6,6 +6,9 @@ The [PGlite offline fixture and package audit](../tests/fixtures/pglite/README.m
 pins the upstream WASM/glue requirements and Node reference workloads for #667.
 It does not establish native PGlite support.
 
+The [WebAssembly execution reference](webassembly.md) describes the original
+scalar engine, supported subset, validation, traps and ownership/callback guarantees.
+
 The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) cover API and target limits, [reproducible package probes](../tests/fixtures/completeness/README.md), versioned alternatives, correctness risks and a ranked roadmap. The report separates native Windows x64 and narrower Windows-built WSL2 Linux x64 execution from historical CI and unverified claims. The frozen v0.18.0 comparison and later v0.19.0 release observation are explicit. The [independent review record](completeness-review.md#step-6-final-independent-review) gives the final verdict, reproduced checks and remaining limitations; the [local PR description](completeness-pr.md) records the publication/CI handoff.
 
 | Document                                                   | Contents                                                                                                                                                                           | Language |

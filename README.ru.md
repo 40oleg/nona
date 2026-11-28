@@ -99,6 +99,10 @@ nona --help | --version
 
 **Стандартная библиотека: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (именованные группы, lookbehind, флаги `s`, `u` и `v`, Unicode property escapes, свойства строк), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView и все typed arrays, SharedArrayBuffer и Atomics (с агентами-потоками), Proxy, Reflect и Promise.
 
+**WebAssembly:** original in-process scalar execution, memory, tables, globals
+and JS callbacks. See the [supported subset and lifetime guarantees](docs/webassembly.md).
+PGlite boot and persistent storage are still being implemented.
+
 **`eval` и `Function`** работают, если исходный текст известен при компиляции: строковый литерал, конкатенация литералов или переменная, которой присваиваются только такие константы. Такой код компилируется заранее с полной семантикой прямого и косвенного `eval`. Код, вычисленный во время выполнения, бросает `EvalError`; это единственное намеренное исключение ([контракт](docs/es2020-contract.md)).
 
 **API, совместимые с Node.js.** Они написаны для Nona, а не взяты из Node.js, и покрывают подмножества, описанные по ссылкам. Для HTTP, HTTPS и TCP нужно останавливать запись при `write() === false`, продолжать по `drain` и обрабатывать завершение с error/close; см. [границы буферизации](docs/network.md#write-backpressure).

@@ -4,7 +4,9 @@
 
 - Add an opt-in pinned PGlite 0.3.14 fixture, published WASM/glue audit and offline
   Node oracles for SELECT, clean close, profile reopen, bytea and binary COPY.
-  Native WebAssembly execution and PGlite support remain pending.
+  Add original in-process scalar WebAssembly validation/execution, memory,
+  tables, globals, exact i64 and Emscripten callback modules, with native/Node
+  execution and GC-stress regressions. PGlite boot and persistence remain pending.
   ([#667](https://github.com/40oleg/nona/issues/667))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent

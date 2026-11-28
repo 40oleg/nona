@@ -103,3 +103,11 @@ for the main module and the 28 WASM side modules embedded in `pglite.data`.
 refresh the snapshot after review, use `node --wasm-num-compilation-tasks=1 audit.mjs`.
 Static presence is not evidence that every import or opcode ran in these cases;
 passing Node oracles are not native Nona acceptance evidence.
+
+After the root `npm run build`, `npm run validate:engine` in this fixture runs
+Nona's original source decoder/validator against all 29 pinned modules, comparing
+imports, exports and dylink metadata with Node. It uses the same verified package
+resources and a 256-MiB heap cap, one compilation task and per-module timeouts.
+It does not execute PostgreSQL or establish native PGlite boot. The native
+execution substrate has separate [small fixtures](../wasm/README.md) and
+[documented guarantees](../../../docs/webassembly.md).

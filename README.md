@@ -99,6 +99,10 @@ The output cannot replace any file successfully read for compilation or package 
 
 **Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s`, `u` and `v` flags, Unicode property escapes, properties of strings), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
 
+**WebAssembly:** original in-process scalar execution, memory, tables, globals
+and JS callbacks. See the [supported subset and lifetime guarantees](docs/webassembly.md).
+PGlite boot and persistent storage are still being implemented.
+
 **`eval` and `Function`** work when their source text is known at compile time: a string literal, a concatenation of literals, or a variable only ever given such constants. That source is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception ([contract](docs/es2020-contract.md)).
 
 **Node.js-compatible APIs.** These are written for Nona, not taken from Node.js, and cover the subsets described in the linked pages. HTTP, HTTPS and TCP producers should stop on a false `write()` and resume on `drain`, with terminal error/close handling; see the [buffering limits](docs/network.md#write-backpressure).
