@@ -2,6 +2,10 @@
 
 This directory holds the reference documents. Snapshots written for a particular release or session are in [`history/`](history/README.md). A feature that appears in a plan is not necessarily implemented: see [`roadmap.md`](roadmap.md) for the current status, or the [site's Language support page](https://40oleg.github.io/nona/guide/language-support) for language feature details.
 
+The [PGlite offline fixture and package audit](../tests/fixtures/pglite/README.md)
+pins the upstream WASM/glue requirements and Node reference workloads for #667.
+It does not establish native PGlite support.
+
 The [completeness audit](completeness-audit.md) and [structured inventory](completeness-matrix.json) cover API and target limits, [reproducible package probes](../tests/fixtures/completeness/README.md), versioned alternatives, correctness risks and a ranked roadmap. The report separates native Windows x64 and narrower Windows-built WSL2 Linux x64 execution from historical CI and unverified claims. The frozen v0.18.0 comparison and later v0.19.0 release observation are explicit. The [independent review record](completeness-review.md#step-6-final-independent-review) gives the final verdict, reproduced checks and remaining limitations; the [local PR description](completeness-pr.md) records the publication/CI handoff.
 
 | Document                                                   | Contents                                                                                                                                                                           | Language |

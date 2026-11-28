@@ -1,0 +1,31 @@
+{
+    "observedAt": "2026-11-28",
+    "package": "@electric-sql/pglite",
+    "version": "0.3.14",
+    "registry": "https://registry.npmjs.org/@electric-sql%2fpglite/0.3.14",
+    "tarball": "https://registry.npmjs.org/@electric-sql/pglite/-/pglite-0.3.14.tgz",
+    "integrity": "sha512-3DB258dhqdsArOI1fIt7cb9RpUOgcDg5hXWVgVHAeqVQ/qxtFy605QKs4gx6mFq3jWsSPqDN8TgSEsqC3OfV9Q==",
+    "shasum": "ea464c0bc52435ceba710d3ebd33917e91d893cf",
+    "unpackedSize": 19585238,
+    "fileCount": 323,
+    "license": "Apache-2.0",
+    "repository": "https://github.com/electric-sql/pglite",
+    "repositoryDirectory": "packages/pglite",
+    "registryGitHead": null,
+    "sourceReference": "6b7d56e56429259fb0241ffa17d484af2bddf00a",
+    "sourceReferenceNote": "Issue-provided historical reference, not a registry-attested gitHead. Audit the published bytes and their embedded source maps, identified by resources.json.",
+    "auditTool": "wabt@1.0.39",
+    "auditToolRepository": "https://github.com/AssemblyScript/wabt.js",
+    "supplementalNotices": {
+        "PostgreSQL": "https://github.com/electric-sql/pglite/blob/6b7d56e56429259fb0241ffa17d484af2bddf00a/POSTGRES-LICENSE",
+        "pg-protocol": "https://github.com/electric-sql/pglite/blob/6b7d56e56429259fb0241ffa17d484af2bddf00a/packages/pg-protocol/LICENSE",
+        "async-mutex@0.4.1": {
+            "tarball": "https://registry.npmjs.org/async-mutex/-/async-mutex-0.4.1.tgz",
+            "integrity": "sha512-WfoBo4E/TbCX1G95XTjbWTE3X2XLG0m1Xbv2cwOtuPdyH9CZvnaA5nCt1ucjaKEgW2A5IF71hxrRhr83Je5xjA=="
+        },
+        "tinytar@0.1.0": {
+            "tarball": "https://registry.npmjs.org/tinytar/-/tinytar-0.1.0.tgz",
+            "integrity": "sha512-Ko2BT2VtuszvlWz3fC1y5EJu2pTZ1bf4HvDRh9RhVJbeXXRtoSrWj7ml1RrWp5dA+JRKSlTcYDwFXlm/0fqDuw=="
+        }
+    }
+}

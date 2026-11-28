@@ -1,0 +1,41 @@
+name: PGlite offline oracle
+
+on:
+    pull_request:
+        paths:
+            - "tests/fixtures/pglite/**"
+            - ".github/workflows/pglite-oracle.yml"
+    push:
+        branches: [main]
+        paths:
+            - "tests/fixtures/pglite/**"
+            - ".github/workflows/pglite-oracle.yml"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    oracle:
+        strategy:
+            max-parallel: 1
+            matrix:
+                os: [ubuntu-24.04, windows-latest]
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 5
+        defaults:
+            run:
+                working-directory: tests/fixtures/pglite
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "26.9.0"
+            - name: Install locked fixtures without lifecycle scripts
+              run: npm ci --ignore-scripts --no-audit --no-fund --cache .npm-cache
+            - name: Prepare integrity-checked local resources
+              run: npm run prepare:assets
+            - name: Run serial oracles with network permission denied
+              run: npm test
+            - name: Reproduce published WASM inventory
+              run: npm run audit:check
