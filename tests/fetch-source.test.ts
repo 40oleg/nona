@@ -35,6 +35,9 @@ test("fetch discovery distinguishes globals from bindings and covers computed/op
         ["const object = {fetch: 1}; object.fetch", false],
         ["const object = {fetch};", true],
         ["var fetch; typeof fetch;", true],
+        ["var fetch = fetch; typeof fetch;", true],
+        ["typeof fetch; var fetch = () => 7;", true],
+        ["if (false) { var fetch = () => 7; } fetch();", true],
         ["const object = {}; object[fetch];", true],
         ["switch(1) { case 1: let fetch = () => 7; fetch(); }", false],
         ["switch(fetch) { case 1: let fetch; }", true],
@@ -47,6 +50,12 @@ test("fetch discovery distinguishes globals from bindings and covers computed/op
             source,
         );
     }
+    assert.ok(
+        !builtinModuleRequests(
+            parse(lex("var fetch; typeof fetch;"), { module: true }),
+            host,
+        ).includes("nona:internal/fetch"),
+    );
     const scoped =
         "globalThis.key='crypto'; function unused(){const key='fetch';} console.log(globalThis[key]);";
     assert.ok(
@@ -360,6 +369,59 @@ test("fetch after-EOF abort cannot destroy a request whose socket was released",
     controller.abort();
     await assert.rejects(response.text(), { name: "AbortError" });
     assert.equal(b.requests[0].destroyCalls, 0);
+});
+
+test("fetch body readers preserve falsy abort reasons before and after acquiring a reader", async () => {
+    for (const reason of [null, false, 0, ""]) {
+        for (const acquireBeforeAbort of [false, true]) {
+            const b = boundary();
+            b.setHandler((request) =>
+                b.respond(
+                    request,
+                    request.url.endsWith("/metrics") ? 32 : 524288,
+                ),
+            );
+            const controller = new AbortController();
+            const response = await b.fetch("http://local/", {
+                signal: controller.signal,
+            });
+            let reader = acquireBeforeAbort ? response.body.getReader() : null;
+            controller.abort(reason);
+            if (!reader) reader = response.body.getReader();
+            let closed = false;
+            const closure = reader.closed.catch((failure: unknown) => {
+                assert.equal(failure, reason);
+                closed = true;
+            });
+            await tick();
+            assert.equal(closed, true, "reader.closed must reject on abort");
+            await closure;
+            assert.equal(response.bodyUsed, false);
+            await assert.rejects(
+                reader.cancel(),
+                (failure: unknown) => failure === reason,
+            );
+            assert.equal(response.bodyUsed, true);
+            await assert.rejects(
+                reader.read(),
+                (failure: unknown) => failure === reason,
+            );
+            reader.releaseLock();
+            await assert.rejects(
+                response.body.cancel(),
+                (failure: unknown) => failure === reason,
+            );
+            assert.equal(b.requests[0].destroyCalls, 1);
+            assert.equal(
+                getEventListeners(controller.signal, "abort").length,
+                0,
+            );
+            assert.equal(
+                (await (await b.fetch("http://local/metrics")).text()).length,
+                32,
+            );
+        }
+    }
 });
 
 function storage(b: ReturnType<typeof boundary>, incoming: any) {

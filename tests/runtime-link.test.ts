@@ -71,6 +71,16 @@ test("global fetch is discovered without networking imports", () => {
         run(`globalThis.fetch = () => 42; console.log(fetch());`),
         "42\n",
     );
+    assert.equal(
+        run(`var fetch = fetch; console.log(typeof fetch);`),
+        "function\n",
+    );
+    assert.equal(
+        run(
+            `console.log(typeof fetch); if (false) { var fetch = () => 7; } console.log(typeof fetch);`,
+        ),
+        "function\nfunction\n",
+    );
 });
 
 test("shadowed fetch references and unrelated programs do not link networking", () => {
@@ -80,6 +90,7 @@ test("shadowed fetch references and unrelated programs do not link networking", 
         `function local(fetch) { return fetch(); } console.log(local(() => 7));`,
         `{ let fetch = () => 7; console.log(fetch()); }`,
         `const obj = { fetch: 7 }; console.log(obj.fetch);`,
+        `var fetch; console.log(typeof fetch);`,
     ]) {
         const result = compile(source, {
             fileName: "/app.mjs",

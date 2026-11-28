@@ -27,7 +27,9 @@ clients on **win32-x64 and linux-x64** ([#666](https://github.com/40oleg/nona/is
 No networking import is required in scripts, CommonJS or ES modules. The compiler
 discovers global references, literal/computed property access and immutable
 string keys; the provider evaluates lazily on first access. Local declarations
-still shadow fetch, and unrelated programs do not link networking. Unknown
+still shadow fetch, and unrelated programs do not link networking. A script's
+top-level `var fetch` shares the global property and can read the native function
+before assigning its replacement; module and function vars shadow it. Unknown
 computed callable global access conservatively selects the builtin inventory.
 
 Supported request inputs are absolute HTTP(S) strings and `URL` objects without
@@ -87,6 +89,13 @@ rejects promptly before headers, including in an Agent queue. After headers it
 errors pending reads and already queued web data, even after HTTP EOF; stopping
 public abort-event propagation cannot suppress cleanup. Premature disconnects
 error the body rather than report successful EOF.
+
+The web adapter preserves abort reasons, including `null`, `false`, `0` and an
+empty string, for pending reads and a reader's `closed` promise, also when the
+reader is acquired after abort. Cancelling an errored body rejects with its
+original failure and marks the body used; it does not convert failure into EOF.
+The falsy-reason provider regression in `tests/fetch-source.test.ts` checks these
+terminal states and subsequent request recovery.
 
 `ClientRequest._release()` establishes the Agent handoff by setting `_released`
 and detaching the completed response socket. Fetch checks that ownership flag

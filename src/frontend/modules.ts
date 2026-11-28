@@ -147,18 +147,12 @@ export function builtinModuleRequests(
     const rootDeclarations = hasFetchIdentifier
         ? collectDeclarations(ast.body, "var")
         : { vars: [], lexicals: [], bodyFunctions: [] };
-    const initializedRootVar = rootDeclarations.vars.some((id) => {
-        if (id.name !== "fetch") return false;
-        if ((ast as A.Program).module) return true;
-        for (let outer = parents.get(id); outer; outer = parents.get(outer))
-            if (outer.kind === "Var")
-                return (outer as A.Var).declarations.some(
-                    (d) => boundNames(d.id).includes(id) && d.init !== null,
-                );
-        return false;
-    });
+    // Script var declarations share the global property: their initializers
+    // may read fetch before replacing it, or never execute (e.g. in a branch).
+    // Module vars, like function-local vars, really shadow the global instead.
     const rootShadow =
-        initializedRootVar ||
+        ((ast as A.Program).module &&
+            rootDeclarations.vars.some((id) => id.name === "fetch")) ||
         rootDeclarations.lexicals.some((d) => d.name === "fetch") ||
         rootDeclarations.bodyFunctions.some((fn) => fn.id.name === "fetch") ||
         ast.body.some(

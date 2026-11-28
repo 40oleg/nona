@@ -384,9 +384,10 @@ function readableWeb(stream, options) {
             fail(stream.errored || prematureClose());
     });
     function cancel(reason) {
+        s.disturbed = true;
+        if (s.failed) return rejectPromise(s.failure);
         s.cancelled = true;
         s.closed = true;
-        s.disturbed = true;
         s.queue = [];
         s.length = 0;
         discardSource();
@@ -428,7 +429,7 @@ function readableWeb(stream, options) {
         r.closed.catch(function () {});
         r.reader = reader;
         s.reader = r;
-        if (s.failure) r.rejectClosed(s.failure);
+        if (s.failed) r.rejectClosed(s.failure);
         else if (s.closed) r.resolveClosed();
         function check() {
             if (r.released) throw new TypeError("Reader has been released");
