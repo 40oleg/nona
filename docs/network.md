@@ -1,4 +1,4 @@
-# Networking (`node:http`, `node:net`, `node:tls`, `node:https`)
+# Networking (`node:dns`, `node:http`, `node:net`, `node:tls`, `node:https`)
 
 Nona compiles HTTP/1.1 servers and clients, plain TCP sockets and TLS 1.3
 clients into the executable. The modules follow the Node.js APIs and wire behaviour closely
@@ -17,9 +17,96 @@ const server = http.createServer((req, res) => {
 server.listen(8080, () => console.log("listening on", server.address().port));
 ```
 
-Each module is also available under the `nona:` scheme (`nona:http`,
-`nona:net`, …). Import them from module code (`.mjs` or `--module`); `require`
-is not available.
+HTTP, net, TLS and HTTPS also have `nona:` aliases. Use `node:` imports in
+module code, or literal CommonJS calls such as `require("net")` and
+`require("dns")`; dependencies are resolved at compile time.
+
+## `node:dns`
+
+`dns` and `node:dns` expose the same default object and named `lookup` function
+on linux-x64 and win32-x64. Supported forms are
+`lookup(hostname, callback)`, `lookup(hostname, family, callback)` and
+`lookup(hostname, { family, all }, callback)`, with `family` 0, 4 or 6 and a
+boolean `all`. The callback receives `(null, address, family)`, or with
+`all: true`, `(null, [{ address, family }, ...])`. IPv4 and IPv6 literals
+bypass the family filter. Validation throws synchronously; results arrive on
+the net deferred queue, after the calling stack and queued microtasks. A
+callback exception propagates once and is never retried as a resolver error.
+These contracts are checked in [dns.test.ts](../tests/dns.test.ts).
+
+The public module delegates to net's resolver. The shared resolver rejects
+`invalid` and every `.invalid` subdomain locally, including mixed case and an
+optional final dot, as specified by
+[RFC 6761 section 6.4](https://www.rfc-editor.org/rfc/rfc6761#section-6.4).
+Neither DNS callbacks nor socket connections consult the platform for those
+names; both report `ENOTFOUND` without waiting for OS DNS retries. The direct
+native DNS test and the real pg negative probe require normal exit within a
+10-second parent-process deadline. This guarantee does not apply to ordinary
+hostnames, whose resolution remains synchronous.
+
+Hostname resolution returns
+IPv4 addresses only; requesting family 6 for a hostname fails. Linux reads
+`/etc/hosts` and sends UDP A queries to the first IPv4 nameserver in
+`/etc/resolv.conf`, with two attempts of up to 2.5 seconds each. Search
+suffixes, TCP fallback and a DNS cache are not implemented. Windows calls
+Winsock `getaddrinfo`. Resolution itself is synchronous and blocks the event loop:
+an in-process JavaScript timer cannot interrupt it. Windows OS resolver
+timeouts can exceed 10 seconds. Resolver failure reports an `Error` with
+`code: 'ENOTFOUND'`, `errno: -3008`, `syscall: 'getaddrinfo'` and `hostname`.
+No `resolve*`, reverse lookup, promises API, custom servers, hints or
+address-order options are supported. Unknown options are rejected.
+
+The pinned [pg 8.16.3 DNS call](https://github.com/brianc/node-postgres/blob/pg%408.16.3/packages/pg/lib/connection-parameters.js)
+loads `dns` eagerly and uses `lookup(host, callback)` only in
+`getLibpqConnectionString`. The regular JavaScript Client connects through
+`net`; it does not use libpq. The callback implementation is unchanged by the
+real-package verification.
+
+### PostgreSQL integration evidence (#665)
+
+[The redistributable fixture](../tests/fixtures/postgres/README.md) pins actual
+`pg@8.16.3` and `pg-copy-streams@7.0.0`, with an integrity-checked transitive
+lockfile separate from compiler dependencies. The required hosted Linux job
+uses PostgreSQL 17.6 with explicit non-TLS TCP and disposable trust
+authentication. Positive stages run Node and the compiled ELF independently.
+The unknown `.invalid` connection checks Nona's deterministic rejection with
+a 10-second parent deadline; a kill or missing observed connection error
+fails. Node's OS-controlled negative lookup is not used as a deadline oracle.
+The job maps `nona-postgres.test` to loopback in `/etc/hosts`: public
+`dns.lookup` and pg connections must resolve this name through the platform,
+and required ELF integration rejects `localhost` and IP-literal hostname
+configurations. Missing dependencies or service also fail. JSON records,
+executables and server/test logs are retained.
+
+On 2026-11-28, compiler revision `df09199901394f8d7cc3244ee92fdca8d7a9727a`
+with the new fixture passed these Windows x64 and Node 26.9.0 controls against
+PostgreSQL 17.6 (MSVC 19.44.35213):
+
+| Stage                                                                        | Node            | Native Windows  | Linux ELF       |
+| ---------------------------------------------------------------------------- | --------------- | --------------- | --------------- |
+| Load actual `dns`, `pg.Client`, `pg-copy-streams.from`                       | passed          | passed          | not run locally |
+| Actual pinned pg DNS callback                                                | passed          | passed          | not run locally |
+| Hostname and IPv4 connection/query                                           | passed          | passed          | not run locally |
+| Cyrillic `SELECT $1::text`, visible insert and ROLLBACK to zero rows         | passed          | passed          | not run locally |
+| Multi-chunk COPY, false/drain, exact bytea and row count, query after finish | passed          | passed          | not run locally |
+| Unknown `.invalid` host within 10 seconds                                    | failed deadline | failed deadline | not run locally |
+
+The Node negative control reported `timeout expired` before its process
+exceeded the deadline; native Windows exceeded it without output. Neither
+is counted as success. Windows has no WSL/Docker here, so the issue's ELF
+acceptance criteria remain **incomplete pending hosted Linux evidence**.
+This is bounded fixture coverage, not a general pg/TLS/authentication claim.
+
+A review followup on the same date, based on `8227c9ff` with the reserved-name
+fix, passed all **33 focused DNS/net tests** and all **22 PostgreSQL tests**
+on Windows, without skips. The native pg negative probe exited normally with
+`ENOTFOUND` below the 10-second deadline. Positive public DNS/pg connections
+used the machine's real hostname through Winsock as well as an IPv4 literal;
+the Node/native Cyrillic, rollback and COPY controls also passed. The temporary
+server was stopped. Node's live negative lookup had independently exceeded
+10 seconds, so the final negative tests check the fixed reserved-name result
+directly. The earlier failures above remain the historical baseline; Linux
+ELF execution still awaits hosted evidence.
 
 ## `node:http`
 
@@ -189,11 +276,12 @@ Not supported: HTTP/2, `headersTimeout` and
 Errors are `Error` objects with the Node.js `code`, `errno`, `syscall`,
 `address` and `port`, and the same messages (`connect ECONNREFUSED
 127.0.0.1:1`, `listen EADDRINUSE: address already in use 127.0.0.1:8080`).
-Host names are resolved synchronously: `localhost` is `127.0.0.1`; on Linux the
+Host names are resolved synchronously: `localhost` is `127.0.0.1`; reserved
+`.invalid` names are rejected locally, as described under [DNS](#nodedns). On Linux the
 module reads `/etc/hosts` and then asks the first `nameserver` of
 `/etc/resolv.conf` (IPv4 `A` records over UDP); on Windows it calls
 `getaddrinfo`. A failed lookup is `ENOTFOUND` with `syscall: 'getaddrinfo'`.
-Not supported: IPC paths, `node:dns`, `autoSelectFamily` (a host name connects
+Not supported: IPC paths, `autoSelectFamily` (a host name connects
 to its first IPv4 address).
 
 ## `node:tls`

@@ -17,6 +17,7 @@ import { stringDecoderModuleSource } from "./string-decoder-module.js";
 import { nativeModuleSource } from "./native-module.js";
 import { jsonModuleSource } from "./json-module.js";
 import { netModuleSource } from "./net-module.js";
+import { dnsModuleSource } from "./dns-module.js";
 import { childProcessModuleSource } from "./child-process-module.js";
 import { httpModuleSource } from "./http-module.js";
 import { pathCoreSourceForTarget, pathModuleSource } from "./path-module.js";
@@ -184,6 +185,7 @@ const sources = new Map<string, (target: Target) => string>([
     ),
     ["nona:zlib", () => aliasOf("node:zlib")],
     ["node:net", netModuleSource],
+    ["node:dns", dnsModuleSource],
     ["nona:net", () => aliasOf("node:net")],
     ["node:child_process", childProcessModuleSource],
     ["nona:child_process", () => aliasOf("node:child_process")],
@@ -218,6 +220,7 @@ function builtinInventory(
         if (
             [
                 "node:net",
+                "node:dns",
                 "nona:net",
                 "node:http",
                 "nona:http",

@@ -4,6 +4,8 @@
 
 Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译器的一部分：原生运行时和小型 JavaScript 前导代码会编译进每个可执行文件，内置模块则在程序导入时编译进去。
 
+`dns` 和 `node:dns` 在 Linux/Windows x64 上提供回调式 `lookup`。参见 [DNS 限制与 PostgreSQL 验证结果](/reference/network#node-dns)。
+
 ## 概览
 
 | API                                                                                                                                                                                                                                                                                        | 类型           | 目标平台                             | 参考                                                                       |

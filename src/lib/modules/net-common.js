@@ -216,7 +216,13 @@ function lookup(host) {
     const name = String(host).toLowerCase();
     if (name === "localhost" || name.endsWith(".localhost"))
         return [{ address: "127.0.0.1", family: 4 }];
-    const found = sys.lookup(name);
+    // RFC 6761 section 6.4: invalid and its subdomains never exist. Reject
+    // them locally so DNS and socket errors cannot wait on OS DNS retries.
+    const absolute = name.endsWith(".") ? name.slice(0, -1) : name;
+    const found =
+        absolute === "invalid" || absolute.endsWith(".invalid")
+            ? []
+            : sys.lookup(name);
     if (found.length === 0) {
         const error = new Error("getaddrinfo ENOTFOUND " + host);
         error.errno = -3008;

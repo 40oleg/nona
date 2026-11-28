@@ -4,6 +4,8 @@ A [auditoria de completude](/reference/completeness-audit) (em inglês) registra
 
 Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compilador: o runtime nativo e pequenos prelúdios JavaScript são compilados em cada executável, e os módulos embutidos são compilados quando um programa os importa.
 
+`dns` e `node:dns` oferecem `lookup` com callback em Linux/Windows x64. Consulte os [limites DNS e resultados PostgreSQL](/reference/network#node-dns).
+
 ## Visão geral
 
 | API                                                                                                                                                                                                                                                                                             | Tipo              | Alvos                                         | Referência                                                                                                                                |
