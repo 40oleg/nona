@@ -23,27 +23,45 @@ export function lookup(hostname, options, callback) {
     }
     // Validate before scheduling or resolving; resolution errors use callbacks.
     if (typeof callback !== "function")
-        throw argumentError("ERR_INVALID_ARG_TYPE", "callback must be a function");
+        throw argumentError(
+            "ERR_INVALID_ARG_TYPE",
+            "callback must be a function",
+        );
     if (typeof hostname !== "string" || hostname.length === 0)
-        throw argumentError("ERR_INVALID_ARG_VALUE", "hostname must be a non-empty string");
+        throw argumentError(
+            "ERR_INVALID_ARG_VALUE",
+            "hostname must be a non-empty string",
+        );
     let family = 0;
     let all = false;
     if (typeof options === "number") family = options;
     else if (options !== undefined) {
         if (options === null || typeof options !== "object")
-            throw argumentError("ERR_INVALID_ARG_TYPE", "options must be a number or object");
+            throw argumentError(
+                "ERR_INVALID_ARG_TYPE",
+                "options must be a number or object",
+            );
         for (const key of Object.keys(options))
             if (key !== "family" && key !== "all")
-                throw argumentError("ERR_INVALID_ARG_VALUE", "unsupported dns.lookup option: " + key);
+                throw argumentError(
+                    "ERR_INVALID_ARG_VALUE",
+                    "unsupported dns.lookup option: " + key,
+                );
         if (options.family !== undefined) family = options.family;
         if (options.all !== undefined) {
             if (typeof options.all !== "boolean")
-                throw argumentError("ERR_INVALID_ARG_TYPE", "options.all must be a boolean");
+                throw argumentError(
+                    "ERR_INVALID_ARG_TYPE",
+                    "options.all must be a boolean",
+                );
             all = options.all;
         }
     }
     if (family !== 0 && family !== 4 && family !== 6)
-        throw argumentError("ERR_INVALID_ARG_VALUE", "family must be 0, 4 or 6");
+        throw argumentError(
+            "ERR_INVALID_ARG_VALUE",
+            "family must be 0, 4 or 6",
+        );
 
     _internal.defer(() => {
         let addresses;
@@ -53,7 +71,9 @@ export function lookup(hostname, options, callback) {
             addresses = _internal.lookup(hostname);
             // Like Node, IP literals bypass the requested family filter.
             if (family !== 0 && !isIP(hostname))
-                addresses = addresses.filter((entry) => entry.family === family);
+                addresses = addresses.filter(
+                    (entry) => entry.family === family,
+                );
             if (addresses.length === 0) throw notFound(hostname);
         } catch (failure) {
             error = failure;

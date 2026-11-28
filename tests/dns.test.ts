@@ -80,7 +80,9 @@ test("dns filters hostname families and returns all resolver addresses", () => {
     ];
     const { lookup, tasks } = boundary(() => addresses);
     const results: unknown[][] = [];
-    lookup("host", { all: true, family: 4 }, (...args: unknown[]) => results.push(args));
+    lookup("host", { all: true, family: 4 }, (...args: unknown[]) =>
+        results.push(args),
+    );
     tasks.shift()!();
     assert.deepEqual(results, [[null, addresses]]);
     lookup("host", 6, (error: any) => {
@@ -135,7 +137,10 @@ console.log('returned');
     assert.equal(native.status, 0, native.stderr);
     assert.equal(oracleStatus, 0);
     assert.equal(native.stdout, oracle);
-    assert.equal(native.stdout, "function true true\nreturned\nmicrotask\nv4 true true 127.0.0.1 4\nv6 true ::1 6\nall true [{\"address\":\"127.0.0.1\",\"family\":4}]\nhost true 127.0.0.1 4\npg true hostaddr='127.0.0.1'\n");
+    assert.equal(
+        native.stdout,
+        'function true true\nreturned\nmicrotask\nv4 true true 127.0.0.1 4\nv6 true ::1 6\nall true [{"address":"127.0.0.1","family":4}]\nhost true 127.0.0.1 4\npg true hostaddr=\'127.0.0.1\'\n',
+    );
 });
 
 test("dns negative lookup finishes within a host-enforced 10 seconds with error metadata", () => {
@@ -151,22 +156,37 @@ lookup(host, (error, address, family) => {
 returned = true;
 `;
     // A timer inside the compiled program cannot interrupt synchronous DNS.
-    const { native } = runModulesOnHost(
-        { "main.mjs": source },
-        "main.mjs",
-        { gcStress: false, timeoutMs: 10_000, oracleSource: "" },
-    );
-    const oracle = spawnSync(process.execPath, ["--input-type=module", "-e", source], {
-        encoding: "utf8",
-        timeout: 10_000,
-        windowsHide: true,
+    const { native } = runModulesOnHost({ "main.mjs": source }, "main.mjs", {
+        gcStress: false,
+        timeoutMs: 10_000,
+        oracleSource: "",
     });
-    assert.equal(native.error, undefined, native.error?.message ?? "native deadline");
+    const oracle = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", source],
+        {
+            encoding: "utf8",
+            timeout: 10_000,
+            windowsHide: true,
+        },
+    );
+    assert.equal(
+        native.error,
+        undefined,
+        native.error?.message ?? "native deadline",
+    );
     assert.equal(native.status, 0, native.stderr);
-    assert.equal(oracle.error, undefined, oracle.error?.message ?? "oracle deadline");
+    assert.equal(
+        oracle.error,
+        undefined,
+        oracle.error?.message ?? "oracle deadline",
+    );
     assert.equal(oracle.status, 0, oracle.stderr);
     assert.equal(native.stdout, oracle.stdout);
-    assert.equal(native.stdout, "true true ENOTFOUND -3008 getaddrinfo true true true true\ncalls 1\n");
+    assert.equal(
+        native.stdout,
+        "true true ENOTFOUND -3008 getaddrinfo true true true true\ncalls 1\n",
+    );
 });
 
 test("dns callback exceptions propagate from the compiled event loop exactly once", () => {

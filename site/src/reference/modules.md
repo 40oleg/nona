@@ -4,6 +4,8 @@ The [completeness audit](/reference/completeness-audit) records API limits, boun
 
 Nona programs run without Node.js. The host APIs below are part of the compiler: the native runtime and small JavaScript preludes are compiled into every executable, and built-in modules are compiled in when a program imports them.
 
+`dns` and `node:dns` expose callback `lookup` on Linux/Windows x64. See [DNS limits and PostgreSQL integration evidence](/reference/network#node-dns).
+
 ## Overview
 
 | API                                                                                                                                                                                                                                                                             | Kind                | Targets                                                                      | Reference                                                                                                          |

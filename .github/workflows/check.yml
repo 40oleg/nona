@@ -141,6 +141,68 @@ jobs:
             - run: npm run build
             - name: Verify DNS callback contracts and existing net behavior
               run: node --test --test-concurrency=1 dist/tests/dns.test.js dist/tests/net.test.js dist/tests/net-send-source.test.js
+    postgres:
+        # Required real-package ELF integration (#665); never runs on the owner's PC.
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        services:
+            postgres:
+                image: postgres:17.6
+                env:
+                    POSTGRES_USER: nona
+                    POSTGRES_DB: nona
+                    POSTGRES_PASSWORD: nona-test-only
+                    # Disposable loopback-only test service; no TLS/auth compatibility claim.
+                    POSTGRES_HOST_AUTH_METHOD: trust
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U nona -d nona"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 12
+        env:
+            NONA_POSTGRES_TESTS: "1"
+            NONA_POSTGRES_REQUIRE_ELF: "1"
+            NONA_PG_HOST: localhost
+            NONA_PG_PORT: "5432"
+        steps:
+            - uses: actions/checkout@v4
+            - name: Verify hosted runner
+              run: test '${{ runner.environment }}' = github-hosted
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - name: Install isolated real-package fixture
+              run: npm ci --ignore-scripts --prefix tests/fixtures/postgres
+            - name: Verify server readiness, authentication and version
+              env:
+                  PGPASSWORD: nona-test-only
+                  PGSSLMODE: disable
+              run: |
+                  mkdir -p work/postgres-evidence
+                  pg_isready -h 127.0.0.1 -U nona -d nona | tee work/postgres-evidence/readiness.log
+                  psql -h 127.0.0.1 -U nona -d nona -Atc 'SELECT version()' | tee work/postgres-evidence/server-version.txt
+                  echo "NONA_PG_SERVER_VERSION=$(cat work/postgres-evidence/server-version.txt)" >> "$GITHUB_ENV"
+            - run: npm run build
+            - name: Verify DNS, PostgreSQL transactions and COPY serially
+              shell: bash
+              run: |
+                  set -o pipefail
+                  node --test --test-concurrency=1 dist/tests/dns.test.js dist/tests/postgres.test.js 2>&1 | tee work/postgres-evidence/tests.log
+            - name: Retain service logs
+              if: always()
+              run: |
+                  mkdir -p work/postgres-evidence
+                  docker logs '${{ job.services.postgres.id }}' > work/postgres-evidence/server.log 2>&1
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: postgres-linux-evidence
+                  path: work/postgres-evidence/
+                  if-no-files-found: error
     windows-compare:
         # Oracle comparison and the Test262 smoke manifest on Windows.
         needs: route
