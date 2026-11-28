@@ -157,6 +157,7 @@
             for (var i = 0; i < aliases.length; i++) {
                 builtinModules[aliases[i]] = index;
                 if (aliases[i] === "node:crypto") installWebCrypto();
+                if (aliases[i] === "nona:internal/fetch") installFetch();
             }
     };
     // The global crypto (Web Crypto) is node:crypto's webcrypto. The compiler
@@ -175,6 +176,29 @@
         );
         accessor.enumerable = true;
         defineProperty(globalThis, "crypto", accessor);
+    }
+    function installFetch() {
+        if (hasOwn.call(globalThis, "fetch")) return;
+        var accessor = reflectGetOwn(
+            {
+                get fetch() {
+                    return __nonaRegexpVm.getBuiltinModule(
+                        "nona:internal/fetch",
+                    );
+                },
+                set fetch(value) {
+                    defineProperty(globalThis, "fetch", {
+                        value: value,
+                        writable: true,
+                        enumerable: true,
+                        configurable: true,
+                    });
+                },
+            },
+            "fetch",
+        );
+        accessor.enumerable = true;
+        defineProperty(globalThis, "fetch", accessor);
     }
     var scriptRecord;
     __nonaRegexpVm.registerScript = function (path, specifiers, targets) {

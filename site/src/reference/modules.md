@@ -4,6 +4,8 @@ The [completeness audit](/reference/completeness-audit) records API limits, boun
 
 Nona programs run without Node.js. The host APIs below are part of the compiler: the native runtime and small JavaScript preludes are compiled into every executable, and built-in modules are compiled in when a program imports them.
 
+Global `fetch` is available without networking imports on Windows x64 and Linux x64 in scripts, CommonJS and ES modules. It supports JSON/binary uploads, redirects, cancellation and incremental response streams with 16 KiB byte queues. Consume or cancel every response body, including 401 responses; the application controls reauthentication. See the [Fetch subset and ownership guarantees](/reference/network#global-fetch).
+
 ## Overview
 
 | API                                                                                                                                                                                                                                                                             | Kind                | Targets                                                                      | Reference                                                                                                          |

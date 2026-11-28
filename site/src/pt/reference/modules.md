@@ -4,6 +4,8 @@ A [auditoria de completude](/reference/completeness-audit) (em inglês) registra
 
 Os programas Nona rodam sem Node.js. As APIs do host abaixo fazem parte do compilador: o runtime nativo e pequenos prelúdios JavaScript são compilados em cada executável, e os módulos embutidos são compilados quando um programa os importa.
 
+O `fetch` global está disponível sem importar módulos de rede no Windows x64 e Linux x64, em scripts, CommonJS e módulos ES. Suporta JSON, corpos binários, redirecionamentos, cancelamento e leitura incremental com filas de 16 KiB. Consuma ou cancele cada corpo de resposta, incluindo 401; a aplicação controla a reautenticação. Consulte o [subconjunto Fetch e a gestão de respostas](/reference/network#global-fetch) (em inglês).
+
 ## Visão geral
 
 | API                                                                                                                                                                                                                                                                                             | Tipo              | Alvos                                         | Referência                                                                                                                                |

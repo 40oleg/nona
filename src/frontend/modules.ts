@@ -1,6 +1,6 @@
 import { lowerDynamicFunctions } from "./dynamic-functions.js";
 import { lowerLiteralEval } from "./eval-aot.js";
-import { boundNames } from "./declarations.js";
+import { boundNames, collectDeclarations } from "./declarations.js";
 import { CompileError } from "../diagnostics.js";
 import type * as A from "./ast.js";
 import {
@@ -117,7 +117,200 @@ export function builtinModuleRequests(
         getterNames = new Set<string>();
     let computed = false,
         lookup = false;
+    // Discovery happens before binding. Track lexical/var scopes so a local
+    // fetch (or a property named fetch) cannot select the networking provider.
+    const parents = new Map<A.Node, A.Node | undefined>();
+    walk(ast.body, (node, parent) => parents.set(node, parent));
+    const hasFetchIdentifier = [...parents.keys()].some(
+        (node) =>
+            node.kind === "Identifier" &&
+            (node as A.Identifier).name === "fetch",
+    );
+    const fetchShadows: A.Node[] = [];
+    const shadows = (pattern: A.BindingPattern | null | undefined) =>
+        !!pattern && boundNames(pattern).some((id) => id.name === "fetch");
+    const declaresFetch = (body: A.Statement[], vars: boolean) => {
+        if (!hasFetchIdentifier) return false;
+        const declarations = collectDeclarations(
+            body,
+            vars ? "var" : "lexical",
+        );
+        return (
+            declarations.lexicals.some((d) => d.name === "fetch") ||
+            (vars &&
+                (declarations.vars.some((id) => id.name === "fetch") ||
+                    declarations.bodyFunctions.some(
+                        (fn) => fn.id.name === "fetch",
+                    )))
+        );
+    };
+    const rootDeclarations = hasFetchIdentifier
+        ? collectDeclarations(ast.body, "var")
+        : { vars: [], lexicals: [], bodyFunctions: [] };
+    // Script var declarations share the global property: their initializers
+    // may read fetch before replacing it, or never execute (e.g. in a branch).
+    // Module vars, like function-local vars, really shadow the global instead.
+    const rootShadow =
+        ((ast as A.Program).module &&
+            rootDeclarations.vars.some((id) => id.name === "fetch")) ||
+        rootDeclarations.lexicals.some((d) => d.name === "fetch") ||
+        rootDeclarations.bodyFunctions.some((fn) => fn.id.name === "fetch") ||
+        ast.body.some(
+            (node) =>
+                node.kind === "Import" &&
+                node.specifiers.some((s) => s.local.name === "fetch"),
+        );
+    const bindingIds = new Set<A.Identifier>();
+    // Resolve keys through the nearest declaration, not a file-wide name count.
+    // A nonconstant inner binding must also hide an outer constant.
+    const scopeBindings = new Map<
+        A.Node | undefined,
+        Map<string, A.Identifier>
+    >();
+    const enclosingScope = (node: A.Node, vars = false) => {
+        for (let outer = parents.get(node); outer; outer = parents.get(outer)) {
+            if (
+                vars &&
+                (outer.kind === "Function" ||
+                    outer.kind === "FunctionExpression")
+            )
+                return (outer as A.FunctionNode).body;
+            if (
+                !vars &&
+                ["Block", "For", "ForIn", "ForOf", "Switch"].includes(
+                    outer.kind,
+                )
+            )
+                return outer;
+        }
+        return undefined;
+    };
+    const remember = (
+        pattern: A.BindingPattern | null | undefined,
+        scope: A.Node | undefined,
+    ) => {
+        if (!pattern) return;
+        let bindings = scopeBindings.get(scope);
+        if (!bindings) scopeBindings.set(scope, (bindings = new Map()));
+        for (const id of boundNames(pattern)) {
+            bindingIds.add(id);
+            bindings.set(id.name, id);
+        }
+    };
+    walk(ast.body, (node) => {
+        if (node.kind === "Var")
+            for (const d of (node as A.Var).declarations)
+                remember(
+                    d.id,
+                    enclosingScope(
+                        node,
+                        (node as A.Var).declarationKind === "var",
+                    ),
+                );
+        if (
+            node.kind === "Block" &&
+            declaresFetch((node as A.Block).body, false)
+        )
+            fetchShadows.push(node);
+        if (node.kind === "Function" || node.kind === "FunctionExpression") {
+            const fn = node as A.FunctionNode;
+            remember(
+                fn.id,
+                node.kind === "FunctionExpression"
+                    ? node
+                    : enclosingScope(node),
+            );
+            fn.parameters.forEach((parameter) => remember(parameter, node));
+            remember(fn.rest, node);
+            if (
+                shadows(fn.id) ||
+                fn.parameters.some(shadows) ||
+                shadows(fn.rest)
+            )
+                fetchShadows.push(node);
+            // Body vars are outside the parameter-default environment.
+            if (declaresFetch(fn.body.body, true)) fetchShadows.push(fn.body);
+        } else if (node.kind === "Try") {
+            const clause = node as A.Try;
+            remember(clause.parameter, clause.handler ?? undefined);
+            if (shadows(clause.parameter) && clause.handler)
+                fetchShadows.push(clause.handler);
+        } else if (node.kind === "Switch") {
+            if (
+                declaresFetch(
+                    (node as A.Switch).cases.flatMap((clause) => clause.body),
+                    false,
+                )
+            )
+                for (const clause of (node as A.Switch).cases) {
+                    if (clause.test) fetchShadows.push(clause.test);
+                    fetchShadows.push(...clause.body);
+                }
+        } else if (["For", "ForIn", "ForOf"].includes(node.kind)) {
+            const loop = node as A.For | A.ForIn | A.ForOf;
+            const declaration = loop.kind === "For" ? loop.init : loop.left;
+            if (
+                declaration?.kind === "Var" &&
+                declaration.declarationKind !== "var" &&
+                declaration.declarations.some((d) => shadows(d.id))
+            )
+                fetchShadows.push(node);
+        } else if (node.kind === "ClassExpression" || node.kind === "Class") {
+            remember(
+                (node as A.ClassExpression).id,
+                node.kind === "ClassExpression" ? node : enclosingScope(node),
+            );
+            if (
+                node.kind === "ClassExpression" &&
+                shadows((node as A.ClassExpression).id)
+            )
+                fetchShadows.push(node);
+        } else if (node.kind === "Import")
+            for (const s of (node as A.ImportDeclaration).specifiers)
+                remember(s.local, undefined);
+    });
+    const fetchReference = (node: A.Node) => {
+        if (rootShadow || bindingIds.has(node as A.Identifier)) return false;
+        for (
+            let outer: A.Node | undefined = node;
+            outer;
+            outer = parents.get(outer)
+        )
+            if (fetchShadows.includes(outer)) return false;
+        const parent = parents.get(node);
+        if (
+            parent?.kind === "ObjectLiteral" &&
+            (parent as A.ObjectLiteral).properties.some(
+                (p) =>
+                    "key" in p &&
+                    p.key === node &&
+                    !p.computed &&
+                    p.value !== node,
+            )
+        )
+            return false;
+        return parent?.kind !== "Import";
+    };
+    const constantStrings = new Map<A.Identifier, string>();
     const text = (expression: A.Expression): string | undefined => {
+        if (expression.kind === "Identifier") {
+            for (
+                let child: A.Node = expression, outer = parents.get(child);
+                ;
+                child = outer!, outer = parents.get(outer!)
+            ) {
+                // The discriminant evaluates before the case lexical
+                // environment is created; case tests evaluate inside it.
+                if (
+                    outer?.kind === "Switch" &&
+                    (outer as A.Switch).discriminant === child
+                )
+                    continue;
+                const binding = scopeBindings.get(outer)?.get(expression.name);
+                if (binding) return constantStrings.get(binding);
+                if (!outer) return undefined;
+            }
+        }
         if (
             expression.kind === "Literal" &&
             typeof expression.value === "string"
@@ -132,6 +325,18 @@ export function builtinModuleRequests(
         }
         return undefined;
     };
+    // Resolve immutable string keys without selecting the entire builtin
+    // inventory for common computed global access, e.g. const key = 'fetch'.
+    walk(ast.body, (node) => {
+        if (node.kind !== "Var" || (node as A.Var).declarationKind !== "const")
+            return;
+        for (const declaration of (node as A.Var).declarations) {
+            if (declaration.id.kind !== "Identifier" || !declaration.init)
+                continue;
+            const value = text(declaration.init);
+            if (value !== undefined) constantStrings.set(declaration.id, value);
+        }
+    });
     for (const statement of ast.body)
         if (
             statement.kind === "Import" &&
@@ -354,6 +559,16 @@ export function builtinModuleRequests(
                 text((node as A.Member).property) === "crypto")
         )
             literals.add("node:crypto");
+        // Global fetch is a lazy provider over the native HTTP/TLS modules.
+        if (
+            (node.kind === "Identifier" &&
+                (node as A.Identifier).name === "fetch" &&
+                fetchReference(node)) ||
+            (node.kind === "Member" &&
+                globalObject((node as A.Member).object) &&
+                text((node as A.Member).property) === "fetch")
+        )
+            literals.add("nona:internal/fetch");
         if (
             ["Identifier", "Member", "Call"].includes(node.kind) &&
             processObject(node as A.Expression)
@@ -468,6 +683,12 @@ export function builtinModuleRequests(
                     unknown ? undefined : text(key as A.Expression),
                 );
                 if (
+                    globalObject(object) &&
+                    !unknown &&
+                    text(key as A.Expression) === "fetch"
+                )
+                    literals.add("nona:internal/fetch");
+                if (
                     processObject(object) &&
                     (unknown ||
                         text(key as A.Expression) === "getBuiltinModule")
@@ -489,6 +710,13 @@ export function builtinModuleRequests(
                 const link = chain.links[i]!;
                 if (i === 0 && link.kind === "property")
                     selectIO(chain.base, text(link.property));
+                if (
+                    i === 0 &&
+                    link.kind === "property" &&
+                    globalObject(chain.base) &&
+                    text(link.property) === "fetch"
+                )
+                    literals.add("nona:internal/fetch");
                 if (
                     link.kind === "property" &&
                     text(link.property) === "getBuiltinModule"

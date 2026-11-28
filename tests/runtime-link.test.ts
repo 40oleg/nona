@@ -51,6 +51,66 @@ function run(source: string, options: Partial<CompileOptions> = {}): string {
     }
 }
 
+test("global fetch is discovered without networking imports", () => {
+    const source = `console.log(typeof fetch, typeof globalThis.fetch, typeof globalThis['fet' + 'ch']);`;
+    assert.equal(run(source), "function function function\n");
+    assert.equal(run(source, { module: true }), "function function function\n");
+    assert.equal(
+        run(source, { fileName: "/app.cjs" }),
+        "function function function\n",
+    );
+    assert.equal(
+        run(`const key = 'fetch'; console.log(typeof globalThis[key]);`),
+        "function\n",
+    );
+    assert.equal(
+        run(`fetch('file:///unsupported').catch(e => console.log(e.name));`),
+        "TypeError\n",
+    );
+    assert.equal(
+        run(`globalThis.fetch = () => 42; console.log(fetch());`),
+        "42\n",
+    );
+    assert.equal(
+        run(`var fetch = fetch; console.log(typeof fetch);`),
+        "function\n",
+    );
+    assert.equal(
+        run(
+            `console.log(typeof fetch); if (false) { var fetch = () => 7; } console.log(typeof fetch);`,
+        ),
+        "function\nfunction\n",
+    );
+});
+
+test("shadowed fetch references and unrelated programs do not link networking", () => {
+    for (const source of [
+        `console.log('hello');`,
+        `const fetch = () => 7; console.log(fetch());`,
+        `function local(fetch) { return fetch(); } console.log(local(() => 7));`,
+        `{ let fetch = () => 7; console.log(fetch()); }`,
+        `const obj = { fetch: 7 }; console.log(obj.fetch);`,
+        `var fetch; console.log(typeof fetch);`,
+    ]) {
+        const result = compile(source, {
+            fileName: "/app.mjs",
+            module: true,
+            target: requireHostTarget(),
+            reportLink: true,
+        });
+        assert.ok(
+            result.ok,
+            result.ok ? "" : JSON.stringify(result.diagnostics),
+        );
+        assert.ok(
+            !result.linked?.some((part) => part.part === "network"),
+            JSON.stringify(result.linked),
+        );
+    }
+    assert.equal(run(`const fetch = () => 7; console.log(fetch());`), "7\n");
+    assert.equal(run(`var fetch = () => 7; console.log(fetch());`), "7\n");
+});
+
 test("programs that use RegExp and normalization behave as before", () => {
     const source = String.raw`
 console.log("a1b22c333".replace(/\d+/g, n => "[" + n.length + "]"));

@@ -83,6 +83,11 @@ function destroyWebStream(value, reason) {
     if (typeof vm.destroyBufferWebStream === "function")
         vm.destroyBufferWebStream(value, reason);
 }
+// Internal consumers such as fetch must also error bytes already queued in the
+// web adapter after the source reached EOF. Destroying that source alone cannot.
+define(Readable, Symbol.for("nona.stream.web.internal"), {
+    value: { destroy: destroyWebStream },
+});
 function finishedWeb(value, options, callback) {
     var called = false,
         subscription = null,
@@ -356,11 +361,12 @@ function readableWeb(stream, options) {
         });
     }
     function fail(reason) {
-        if (s.closed || s.cancelled) return;
+        if (s.closed || s.cancelled || s.failed) return;
         s.failed = true;
         s.failure = reason;
         s.queue = [];
         s.length = 0;
+        discardSource();
         if (s.reader) s.reader.rejectClosed(reason);
         settle();
         notifyWeb(s);
@@ -378,11 +384,13 @@ function readableWeb(stream, options) {
             fail(stream.errored || prematureClose());
     });
     function cancel(reason) {
+        s.disturbed = true;
+        if (s.failed) return rejectPromise(s.failure);
         s.cancelled = true;
         s.closed = true;
-        s.disturbed = true;
         s.queue = [];
         s.length = 0;
+        discardSource();
         if (s.reader) s.reader.resolveClosed();
         settle();
         notifyWeb(s);
@@ -394,6 +402,14 @@ function readableWeb(stream, options) {
             stream.once("close", resolve);
             stream.destroy(reason === undefined ? abortError() : reason);
         });
+    }
+    function discardSource() {
+        // The adapter owns this paused source. Once the web body is terminal,
+        // neither its queue nor the source's unread bytes can be consumed.
+        var input = readableState(stream);
+        input.queue = [];
+        input.length = 0;
+        input.decoder = null;
     }
     function getReader(settings) {
         settings = optionsOf(settings);
@@ -413,7 +429,7 @@ function readableWeb(stream, options) {
         r.closed.catch(function () {});
         r.reader = reader;
         s.reader = r;
-        if (s.failure) r.rejectClosed(s.failure);
+        if (s.failed) r.rejectClosed(s.failure);
         else if (s.closed) r.resolveClosed();
         function check() {
             if (r.released) throw new TypeError("Reader has been released");
