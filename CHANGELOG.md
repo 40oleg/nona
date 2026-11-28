@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Keep continuous child stdout from starving GUI input and timers. Bound GUI
+  fixture startup separately from interaction, use native checkbox input on GTK
+  4.14, and retain Xvfb window captures when compositor presentation feedback is
+  unavailable ([#664](https://github.com/40oleg/nona/issues/664)).
+
 - Fix GUI CI regressions: keep GTK out of computed console built-in discovery,
   realign private SysV calls for Linux entry, and repair desktop fixture builds
   and fresh-checkout validation ([#664](https://github.com/40oleg/nona/issues/664)).

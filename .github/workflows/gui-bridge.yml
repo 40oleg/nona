@@ -6,6 +6,7 @@ on:
             - "tests/gui-bridge.test.ts"
             - "tests/gui-elements.test.ts"
             - "tests/gui-controls.test.ts"
+            - "tests/child-process-fairness.test.ts"
             - "tests/helpers/gui-native.ts"
             - "tests/helpers/gui-render-native.ts"
             - "tests/helpers/gui-controls-native.ts"
@@ -54,7 +55,7 @@ jobs:
                   GSK_RENDERER: cairo
               run: |
                   set -o pipefail
-                  timeout 10m xvfb-run -a dbus-run-session -- node --test --test-concurrency=1 dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js dist/tests/gui-controls.test.js 2>&1 | tee work/gui-evidence/tests.txt
+                  timeout 10m xvfb-run -a dbus-run-session -- node --test --test-concurrency=1 dist/tests/child-process-fairness.test.js dist/tests/gui-bridge.test.js dist/tests/gui-elements.test.js dist/tests/gui-controls.test.js 2>&1 | tee work/gui-evidence/tests.txt
             - name: Retain console ELF direct dependencies and headless output
               run: |
                   printf "console.log('headless console');\n" > work/gui-evidence/console.js

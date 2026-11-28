@@ -20,13 +20,6 @@ let ticks = 0,
     disposed = false;
 let ioEnded = false,
     started = false;
-const deadline = setTimeout(() => {
-    window.dispose();
-    peer.dispose();
-    child.kill();
-    console.error("GUI fixture deadline");
-    process.exit(91);
-}, 4000);
 const timer = setInterval(() => {
     ticks++;
     startChild();
@@ -133,3 +126,12 @@ child.on("close", (code) => {
     console.log("stdout ended");
     finish();
 });
+// GC stress makes synchronous module/window initialization slow. The native
+// runner bounds startup; this deadline bounds the asynchronous lifecycle.
+const deadline = setTimeout(() => {
+    window.dispose();
+    peer.dispose();
+    child.kill();
+    console.error("GUI fixture deadline");
+    process.exit(91);
+}, 4000);

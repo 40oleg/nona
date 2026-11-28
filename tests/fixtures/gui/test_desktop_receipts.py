@@ -37,6 +37,22 @@ def receipt():
 
 
 class Receipts(unittest.TestCase):
+    def test_xvfb_requires_captured_pixels_when_presentation_feedback_is_unavailable(self):
+        events = receipt()
+        for e in events:
+            if e["type"] == "surface":
+                e.update(backend="GdkX11Display", complete=False, presentationTime=0)
+        captures = [dict(surface="1:2", slot=0, session=1, scaleFactor=1,
+                         sha256="a" * 64, bytes=1024, width=760, height=650, colors=16),
+                    dict(surface="1:3", slot=1, session=1, scaleFactor=1,
+                         sha256="b" * 64, bytes=1024, width=760, height=650, colors=16)]
+        validate(events, "x11", 1, captures=captures)
+        for bad in [[], captures[:1], [dict(c, bytes=0) for c in captures],
+                    [dict(c, width=0) for c in captures], [dict(c, surface="other") for c in captures],
+                    [dict(c, colors=1) for c in captures], [dict(c, sha256="") for c in captures]]:
+            with self.subTest(captures=bad), self.assertRaises(AssertionError):
+                validate(events, "x11", 1, captures=bad)
+
     def test_cleanup_waits_for_driver_group_even_after_its_leader_exits(self):
         process = Mock(pid=42)
         process.wait.return_value = 0

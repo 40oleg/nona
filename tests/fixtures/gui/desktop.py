@@ -12,9 +12,10 @@ from pathlib import Path
 import signal
 import socket
 import subprocess
+import struct
 import time
 import traceback
-from desktop_receipts import validate
+from desktop_receipts import observed_surface, validate
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -152,7 +153,7 @@ def launch(args):
             with (destination / "driver.stdout.txt").open("w") as driver_out, (destination / "driver.stderr.txt").open("w") as driver_err:
                 try:
                     with owned(driver, env=environment, stdout=driver_out, stderr=driver_err) as driver_process:
-                        assert driver_process.wait(timeout=85) == 0, "desktop driver failed; see artifacts"
+                        assert driver_process.wait(timeout=180) == 0, "desktop driver failed; see artifacts"
                 finally:
                     pid_file = destination / "application.pid"
                     if pid_file.exists(): stop_group(int(pid_file.read_text()))
@@ -163,6 +164,7 @@ def drive(args):
     destination = Path(args.output).resolve()
     trace_path = destination / "events.jsonl"
     inputs = []
+    captures = []
     app = None
     def events():
         result = []
@@ -213,24 +215,41 @@ def drive(args):
         assert accessible(name).queryAction().doAction(0), name
         inputs.append({"accessibility_action": name})
     def screenshot(name):
+        surface = next(e for e in reversed(events()) if observed_surface(e, args.backend))
+        picture = destination / (name + ".png")
+        def color_count():
+            return int(run(["identify", "-format", "%k", picture], capture_output=True, text=True).stdout)
         if args.backend == "wayland":
             before = set(destination.glob("wayland-screenshot-*.png"))
-            run(["weston-screenshooter"], env=dict(os.environ, XDG_PICTURES_DIR=str(destination)))
+            run(["weston-screenshooter"], cwd=destination, env=dict(os.environ, XDG_PICTURES_DIR=str(destination)))
             pictures = set(destination.glob("wayland-screenshot-*.png")) - before
             assert len(pictures) == 1, "missing Weston capture"
-            pictures.pop().rename(destination / (name + ".png"))
+            pictures.pop().rename(picture)
+            colors = color_count()
         else:
-            run(["import", "-window", "root", destination / (name + ".png")])
+            wid = run(["xdotool", "search", "--name", "^Nona desktop acceptance$"], capture_output=True, text=True).stdout.splitlines()[-1]
+            def capture():
+                run(["import", "-window", wid, picture])
+                colors = color_count()
+                return colors if colors > 8 else False
+            colors = observe(capture)  # wait for drawn content, not a blank mapped window
+        data = picture.read_bytes()
+        assert data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR", "invalid screen capture"
+        width, height = struct.unpack_from(">II", data, 16)
+        captures.append(dict(name=name, bytes=len(data), sha256=hashlib.sha256(data).hexdigest(), colors=colors,
+                             width=width, height=height,
+                             **{k: surface[k] for k in ["surface", "slot", "session", "scaleFactor"]}))
     try:
         with trace_path.open("w") as output, (destination / "application.stderr.txt").open("w") as errors:
             with owned([Path(args.binary).resolve()], stdout=output, stderr=errors) as process:
                 app = process
                 (destination / "application.pid").write_text(str(app.pid))
-                observe(lambda: seen("ready"))
-                observe(lambda: any(e["type"] == "surface" and e["mapped"] and e["complete"]
-                                    and e["presentationTime"] > 0 for e in events()))
-                first = next(e for e in events() if e["type"] == "surface" and e["mapped"]
-                             and e["complete"] and e["presentationTime"] > 0)
+                # Forced collections during synchronous module/scene setup can
+                # take tens of seconds before the first ready trace exists.
+                wait(lambda: seen("ready"), seconds=60, process=app)
+                observe(lambda: any(observed_surface(e, args.backend) for e in events()))
+                first = next(e for e in events() if observed_surface(e, args.backend))
+                screenshot("initial")
                 fixture = json.loads((ROOT / "tests/fixtures/gui/desktop-layout.json").read_text())
                 converted = {}
                 for name, expected in fixture["logical"].items():
@@ -286,7 +305,8 @@ def drive(args):
                             run(["xdotool", "windowfocus", "--sync", wid])
                             key("alt", "F4")
                         observe(lambda: seen("reopen"))
-                        observe(lambda: any(e["type"] == "surface" and e["session"] != 1 and e["presentationTime"] > 0 for e in events()))
+                        observe(lambda: any(observed_surface(e, args.backend) and e["session"] != 1 for e in events()))
+                        screenshot("reopened")
                     # Request four disposes its parent with chooser/stdout/timer work pending.
                     observe(lambda: seen("chooser-result", request=request))
                     observe(lambda: seen("chooser-after", request=request, progress=True))
@@ -305,13 +325,14 @@ def drive(args):
                                             and e["presentationTime"] > requested_at for e in events()))
                         screenshot("live-scale-2")
                 assert app.wait(timeout=5) == 0, "abnormal application exit"
-                result = validate(events(), args.backend, args.scale, args.live_scale)
+                result = validate(events(), args.backend, args.scale, args.live_scale, captures=captures)
                 assert len(list(destination.glob("*.png"))) >= 2
                 assert any(i.get("transport") == ("weston-seat" if args.backend == "wayland" else "XTest")
                            and "pointer" in i for i in inputs)
                 (destination / "PASS.json").write_text(json.dumps(result, indent=2))
     finally:
         (destination / "input.json").write_text(json.dumps(inputs, ensure_ascii=False, indent=2))
+        (destination / "captures.json").write_text(json.dumps(captures, indent=2))
 
 
 def main():

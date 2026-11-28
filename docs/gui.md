@@ -370,10 +370,17 @@ folder dialog. The module also authorizes screenshots on this isolated disposabl
 display; never install or load it on a person's desktop. Its private exported
 input ABI is pinned to Weston 13 and is not a Nona application dependency.
 
-After presentation, the driver requires `GdkX11Display` or `GdkWaylandDisplay`,
-positive native surface dimensions and the measured initial scale. It retains PID,
-slot/generation, opaque surface identity, completed frame/presentation timestamp,
-content bounds and ordered JavaScript event traces. Each Wayland scale-1 row
+The driver requires `GdkX11Display` or `GdkWaylandDisplay`, positive native surface
+dimensions and the measured initial scale. It retains PID, slot/generation,
+opaque surface identity, available frame/presentation timestamps, content bounds
+and ordered JavaScript event traces. Wayland requires completed timings with a
+positive presentation timestamp. Xvfb has no compositor presentation feedback;
+X11 instead requires PNG window captures from the X server for both the initial
+and reopened sessions. `captures.json` records their hashes, byte sizes, pixel
+dimensions, distinct-color counts and matching surface/session/scale observations.
+Missing captures, blank captures (at most eight colors) or captures smaller than
+the measured device bounds fail acceptance; zero GDK
+timestamps remain zero. Each Wayland scale-1 row
 separately changes the live compositor output to scale 2; acceptance requires a
 scale callback and two presented observations for the **same surface and session**.
 The module disables and destroys the old compositor output, then configures a
@@ -402,7 +409,14 @@ PNG captures, a live-scale PNG, and `PASS.json` or failure traceback plus partia
 logs. `PASS.json` is written only after all assertions and a zero process exit.
 The pure [receipt rejection tests](../tests/fixtures/gui/test_desktop_receipts.py)
 reject missing lifecycle/input events, false progress, an incorrect backend/scale,
-unpresented frames and a replacement surface masquerading as a scale transition.
+unpresented Wayland frames, missing X11 captures and a replacement surface
+masquerading as a scale transition.
+
+Synchronous startup under forced GC has a separate 60-second driver budget;
+interaction waits begin after the application reports ready. The window fixture
+also starts its lifecycle watchdog after synchronous initialization. GTK 4.14
+checkboxes are activated through native pointer input because they do not expose
+an indexed AT-SPI action; their role and resulting checked state remain required.
 
 The same workflow runs formatting, document-link checks, all sample builds and
 `npm run compare -- --linux`. [gui-baseline.sh](../scripts/gui-baseline.sh) builds

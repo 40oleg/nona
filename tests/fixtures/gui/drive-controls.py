@@ -19,11 +19,11 @@ destination.mkdir(parents=True, exist_ok=True)
 log_path = destination / "controls.stdout.txt"
 tree_path = destination / "controls.accessibility.json"
 environment = dict(os.environ, NONA_GUI_FOLDER=str(destination.resolve()), GTK_A11Y="atspi", GTK_IM_MODULE="gtk-im-context-simple")
-deadline = time.monotonic() + 20
 input_receipt = {"requested_backend": environment.get("GDK_BACKEND"), "requested_scale": environment.get("GDK_SCALE"), "ime_module": environment["GTK_IM_MODULE"], "steps": []}
 
 
-def wait(check):
+def wait(check, seconds=8):
+    deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         value = check()
         if value:
@@ -58,6 +58,15 @@ def action(name):
     assert node.queryAction().doAction(0), name
 
 
+def click(name, role):
+    node = wait(lambda: find(name, role))
+    wid = subprocess.check_output(["xdotool", "search", "--name", "^Nona controls probe$"], timeout=3).decode().splitlines()[-1]
+    subprocess.run(["xdotool", "windowfocus", "--sync", wid], check=True, timeout=3)
+    bounds = node.queryComponent().getExtents(pyatspi.DESKTOP_COORDS)
+    subprocess.run(["xdotool", "mousemove", "--sync", str(bounds.x + bounds.width // 2), str(bounds.y + bounds.height // 2), "click", "1"], check=True, timeout=3)
+    input_receipt["steps"].append({"pointer": name, "button": 1})
+
+
 def logged(text):
     return text in log_path.read_text()
 
@@ -86,7 +95,9 @@ signal.signal(signal.SIGTERM, terminate)
 with log_path.open("w") as output, (destination / "controls.stderr.txt").open("w") as errors:
     app = subprocess.Popen([binary], stdout=output, stderr=errors, env=environment, start_new_session=True)
     try:
-        wait(lambda: logged("ready"))
+        # Startup under forced GC includes module and retained-scene allocation;
+        # it is separate from each observation's bounded progress deadline.
+        wait(lambda: logged("ready"), seconds=60)
         entry = wait(lambda: find("Service name", "text"))
         for name, role in [("Run service", "push button"), ("Enabled", "check box"), ("Choose folder", "push button")]:
             wait(lambda: find(name, role))
@@ -95,16 +106,16 @@ with log_path.open("w") as output, (destination / "controls.stderr.txt").open("w
         tree_path.write_text(json.dumps({"backend": environment.get("GDK_BACKEND"), "scale": environment.get("GDK_SCALE"), "tree": snapshot}, ensure_ascii=False, indent=2))
         assert entry.queryEditableText().setTextContents("日本語 e\u0301 🐈")
         wait(lambda: logged("input 日本語 e\u0301 🐈"))
-        action("Enabled")
+        # GTK 4.14's GtkCheckButton has no indexed AT-SPI action. Exercise its
+        # native pointer activation, then verify the accessible checked state.
+        click("Enabled", "check box")
         wait(lambda: logged("checked true"))
         wait(lambda: find("Enabled").getState().contains(pyatspi.STATE_CHECKED))
         if environment.get("GDK_BACKEND") == "x11":
             wid = subprocess.check_output(["xdotool", "search", "--sync", "--name", "^Nona controls probe$"], timeout=3).decode().splitlines()[-1]
-            bounds = wait(lambda: find("Run service")).queryComponent().getExtents(pyatspi.DESKTOP_COORDS)
-            subprocess.run(["xdotool", "mousemove", "--sync", str(bounds.x + bounds.width // 2), str(bounds.y + bounds.height // 2), "click", "1"], check=True, timeout=3)
+            click("Run service", "push button")
             wait(lambda: logged("pointer button 1"))
             wait(lambda: logged("activated"))
-            input_receipt["steps"].append({"pointer": "Run service", "button": 1})
             # Focus the entry, exercise native focus traversal and both native
             # activation keys, then a synchronously consumed application key.
             assert entry.queryComponent().grabFocus()

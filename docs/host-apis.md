@@ -514,6 +514,12 @@ stderr)`; `util.promisify` resolves to `{stdout, stderr}`),
   is a `Writable` of the [stream module](#streams). The pipe ends are
   non-blocking and watched by the event loop next to sockets and timers, so
   a pending child keeps the program alive and large outputs do not deadlock.
+  The shared asynchronous pipe reader dispatches at most one 64 KiB chunk per
+  readiness turn, yielding to other I/O pollers and timers between data callbacks.
+  This prevents a continuous producer from monopolizing a turn through repeated
+  synchronous callbacks; each individual callback still runs to completion.
+  See the native and deterministic regressions in
+  [`tests/child-process-fairness.test.ts`](../tests/child-process-fairness.test.ts).
   Synchronous variants write `input` and drain stdout and stderr together.
 - **Events**, in order: `spawn` (the process started), then, as the child
   ends, `exit` (`code`, `signal`) and, after its stdio streams ended,

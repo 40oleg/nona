@@ -6,6 +6,31 @@ import { compile } from "../src/compiler.js";
 import { runInNewContext } from "node:vm";
 import { guiManagedSource } from "./helpers/gui-native.js";
 
+test("GUI window fixture starts its lifecycle deadline after synchronous initialization", () => {
+    const source = readFileSync("tests/fixtures/gui-window.mjs", "utf8")
+        .replace(/^import .*;\r?\n/gm, "")
+        .replace(/^import \{[\s\S]*?;\r?\n/gm, "");
+    let now = 0;
+    const deadlines: number[] = [];
+    class Window {
+        open() {
+            now += 3000;
+            return this;
+        }
+    }
+    runInNewContext(source, {
+        Window,
+        define: () => () => 0,
+        spawn: () => ({ stdout: { on() {} }, on() {} }),
+        process: { on() {} },
+        setTimeout(_callback: unknown, delay: number) {
+            deadlines.push(now + delay);
+        },
+        setInterval() {},
+    });
+    assert.deepEqual(deadlines, [10000]);
+});
+
 test("GUI workflow limits issue-specific metadata requirements to the issue PR", async () => {
     const workflow = readFileSync(".github/workflows/gui-desktop.yml", "utf8");
     const script = workflow.match(

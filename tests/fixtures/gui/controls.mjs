@@ -168,7 +168,7 @@ function stop(status) {
 const deadline = setTimeout(() => {
     console.error("controls deadline");
     stop(91);
-}, 15000);
+}, 80000);
 log(
     "ready",
     process.env.GDK_BACKEND || "default",

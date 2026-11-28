@@ -619,7 +619,7 @@ w.dispose();`;
                         binary,
                         evidence,
                     ],
-                    { encoding: "utf8", timeout: 25000 },
+                    { encoding: "utf8", timeout: 180000 },
                 );
                 assert.equal(run.error, undefined);
                 assert.equal(run.status, 0, run.stderr + run.stdout);
