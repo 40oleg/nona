@@ -874,6 +874,49 @@ await boot();
         "main.mjs",
     ));
 
+test("createRequire dynamic aliases respect sibling, parameter and block bindings", () =>
+    agree(
+        {
+            "main.mjs": `
+async function boot() {
+    const { createRequire: make } = await import('node:module');
+    const load = make(import.meta.url);
+    function read() { return load('./value.json').value; }
+    console.log(read());
+    function shadowFactory(make) {
+        const other = make();
+        return other('./factory.mjs');
+    }
+    function shadowLoader(load) { return load('./loader.mjs'); }
+    console.log(shadowFactory(() => value => value), shadowLoader(value => value));
+    { const make = () => value => value; console.log(make()('./block.mjs')); }
+    try { throw value => value; } catch (load) { console.log(load('./catch.mjs')); }
+    for (const load of [value => value]) console.log(load('./loop.mjs'));
+    switch (load('./switch.json').value) {
+        case 7: const load = () => {}; console.log('switch'); break;
+    }
+}
+function sibling(make) {
+    const load = make();
+    return load('./sibling.mjs');
+}
+await boot();
+console.log(sibling(() => value => value));
+`,
+            "value.json": '{"value":42}',
+            "switch.json": '{"value":7}',
+            ...Object.fromEntries(
+                ["factory", "loader", "block", "catch", "loop", "sibling"].map(
+                    (name) => [
+                        `${name}.mjs`,
+                        'throw new Error("Unrelated callback target was imported");',
+                    ],
+                ),
+            ),
+        },
+        "main.mjs",
+    ));
+
 test("require() of an ES module returns its module.exports export or its namespace with __esModule", () =>
     agree(
         {

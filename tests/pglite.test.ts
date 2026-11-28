@@ -12,6 +12,7 @@ import {
     writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { compile } from "../src/compiler.js";
 import { requireHostTarget } from "../src/target.js";
 
@@ -75,24 +76,81 @@ test(
                     timeout,
                     maxBuffer: 64 * 1024,
                     windowsHide: true,
-                    env: { ...process.env, NODE_OPTIONS: "", NODE_PATH: "" },
+                    env: {
+                        ...process.env,
+                        PATH: "",
+                        NODE_OPTIONS: "",
+                        NODE_PATH: "",
+                    },
                 });
-                assert.equal(child.error, undefined, String(child.error));
+                assert.equal(
+                    child.error,
+                    undefined,
+                    `${child.error}\n${child.stderr}${child.stdout}`,
+                );
                 assert.equal(child.signal, null);
                 return child;
             }
+            function assertBoot(child: ReturnType<typeof run>) {
+                assert.equal(child.status, 0, child.stderr + child.stdout);
+                assert.equal(child.stderr, "");
+                assert.equal(
+                    child.stdout.trim(),
+                    "select=1 closed=true fetch=undefined",
+                );
+            }
+            for (const nonaPlatform of [false, true])
+                await t.test(
+                    `offline adapter Node oracle with network denied and ${nonaPlatform ? "Nona" : "Node"} process metadata`,
+                    () => {
+                        restore();
+                        const entry = join(fixture, "boot.mjs");
+                        // Exercise the real pinned glue's platform checks with
+                        // Nona's missing fields, separately from its WASM engine.
+                        // With --eval, argv[1] is already the asset directory.
+                        const driver = nonaPlatform
+                            ? [
+                                  "--input-type=module",
+                                  "--eval",
+                                  `delete process.versions.node; delete process.binding; await import(${JSON.stringify(pathToFileURL(entry).href)});`,
+                              ]
+                            : [entry];
+                        const child = spawnSync(
+                            process.execPath,
+                            [
+                                "--max-old-space-size=256",
+                                "--wasm-num-compilation-tasks=1",
+                                "--permission",
+                                `--allow-fs-read=${fixture}`,
+                                ...driver,
+                                assets,
+                            ],
+                            {
+                                cwd: directory,
+                                encoding: "utf8",
+                                timeout: 15_000,
+                                maxBuffer: 64 * 1024,
+                                windowsHide: true,
+                                env: {
+                                    ...process.env,
+                                    PATH: "",
+                                    NODE_OPTIONS: "",
+                                    NODE_PATH: "",
+                                },
+                            },
+                        );
+                        assert.ifError(child.error);
+                        assert.equal(child.signal, null);
+                        assertBoot(child);
+                    },
+                );
             await t.test(
                 "SELECT 1 and awaited close from another working directory",
                 { skip: !hosted },
                 () => {
                     restore();
                     const child = run(30 * 60_000);
-                    assert.equal(child.status, 0, child.stderr + child.stdout);
-                    assert.equal(child.stderr, "");
-                    assert.equal(
-                        child.stdout.trim(),
-                        "select=1 closed=true fetch=undefined",
-                    );
+                    assertBoot(child);
                 },
             );
             for (const [name, change] of [

@@ -8,7 +8,7 @@
   tables, globals, exact i64 and Emscripten callback modules, with native/Node
   execution and GC-stress regressions. Add the offline local-asset boot adapter,
   scoped audited platform checks and mandatory hosted Linux SELECT/close coverage;
-  recognize createRequire aliases from dynamic module imports and reuse immutable
+  recognize scoped createRequire aliases from dynamic module imports and reuse immutable
   WASM numeric signatures instead of allocating them per instruction. Native persistent
   profiles and COPY remain pending.
   ([#667](https://github.com/40oleg/nona/issues/667))

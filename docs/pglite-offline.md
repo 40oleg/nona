@@ -77,7 +77,9 @@ destructured from literal `import("module")` or `import("node:module")`, includi
 an awaited import inside a function. It embeds their literal require targets
 in the module's require table, just as for statically imported factories.
 This supplies Emscripten's `require("fs")` and `require("path")` without runtime
-package resolution. Computed require targets retain the existing compiler limits.
+package resolution. Alias tracking respects lexical bindings and closures;
+unrelated callbacks with the same name do not import additional modules.
+Computed require targets retain the existing compiler limits.
 
 ## Verification
 
@@ -89,6 +91,12 @@ tree, then runs with only the executable and two assets in a fresh working
 directory and with fetch absent. It checks SQL,
 close, zero exit status and empty stderr. Separate children check missing,
 truncated and same-size corrupt WASM, plus missing and same-size corrupt data.
+The native child's PATH is empty, so an external JavaScript engine cannot be
+found through PATH. Fast, separate Node oracles run the same adapter and boot
+entry with network permission denied, fetch absent and a 256-MiB V8 heap cap.
+They cover both normal Node metadata and absent `process.versions.node` and
+`process.binding`, exercising the scoped adapter against the real pinned glue.
+These checks do not substitute for the native ELF acceptance case.
 Every child is bounded, output is capped at 64 KiB, and temporary files are removed.
 Scalar interpretation makes PostgreSQL's first initialization slower than the
 small WASM probes; the hosted boot timeout is thirty minutes, with forty minutes
