@@ -121,6 +121,26 @@ jobs:
               env:
                   NONA_WIN32_GUI_TESTS: "1"
                   NONA_GC_STRESS_SCOPE: all
+    dns:
+        # DNS runs explicitly on both native x64 adapters (#665), including a
+        # host-process deadline for synchronous negative hostname resolution.
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 10
+        strategy:
+            max-parallel: 1
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: npm
+            - run: npm ci
+            - run: npm run build
+            - name: Verify DNS callback contracts and existing net behavior
+              run: node --test --test-concurrency=1 dist/tests/dns.test.js dist/tests/net.test.js dist/tests/net-send-source.test.js
     windows-compare:
         # Oracle comparison and the Test262 smoke manifest on Windows.
         needs: route

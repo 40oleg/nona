@@ -85,6 +85,10 @@
                 "http-agent-retained-control"
             ]
         },
+        "dns": {
+            "description": "Callback DNS lookup and pg DNS-call equivalent (explicit hosted Linux and Windows check steps).",
+            "files": ["dns"]
+        },
         "event-target": {
             "description": "EventTarget and event probes (native loader jobs).",
             "files": ["event-target", "event-probes"]
