@@ -308,7 +308,10 @@ export function withBuiltinModules(
             (path.startsWith("nona:internal/") && sources.has(path)
                 ? []
                 : undefined),
-        builtinCandidates: () => inventory.map((record) => record.path),
+        builtinCandidates: (includeOptIn = false) =>
+            inventory
+                .filter((record) => includeOptIn || record.path !== "nona:gui")
+                .map((record) => record.path),
         ...(host.candidates
             ? { candidates: (referrer: string) => host.candidates!(referrer) }
             : {}),

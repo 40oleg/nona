@@ -40,6 +40,11 @@ at compile time. Agent programs are rejected at code generation; native
 entry also checks Linux gettid equals getpid before touching GTK. No GTK
 access is supported from runtime worker threads, which lack libc TLS.
 
+The compiler includes the GUI provider for explicit imports or literal
+`process.getBuiltinModule("nona:gui")` requests. Computed built-in discovery
+alone excludes this provider so console programs do not acquire GTK dependencies.
+A computed lookup can use the GUI module after an explicit request links it.
+
 ## Window API
 
 ```js
@@ -304,6 +309,9 @@ Win64-shaped runtime calls cross dedicated SysV wrappers, preserving RDI/RSI
 and full XMM6..15 with aligned calls. Private scalar signatures stage Win64's
 position-based register/stack inputs into independent SysV GP/FP banks (up to
 six GP/eight FP arguments), including floating returns and the AL vector count.
+The wrapper realigns its outgoing stack independently of the runtime entry
+alignment and restores its original frame after the call. The mixed-scalar
+executable regression in `tests/gui-elements.test.ts` exercises both alignments.
 Unsupported signatures fail at code generation. Drawing callbacks adapt SysV's
 five integer/pointer arguments and preserve SysV nonvolatile registers. The
 SysV close callback adapts to the internal Win64 record helper while preserving

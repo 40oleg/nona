@@ -381,6 +381,28 @@ test("GUI import rejects unsupported targets and worker programs without adding 
     assert.throws(() => parseFfiSignature("void(cb)"), /reserved/);
 });
 
+test("GUI computed builtin discovery keeps console ELF dependencies opt-in", () => {
+    for (const text of [
+        "console.log(process.getBuiltinModule('process').platform);",
+        "const name = 'process'; console.log(process.getBuiltinModule(name).platform);",
+        "function process(...stages) { return stages.length; } console.log(process(x => x));",
+        'const read = Reflect.get; const key = "Proxy"; console.log(typeof read(globalThis, key));',
+    ]) {
+        const result = compile(text, {
+            fileName: "console.mjs",
+            target: "linux-x64",
+        });
+        assert.ok(result.ok, JSON.stringify(result));
+        assert.deepEqual(elfNeeded(result.image), [], text);
+    }
+    const result = compile(
+        "const {Window} = process.getBuiltinModule('nona:gui'); new Window().dispose();",
+        { fileName: "gui-lookup.mjs", target: "linux-x64" },
+    );
+    assert.ok(result.ok, JSON.stringify(result));
+    assert.ok(elfNeeded(result.image).includes("libgtk-4.so.1"));
+});
+
 test("GUI imports are opt-in across every supported native target", () => {
     for (const target of supportedNativeTargets) {
         const program = withNativeTarget(target, () => {
@@ -951,7 +973,7 @@ for (const gcStress of [false, true]) {
                 gcStress,
             });
             assert.ok(result.ok, JSON.stringify(result));
-            const run = runNative(result.image, 15_000);
+            const run = runNative(result.image);
             assert.equal(run.error, undefined);
             assert.equal(run.status, 0, run.stderr.toString());
             assert.equal(
@@ -983,7 +1005,7 @@ for(let i=0;i<2;i++) {try {w.open();} catch(e) {console.log(e.message.includes('
                 WAYLAND_DISPLAY: "",
                 GDK_BACKEND: "x11",
             };
-            const run = runNative(result.image, 15_000, false, env);
+            const run = runNative(result.image, 60_000, false, env);
             assert.equal(run.error, undefined);
             assert.equal(run.status, 0, run.stderr.toString());
             assert.equal(run.stdout.toString(), "true false\ntrue false\n");
@@ -995,7 +1017,7 @@ for(let i=0;i<2;i++) {try {w.open();} catch(e) {console.log(e.message.includes('
             assert.ok(consoleImage.ok, JSON.stringify(consoleImage));
             const consoleRun = runNative(
                 consoleImage.image,
-                15_000,
+                60_000,
                 false,
                 env,
             );

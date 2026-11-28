@@ -85,7 +85,9 @@ export function runGuiProbe(program: NativeProgram) {
         writeFileSync(file, linkHost(program));
         if (process.platform !== "win32") chmodSync(file, 0o755);
         return spawnSync(file, [], {
-            timeout: 15_000,
+            // Forced collections run at every allocation in the retained UI.
+            // Use the same bound as the shared native runner, including on CI.
+            timeout: 60_000,
             encoding: "utf8",
             windowsHide: true,
         });

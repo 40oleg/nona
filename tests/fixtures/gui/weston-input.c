@@ -21,6 +21,7 @@
  * This module is deliberately pinned to Weston 13, not a production API. */
 void weston_seat_init(struct weston_seat *, struct weston_compositor *, const char *);
 void weston_seat_release(struct weston_seat *);
+void weston_output_damage(struct weston_output *);
 int weston_seat_init_pointer(struct weston_seat *);
 int weston_seat_init_keyboard(struct weston_seat *, struct xkb_keymap *);
 void notify_motion_absolute(struct weston_seat *, const struct timespec *, struct weston_coord_global);

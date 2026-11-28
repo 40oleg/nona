@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fix GUI CI regressions: keep GTK out of computed console built-in discovery,
+  realign private SysV calls for Linux entry, and repair desktop fixture builds
+  and fresh-checkout validation ([#664](https://github.com/40oleg/nona/issues/664)).
+
 - Add the Nona-owned Ubuntu service-console example with service/log and settings
   screens, local image/font assets, native input, state updates and real periodic
   child stdout. Add mapped GDK surface diagnostics and bounded hosted X11/Xvfb and

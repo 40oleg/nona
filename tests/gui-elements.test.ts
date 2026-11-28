@@ -382,75 +382,77 @@ other.dispose();
         },
     );
 
-test(
-    "GUI mixed scalar ABI independently marshals GP/FP registers, stack doubles and floating return",
-    { skip: !canRunGuiProbe },
-    () => {
-        const program = probeProgram(
-                "console.log(globalThis.guiMixed());",
-                true,
-            ),
-            b = new RuntimeBuilder();
-        b.bundle = program;
-        withNativeTarget("linux-x64", () =>
-            guiSystemCall(b, "gui-test", "mixed", "pddpddp"),
-        );
-        const values = new Float64Array([1.25, -2.5, 3.75, 4.5, 10.25]);
-        b.data("gui.test.fp", new Uint8Array(values.buffer));
-        prependFunctionBuiltin(
-            b,
-            "gui.test.mixed",
-            "guiMixed",
-            0,
-            "rt.globalObject",
-        );
-        b.fn("gui.test.mixed.code", 88, (a) => {
-            a.store(slot(64), "rcx");
-            a.mov("rcx", 11);
-            a.movsd("xmm1", { rip: "gui.test.fp" });
-            a.movsd("xmm2", { rip: "gui.test.fp", addend: 8 });
-            a.mov("r9", 22);
-            for (const [i, at] of [16, 24].entries()) {
-                a.load("rax", { rip: "gui.test.fp", addend: at });
-                a.store(slot(32 + i * 8), "rax");
-            }
-            a.mov("rax", 33);
-            a.store(slot(48), "rax");
-            a.call("gui.abi.mixed");
-            a.load("rcx", slot(64));
-            a.mov("rax", 3);
-            a.store({ base: "rcx" }, "rax");
-            a.storesd({ base: "rcx", disp: 8 }, "xmm0");
-        });
-        b.fn("gui.test.mixed.sysv", 40, (a) => {
-            a.cmp("rax", 4);
-            failIf(a, "ne");
-            for (const [reg, value] of [
-                ["rdi", 11],
-                ["rsi", 22],
-                ["rdx", 33],
-            ] as const) {
-                a.cmp(reg, value);
+for (const shiftedStack of [false, true])
+    test(
+        `GUI mixed scalar ABI independently marshals GP/FP registers, stack doubles and floating return (shifted stack ${shiftedStack})`,
+        { skip: !canRunGuiProbe },
+        () => {
+            const program = probeProgram(
+                    "console.log(globalThis.guiMixed());",
+                    true,
+                ),
+                b = new RuntimeBuilder();
+            b.bundle = program;
+            withNativeTarget("linux-x64", () =>
+                guiSystemCall(b, "gui-test", "mixed", "pddpddp"),
+            );
+            const values = new Float64Array([1.25, -2.5, 3.75, 4.5, 10.25]);
+            b.data("gui.test.fp", new Uint8Array(values.buffer));
+            prependFunctionBuiltin(
+                b,
+                "gui.test.mixed",
+                "guiMixed",
+                0,
+                "rt.globalObject",
+            );
+            // Exercise both runtime stack parities without misaligning host APIs.
+            b.fn("gui.test.mixed.code", shiftedStack ? 96 : 88, (a) => {
+                a.store(slot(64), "rcx");
+                a.mov("rcx", 11);
+                a.movsd("xmm1", { rip: "gui.test.fp" });
+                a.movsd("xmm2", { rip: "gui.test.fp", addend: 8 });
+                a.mov("r9", 22);
+                for (const [i, at] of [16, 24].entries()) {
+                    a.load("rax", { rip: "gui.test.fp", addend: at });
+                    a.store(slot(32 + i * 8), "rax");
+                }
+                a.mov("rax", 33);
+                a.store(slot(48), "rax");
+                a.call("gui.abi.mixed");
+                a.load("rcx", slot(64));
+                a.mov("rax", 3);
+                a.store({ base: "rcx" }, "rax");
+                a.storesd({ base: "rcx", disp: 8 }, "xmm0");
+            });
+            b.fn("gui.test.mixed.sysv", 40, (a) => {
+                a.cmp("rax", 4);
                 failIf(a, "ne");
-            }
-            for (const [i, reg] of (
-                ["xmm0", "xmm1", "xmm2", "xmm3"] as const
-            ).entries()) {
-                a.ucomisd(reg, { rip: "gui.test.fp", addend: i * 8 });
+                for (const [reg, value] of [
+                    ["rdi", 11],
+                    ["rsi", 22],
+                    ["rdx", 33],
+                ] as const) {
+                    a.cmp(reg, value);
+                    failIf(a, "ne");
+                }
+                for (const [i, reg] of (
+                    ["xmm0", "xmm1", "xmm2", "xmm3"] as const
+                ).entries()) {
+                    a.ucomisd(reg, { rip: "gui.test.fp", addend: i * 8 });
+                    failIf(a, "ne");
+                }
+                a.mov("rax", "rsp");
+                a.and("rax", 15);
+                a.cmp("rax", 0);
                 failIf(a, "ne");
-            }
-            a.mov("rax", "rsp");
-            a.and("rax", 15);
-            a.cmp("rax", 0);
-            failIf(a, "ne");
-            a.movsd("xmm0", { rip: "gui.test.fp", addend: 32 });
-        });
-        replaceImport(program, "gui.import.mixed", "gui.test.mixed.sysv");
-        const run = runGuiProbe(program);
-        assert.equal(run.status, 0, run.stderr);
-        assert.equal(run.stdout.trim(), "10.25");
-    },
-);
+                a.movsd("xmm0", { rip: "gui.test.fp", addend: 32 });
+            });
+            replaceImport(program, "gui.import.mixed", "gui.test.mixed.sysv");
+            const run = runGuiProbe(program);
+            assert.equal(run.status, 0, run.stderr);
+            assert.equal(run.stdout.trim(), "10.25");
+        },
+    );
 
 test("GUI pinned font identity and retained fixture compile in both GC modes", () => {
     assert.equal(

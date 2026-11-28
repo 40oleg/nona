@@ -46,8 +46,16 @@ export function guiSystemCall(
             if (type === "d") a.movsd(("xmm" + fp++) as Xmm, slot(208 + i * 8));
             else a.load(sys[gp++]!, slot(208 + i * 8));
         });
+        // Linux process entry and Win64 entry give the runtime different stack
+        // parities. Preserve the thunk frame above an independently aligned
+        // SysV call area; the callee may use its red zone and clobber R11.
+        a.mov("r11", "rsp");
+        a.sub("rsp", 16);
+        a.and("rsp", -16);
+        a.store(slot(0), "r11");
         a.mov("rax", fp); // SysV variadic vector-register count
         a.callImport("gui.import." + name);
+        a.load("rsp", slot(0));
         for (let i = 6; i < 16; i++)
             a.loadXmm128(("xmm" + i) as Xmm, slot(48 + 16 * (i - 6)));
         a.load("rdi", slot(32));
