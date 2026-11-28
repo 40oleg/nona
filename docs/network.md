@@ -1,4 +1,4 @@
-# Networking (`node:http`, `node:net`, `node:tls`, `node:https`)
+# Networking (`fetch`, `node:http`, `node:net`, `node:tls`, `node:https`)
 
 Nona compiles HTTP/1.1 servers and clients, plain TCP sockets and TLS 1.3
 clients into the executable. The modules follow the Node.js APIs and wire behaviour closely
@@ -18,8 +18,104 @@ server.listen(8080, () => console.log("listening on", server.address().port));
 ```
 
 Each module is also available under the `nona:` scheme (`nona:http`,
-`nona:net`, …). Import them from module code (`.mjs` or `--module`); `require`
-is not available.
+`nona:net`, …), through ES imports or CommonJS `require`.
+
+## Global `fetch`
+
+`fetch(input, init)` and `globalThis.fetch` use the existing native HTTP/HTTPS
+clients on **win32-x64 and linux-x64** ([#666](https://github.com/40oleg/nona/issues/666)).
+No networking import is required in scripts, CommonJS or ES modules. The compiler
+discovers global references, literal/computed property access and immutable
+string keys; the provider evaluates lazily on first access. Local declarations
+still shadow fetch, and unrelated programs do not link networking. Unknown
+computed callable global access conservatively selects the builtin inventory.
+
+Supported request inputs are absolute HTTP(S) strings and `URL` objects without
+embedded credentials. `init` supports `method`, `headers`, `body`, `signal` and
+`redirect`. Methods are validated HTTP tokens and normalized to uppercase by the
+HTTP transport; CONNECT, TRACE and TRACK are rejected. Headers accept a record
+or iterable of name/value pairs (including a Headers-like iterable), validate
+names/byte values, compare names without case, and join duplicates with `, `.
+Bodies are UTF-8 strings or copied `Uint8Array`/`Buffer` bytes, including JPEG
+data. GET/HEAD bodies and unsupported body forms reject with `TypeError` before
+opening a connection. Content-Length must match the bytes; the transport owns
+transfer framing. Strings default to `text/plain;charset=UTF-8`.
+
+Fetch resolves **at response headers**, also for 401 and other error statuses.
+The response exposes `status`, `statusText`, `ok`, immutable case-insensitive
+`headers` (`get`, `has`, iterators and `forEach`), `url`, `redirected`, `body`,
+`bodyUsed`, `json()`, `text()` and `arrayBuffer()`. JSON/text decoding preserves
+UTF-8 sequences split between chunks. HEAD and 204/205/304 have a null body.
+Locking a body prevents convenience consumption; reading/cancelling disturbs it,
+and subsequent consumption rejects with `TypeError`. Authentication and retry
+belong to the application: consume or cancel a 401 response, obtain new
+credentials and make a new request.
+
+Redirects default to `follow`; `manual` exposes the actual response status,
+headers and body as Node fetch does, and `error` rejects any redirect status.
+Following uses relative Location resolution and at most 20 hops. POST becomes
+GET for 301/302; 303 rewrites methods other than GET/HEAD to GET. Rewriting drops
+the body, its content headers and framing headers; 307/308 replay the original
+copied bytes and method. Crossing origins strips Authorization, Cookie and
+Proxy-Authorization and recomputes Host. Redirect URLs containing credentials
+or non-HTTP(S) schemes reject. Intermediate responses are destroyed without
+collecting or waiting for their bodies. See the
+[Fetch redirect algorithm](https://fetch.spec.whatwg.org/#http-redirect-fetch).
+
+### Response ownership and byte bounds
+
+The fetch provider owns one request/response at a time, bridges the compact
+network readable to `node:stream.Readable`, and exposes it through the existing
+`Readable.toWeb` adapter. Both the bridge and web queue have an explicit **16 KiB
+byte high-water mark**; the web strategy counts `chunk.byteLength`, not chunks.
+The compact HTTP response queue also has a 16 KiB high-water mark. Each may
+overshoot by one incoming chunk `C`, bounded by the transport's read/record
+size (plain TCP reads are at most 65,432 bytes). Reads stop when downstream
+demand stops. Queued bytes and their backing storage are bounded independently
+of total response size; one chunk may additionally be in delivery. This excludes
+OS/TLS transport state, fixed HTTP header storage and bytes retained by callers.
+`text()`, `json()` and `arrayBuffer()` intentionally collect the consumed result;
+use a body reader and discard chunks for bounded-memory processing.
+
+The caller must **consume or cancel each body**, including error responses.
+One idempotent cleanup path handles EOF, transport errors, reader cancellation
+and AbortSignal cancellation. It unsubscribes the protected native signal
+listener, detaches response delivery and clears unread network, bridge and web
+queues. Successful consumption returns the socket to the existing Agent;
+unfinished, failed and intermediate responses close their connection. Abort
+rejects promptly before headers, including in an Agent queue. After headers it
+errors pending reads and already queued web data, even after HTTP EOF; stopping
+public abort-event propagation cannot suppress cleanup. Premature disconnects
+error the body rather than report successful EOF.
+
+`ClientRequest._release()` establishes the Agent handoff by setting `_released`
+and detaching the completed response socket. Fetch checks that ownership flag
+before destroying its request: an abort after HTTP EOF still errors queued web
+bytes, but cannot close a socket now serving another request. The native
+after-EOF/reused-socket regression in `tests/fetch.test.ts` covers that boundary.
+
+[`tests/fetch.test.ts`](../tests/fetch.test.ts) compares native output with Node
+using the self-contained [server fixture](../tests/fixtures/fetch-server.mjs),
+including JSON/header bytes, Cyrillic, 401 retry, JPEG, redirect replay and
+credential stripping, abort/cancel/disconnect recovery, incremental discard,
+metrics and test-scoped HTTPS trust. It also checks actual native Agent queue
+cancellation and normal selective linking in all three source formats.
+[`tests/fetch-source.test.ts`](../tests/fetch-source.test.ts) drives the real
+provider, compact readable and web adapter with a backpressure-aware producer.
+Stalled/slow reads compare growing totals and chunk sizes, count all three
+queues and retained backing buffers against `3 * (16 KiB + C) + C`, and verify
+empty terminal queues, listener disposal and single connection release across
+repeated cancellation/metrics cycles. Larger RSS measurements and long stress
+validation belong on hosted runners; hosted `npm run check` and `npm run compare`
+remain required with `full-ci` and `gc-stress` set before the CI-triggering push.
+
+This is a Fetch subset: no browser Request/Response/Headers constructors,
+FormData, Blob/ArrayBuffer/URLSearchParams request bodies, upload streams,
+cloning, formData()/blob(), cookie jar, CORS/cache enforcement or automatic
+content decompression. Other RequestInit fields have no effect. Fetch requests
+identity encoding by default; explicitly requested compressed bodies remain
+encoded. HTTPS retains the existing TLS certificate verification and TLS 1.3
+limits; no fetch option disables verification.
 
 ## `node:http`
 
@@ -286,8 +382,8 @@ accepted by one and refused by the other.
 `https`, `node:https` and `nona:https` run the HTTP/1.1 client of
 [`node:http`](#nodehttp) over TLS sockets of [`node:tls`](#nodetls), with the
 same requests, responses, keep-alive and errors. Only the client is
-implemented, and there is no global `fetch` yet, so `https:` URLs are requested
-with `https.request` and `https.get`.
+implemented. HTTPS URLs can use `https.request`, `https.get` or the
+[global fetch subset](#global-fetch).
 
 | Export                                            | Notes                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -317,8 +413,8 @@ Stated plainly, for the TLS client and the `https` module:
   rely on it where local timing attacks matter.
 - **Trust comes from the operating system**: the Linux bundle or the Windows
   ROOT store, not the Mozilla roots bundled with Node.js. `rejectUnauthorized: false` and a replaced `checkServerIdentity` turn checks off; that choice is the caller's responsibility.
-- **Client only.** `tls.createServer` and `https.createServer` throw, and there
-  is no `fetch` over `https:` yet.
+- **Client only.** `tls.createServer` and `https.createServer` throw. HTTPS
+  fetch uses the same client and certificate-verification rules.
 - **Platforms.** win32-x64 and linux-x64 only.
 
 ## Soak test

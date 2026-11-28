@@ -50,6 +50,19 @@ native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
+## Global `fetch`
+
+On Windows x64 and Linux x64, `fetch` is available without imports in scripts,
+CommonJS and ES modules. It supports HTTP/HTTPS string or URL inputs, validated
+case-insensitive headers, UTF-8 strings and Uint8Array/Buffer upload bytes,
+JSON/text/arrayBuffer responses, redirects and AbortSignal cancellation.
+Responses resolve at headers, including 401: the application owns reauthentication
+and retry. Consume or cancel each response body. The existing native transports
+and `Readable.toWeb` provide demand-driven reads with explicit 16 KiB byte
+queues; errors, cancellation and completion release their listeners and unread
+bytes through one cleanup path. See the [supported subset, ownership and
+buffering guarantees with tests](network.md#global-fetch).
+
 ## Internationalization (`Intl`)
 
 Nona has its own `Intl` for the `en`/`en-US` locale (`NumberFormat`, `DateTimeFormat`, `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf`) and `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and `localeCompare` delegate to it. Other locales fall back to `en-US`; the time zone is UTC. It is linked only when a program names one of these. See [intl](intl.md).

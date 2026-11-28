@@ -26,6 +26,7 @@ import { entropySource } from "../selfhost-adapters.js";
 import { httpsModuleSource } from "./https-module.js";
 import { tlsCryptoModuleSource } from "./tls-crypto-module.js";
 import { tlsModuleSource } from "./tls-module.js";
+import { modulesFetch } from "../lib/sources.generated.js";
 import { x509ModuleSource, x509StoreModuleSource } from "./x509-module.js";
 import {
     nodeCompatModules,
@@ -175,6 +176,7 @@ const sources = new Map<string, (target: Target) => string>([
     ["nona:internal/native", () => nativeModuleSource],
     ["nona:json", () => jsonModuleSource],
     ["nona:internal/commonjs", () => commonJsModuleSource],
+    ["nona:internal/fetch", () => modulesFetch],
     ["nona:internal/tls-crypto", () => tlsCryptoModuleSource],
     ["nona:internal/x509", () => x509ModuleSource],
     ["nona:internal/x509-store", x509StoreModuleSource],
@@ -214,7 +216,11 @@ function builtinInventory(
     for (const [specifier, provider] of sources) {
         if (specifier === "nona:win32" && getTarget(target)!.os !== "win32")
             continue;
-        if (specifier.startsWith("nona:internal/")) continue;
+        if (
+            specifier.startsWith("nona:internal/") &&
+            specifier !== "nona:internal/fetch"
+        )
+            continue;
         if (
             [
                 "node:net",
@@ -225,6 +231,7 @@ function builtinInventory(
                 "nona:tls",
                 "node:https",
                 "nona:https",
+                "nona:internal/fetch",
             ].includes(specifier) &&
             target !== "win32-x64" &&
             target !== "linux-x64"

@@ -252,6 +252,8 @@ export class Readable extends EventEmitter {
     destroy(error) {
         if (this._destroyed) return this;
         this._destroyed = true;
+        this._queue = null;
+        this._queued = 0;
         if (error) this._errored = error;
         this._destroy(error || null, (finalError) => {
             this._finalError = finalError;

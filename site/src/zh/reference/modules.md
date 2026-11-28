@@ -4,6 +4,8 @@
 
 Nona 程序在没有 Node.js 的情况下运行。下面的宿主 API 是编译器的一部分：原生运行时和小型 JavaScript 前导代码会编译进每个可执行文件，内置模块则在程序导入时编译进去。
 
+Windows x64 和 Linux x64 上的脚本、CommonJS 和 ES 模块无需导入网络模块即可使用全局 `fetch`。支持 JSON、二进制请求体、重定向、取消以及使用 16 KiB 字节队列的增量读取。每个响应体（包括 401）都必须读取或取消；重新认证由应用程序控制。参见 [Fetch 子集和响应所有权保证](/reference/network#global-fetch)（英文）。
+
 ## 概览
 
 | API                                                                                                                                                                                                                                                                                        | 类型           | 目标平台                             | 参考                                                                       |

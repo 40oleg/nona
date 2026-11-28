@@ -296,6 +296,8 @@
                 "harness",
                 "has-cache",
                 "http",
+                "fetch",
+                "fetch-source",
                 "http-backpressure",
                 "http-backpressure-source",
                 "http-keepalive",

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add global `fetch` over the native HTTP/HTTPS clients on Windows/Linux x64:
+  UTF-8 JSON and binary uploads, readable error responses, redirect replay,
+  protected cancellation and byte-bounded incremental response streams. Preserve
+  lazy selective linking and global shadowing; document response ownership and
+  the supported subset with self-contained native/Node and queue regressions.
+  ([#666](https://github.com/40oleg/nona/issues/666))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent
   producer/copy coalescing proofs. Add matching production guard regressions and

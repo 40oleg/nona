@@ -1,5 +1,7 @@
 # Compatibilidad y limitaciones
 
+El `fetch` global está disponible sin importar módulos de red en Windows x64 y Linux x64, en scripts, CommonJS y módulos ES. Admite JSON, cuerpos binarios, redirecciones, cancelación y lectura incremental con colas de 16 KiB. Consuma o cancele cada cuerpo de respuesta, incluido 401; la aplicación controla la reautenticación. Consulte el [subconjunto de Fetch y la gestión de respuestas](/reference/network#global-fetch) (en inglés).
+
 ## Alcance
 
 Nona apunta al lenguaje y los objetos integrados de la 11.ª edición normativa de ECMA-262 (junio de 2020), para scripts y módulos ES. La internacionalización ECMA-402, las APIs del navegador y las de Node.js son especificaciones aparte; Nona solo proporciona las APIs del host enumeradas en la [Referencia](/es/reference/modules). El contrato de completitud se mantiene en [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md). El `Intl` propio de Nona (ECMA-402) solo conoce la configuración regional `en`/`en-US`; las demás se reemplazan por ella y la zona horaria es UTC.

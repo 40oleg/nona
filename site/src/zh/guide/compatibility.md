@@ -1,5 +1,7 @@
 # 兼容性与限制
 
+Windows x64 和 Linux x64 上的脚本、CommonJS 和 ES 模块无需导入网络模块即可使用全局 `fetch`。支持 JSON、二进制请求体、重定向、取消以及使用 16 KiB 字节队列的增量读取。每个响应体（包括 401）都必须读取或取消；重新认证由应用程序控制。参见 [Fetch 子集和响应所有权保证](/reference/network#global-fetch)（英文）。
+
 ## 范围
 
 Nona 面向规范性的 ECMA-262 第 11 版（2020 年 6 月）的语言和内置对象，适用于脚本和 ES 模块。ECMA-402 国际化、浏览器 API 和 Node.js API 属于其他规范；Nona 只提供[参考](/zh/reference/modules)中列出的宿主 API。完成度约定记录在 [`docs/es2020-contract.md`](https://github.com/40oleg/nona/blob/main/docs/es2020-contract.md) 中。 Nona 自带的 `Intl`（ECMA-402）只支持 `en`/`en-US` 区域；其他区域回退到它，时区为 UTC。
