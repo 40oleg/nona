@@ -101,7 +101,9 @@ nona --help | --version
 
 **WebAssembly:** original in-process scalar execution, memory, tables, globals
 and JS callbacks. See the [supported subset and lifetime guarantees](docs/webassembly.md).
-PGlite boot and persistent storage are still being implemented.
+[Офлайн-адаптер PGlite](docs/pglite-offline.md) использует локальные ресурсы
+закреплённой версии для запуска в памяти и SELECT 1. Нативное постоянное хранилище
+остаётся в работе.
 
 **`eval` и `Function`** работают, если исходный текст известен при компиляции: строковый литерал, конкатенация литералов или переменная, которой присваиваются только такие константы. Такой код компилируется заранее с полной семантикой прямого и косвенного `eval`. Код, вычисленный во время выполнения, бросает `EvalError`; это единственное намеренное исключение ([контракт](docs/es2020-contract.md)).
 

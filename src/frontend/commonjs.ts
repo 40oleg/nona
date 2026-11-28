@@ -339,9 +339,14 @@ export function analyzeCreateRequire(
     walk(program.body, (node) => {
         if (node.kind !== "Var") return;
         for (const { id, init } of (node as A.Var).declarations) {
+            const imported = init?.kind === "Await" ? init.argument : init;
+            const moduleName =
+                imported?.kind === "ImportCall"
+                    ? stringOf(imported.argument)
+                    : requireCall(init ?? undefined);
             if (
                 id.kind !== "ObjectPattern" ||
-                !/^(node:)?module$/.test(requireCall(init ?? undefined) ?? "")
+                !/^(node:)?module$/.test(moduleName ?? "")
             )
                 continue;
             for (const property of id.properties)

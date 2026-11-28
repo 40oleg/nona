@@ -46,6 +46,10 @@
             "description": "ELF writer (Linux check job and Linux regression job).",
             "files": ["elf"]
         },
+        "pglite": {
+            "description": "Pinned offline PGlite boot and adapter regressions (mandatory hosted Linux check job).",
+            "files": ["pglite", "pglite-adapter"]
+        },
         "native-formats": {
             "description": "Native targets, object formats and arm64 emission (Linux regression job).",
             "files": [

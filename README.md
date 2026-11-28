@@ -101,7 +101,8 @@ The output cannot replace any file successfully read for compilation or package 
 
 **WebAssembly:** original in-process scalar execution, memory, tables, globals
 and JS callbacks. See the [supported subset and lifetime guarantees](docs/webassembly.md).
-PGlite boot and persistent storage are still being implemented.
+The pinned [offline PGlite adapter](docs/pglite-offline.md) supplies local assets
+for in-memory boot and SELECT 1. Native persistent storage remains in progress.
 
 **`eval` and `Function`** work when their source text is known at compile time: a string literal, a concatenation of literals, or a variable only ever given such constants. That source is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception ([contract](docs/es2020-contract.md)).
 

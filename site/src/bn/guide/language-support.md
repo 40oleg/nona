@@ -1,6 +1,6 @@
 # ভাষা সমর্থন
 
-**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). PGlite boot and persistence remain in progress.
+**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). The pinned [offline PGlite adapter](https://github.com/40oleg/nona/blob/main/docs/pglite-offline.md) supplies local assets for in-memory boot and SELECT 1; native persistence remains in progress.
 
 Nona নথিভুক্ত ব্যতিক্রমসহ ECMA-262-এর 11তম সংস্করণ (ES2020)-কে লক্ষ্য করে। এই পৃষ্ঠায় **v0.36.0**-এ কী সমর্থিত তার সারসংক্ষেপ আছে। Test262-এর সংখ্যাগুলো [Test262](/bn/reference/test262) পৃষ্ঠায় বর্ণিত পিন করা রিভিশনের সর্বশেষ পূর্ণ নিরীক্ষা (v0.8.0) থেকে এসেছে।
 

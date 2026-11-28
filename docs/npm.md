@@ -117,6 +117,13 @@ require with a literal string. Any other id, including one computed at run
 time, throws `MODULE_NOT_FOUND`, as `require(variable)` does. A relative or
 non-absolute `filename` throws a `TypeError`.
 
+The planner also tracks factory aliases destructured from a literal dynamic
+`import('module')` or `import('node:module')`, including an awaited import inside
+a function. Their literal require targets are embedded in that file's require
+table. This is used by the [offline PGlite glue](pglite-offline.md); the focused
+`createRequire aliases` regression in [npm.test.ts](../tests/npm.test.ts) checks
+both builtin and JSON dependencies against Node.
+
 ## Built-in modules
 
 `require('fs')`, `require('node:fs')` and `import fs from 'fs'` load Nona's

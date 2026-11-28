@@ -1,6 +1,6 @@
 # Prise en charge du langage
 
-**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). PGlite boot and persistence remain in progress.
+**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). The pinned [offline PGlite adapter](https://github.com/40oleg/nona/blob/main/docs/pglite-offline.md) supplies local assets for in-memory boot and SELECT 1; native persistence remains in progress.
 
 Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions documentées. Cette page résume ce qui est pris en charge dans **v0.36.0**. Les chiffres de Test262 proviennent du dernier audit complet (v0.8.0) de la révision figée décrite sur la page [Test262](/fr/reference/test262).
 

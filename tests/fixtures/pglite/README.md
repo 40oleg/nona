@@ -2,7 +2,9 @@
 
 This is step 1 of [#667](https://github.com/40oleg/nona/issues/667): a reproducible
 Node oracle and a frozen package audit for the subsequent Nona implementation.
-It does not establish that Nona can execute WebAssembly or boot PGlite yet.
+The subsequent [offline native boot adapter](../../../docs/pglite-offline.md)
+uses the same unchanged package and pins for an in-memory SELECT/close workload.
+Native profiles and binary COPY remain step 4.
 The published package is used unchanged, with an **exact**
 `@electric-sql/pglite@0.3.14` dependency and npm lockfile. No service, PostgreSQL
 installation, VI Toolkit checkout, browser, downloaded image or network fetch
@@ -39,10 +41,12 @@ files and **both** prepared assets before compilation and package import. A
 missing or modified resource produces its local path and repair instructions.
 The manifests are reviewed pins, not hashes regenerated from whatever is installed.
 
-Installation and these tests are opt-in, independent of the root `npm ci`,
+Installation and the Node oracles are opt-in, independent of the root `npm ci`,
 `npm run build`, `npm test` and ordinary compiler dependencies. The focused
 [CI workflow](../../../.github/workflows/pglite-oracle.yml) prepares the fixture
 explicitly on hosted Linux x64 and Windows x64, then runs these commands.
+The main check workflow separately prepares this fixture and runs mandatory
+native Linux boot and bad-resource cases; see the offline boot reference.
 Changing a package pin requires reviewing provenance, notices, resource hashes,
 the audit and oracle results together; do not substitute a newer release's API.
 

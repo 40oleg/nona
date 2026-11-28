@@ -855,6 +855,25 @@ console.log(makeRequire(__filename)('./only-created.cjs'), require('module').cre
         "main.mjs",
     ));
 
+test("createRequire aliases from an awaited dynamic module import register literal dependencies", () =>
+    agree(
+        {
+            "main.mjs": `
+async function boot() {
+    const { createRequire: make } = await import('module');
+    const load = make(import.meta.url);
+    console.log(typeof load('fs').readFileSync, load('./value.json').value);
+    const { createRequire: other } = await import('node:module');
+    const require = other(import.meta.url);
+    console.log(require('node:path').basename('/offline/asset'));
+}
+await boot();
+`,
+            "value.json": '{"value":42}',
+        },
+        "main.mjs",
+    ));
+
 test("require() of an ES module returns its module.exports export or its namespace with __esModule", () =>
     agree(
         {

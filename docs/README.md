@@ -4,7 +4,9 @@ This directory holds the reference documents. Snapshots written for a particular
 
 The [PGlite offline fixture and package audit](../tests/fixtures/pglite/README.md)
 pins the upstream WASM/glue requirements and Node reference workloads for #667.
-It does not establish native PGlite support.
+The [offline boot reference](pglite-offline.md) describes the local resource
+adapter, standalone SELECT/close workload and mandatory hosted Linux coverage.
+Native persistent profiles and COPY remain subsequent work.
 
 The [WebAssembly execution reference](webassembly.md) describes the original
 scalar engine, supported subset, validation, traps and ownership/callback guarantees.

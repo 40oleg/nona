@@ -15,7 +15,13 @@
     w.fail = function (message) {
         throw new w.CompileError(message);
     };
+    // Validation and execution only read these signatures. Rebuilding their
+    // arrays for every arithmetic instruction makes real workloads allocate
+    // billions of short-lived objects (notably PostgreSQL initialization).
+    // Own, dense byte-indexed slots also avoid inherited numeric properties.
+    var signatures = new Array(256).fill(null);
     w.signature = function (op) {
+        if (signatures[op]) return signatures[op];
         var t,
             n = 1,
             r;
@@ -62,7 +68,7 @@
             t = from[op - 0xa7];
             r = to[op - 0xa7];
         }
-        return { params: n === 1 ? [t] : [t, t], results: [r] };
+        return (signatures[op] = { params: n === 1 ? [t] : [t, t], results: [r] });
     };
     function nearest(x) {
         if (!Number.isFinite(x) || x === 0) return x;

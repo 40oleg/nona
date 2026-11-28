@@ -38,8 +38,8 @@ already supply the required primitives.
   ref.null/ref.func/ref.is_null.
 
 The supported families cover the frozen [PGlite 0.3.14 inventory](../tests/fixtures/pglite/AUDIT.md).
-Database boot from local assets and persistent profiles are subsequent steps;
-this execution work alone does not establish native PGlite acceptance.
+The [offline PGlite adapter](pglite-offline.md) supplies the local boot resources
+and scoped platform checks. Native persistent profiles remain a subsequent step.
 Streaming/fetch APIs, shared WASM memory, memory64, multiple memories, SIMD,
 atomics, tail calls, WASM GC, tags and WASM exception instructions are absent.
 Unknown instructions, types and section encodings fail closed with CompileError.
@@ -79,6 +79,9 @@ future asset/profile adapters:
   change validation, execution or custom sections. Decoded function instructions
   are cached on first execution and shared between instances; mutable globals,
   dropped segments and imported resources remain per instance.
+  Numeric opcode signatures are private immutable metadata shared by validation
+  and execution, avoiding per-instruction signature allocations during large
+  workloads such as PostgreSQL initialization.
 - An exported function or a function stored in a table strongly retains its
   instance and imports, including memory, tables and globals. WeakMaps brand
   public objects; the state/function cycles are collectible when unreachable.

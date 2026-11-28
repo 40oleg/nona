@@ -56,8 +56,9 @@ Script functions can shadow built-in and host global names such as `escape`, `un
 compile/instantiate, imports/exports, memory, tables, globals and JS callbacks.
 It is optionally linked when named and uses the executable's existing native
 binary-data and BigInt primitives. See [supported instructions, traps, memory
-ownership and callback lifetime](webassembly.md). Local PGlite asset loading and
-persistent profiles remain subsequent work for #667.
+ownership and callback lifetime](webassembly.md). The pinned fixture's
+[offline PGlite adapter](pglite-offline.md) loads local WASM and filesystem assets
+without fetch. Native persistent profiles remain subsequent work for #667.
 
 ## Internationalization (`Intl`)
 

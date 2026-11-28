@@ -1,0 +1,106 @@
+# Offline PGlite boot
+
+The [pinned PGlite 0.3.14 fixture](../tests/fixtures/pglite/README.md) provides an
+offline adapter and a standalone native workload for step 3 of
+[#667](https://github.com/40oleg/nona/issues/667). It uses the published package
+unchanged. This step creates an **in-memory** database, runs `SELECT 1 AS value`,
+awaits `close()` and checks `closed`. Persistent profiles and binary COPY in a
+native executable belong to step 4; the existing Node oracle covers those
+reference workloads separately.
+
+## Build and invocation
+
+From the repository root, prepare the pinned package and assets once:
+
+```sh
+npm ci
+npm run build
+npm --prefix tests/fixtures/pglite ci --ignore-scripts --no-audit --no-fund
+npm --prefix tests/fixtures/pglite run prepare:assets
+mkdir -p tests/fixtures/pglite/.work
+node dist/cli.js build tests/fixtures/pglite/boot.mjs --target linux-x64 -o tests/fixtures/pglite/.work/pglite-boot
+```
+
+On Linux x64, run with an explicit absolute asset directory, including from a
+different working directory:
+
+```sh
+repo="$PWD"
+cd tests/fixtures/pglite/.work
+./pglite-boot "$repo/tests/fixtures/pglite/assets"
+```
+
+Expected output is `select=1 closed=true fetch=undefined` with exit status 0.
+The executable includes the package's JavaScript and Nona's scalar WASM engine.
+Deployment needs only that ELF, `pglite.wasm` and `pglite.data`; retain the
+[redistribution notices](../tests/fixtures/pglite/NOTICE.md) alongside them.
+No package directory, manifest, JavaScript engine, PostgreSQL installation,
+network service or fetch implementation is needed at execution time.
+There is no default resource directory and no resolution relative to the ELF,
+package installation or the compiler's original working directory. A relative
+argument is resolved against the caller's working directory.
+
+## Resource and platform contract
+
+[`offline.mjs`](../tests/fixtures/pglite/offline.mjs) establishes this contract
+for the workload and subsequent profile adapter:
+
+- `createOfflinePGlite(assetDirectory)` reads exactly `pglite.wasm` and
+  `pglite.data` in the selected directory. Both must match the byte sizes and
+  SHA256 pins in [resources.json](../tests/fixtures/pglite/resources.json).
+  The pins are embedded in the executable; preparation checks the package too.
+  Missing, truncated or modified resources reject before upstream initialization.
+  The error includes the absolute resource path, the underlying read error or
+  integrity mismatch, and repair instructions; `.cause` retains the original error.
+- Each read preserves `buffer`, `byteOffset` and `byteLength` through an exact
+  Uint8Array view. The main module is precompiled with `WebAssembly.compile`;
+  a compilation rejection names the WASM path and retains its cause. The adapter
+  supplies `wasmModule` and a Blob `fsBundle` to `PGlite.create()`. It never uses
+  streaming compilation, fetch or an upstream default resource URL.
+- The [audited upstream checks](../tests/fixtures/pglite/AUDIT.md) select Node
+  using `typeof process.versions.node === "string"`. Nona normally exposes only
+  its own version. `withPGlitePlatform` temporarily supplies a marker string
+  through package import and database readiness. This is a fixture-specific
+  environment selector, not a Node version or general compatibility claim.
+- Emscripten initializes NODEFS even for an in-memory database and requests
+  `process.binding("constants").fs`. The same scope supplies public `node:fs`
+  constants and rejects every other internal binding. It restores original
+  property descriptors on success and failure; overlapping platform scopes
+  reject explicitly. Import and create through this adapter, and do not start
+  unrelated platform-sensitive work during its asynchronous scope. Upstream
+  caches environment flags, so later direct package imports share that choice.
+- `boot.mjs` sets fetch to undefined, checks SQL results, awaits clean close and
+  checks restoration of the process properties. Resource errors exit with status 1.
+
+The compiler's CommonJS planner also recognizes `createRequire` aliases
+destructured from literal `import("module")` or `import("node:module")`, including
+an awaited import inside a function. It embeds their literal require targets
+in the module's require table, just as for statically imported factories.
+This supplies Emscripten's `require("fs")` and `require("path")` without runtime
+package resolution. Computed require targets retain the existing compiler limits.
+
+## Verification
+
+The mandatory `linux-native` job in [check.yml](../.github/workflows/check.yml)
+prepares the pinned fixture, then runs the `pglite` suite with
+`NONA_PGLITE_INTEGRATION=1` and `NONA_TEST_CONCURRENCY=1`. The test compiles the
+actual package for the host target from a temporary source tree, deletes that
+tree, then runs with only the executable and two assets in a fresh working
+directory and with fetch absent. It checks SQL,
+close, zero exit status and empty stderr. Separate children check missing,
+truncated and same-size corrupt WASM, plus missing and same-size corrupt data.
+Every child is bounded, output is capped at 64 KiB, and temporary files are removed.
+Scalar interpretation makes PostgreSQL's first initialization slower than the
+small WASM probes; the hosted boot timeout is ten minutes, with fifteen minutes
+for the suite step. Bad resources have a separate fifteen-second assertion.
+
+After preparation, run this focused coverage locally only where appropriate:
+
+```sh
+NONA_PGLITE_INTEGRATION=1 NONA_TEST_CONCURRENCY=1 node scripts/run-suite.mjs pglite
+```
+
+Without the integration environment variable, ordinary test runs still check
+buffer ranges, pin consistency, explicit directory diagnostics and platform
+scope restoration without installing the optional package. They skip native
+PostgreSQL boot. A skipped boot is not native acceptance evidence.
