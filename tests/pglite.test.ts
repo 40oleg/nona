@@ -17,6 +17,10 @@ import { requireHostTarget } from "../src/target.js";
 
 const fixture = resolve("tests/fixtures/pglite");
 const enabled = process.env.NONA_PGLITE_INTEGRATION === "1";
+// PostgreSQL initialization interprets billions of WASM instructions. Keep that
+// long validation hosted; local opt-in still compiles the package and exercises
+// every resource failure in a standalone native executable.
+const hosted = process.env.RUNNER_ENVIRONMENT === "github-hosted";
 
 test(
     "PGlite standalone offline boot and resource failures",
@@ -64,7 +68,7 @@ test(
                         join(assets, name),
                     );
             }
-            function run(timeout = 600_000) {
+            function run(timeout: number) {
                 const child = spawnSync(executable, [assets], {
                     cwd: directory,
                     encoding: "utf8",
@@ -79,9 +83,10 @@ test(
             }
             await t.test(
                 "SELECT 1 and awaited close from another working directory",
+                { skip: !hosted },
                 () => {
                     restore();
-                    const child = run();
+                    const child = run(30 * 60_000);
                     assert.equal(child.status, 0, child.stderr + child.stdout);
                     assert.equal(child.stderr, "");
                     assert.equal(

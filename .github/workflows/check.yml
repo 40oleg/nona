@@ -198,11 +198,14 @@ jobs:
                   npm --prefix tests/fixtures/pglite ci --ignore-scripts --no-audit --no-fund
                   npm --prefix tests/fixtures/pglite run prepare:assets
             - name: Standalone offline PGlite ELF boot
-              timeout-minutes: 15
+              timeout-minutes: 40
               env:
                   NONA_PGLITE_INTEGRATION: "1"
                   NONA_TEST_CONCURRENCY: "1"
-              run: node scripts/run-suite.mjs pglite
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
+                  node scripts/run-suite.mjs pglite
             - run: node scripts/run-suite.mjs frontend elf async events
             - run: node scripts/run-suite.mjs path child-process
             - name: Focused HTTP Agent regressions

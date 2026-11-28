@@ -68,7 +68,10 @@
             t = from[op - 0xa7];
             r = to[op - 0xa7];
         }
-        return (signatures[op] = { params: n === 1 ? [t] : [t, t], results: [r] });
+        return (signatures[op] = {
+            params: n === 1 ? [t] : [t, t],
+            results: [r],
+        });
     };
     function nearest(x) {
         if (!Number.isFinite(x) || x === 0) return x;

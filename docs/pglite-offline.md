@@ -91,14 +91,22 @@ close, zero exit status and empty stderr. Separate children check missing,
 truncated and same-size corrupt WASM, plus missing and same-size corrupt data.
 Every child is bounded, output is capped at 64 KiB, and temporary files are removed.
 Scalar interpretation makes PostgreSQL's first initialization slower than the
-small WASM probes; the hosted boot timeout is ten minutes, with fifteen minutes
+small WASM probes; the hosted boot timeout is thirty minutes, with forty minutes
 for the suite step. Bad resources have a separate fifteen-second assertion.
+The long SELECT/close case runs only with
+`RUNNER_ENVIRONMENT=github-hosted`, supplied explicitly by that workflow step.
+The preceding runner check rejects a non-hosted runner. This keeps long
+validation off the owner's shared PC without making Linux CI boot optional.
 
-After preparation, run this focused coverage locally only where appropriate:
+After preparation, run the focused compilation and bad-resource coverage locally:
 
 ```sh
 NONA_PGLITE_INTEGRATION=1 NONA_TEST_CONCURRENCY=1 node scripts/run-suite.mjs pglite
 ```
+
+On a local machine this reports the long SELECT/close case as skipped. Do not
+set the hosted runner marker locally to bypass that policy. The hosted job runs
+the same suite with the marker and must pass the SELECT/close case as well.
 
 Without the integration environment variable, ordinary test runs still check
 buffer ranges, pin consistency, explicit directory diagnostics and platform
