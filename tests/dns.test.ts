@@ -1,11 +1,59 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { modulesDns } from "../src/lib/sources.generated.js";
 import { builtinSpecifiers } from "../src/frontend/builtin-modules.js";
 import { supportedNativeTargets } from "../src/target.js";
 import { runModulesOnHost } from "./helpers/host.js";
+import { socketBoundary } from "./helpers/net-source.js";
+
+test("shared resolver rejects reserved invalid names without consulting the platform", () => {
+    const platformNames: string[] = [];
+    const addresses = [{ address: "192.0.2.3", family: 4 }];
+    const { lookup } = socketBoundary([], (name) => {
+        platformNames.push(name);
+        // Even a positive platform answer must not override RFC 6761 names.
+        return addresses;
+    });
+    for (const host of [
+        "invalid",
+        "invalid.",
+        "INVALID",
+        "nona-dns-665.invalid.",
+        "Nested.Host.InVaLiD",
+        "nested.host.INVALID.",
+    ]) {
+        assert.throws(
+            () => lookup(host),
+            (error) => {
+                assert.ok(error instanceof Error);
+                const failure = error as NodeJS.ErrnoException & {
+                    hostname: string;
+                };
+                assert.equal(failure.code, "ENOTFOUND");
+                assert.equal(failure.errno, -3008);
+                assert.equal(failure.syscall, "getaddrinfo");
+                assert.equal(failure.hostname, host);
+                assert.ok(error.message.includes(host));
+                return true;
+            },
+        );
+    }
+    assert.deepEqual(platformNames, []);
+    for (const host of [
+        "notinvalid",
+        "hostinvalid.",
+        "INVALID.example",
+        "host.invalid.example",
+    ])
+        assert.deepEqual(lookup(host), addresses);
+    assert.deepEqual(platformNames, [
+        "notinvalid",
+        "hostinvalid.",
+        "invalid.example",
+        "host.invalid.example",
+    ]);
+});
 
 // Exercise the public source with a controlled resolver and deferred job queue.
 function boundary(resolve: (host: string) => unknown) {
@@ -143,7 +191,7 @@ console.log('returned');
     );
 });
 
-test("dns negative lookup finishes within a host-enforced 10 seconds with error metadata", () => {
+test("dns reserved invalid lookup finishes within a host-enforced 10 seconds with error metadata", () => {
     const source = String.raw`import {lookup} from 'node:dns';
 const host = 'nona-dns-665.invalid.';
 let returned = false;
@@ -161,28 +209,14 @@ returned = true;
         timeoutMs: 10_000,
         oracleSource: "",
     });
-    const oracle = spawnSync(
-        process.execPath,
-        ["--input-type=module", "-e", source],
-        {
-            encoding: "utf8",
-            timeout: 10_000,
-            windowsHide: true,
-        },
-    );
     assert.equal(
         native.error,
         undefined,
         native.error?.message ?? "native deadline",
     );
     assert.equal(native.status, 0, native.stderr);
-    assert.equal(
-        oracle.error,
-        undefined,
-        oracle.error?.message ?? "oracle deadline",
-    );
-    assert.equal(oracle.status, 0, oracle.stderr);
-    assert.equal(native.stdout, oracle.stdout);
+    // RFC 6761 defines this negative answer independently of the machine's
+    // DNS server. Node's OS-controlled retries are not Nona's deadline contract.
     assert.equal(
         native.stdout,
         "true true ENOTFOUND -3008 getaddrinfo true true true true\ncalls 1\n",

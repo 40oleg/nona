@@ -10,6 +10,7 @@ import {
     writeFileSync,
 } from "node:fs";
 import { resolve, join } from "node:path";
+import { isIP } from "node:net";
 import { compile } from "../src/compiler.js";
 import { requireHostTarget } from "../src/target.js";
 
@@ -50,8 +51,18 @@ test("required PostgreSQL integration has dependencies and an ELF execution host
         installed,
         "Run npm ci --ignore-scripts --prefix tests/fixtures/postgres",
     );
-    if (process.env.NONA_POSTGRES_REQUIRE_ELF === "1")
+    if (process.env.NONA_POSTGRES_REQUIRE_ELF === "1") {
         assert.equal(requireHostTarget(), "linux-x64");
+        const host = (process.env.NONA_PG_HOST || "").toLowerCase();
+        const name = host.endsWith(".") ? host.slice(0, -1) : host;
+        assert.ok(
+            name &&
+                !isIP(name) &&
+                name !== "localhost" &&
+                !name.endsWith(".localhost"),
+            "ELF integration requires a non-special NONA_PG_HOST resolved by the platform",
+        );
+    }
 });
 
 const stages = [
@@ -110,7 +121,9 @@ const stages = [
 
 for (const stage of stages) {
     test(
-        `PostgreSQL ${stage.name}: independent Node oracle and actual native package graph`,
+        stage.name === "negative"
+            ? "PostgreSQL negative: native reserved-name error within its deadline"
+            : `PostgreSQL ${stage.name}: independent Node oracle and actual native package graph`,
         {
             skip:
                 !required &&
@@ -152,7 +165,10 @@ for (const stage of stages) {
                     ]),
                 ),
                 timeoutMs: timeout,
-                nodeResult: "not run",
+                nodeResult:
+                    stage.name === "negative"
+                        ? "not applicable: Nona's deterministic reserved-name policy"
+                        : "not run",
                 nativeResult: "not run",
                 server: process.env.NONA_PG_SERVER_VERSION || "not recorded",
             };
@@ -217,9 +233,12 @@ for (const stage of stages) {
             };
             save();
             // A failed native stage must not prevent its independent Node control.
-            await t.test("Node", () =>
-                run(process.execPath, [entry, ...stage.args], "nodeResult"),
-            );
+            // Reserved .invalid errors have a fixed RFC 6761 answer. The
+            // native deadline must not depend on Node's OS resolver retries.
+            if (stage.name !== "negative")
+                await t.test("Node", () =>
+                    run(process.execPath, [entry, ...stage.args], "nodeResult"),
+                );
             await t.test("native", () => {
                 const result = compile(readFileSync(entry, "utf8"), {
                     fileName: entry,

@@ -23,7 +23,10 @@ export function socketModuleWithSys(sysSource: string) {
 /** Compose the real Events, network Readable and Socket implementations, as stream-source does.
  * Only syscalls, native byte operations and the job scheduler cross into Node here.
  */
-export function socketBoundary(results: number[] = []) {
+export function socketBoundary(
+    results: number[] = [],
+    lookup: (name: string) => { address: string; family: number }[] = () => [],
+) {
     const tasks: (() => void)[] = [];
     const queueMicrotask = (task: () => void) => tasks.push(task);
     const EventEmitter = new Function(
@@ -42,6 +45,7 @@ export function socketBoundary(results: number[] = []) {
     const wire: number[] = [];
     const closed: number[] = [];
     const sys = {
+        lookup,
         send(_fd: number, bytes: Uint8Array, length: number) {
             assert.ok(results.length, "unexpected send: script exhausted");
             const result = results.shift()!;
@@ -66,7 +70,7 @@ export function socketBoundary(results: number[] = []) {
     ) => dst.set(src.subarray(start, end), offset);
     const sliceBytes = (src: Uint8Array, start: number, end: number) =>
         src.slice(start, end);
-    const { Socket } = new Function(
+    const { Socket, _internal } = new Function(
         "EventEmitter",
         "Buffer",
         "Readable",
@@ -76,7 +80,7 @@ export function socketBoundary(results: number[] = []) {
         "sliceBytes",
         "sys",
         "queueMicrotask",
-        body(modulesNetCommon) + ";return {Socket};",
+        body(modulesNetCommon) + ";return {Socket, _internal};",
     )(
         EventEmitter,
         Buffer,
@@ -92,6 +96,7 @@ export function socketBoundary(results: number[] = []) {
     socket._fd = 7;
     return {
         socket,
+        lookup: _internal.lookup,
         sends,
         wire,
         closed,

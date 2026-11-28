@@ -164,7 +164,7 @@ jobs:
         env:
             NONA_POSTGRES_TESTS: "1"
             NONA_POSTGRES_REQUIRE_ELF: "1"
-            NONA_PG_HOST: localhost
+            NONA_PG_HOST: nona-postgres.test
             NONA_PG_PORT: "5432"
         steps:
             - uses: actions/checkout@v4
@@ -177,6 +177,10 @@ jobs:
             - run: npm ci
             - name: Install isolated real-package fixture
               run: npm ci --ignore-scripts --prefix tests/fixtures/postgres
+            - name: Configure a hostname that exercises the platform resolver
+              run: |
+                  printf '127.0.0.1 nona-postgres.test\n' | sudo tee -a /etc/hosts
+                  getent ahostsv4 nona-postgres.test
             - name: Verify server readiness, authentication and version
               env:
                   PGPASSWORD: nona-test-only

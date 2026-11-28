@@ -23,14 +23,17 @@ docker run --rm -d --name nona-postgres-665 \
   -e POSTGRES_PASSWORD=nona-test-only -e POSTGRES_HOST_AUTH_METHOD=trust \
   postgres:17.6 -c ssl=off
 until docker exec nona-postgres-665 pg_isready -U nona -d nona; do sleep 1; done
+printf '127.0.0.1 nona-postgres.test\n' | sudo tee -a /etc/hosts
 docker exec nona-postgres-665 psql -U nona -d nona -Atc 'SELECT version()'
 NONA_POSTGRES_TESTS=1 NONA_POSTGRES_REQUIRE_ELF=1 NONA_PG_PORT=55432 \
+  NONA_PG_HOST=nona-postgres.test \
   NONA_PG_SERVER_VERSION="$(docker exec nona-postgres-665 psql -U nona -d nona -Atc 'SELECT version()')" \
   node --test --test-concurrency=1 dist/tests/postgres.test.js
 docker stop nona-postgres-665
 ```
 
-Stop the container even after a failed test. Readiness must succeed; do not
+Stop the container even after a failed test, and remove the temporary
+`nona-postgres.test` hosts-file entry afterwards. Readiness must succeed; do not
 count a skipped or unavailable service as integration success. The hosted
 `postgres` check job always enables every stage and requires a Linux x64
 execution host. It installs the fixture explicitly and uploads evidence even
@@ -51,21 +54,29 @@ NONA_PG_PORT=55432 node tests/fixtures/postgres/connect.cjs localhost
 NONA_PG_PORT=55432 node tests/fixtures/postgres/connect.cjs 127.0.0.1
 NONA_PG_PORT=55432 node tests/fixtures/postgres/transaction.cjs
 NONA_PG_PORT=55432 node tests/fixtures/postgres/copy.cjs
-timeout 10s node tests/fixtures/postgres/negative.cjs
+node dist/cli.js build tests/fixtures/postgres/negative.cjs --target linux-x64 -o work/pg-negative.elf
+timeout 10s ./work/pg-negative.elf
 node dist/cli.js build tests/fixtures/postgres/copy.cjs --target linux-x64 -o work/pg-copy.elf
 NONA_PG_PORT=55432 timeout 20s ./work/pg-copy.elf
 ```
 
 Use the test runner for authoritative negative-host evidence: it enforces a
-10-second **parent-process** deadline independently for Node and native,
+10-second **parent-process** deadline for native,
 requires the observed `ENOTFOUND` marker and zero exit, and rejects timeout
-kills. A timer inside the program cannot interrupt synchronous native DNS.
+kills. The shared resolver rejects reserved `.invalid` names locally under
+RFC 6761 section 6.4, independently of the OS or DNS server. Node's negative
+lookup can exceed this budget and is not used as a deadline oracle. Ordinary
+native hostname resolution is still synchronous and an in-process timer
+cannot interrupt it.
 
 ## What is checked
 
 - `load.cjs`: actual `dns`, `require('pg').Client` and
   `pg-copy-streams.from` load together.
-- `connect.cjs`: hostname and IPv4 TCP connections and a query.
+- `connect.cjs`: public `dns.lookup`, hostname and IPv4 TCP connections and a
+  query. Required ELF integration uses `nona-postgres.test` from the platform
+  hosts file rather than net's `localhost` shortcut, and rejects a special
+  hostname or IP literal in `NONA_PG_HOST`.
 - `dns-call.cjs`: the actual pinned `ConnectionParameters` method resolves an
   IPv4 literal and delivers its libpq string through the deferred callback.
 - `negative.cjs`: an unknown absolute `.invalid` hostname returns a connection
@@ -84,7 +95,7 @@ source/lock/image hashes, exact stdout/stderr, duration, exit, timeout error
 and passed/failed/not-run stages. Native executables are retained beside
 them. No network/package install occurs when the test module is imported.
 
-## Recorded local run, 2026-11-28
+## Original local run, 2026-11-28
 
 Compiler: `df09199901394f8d7cc3244ee92fdca8d7a9727a` (preserved unchanged),
 with these new fixture/test files. Host: Windows x64, Node 26.9.0. Server:
@@ -128,9 +139,48 @@ deadline. Native Windows produced no output before the parent killed it.
 These are failures, not successful bounded negative connections. The existing
 direct DNS regression is the smaller resolver witness; no pg/CommonJS/Buffer/
 stream fix was inferred from this shared timeout. The current callback DNS
-implementation is retained.
+implementation was retained for that run.
 
 Linux ELF execution is **not run locally** (no WSL or Docker). The acceptance
 criteria for ELF connections, transactions and COPY remain **incomplete**
 until the required hosted Linux job provides successful evidence. The local
 Windows results do not substitute for those checks.
+
+## Review verification, 2026-11-28
+
+Source: `8227c9ff` plus the review fix. Host, Node and PostgreSQL versions
+are unchanged. The shared resolver now rejects reserved `.invalid` names
+without calling the OS resolver. Ordinary Windows hostname resolution still
+has OS-controlled timeouts; this is not a general asynchronous DNS guarantee.
+
+All temporary files used `TEMP`, `TMP` and `TMPDIR` pointing to
+`work/test-tmp` inside this checkout. Fresh checks:
+
+- `npm run build`: passed.
+- `node --test --test-concurrency=1 dist/tests/dns.test.js
+dist/tests/net.test.js dist/tests/net-send-source.test.js`: **33 passed**,
+  none failed or skipped, including normal native negative-probe exit with
+  the expected metadata inside its 10-second process deadline.
+- With `NONA_POSTGRES_TESTS=1`, `NONA_PG_PORT=55432` and
+  `NONA_PG_HOST` set to the Windows computer name,
+  `node --test --test-concurrency=1 dist/tests/postgres.test.js`:
+  **22 passed**, none failed or skipped. The hostname stage now checks public
+  `dns.lookup` before the pg connection. Both operations resolve this real
+  hostname through Winsock rather than the `localhost` shortcut. Independent
+  Node controls passed all positive stages; the native negative stage
+  returned `PASS negative ENOTFOUND` with status 0 and no timeout.
+
+The existing disposable server bound loopback and the machine's resolved
+local IPv4 address, with a temporary HBA file allowing only those same-PC
+source addresses, `max_connections=10` and `shared_buffers=8MB`. The test
+command stopped the server in `finally`; no background server was retained.
+
+The direct Node negative lookup independently exceeded 10 seconds during
+investigation. Negative tests now assert Nona's RFC-defined reserved-name
+answer directly, retaining the native 10-second deadline and zero-exit
+requirements. They do not claim to bound Node's OS-controlled resolver.
+
+Hosted Linux uses a disposable `nona-postgres.test` hosts-file alias, and
+required ELF mode rejects loopback shortcuts and IP-literal hostname
+configuration. Linux execution is still pending hosted CI; the Windows run
+does not fulfill the ELF acceptance criteria.

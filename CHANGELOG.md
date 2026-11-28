@@ -5,8 +5,10 @@
 - Expose callback `dns.lookup` through the existing TCP resolver. Add isolated,
   pinned real `pg` and `pg-copy-streams` fixtures for hostname/IP connections,
   Cyrillic parameters, rollback and byte-exact streaming COPY, with required
-  hosted Linux PostgreSQL validation and retained evidence. Document resolver
-  timeout limits and outstanding Linux verification.
+  hosted Linux PostgreSQL validation and retained evidence. Reject reserved
+  `.invalid` names locally for deterministic DNS/socket errors; exercise a
+  platform-resolved hostname in integration checks. Document resolver timeout
+  limits and outstanding Linux verification.
   ([#665](https://github.com/40oleg/nona/issues/665))
 
 - Extend the Lean move model with block-local alias validity, multi-definition
