@@ -6,6 +6,7 @@ import { lowerLiteralEval } from "./eval-aot.js";
 import { CompileError } from "../diagnostics.js";
 import { NodeResolver, type NodeFileSystem } from "./node-resolution.js";
 import type { ModuleHost } from "./modules.js";
+import { boundNames, collectDeclarations } from "./declarations.js";
 
 /**
  * CommonJS modules and npm packages (issue #249).
@@ -305,33 +306,156 @@ export function analyzeCommonJs(program: A.Program): CommonJsAnalysis {
     };
 }
 
+function createRequireBindings(program: A.Program) {
+    interface Scope {
+        names: Map<string, A.Identifier>;
+        parent: Scope | undefined;
+        strict: boolean;
+    }
+    const scopes = new Map<A.Node, Scope>();
+    const isFunction = (node: A.Node | undefined): node is A.FunctionNode =>
+        node?.kind === "Function" || node?.kind === "FunctionExpression";
+    walk(program, (node, parent) => {
+        const enclosing = parent ? scopes.get(parent) : undefined;
+        // The discriminant is evaluated before the switch's lexical scope.
+        const outer =
+            parent?.kind === "Switch" &&
+            (parent as A.Switch).discriminant === node
+                ? enclosing?.parent
+                : enclosing;
+        let scope = outer;
+        const functionBody = node.kind === "Block" && isFunction(parent);
+        if (
+            node.kind === "Program" ||
+            isFunction(node) ||
+            node.kind === "Block" ||
+            node.kind === "Switch" ||
+            node.kind === "For" ||
+            node.kind === "ForIn" ||
+            node.kind === "ForOf" ||
+            node.kind === "Class" ||
+            node.kind === "ClassExpression"
+        ) {
+            scope = {
+                names: new Map(),
+                parent: outer,
+                strict: !!outer?.strict || !!program.module || !!program.strict,
+            };
+            const declare = (id: A.Identifier, parameter = false) => {
+                if (!scope!.names.has(id.name))
+                    scope!.names.set(
+                        id.name,
+                        parameter ? (outer?.names.get(id.name) ?? id) : id,
+                    );
+            };
+            if (isFunction(node)) {
+                scope.strict ||= !!node.body.strict;
+                if (node.kind === "FunctionExpression" && node.id)
+                    declare(node.id);
+                for (const pattern of node.parameters)
+                    for (const id of boundNames(pattern)) declare(id);
+                if (node.rest)
+                    for (const id of boundNames(node.rest)) declare(id);
+            } else if (
+                node.kind === "Class" ||
+                node.kind === "ClassExpression"
+            ) {
+                const id = (node as A.ClassExpression).id;
+                if (id) declare(id);
+            } else {
+                const variable = node.kind === "Program" || functionBody;
+                const statements =
+                    node.kind === "Program" || node.kind === "Block"
+                        ? (node as A.Block).body
+                        : node.kind === "Switch"
+                          ? (node as A.Switch).cases.flatMap((c) => c.body)
+                          : [];
+                const info = collectDeclarations(
+                    statements,
+                    functionBody || (node.kind === "Program" && !program.module)
+                        ? "var"
+                        : "lexical",
+                );
+                if (variable) {
+                    for (const id of info.vars) declare(id, functionBody);
+                    for (const fn of info.bodyFunctions)
+                        declare(fn.id, functionBody);
+                    if (!scope.strict)
+                        for (const fn of info.blockFunctions)
+                            declare(fn.id, functionBody);
+                }
+                for (const entry of info.lexicals) declare(entry.id);
+                if (node.kind === "Program")
+                    for (const statement of program.body)
+                        if (statement.kind === "Import")
+                            for (const specifier of statement.specifiers)
+                                declare(specifier.local);
+                if (node.kind === "Block" && parent?.kind === "Try") {
+                    const attempt = parent as A.Try;
+                    if (attempt.handler === node && attempt.parameter)
+                        for (const id of boundNames(attempt.parameter))
+                            declare(id);
+                }
+                const head =
+                    node.kind === "For"
+                        ? (node as A.For).init
+                        : node.kind === "ForIn" || node.kind === "ForOf"
+                          ? (node as A.ForOf).left
+                          : undefined;
+                if (head?.kind === "Var" && head.declarationKind !== "var")
+                    for (const declaration of head.declarations)
+                        for (const id of boundNames(declaration.id))
+                            declare(id);
+            }
+        }
+        scopes.set(node, scope!);
+    });
+    // Identity, rather than spelling, keeps nested aliases and callback
+    // parameters from adding unrelated modules to the eager require table.
+    return (id: A.Identifier): A.Identifier | string => {
+        for (let scope = scopes.get(id); scope; scope = scope.parent) {
+            const binding = scope.names.get(id.name);
+            if (binding) return binding;
+        }
+        return id.name;
+    };
+}
+
 /**
  * The literal `require('x')` and `require.resolve('x')` calls of a module
  * through the functions `module.createRequire` makes: `const require =
  * createRequire(import.meta.url)` (also through `module.createRequire`, an
- * imported alias or `const { createRequire: alias } = require('module')`) and
- * `createRequire(...)('x')`.
+ * imported alias or destructuring from a module namespace/default import,
+ * `require('module')` or `await import('module')`) and `createRequire(...)('x')`.
  */
 export function analyzeCreateRequire(
     program: A.Program,
 ): Pick<CommonJsAnalysis, "requires" | "resolves"> {
-    const factories = new Set(["createRequire"]);
+    const binding = createRequireBindings(program);
+    const factories = new Set<A.Identifier | string>(["createRequire"]);
+    const moduleImports = new Set<A.Identifier | string>();
     for (const statement of program.body)
         if (
             statement.kind === "Import" &&
             /^(node:)?module$/.test(statement.source)
         )
-            for (const specifier of statement.specifiers)
+            for (const specifier of statement.specifiers) {
                 if (
                     specifier.kind === "named" &&
                     specifier.imported === "createRequire"
                 )
-                    factories.add(specifier.local.name);
+                    factories.add(binding(specifier.local));
+                else if (
+                    specifier.kind !== "named" ||
+                    specifier.imported === "default"
+                )
+                    moduleImports.add(binding(specifier.local));
+            }
     const makesRequire = (node: A.Node | null | undefined): boolean => {
         if (node?.kind !== "Call") return false;
         const callee = (node as A.Call).callee;
         return (
-            (callee.kind === "Identifier" && factories.has(callee.name)) ||
+            (callee.kind === "Identifier" && factories.has(binding(callee))) ||
             (callee.kind === "Member" &&
                 stringOf(callee.property) === "createRequire")
         );
@@ -339,9 +463,18 @@ export function analyzeCreateRequire(
     walk(program.body, (node) => {
         if (node.kind !== "Var") return;
         for (const { id, init } of (node as A.Var).declarations) {
+            const imported = init?.kind === "Await" ? init.argument : init;
+            const moduleName =
+                imported?.kind === "ImportCall"
+                    ? stringOf(imported.argument)
+                    : requireCall(init ?? undefined);
             if (
                 id.kind !== "ObjectPattern" ||
-                !/^(node:)?module$/.test(requireCall(init ?? undefined) ?? "")
+                !(
+                    /^(node:)?module$/.test(moduleName ?? "") ||
+                    (init?.kind === "Identifier" &&
+                        moduleImports.has(binding(init)))
+                )
             )
                 continue;
             for (const property of id.properties)
@@ -350,10 +483,10 @@ export function analyzeCreateRequire(
                     stringOf(property.key) === "createRequire" &&
                     property.value.id.kind === "Identifier"
                 )
-                    factories.add(property.value.id.name);
+                    factories.add(binding(property.value.id));
         }
     });
-    const names = new Set<string>();
+    const names = new Set<A.Identifier | string>();
     walk(program.body, (node) => {
         if (node.kind === "Var")
             for (const declaration of (node as A.Var).declarations)
@@ -361,11 +494,11 @@ export function analyzeCreateRequire(
                     declaration.id.kind === "Identifier" &&
                     makesRequire(declaration.init)
                 )
-                    names.add(declaration.id.name);
+                    names.add(binding(declaration.id));
         if (node.kind === "Assignment") {
             const { left, right } = node as A.Assignment;
             if (left.kind === "Identifier" && makesRequire(right))
-                names.add(left.name);
+                names.add(binding(left));
         }
     });
     const requires: string[] = [],
@@ -378,14 +511,14 @@ export function analyzeCreateRequire(
         const { callee, arguments: args } = node as A.Call;
         const specifier = stringOf(args[0] as A.Node | undefined);
         if (
-            (callee.kind === "Identifier" && names.has(callee.name)) ||
+            (callee.kind === "Identifier" && names.has(binding(callee))) ||
             makesRequire(callee)
         )
             add(requires, specifier);
         if (
             callee.kind === "Member" &&
             callee.object.kind === "Identifier" &&
-            names.has(callee.object.name) &&
+            names.has(binding(callee.object)) &&
             stringOf(callee.property) === "resolve"
         )
             add(resolves, specifier);

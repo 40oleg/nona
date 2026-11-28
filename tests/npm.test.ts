@@ -18,7 +18,11 @@ import {
     parsePackageSpecifier,
     type NodeFileSystem,
 } from "../src/frontend/node-resolution.js";
-import { analyzeCommonJs, detectFormat } from "../src/frontend/commonjs.js";
+import {
+    analyzeCommonJs,
+    analyzeCreateRequire,
+    detectFormat,
+} from "../src/frontend/commonjs.js";
 import { lex } from "../src/frontend/lexer.js";
 import { parse } from "../src/frontend/parser.js";
 import { removeTemporaryDirectory } from "./helpers/cleanup.js";
@@ -851,6 +855,126 @@ console.log(makeRequire(__filename)('./only-created.cjs'), require('module').cre
                 main: "main.js",
             }),
             "node_modules/pkg/main.js": "exports.version = '1.2.3';",
+        },
+        "main.mjs",
+    ));
+
+for (const [kind, declaration] of [
+    ["namespace", "import * as m from 'node:module';"],
+    ["default", "import m from 'module';"],
+]) {
+    test(`createRequire destructured from a ${kind} import registers literal dependencies`, () =>
+        agree(
+            {
+                "main.mjs": `${declaration}
+const {createRequire} = m;
+const load = createRequire(import.meta.url);
+console.log(typeof load('fs').readFileSync);
+const {createRequire: make} = m;
+const other = make(import.meta.url);
+function read() { return other('./value.json').value; }
+console.log(read(), other.resolve('node:path'));
+`,
+                "value.json": '{"value":42}',
+            },
+            "main.mjs",
+        ));
+
+    test(`createRequire from a ${kind} import respects namespace, factory and loader bindings`, () => {
+        const source = `${declaration}
+const {createRequire: make} = m;
+const load = make(import.meta.url);
+function read() { return load('fs'); }
+function resolve() { return load.resolve('node:path'); }
+function shadowNamespace(m) {
+    const {createRequire: make} = m;
+    const load = make();
+    return load('./namespace.mjs');
+}
+function shadowFactory(make) {
+    const load = make();
+    return load('./factory.mjs');
+}
+function shadowLoader(load) { return load('./loader.mjs'); }
+{
+    const m = {createRequire: () => value => value};
+    const {createRequire: make} = m;
+    const load = make();
+    load('./block.mjs');
+}
+function sibling() {
+    const {createRequire: make} = {createRequire: () => value => value};
+    const load = make();
+    return load('./sibling.mjs');
+}
+`;
+        assert.deepEqual(
+            analyzeCreateRequire(
+                parse(lex(source, { module: true }), { module: true }),
+            ),
+            { requires: ["fs"], resolves: ["node:path"] },
+        );
+    });
+}
+
+test("createRequire aliases from an awaited dynamic module import register literal dependencies", () =>
+    agree(
+        {
+            "main.mjs": `
+async function boot() {
+    const { createRequire: make } = await import('module');
+    const load = make(import.meta.url);
+    console.log(typeof load('fs').readFileSync, load('./value.json').value);
+    const { createRequire: other } = await import('node:module');
+    const require = other(import.meta.url);
+    console.log(require('node:path').basename('/offline/asset'));
+}
+await boot();
+`,
+            "value.json": '{"value":42}',
+        },
+        "main.mjs",
+    ));
+
+test("createRequire dynamic aliases respect sibling, parameter and block bindings", () =>
+    agree(
+        {
+            "main.mjs": `
+async function boot() {
+    const { createRequire: make } = await import('node:module');
+    const load = make(import.meta.url);
+    function read() { return load('./value.json').value; }
+    console.log(read());
+    function shadowFactory(make) {
+        const other = make();
+        return other('./factory.mjs');
+    }
+    function shadowLoader(load) { return load('./loader.mjs'); }
+    console.log(shadowFactory(() => value => value), shadowLoader(value => value));
+    { const make = () => value => value; console.log(make()('./block.mjs')); }
+    try { throw value => value; } catch (load) { console.log(load('./catch.mjs')); }
+    for (const load of [value => value]) console.log(load('./loop.mjs'));
+    switch (load('./switch.json').value) {
+        case 7: const load = () => {}; console.log('switch'); break;
+    }
+}
+function sibling(make) {
+    const load = make();
+    return load('./sibling.mjs');
+}
+await boot();
+console.log(sibling(() => value => value));
+`,
+            "value.json": '{"value":42}',
+            "switch.json": '{"value":7}',
+            ...Object.fromEntries(
+                ["factory", "loader", "block", "catch", "loop", "sibling"].map(
+                    (name) => [
+                        `${name}.mjs`,
+                        'throw new Error("Unrelated callback target was imported");',
+                    ],
+                ),
+            ),
         },
         "main.mjs",
     ));

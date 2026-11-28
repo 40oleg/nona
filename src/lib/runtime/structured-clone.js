@@ -280,6 +280,11 @@
                     fail("Value not transferable");
                 if (transfer.indexOf(item) >= 0 || isDetached(item))
                     fail("Transfer list contains duplicate or detached buffer");
+                if (
+                    __nonaRegexpVm.wasm &&
+                    __nonaRegexpVm.wasm.buffers.has(item)
+                )
+                    fail("WebAssembly memory buffers cannot be transferred");
                 transfer.push(item);
             }
         }

@@ -16,6 +16,10 @@ const descriptions = {
     EXDEV: "cross-device link not permitted",
     EIO: "i/o error",
     EROFS: "read-only file system",
+    ENOSPC: "no space left on device",
+    ESPIPE: "invalid seek",
+    ELOOP: "too many symbolic links encountered",
+    EINTR: "interrupted system call",
     UNKNOWN: "unknown error",
 };
 function fail(code, syscall, path, dest) {
@@ -59,7 +63,7 @@ function typeError(message) {
     error.code = "ERR_INVALID_ARG_TYPE";
     return error;
 }
-/** Whether the argument is a file descriptor; only 0, 1 and 2 are supported. */
+/** Validate numeric descriptors; the platform checks whether they are open. */
 function isFd(fd, syscall) {
     if (typeof fd !== "number") return false;
     if (!Number.isInteger(fd))
@@ -74,8 +78,147 @@ function isFd(fd, syscall) {
         error.code = "ERR_OUT_OF_RANGE";
         throw error;
     }
-    if (fd > 2) fail("EBADF", syscall);
     return true;
+}
+function descriptor(fd) {
+    if (!isFd(fd)) throw typeError('The "fd" argument must be of type number');
+    return fd;
+}
+function integer(value, name, min, max) {
+    if (typeof value !== "number")
+        throw typeError('The "' + name + '" argument must be of type number');
+    if (!Number.isInteger(value) || value < min || value > max) {
+        const error = new RangeError(
+            'The value of "' + name + '" is out of range',
+        );
+        error.code = "ERR_OUT_OF_RANGE";
+        throw error;
+    }
+    return value;
+}
+function openFlags(flags) {
+    if (typeof flags === "number")
+        return integer(flags, "flags", -2147483648, 2147483647);
+    const c = fsConstants;
+    const base = {
+        r: c.O_RDONLY,
+        "r+": c.O_RDWR,
+        rs: c.O_RDONLY | c.O_SYNC,
+        "rs+": c.O_RDWR | c.O_SYNC,
+        w: c.O_WRONLY | c.O_CREAT | c.O_TRUNC,
+        "w+": c.O_RDWR | c.O_CREAT | c.O_TRUNC,
+        wx: c.O_WRONLY | c.O_CREAT | c.O_TRUNC | c.O_EXCL,
+        "wx+": c.O_RDWR | c.O_CREAT | c.O_TRUNC | c.O_EXCL,
+        a: c.O_WRONLY | c.O_CREAT | c.O_APPEND,
+        "a+": c.O_RDWR | c.O_CREAT | c.O_APPEND,
+        ax: c.O_WRONLY | c.O_CREAT | c.O_APPEND | c.O_EXCL,
+        "ax+": c.O_RDWR | c.O_CREAT | c.O_APPEND | c.O_EXCL,
+        as: c.O_WRONLY | c.O_CREAT | c.O_APPEND | c.O_SYNC,
+        "as+": c.O_RDWR | c.O_CREAT | c.O_APPEND | c.O_SYNC,
+    };
+    if (typeof flags !== "string")
+        throw typeError('The "flags" argument must be a string or number');
+    if (!Object.prototype.hasOwnProperty.call(base, flags)) {
+        const error = new TypeError("Invalid file flag: " + flags);
+        error.code = "ERR_INVALID_ARG_VALUE";
+        throw error;
+    }
+    return base[flags];
+}
+export function openSync(path, flags = "r", mode = 0o666) {
+    path = pathString(path, "path");
+    const bits = openFlags(flags);
+    if (typeof mode === "string" && isOctal(mode)) mode = parseInt(mode, 8);
+    return sys.open(path, bits, integer(mode, "mode", 0, 0xffffffff));
+}
+export function closeSync(fd) {
+    sys.close(descriptor(fd));
+}
+function ioView(buffer, offset, length) {
+    if (!ArrayBuffer.isView(buffer))
+        throw typeError('The "buffer" argument must be an ArrayBuffer view');
+    const bytes = new Uint8Array(
+        buffer.buffer,
+        buffer.byteOffset,
+        buffer.byteLength,
+    );
+    offset = integer(
+        offset === undefined ? 0 : offset,
+        "offset",
+        0,
+        bytes.length,
+    );
+    length = integer(
+        length === undefined ? bytes.length - offset : length,
+        "length",
+        0,
+        bytes.length - offset,
+    );
+    return bytes.subarray(offset, offset + length);
+}
+function ioPosition(position) {
+    if (position === undefined || position === null || position === -1)
+        return null;
+    return integer(position, "position", 0, Number.MAX_SAFE_INTEGER);
+}
+export function readSync(fd, buffer, offset, length, position) {
+    fd = descriptor(fd);
+    if (offset !== null && typeof offset === "object") {
+        position = offset.position;
+        length = offset.length;
+        offset = offset.offset;
+    }
+    const bytes = ioView(buffer, offset, length),
+        at = ioPosition(position);
+    return bytes.length === 0 ? 0 : sys.read(fd, bytes, at);
+}
+export function writeSync(fd, buffer, offset, length, position) {
+    fd = descriptor(fd);
+    if (typeof buffer === "string") {
+        const encoding = length === undefined ? null : length;
+        checkEncoding(encoding);
+        position = offset;
+        buffer = encoder.encode(buffer);
+        offset = 0;
+        length = buffer.length;
+    } else if (offset !== null && typeof offset === "object") {
+        position = offset.position;
+        length = offset.length;
+        offset = offset.offset;
+    }
+    const bytes = ioView(buffer, offset, length),
+        at = ioPosition(position);
+    return bytes.length === 0 ? 0 : sys.write(fd, bytes, at);
+}
+export function fstatSync(fd, options) {
+    return statsOf(sys.fstat(descriptor(fd)), options);
+}
+export function ftruncateSync(fd, len = 0) {
+    sys.ftruncate(
+        descriptor(fd),
+        Math.max(
+            0,
+            integer(
+                len,
+                "len",
+                -Number.MAX_SAFE_INTEGER,
+                Number.MAX_SAFE_INTEGER,
+            ),
+        ),
+    );
+}
+export function fsyncSync(fd) {
+    sys.sync(descriptor(fd), false);
+}
+export function fdatasyncSync(fd) {
+    sys.sync(descriptor(fd), true);
+}
+export function statfsSync(path, options) {
+    const result = sys.statfs(pathString(path, "path"));
+    if (options && options.bigint)
+        for (const key of Object.keys(result))
+            result[key] = BigInt(result[key]);
+    return result;
 }
 function encodingOf(options) {
     if (typeof options === "string") return options;
@@ -598,6 +741,15 @@ export const promises = {
 };
 export const constants = fsConstants;
 export default {
+    openSync,
+    closeSync,
+    readSync,
+    writeSync,
+    fstatSync,
+    ftruncateSync,
+    fsyncSync,
+    fdatasyncSync,
+    statfsSync,
     readFileSync,
     writeFileSync,
     appendFileSync,

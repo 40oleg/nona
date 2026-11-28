@@ -193,6 +193,19 @@ jobs:
             - run: npm run build
             - name: Portable CLI input protection regressions
               run: node --test --test-name-pattern="^CLI protects " dist/tests/cli.test.js
+            - name: Prepare pinned offline PGlite assets
+              run: |
+                  npm --prefix tests/fixtures/pglite ci --ignore-scripts --no-audit --no-fund
+                  npm --prefix tests/fixtures/pglite run prepare:assets
+            - name: Standalone offline PGlite ELF profiles and binary COPY
+              timeout-minutes: 75
+              env:
+                  NONA_PGLITE_INTEGRATION: "1"
+                  NONA_TEST_CONCURRENCY: "1"
+                  RUNNER_ENVIRONMENT: ${{ runner.environment }}
+              run: |
+                  test "$RUNNER_ENVIRONMENT" = github-hosted
+                  node scripts/run-suite.mjs pglite
             - run: node scripts/run-suite.mjs frontend elf async events
             - run: node scripts/run-suite.mjs path child-process
             - name: Focused HTTP Agent regressions

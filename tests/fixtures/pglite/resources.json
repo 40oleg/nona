@@ -1,0 +1,61 @@
+{
+    "package": "@electric-sql/pglite@0.3.14",
+    "files": {
+        "package.json": {
+            "bytes": 5853,
+            "sha256": "a540c379fd1d820810793681d25fa7ad5dadfcee2b190d14a6553fdb469cfe3c"
+        },
+        "LICENSE": {
+            "bytes": 10173,
+            "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+        },
+        "dist/index.js": {
+            "bytes": 356948,
+            "sha256": "03bce0708dbe57ab154c75089ded04c47d0a9e713fe397dee33cd3912101cab5"
+        },
+        "dist/index.js.map": {
+            "bytes": 768187,
+            "sha256": "608ad9dd65c16fbb9d4bb4a9383a92777ca2ca993638253eff6a5abb9b1342c9"
+        },
+        "dist/pglite.js": {
+            "bytes": 399640,
+            "sha256": "9ba451dc51b4f426ed5c81e82a5ca3a0c7c66002e53f28e6f0bf30fb19ec10b6"
+        },
+        "dist/chunk-3WWIVTCY.js": {
+            "bytes": 20270,
+            "sha256": "144a34c1e07ac2ed140606b6251cba8c1526d050d1c951c91bb38909e30d17b2"
+        },
+        "dist/chunk-3WWIVTCY.js.map": {
+            "bytes": 89938,
+            "sha256": "bd105cae9b0a905f4e447247599e11ba65a47abe64ad8faff213916555619fea"
+        },
+        "dist/chunk-F2DQ4FIK.js": {
+            "bytes": 4209,
+            "sha256": "659d29def262133c5ae937b73d3ba8fbd9a0c8749634a03d416662a3df223deb"
+        },
+        "dist/chunk-F4GETNPB.js": {
+            "bytes": 998,
+            "sha256": "5ab11fd9fd74b259484f42a7855cd9569a5fe6ee1cf3c032238ac43a59511d97"
+        },
+        "dist/chunk-QY3QWFKW.js": {
+            "bytes": 1335,
+            "sha256": "bff6d3144dd6ea2689b00d9d0eea1ea2267b9cc14505fb9107b6194c1832bdea"
+        },
+        "dist/chunk-VBDAOXYI.js": {
+            "bytes": 14926,
+            "sha256": "484585558e9a3f852712b744f7c2c7601e339c7431b8e4f862c91ed59003e640"
+        },
+        "dist/fs/nodefs.js": {
+            "bytes": 536,
+            "sha256": "4b0a8239034ff8d71ea779c62b878068562925eb1c266ff6801975e57a797e06"
+        },
+        "dist/pglite.wasm": {
+            "bytes": 8859436,
+            "sha256": "8140392c5f70c5aecb40f514db242fce4223cfdd5f37a2b101dbdc30208dc49d"
+        },
+        "dist/pglite.data": {
+            "bytes": 4939155,
+            "sha256": "4703ec26f5710abb62db42acad229478b75c51ef7f3bb037286bb2bac139a930"
+        }
+    }
+}

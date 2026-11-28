@@ -99,6 +99,13 @@ The output cannot replace any file successfully read for compilation or package 
 
 **Standard library: ES2020.** Object, Function, Array, String, Number, Math, Date, JSON, RegExp (named groups, lookbehind, `s`, `u` and `v` flags, Unicode property escapes, properties of strings), Map, Set, WeakMap, WeakSet, ArrayBuffer, DataView and all typed arrays, SharedArrayBuffer and Atomics (with worker agents), Proxy, Reflect, and Promise.
 
+**WebAssembly:** original in-process scalar execution, memory, tables, globals
+and JS callbacks. See the [supported subset and lifetime guarantees](docs/webassembly.md).
+The pinned [offline PGlite adapter](docs/pglite-offline.md) supplies local assets
+for SELECT 1, disk profiles and binary COPY through `/dev/blob`. Its hosted
+native acceptance test compiles once and verifies Unicode and every byte after
+closing and reopening the profile in another process ([#667](https://github.com/40oleg/nona/issues/667)).
+
 **`eval` and `Function`** work when their source text is known at compile time: a string literal, a concatenation of literals, or a variable only ever given such constants. That source is compiled ahead of time with full direct and indirect `eval` semantics. Source computed at run time throws `EvalError`; this is the one deliberate exception ([contract](docs/es2020-contract.md)).
 
 **Node.js-compatible APIs.** These are written for Nona, not taken from Node.js, and cover the subsets described in the linked pages. HTTP, HTTPS and TCP producers should stop on a false `write()` and resume on `drain`, with terminal error/close handling; see the [buffering limits](docs/network.md#write-backpressure).

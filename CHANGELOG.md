@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Add an opt-in pinned PGlite 0.3.14 fixture, published WASM/glue audit and offline
+  Node oracles for SELECT, clean close, profile reopen, bytea and binary COPY.
+  Add original in-process scalar WebAssembly validation/execution, memory,
+  tables, globals, exact i64 and Emscripten callback modules, with native/Node
+  execution and GC-stress regressions. Add the offline local-asset boot adapter,
+  scoped audited platform checks and mandatory hosted Linux SELECT/close coverage;
+  recognize scoped createRequire aliases from dynamic and namespace/default
+  module imports and reuse immutable
+  WASM numeric signatures instead of allocating them per instruction. Add real
+  filesystem descriptors, positioned binary I/O, fstat/ftruncate, synchronization
+  and filesystem capacity metadata; extend the standalone fixture with separate
+  writer/reader profiles and byte-for-byte binary COPY verification after reopen.
+  Long native PostgreSQL validation remains mandatory on hosted CI.
+  ([#667](https://github.com/40oleg/nona/issues/667))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent
   producer/copy coalescing proofs. Add matching production guard regressions and

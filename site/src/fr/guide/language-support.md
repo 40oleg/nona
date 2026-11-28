@@ -1,5 +1,7 @@
 # Prise en charge du langage
 
+**Unreleased:** original scalar WebAssembly execution, memory, tables, globals and JS callbacks. See the [supported subset and lifetime guarantees](https://github.com/40oleg/nona/blob/main/docs/webassembly.md). The pinned [offline PGlite adapter](https://github.com/40oleg/nona/blob/main/docs/pglite-offline.md) supplies local assets for SELECT 1, disk profiles and binary COPY through `/dev/blob`. Hosted native validation compiles once and checks Unicode and every byte in separate writer/reader processes ([#667](https://github.com/40oleg/nona/issues/667)).
+
 Nona cible la 11ᵉ édition d’ECMA-262 (ES2020) avec des exceptions documentées. Cette page résume ce qui est pris en charge dans **v0.36.0**. Les chiffres de Test262 proviennent du dernier audit complet (v0.8.0) de la révision figée décrite sur la page [Test262](/fr/reference/test262).
 
 **Pris en charge** signifie implémenté et couvert par des tests unitaires et par Test262, dans les limites indiquées dans la colonne Remarques. Une ancienne matrice par fonctionnalité, avec les noms des tests et vérifiée pour la dernière fois pour v0.5.0, est archivée dans [`docs/history/language-support.md`](https://github.com/40oleg/nona/blob/main/docs/history/language-support.md) (en russe).

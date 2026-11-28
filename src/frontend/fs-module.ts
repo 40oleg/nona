@@ -55,6 +55,12 @@ function linuxArm64Source(): string {
         sysFstat: "80",
         sysGetdents: "61",
         sysTruncate: "45",
+        sysPread: "67",
+        sysPwrite: "68",
+        sysFtruncate: "46",
+        sysFsync: "82",
+        sysFdatasync: "83",
+        sysStatfs: "43",
     };
     for (const [name, number] of Object.entries(numbers))
         source = renumberSyscall(source, name, number);
@@ -107,11 +113,30 @@ function bsdSource(target: Target): string {
         sysReadlink: "58",
         sysChmod: "15",
         sysSymlink: "57",
-        sysTruncate: darwin ? "200" : freebsd ? "479" : "92",
+        sysTruncate: darwin ? "200" : freebsd ? "479" : "167",
+        sysPread: darwin ? "153" : freebsd ? "475" : "169",
+        sysPwrite: darwin ? "154" : freebsd ? "476" : "170",
+        sysFtruncate: darwin ? "201" : freebsd ? "480" : "168",
+        sysFsync: "95",
+        sysFdatasync: darwin ? "187" : freebsd ? "550" : "95",
+        sysStatfs: darwin ? "345" : freebsd ? "555" : "63",
     };
     let source = linux;
     for (const [name, number] of Object.entries(calls))
         source = renumberSyscall(source, name, number);
+    source = patchSource(
+        source,
+        /function statfsResult\(view\) \{[\s\S]*?\n\}/,
+        `function statfsResult(view){
+  const n=(o)=>Number(view.getBigUint64(o,true)),s=(o)=>Number(view.getBigInt64(o,true));
+  return {
+    type:${darwin ? "view.getUint32(60,true)" : freebsd ? "view.getUint32(4,true)" : "0"},
+    bsize:${freebsd ? "n(16)" : "view.getUint32(" + (darwin ? 0 : 4) + ",true)"},
+    blocks:n(${darwin ? 8 : freebsd ? 32 : 16}),bfree:n(${darwin ? 16 : freebsd ? 40 : 24}),
+    bavail:s(${darwin ? 24 : freebsd ? 48 : 32}),files:n(${darwin ? 32 : freebsd ? 56 : 40}),
+    ffree:s(${darwin ? 40 : freebsd ? 64 : 48})};
+}`,
+    );
     if (freebsd) {
         source = replaceSyscall(
             source,
@@ -167,6 +192,7 @@ function bsdSource(target: Target): string {
     source = patchSource(source, '39: "ENOTEMPTY"', '66: "ENOTEMPTY"');
     source = patchSource(source, "ENOTEMPTY: -39", "ENOTEMPTY: -66");
     source = patchSource(source, "ELOOP: -40", "ELOOP: -62");
+    source = patchSource(source, '40: "ELOOP"', '62: "ELOOP"');
     source = patchSource(
         source,
         "const statBuffer = new Uint8Array(144)",

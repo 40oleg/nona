@@ -50,6 +50,16 @@ native memory availability/limits use the selected OS's actual ABI.
 
 Script functions can shadow built-in and host global names such as `escape`, `unescape`, `process`, timers and `TextEncoder`/`TextDecoder`. Runtime initialization completes first; declarations install writable, enumerable, nonconfigurable global properties.
 
+## WebAssembly
+
+`WebAssembly` provides original in-process scalar module validation and execution,
+compile/instantiate, imports/exports, memory, tables, globals and JS callbacks.
+It is optionally linked when named and uses the executable's existing native
+binary-data and BigInt primitives. See [supported instructions, traps, memory
+ownership and callback lifetime](webassembly.md). The pinned fixture's
+[offline PGlite adapter](pglite-offline.md) loads local WASM and filesystem assets
+without fetch. Native persistent profiles remain subsequent work for #667.
+
 ## Internationalization (`Intl`)
 
 Nona has its own `Intl` for the `en`/`en-US` locale (`NumberFormat`, `DateTimeFormat`, `Collator`, `PluralRules`, `getCanonicalLocales`, `supportedLocalesOf`) and `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and `localeCompare` delegate to it. Other locales fall back to `en-US`; the time zone is UTC. It is linked only when a program names one of these. See [intl](intl.md).

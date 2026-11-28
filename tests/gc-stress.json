@@ -8,6 +8,7 @@
         "uncaught-report",
         "gc-stress-roadmap",
         "runtime-roots",
+        "webassembly",
         "stack-maps",
         "linux-heap",
         "optional-chaining-gc",

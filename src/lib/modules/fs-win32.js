@@ -60,6 +60,31 @@ const SetFilePointerEx = define(
     "bool(ptr,i64,ptr,u32)",
 );
 const SetEndOfFile = define("kernel32.dll", "SetEndOfFile", "bool(ptr)");
+const GetFilePosition = define(
+    "kernel32.dll",
+    "SetFilePointerEx",
+    "bool(ptr,i64,buf,u32)",
+);
+const FlushFileBuffers = define(
+    "kernel32.dll",
+    "FlushFileBuffers",
+    "bool(ptr)",
+);
+const GetVolumePathNameW = define(
+    "kernel32.dll",
+    "GetVolumePathNameW",
+    "bool(wstr,buf,u32)",
+);
+const GetDiskFreeSpaceW = define(
+    "kernel32.dll",
+    "GetDiskFreeSpaceW",
+    "bool(wstr,buf,buf,buf,buf)",
+);
+const GetDiskFreeSpaceExW = define(
+    "kernel32.dll",
+    "GetDiskFreeSpaceExW",
+    "bool(wstr,buf,buf,buf)",
+);
 const FindFirstFileW = define(
     "kernel32.dll",
     "FindFirstFileW",
@@ -120,6 +145,9 @@ const errnos = {
     EINVAL: -4071,
     ENOTEMPTY: -4051,
     ELOOP: -4114,
+    ENOSPC: -4055,
+    ESPIPE: -4041,
+    EROFS: -4043,
     UNKNOWN: -4094,
 };
 function codeOf(error) {
@@ -153,6 +181,9 @@ function codeOf(error) {
             return "EINVAL";
         case 6:
             return "EBADF";
+        case 112:
+        case 39:
+            return "ENOSPC";
         default:
             return "UNKNOWN";
     }
@@ -177,6 +208,54 @@ function isDirectory(path) {
     return a !== null && (a & DIRECTORY) !== 0;
 }
 const counter = new Uint32Array(1);
+const descriptors = new Map();
+const closedStdio = new Set();
+let nextDescriptor = 3;
+function fdEntry(fd, syscall) {
+    if (fd <= 2 && !closedStdio.has(fd)) {
+        const handle = GetStdHandle(-10 - fd);
+        if (handle !== null && handle !== INVALID_HANDLE)
+            return { handle, readable: true, writable: true };
+    }
+    const entry = descriptors.get(fd);
+    if (!entry) fail("EBADF", syscall);
+    return entry;
+}
+function fdIO(fd, bytes, position, write) {
+    const syscall = write ? "write" : "read",
+        entry = fdEntry(fd, syscall);
+    if (write ? !entry.writable : !entry.readable) fail("EBADF", syscall);
+    const handle = entry.handle,
+        saved = new Uint8Array(8);
+    if (position !== null) {
+        if (!GetFilePosition(handle, 0, saved, 1)) error(syscall);
+        if (!SetFilePointerEx(handle, position, null, 0)) error(syscall);
+    }
+    let failure;
+    try {
+        const length = Math.min(bytes.length, 0x40000000);
+        const ok = write
+            ? WriteFile(handle, bytes, length, counter, null)
+            : ReadFile(handle, bytes, length, counter, null);
+        if (!ok) {
+            // EOF on a pipe or a positioned read beyond the end of a file.
+            if (!write && (lastError() === 109 || lastError() === 38)) return 0;
+            error(syscall);
+        }
+        return counter[0];
+    } catch (cause) {
+        failure = cause;
+        throw cause;
+    } finally {
+        if (position !== null) {
+            const at = new DataView(saved.buffer);
+            const previous =
+                at.getUint32(0, true) + at.getUint32(4, true) * 4294967296;
+            if (!SetFilePointerEx(handle, previous, null, 0) && !failure)
+                error(syscall);
+        }
+    }
+}
 /** The target of a symbolic link or junction, or null for other files. */
 function linkTarget(path, throws = false) {
     const handle = CreateFileW(
@@ -282,41 +361,181 @@ function isAbsoluteWin32(path) {
     const first = path.charCodeAt(0) | 32;
     return path[0] === "\\" || (first >= 97 && first <= 122 && path[1] === ":");
 }
+function handleStat(handle, syscall, path) {
+    const identity = new Uint8Array(52),
+        identityView = new DataView(identity.buffer),
+        fileId = new Uint8Array(24),
+        idView = new DataView(fileId.buffer);
+    let extended = false;
+    if (!GetFileInformationByHandle(handle, identity)) error(syscall, path);
+    extended = GetFileInformationByHandleEx(handle, 18, fileId, fileId.length);
+    const targetDirectory = (identityView.getUint32(0, true) & DIRECTORY) !== 0;
+    const targetSize =
+        identityView.getUint32(36, true) +
+        identityView.getUint32(32, true) * 4294967296;
+    const targetTicks =
+        identityView.getUint32(20, true) +
+        identityView.getUint32(24, true) * 4294967296;
+    const fileTimeMs = (offset) =>
+        (identityView.getUint32(offset, true) +
+            identityView.getUint32(offset + 4, true) * 4294967296 -
+            116444736000000000) /
+        10000;
+    const resultSize = targetDirectory ? 0 : targetSize;
+    // Node.js reports ChangeTime for ctime; the last write time stands in.
+    return {
+        kind: targetDirectory ? "dir" : "file",
+        size: resultSize,
+        nlink: identityView.getUint32(40, true),
+        uid: 0,
+        gid: 0,
+        rdev: 0,
+        blksize: 4096,
+        blocks: Math.ceil(resultSize / 512),
+        atimeMs: fileTimeMs(12),
+        ctimeMs: (targetTicks - 116444736000000000) / 10000,
+        birthtimeMs: fileTimeMs(4),
+        dev: extended
+            ? idView.getBigUint64(0, true)
+            : BigInt(identityView.getUint32(28, true)),
+        ino: extended
+            ? idView.getBigUint64(8, true) |
+              (idView.getBigUint64(16, true) << 64n)
+            : (BigInt(identityView.getUint32(44, true)) << 32n) |
+              BigInt(identityView.getUint32(48, true)),
+        mtimeMs: (targetTicks - 116444736000000000) / 10000,
+        mode: targetDirectory ? 0o40666 : 0o100666,
+    };
+}
 const sys = {
     separator: "\\",
-    readAllFd(fd) {
-        const handle = GetStdHandle(-10 - fd);
-        if (handle === null || handle === INVALID_HANDLE) fail("EBADF", "read");
-        return readChunks(0, (part) => {
+    open(path, flags, mode) {
+        const c = fsConstants,
+            access = flags & 3;
+        const supported =
+            3 |
+            c.O_CREAT |
+            c.O_EXCL |
+            c.O_TRUNC |
+            c.O_APPEND |
+            c.O_SYNC |
+            c.O_DSYNC;
+        if (access === 3 || flags & ~supported) fail("EINVAL", "open", path);
+        const readable = access !== c.O_WRONLY,
+            writable = access !== c.O_RDONLY;
+        const append = (flags & c.O_APPEND) !== 0;
+        let attributes = BACKUP_SEMANTICS;
+        if (flags & (c.O_SYNC | c.O_DSYNC)) attributes |= 0x80000000;
+        if (flags & c.O_CREAT && !(mode & 0o200)) attributes |= 1;
+        const handle = CreateFileW(
+            path,
+            (readable ? 0x80000000 : 0) |
+                (writable ? (append ? 4 : 0x40000000) : 0),
+            7,
+            null,
+            flags & c.O_CREAT
+                ? flags & c.O_EXCL
+                    ? 1
+                    : flags & c.O_TRUNC
+                      ? 2
+                      : 4
+                : flags & c.O_TRUNC
+                  ? 5
+                  : 3,
+            attributes,
+            null,
+        );
+        if (handle === INVALID_HANDLE) error("open", path);
+        const fd = nextDescriptor++;
+        descriptors.set(fd, { handle, readable, writable });
+        return fd;
+    },
+    close(fd) {
+        const entry = fdEntry(fd, "close");
+        if (!CloseHandle(entry.handle)) error("close");
+        if (fd <= 2) closedStdio.add(fd);
+        else descriptors.delete(fd);
+    },
+    read(fd, bytes, position) {
+        return fdIO(fd, bytes, position, false);
+    },
+    write(fd, bytes, position) {
+        return fdIO(fd, bytes, position, true);
+    },
+    fstat(fd) {
+        return handleStat(fdEntry(fd, "fstat").handle, "fstat");
+    },
+    ftruncate(fd, length) {
+        const entry = fdEntry(fd, "ftruncate"),
+            saved = new Uint8Array(8);
+        if (!entry.writable) fail("EINVAL", "ftruncate");
+        if (!GetFilePosition(entry.handle, 0, saved, 1)) error("ftruncate");
+        try {
             if (
-                !ReadFile(
-                    handle,
-                    part,
-                    Math.min(part.length, 0x40000000),
-                    counter,
-                    null,
-                )
-            ) {
-                // A closed pipe is the end of the input.
-                if (lastError() === 109) return 0;
-                error("read");
-            }
-            return counter[0];
-        });
+                !SetFilePointerEx(entry.handle, length, null, 0) ||
+                !SetEndOfFile(entry.handle)
+            )
+                error("ftruncate");
+        } finally {
+            const view = new DataView(saved.buffer);
+            const position =
+                view.getUint32(0, true) + view.getUint32(4, true) * 4294967296;
+            if (!SetFilePointerEx(entry.handle, position, null, 0))
+                error("ftruncate");
+        }
+    },
+    sync(fd, dataOnly) {
+        if (
+            !FlushFileBuffers(
+                fdEntry(fd, dataOnly ? "fdatasync" : "fsync").handle,
+            )
+        )
+            error(dataOnly ? "fdatasync" : "fsync");
+    },
+    statfs(path) {
+        // Validate the requested path before querying its volume.
+        if (sys.stat(path) === null) fail("ENOENT", "statfs", path);
+        const root = new Uint16Array(32768);
+        if (!GetVolumePathNameW(resolve(path), root, root.length))
+            error("statfs", path);
+        let volume = "";
+        for (let i = 0; root[i]; i++) volume += String.fromCharCode(root[i]);
+        const sectors = new Uint32Array(1),
+            bytes = new Uint32Array(1),
+            free = new Uint32Array(1),
+            total = new Uint32Array(1);
+        const availableBytes = new Uint8Array(8),
+            totalBytes = new Uint8Array(8),
+            freeBytes = new Uint8Array(8);
+        if (
+            !GetDiskFreeSpaceW(volume, sectors, bytes, free, total) ||
+            !GetDiskFreeSpaceExW(volume, availableBytes, totalBytes, freeBytes)
+        )
+            error("statfs", path);
+        const bsize = sectors[0] * bytes[0];
+        const count = (data) =>
+            Math.floor(
+                Number(new DataView(data.buffer).getBigUint64(0, true)) / bsize,
+            );
+        return {
+            type: 0,
+            bsize,
+            blocks: count(totalBytes),
+            bfree: count(freeBytes),
+            bavail: count(availableBytes),
+            files: 0,
+            ffree: 0,
+        };
+    },
+    readAllFd(fd) {
+        return readChunks(0, (part) => sys.read(fd, part, null));
     },
     writeAllFd(fd, bytes) {
-        const handle = GetStdHandle(-10 - fd);
-        if (handle === null || handle === INVALID_HANDLE)
-            fail("EBADF", "write");
         let offset = 0;
         while (offset < bytes.length) {
-            const part = bytes.subarray(
-                offset,
-                offset + Math.min(bytes.length - offset, 0x40000000),
-            );
-            if (!WriteFile(handle, part, part.length, counter, null))
-                error("write");
-            offset += counter[0];
+            const n = sys.write(fd, bytes.subarray(offset), null);
+            if (n === 0) fail("EIO", "write");
+            offset += n;
         }
     },
     readAll(path) {
@@ -365,6 +584,7 @@ const sys = {
                 );
                 if (!WriteFile(handle, part, part.length, counter, null))
                     error("write", path);
+                if (counter[0] === 0) fail("EIO", "write");
                 offset += counter[0];
             }
         } finally {
@@ -378,13 +598,6 @@ const sys = {
             if (code === "ENOENT" || code === "ENOTDIR") return null;
             fail(code, "stat", path);
         }
-        const size =
-            attributeView.getUint32(32, true) +
-            attributeView.getUint32(28, true) * 4294967296;
-        const ticks =
-            attributeView.getUint32(20, true) +
-            attributeView.getUint32(24, true) * 4294967296;
-        const directory = (a & DIRECTORY) !== 0;
         const handle = CreateFileW(
             path,
             0,
@@ -395,61 +608,11 @@ const sys = {
             null,
         );
         if (handle === INVALID_HANDLE) error(noFollow ? "lstat" : "stat", path);
-        const identity = new Uint8Array(52),
-            identityView = new DataView(identity.buffer),
-            fileId = new Uint8Array(24),
-            idView = new DataView(fileId.buffer);
-        let extended = false;
         try {
-            if (!GetFileInformationByHandle(handle, identity))
-                error("stat", path);
-            extended = GetFileInformationByHandleEx(
-                handle,
-                18,
-                fileId,
-                fileId.length,
-            );
+            return handleStat(handle, noFollow ? "lstat" : "stat", path);
         } finally {
             CloseHandle(handle);
         }
-        const targetDirectory =
-            (identityView.getUint32(0, true) & DIRECTORY) !== 0;
-        const targetSize =
-            identityView.getUint32(36, true) +
-            identityView.getUint32(32, true) * 4294967296;
-        const targetTicks =
-            identityView.getUint32(20, true) +
-            identityView.getUint32(24, true) * 4294967296;
-        const fileTimeMs = (offset) =>
-            (identityView.getUint32(offset, true) +
-                identityView.getUint32(offset + 4, true) * 4294967296 -
-                116444736000000000) /
-            10000;
-        const resultSize = targetDirectory ? 0 : targetSize;
-        // Node.js reports ChangeTime for ctime; the last write time stands in.
-        return {
-            kind: targetDirectory ? "dir" : "file",
-            size: resultSize,
-            nlink: identityView.getUint32(40, true),
-            uid: 0,
-            gid: 0,
-            rdev: 0,
-            blksize: 4096,
-            blocks: Math.ceil(resultSize / 512),
-            atimeMs: fileTimeMs(12),
-            ctimeMs: (targetTicks - 116444736000000000) / 10000,
-            birthtimeMs: fileTimeMs(4),
-            dev: extended
-                ? idView.getBigUint64(0, true)
-                : BigInt(identityView.getUint32(28, true)),
-            ino: extended
-                ? idView.getBigUint64(8, true) |
-                  (idView.getBigUint64(16, true) << 64n)
-                : (BigInt(identityView.getUint32(44, true)) << 32n) |
-                  BigInt(identityView.getUint32(48, true)),
-            mtimeMs: (targetTicks - 116444736000000000) / 10000,
-            mode: targetDirectory ? 0o40666 : 0o100666,
-        };
     },
     lstat(path) {
         const result = sys.stat(path, true);

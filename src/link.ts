@@ -28,6 +28,7 @@ export interface RuntimeLink {
  * are always linked.
  */
 export const preludeTriggers = {
+    webAssembly: ["WebAssembly"],
     eventEmitter: ["EventEmitter", "nona.events.emitter"],
     stream: [
         "node:stream",
@@ -215,6 +216,7 @@ export const optionalPreludes = Object.keys(
 export const preludeDependencies: Partial<
     Record<OptionalPrelude, readonly OptionalPrelude[]>
 > = {
+    webAssembly: ["binaryData", "encoding"],
     process: ["encoding", "proxy", "timers", "eventEmitter", "binaryData"],
     buffer: ["encoding", "url", "binaryData", "events"],
     url: ["encoding"],
