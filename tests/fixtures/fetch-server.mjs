@@ -4,6 +4,7 @@ import https from "node:https";
 import { readFileSync } from "node:fs";
 
 const sockets = new Set();
+const upgrades = new Set();
 const servers = [];
 const json = (res, value, code = 200) => {
     res.writeHead(code, { "content-type": "application/json; charset=utf-8" });
@@ -11,6 +12,18 @@ const json = (res, value, code = 200) => {
 };
 function handler(req, res) {
     const url = new URL(req.url, "http://localhost");
+    if (url.pathname === "/upgrade") {
+        const socket = req.socket;
+        upgrades.add(socket);
+        socket.on("close", () => upgrades.delete(socket));
+        res.writeHead(101, { Connection: "Upgrade", Upgrade: "nona-test" });
+        res.flushHeaders();
+        return;
+    }
+    if (url.pathname === "/upgrade-count") {
+        json(res, { count: upgrades.size });
+        return;
+    }
     if (url.pathname === "/delayed") {
         const timer = setTimeout(() => res.end("late"), 300);
         res.on("close", () => clearTimeout(timer));

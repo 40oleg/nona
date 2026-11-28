@@ -7,6 +7,8 @@
   protected cancellation and byte-bounded incremental response streams. Preserve
   lazy selective linking and global shadowing; document response ownership and
   the supported subset with self-contained native/Node and queue regressions.
+  Reject protocol upgrades with connection cleanup and resolve constant global
+  keys by lexical binding, even when unrelated scopes reuse their names.
   ([#666](https://github.com/40oleg/nona/issues/666))
 - Extend the Lean move model with block-local alias validity, multi-definition
   liveness, continuation observations, bounded dead-write elimination and adjacent

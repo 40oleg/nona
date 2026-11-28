@@ -82,6 +82,49 @@ const name = ['fet','ch'].join(''); const third = await globalThis[name](base + 
         assert.equal(native.stdout.toString(), expected);
     }
 });
+test("fetch: computed typeof reads select fetch despite unrelated bindings", () => {
+    const source =
+        "const key='fetch'; function unrelated(key) {} console.log(typeof globalThis[key]);";
+    for (const fileName of ["/fetch.js", "/fetch.cjs", "/fetch.mjs"]) {
+        const result = compile(source, {
+            fileName,
+            module: fileName.endsWith(".mjs"),
+            target: requireHostTarget(),
+        });
+        assert.ok(
+            result.ok,
+            result.ok ? "" : JSON.stringify(result.diagnostics),
+        );
+        const native = runNative(result.image, 60_000);
+        assert.equal(native.status, 0, native.stderr.toString());
+        assert.equal(native.stdout.toString(), "function\n");
+    }
+});
+
+test("fetch: protocol upgrades reject and close the connection before retry", () => {
+    const output = compare(String.raw`
+for (let i = 0; i < 3; i++) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try { await fetch(base + '/upgrade', {signal:controller.signal}); console.log('unexpected response'); }
+  catch(e) { console.log('upgrade', e.name); }
+  finally { clearTimeout(timer); }
+  let count = -1;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    count = (await (await fetch(base + '/upgrade-count')).json()).count;
+    if (count === 0) break;
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  console.log('connections', count);
+  console.log('retry', (await (await fetch(base + '/metrics')).json()).value);
+}
+`);
+    assert.equal(
+        output,
+        "upgrade TypeError\nconnections 0\nretry 42\n".repeat(3),
+    );
+});
+
 test("fetch: verified JSON and binary POST, Cyrillic, 401 ownership and retry", () => {
     const output = compare(String.raw`
 const response = await fetch(new URL(base + '/json'), {

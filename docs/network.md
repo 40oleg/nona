@@ -26,9 +26,11 @@ Each module is also available under the `nona:` scheme (`nona:http`,
 clients on **win32-x64 and linux-x64** ([#666](https://github.com/40oleg/nona/issues/666)).
 No networking import is required in scripts, CommonJS or ES modules. The compiler
 discovers global references, literal/computed property access and immutable
-string keys; the provider evaluates lazily on first access. Local declarations
-still shadow fetch, and unrelated programs do not link networking. A script's
-top-level `var fetch` shares the global property and can read the native function
+string keys by lexical binding, including `typeof` reads; names declared in
+unrelated scopes do not affect constant keys. The provider evaluates lazily on
+first access. Local declarations still shadow fetch, and unrelated programs do
+not link networking. A script's top-level `var fetch` shares the global property
+and can read the native function
 before assigning its replacement; module and function vars shadow it. Unknown
 computed callable global access conservatively selects the builtin inventory.
 
@@ -52,6 +54,12 @@ Locking a body prevents convenience consumption; reading/cancelling disturbs it,
 and subsequent consumption rejects with `TypeError`. Authentication and retry
 belong to the application: consume or cancel a 401 response, obtain new
 credentials and make a new request.
+
+HTTP 101 protocol upgrades reject with `TypeError`: fetch closes the upgraded
+socket and releases its abort subscription instead of exposing an upgraded
+connection. The regressions in [`tests/fetch-source.test.ts`](../tests/fetch-source.test.ts)
+and [`tests/fetch.test.ts`](../tests/fetch.test.ts) check rejection, cleanup and
+successful subsequent requests through the native HTTP parser.
 
 Redirects default to `follow`; `manual` exposes the actual response status,
 headers and body as Node fetch does, and `error` rejects any redirect status.

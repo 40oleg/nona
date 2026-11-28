@@ -321,6 +321,12 @@ export function fetch(input, init) {
                     options,
                 );
                 request.on("error", onError);
+                request.on("upgrade", (res, socket) => {
+                    // HTTP hands ownership of upgraded sockets to the listener.
+                    // Fetch has no upgrade response or body to expose.
+                    socket.destroy();
+                    onError(new TypeError("Unexpected protocol upgrade"));
+                });
                 request.on("response", (res) => {
                     if (released || ended) {
                         res.on("error", () => {});

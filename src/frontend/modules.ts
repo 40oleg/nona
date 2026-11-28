@@ -161,12 +161,52 @@ export function builtinModuleRequests(
                 node.specifiers.some((s) => s.local.name === "fetch"),
         );
     const bindingIds = new Set<A.Identifier>();
-    const remember = (pattern: A.BindingPattern | null | undefined) => {
-        if (pattern) for (const id of boundNames(pattern)) bindingIds.add(id);
+    // Resolve keys through the nearest declaration, not a file-wide name count.
+    // A nonconstant inner binding must also hide an outer constant.
+    const scopeBindings = new Map<
+        A.Node | undefined,
+        Map<string, A.Identifier>
+    >();
+    const enclosingScope = (node: A.Node, vars = false) => {
+        for (let outer = parents.get(node); outer; outer = parents.get(outer)) {
+            if (
+                vars &&
+                (outer.kind === "Function" ||
+                    outer.kind === "FunctionExpression")
+            )
+                return (outer as A.FunctionNode).body;
+            if (
+                !vars &&
+                ["Block", "For", "ForIn", "ForOf", "Switch"].includes(
+                    outer.kind,
+                )
+            )
+                return outer;
+        }
+        return undefined;
+    };
+    const remember = (
+        pattern: A.BindingPattern | null | undefined,
+        scope: A.Node | undefined,
+    ) => {
+        if (!pattern) return;
+        let bindings = scopeBindings.get(scope);
+        if (!bindings) scopeBindings.set(scope, (bindings = new Map()));
+        for (const id of boundNames(pattern)) {
+            bindingIds.add(id);
+            bindings.set(id.name, id);
+        }
     };
     walk(ast.body, (node) => {
         if (node.kind === "Var")
-            for (const d of (node as A.Var).declarations) remember(d.id);
+            for (const d of (node as A.Var).declarations)
+                remember(
+                    d.id,
+                    enclosingScope(
+                        node,
+                        (node as A.Var).declarationKind === "var",
+                    ),
+                );
         if (
             node.kind === "Block" &&
             declaresFetch((node as A.Block).body, false)
@@ -174,9 +214,14 @@ export function builtinModuleRequests(
             fetchShadows.push(node);
         if (node.kind === "Function" || node.kind === "FunctionExpression") {
             const fn = node as A.FunctionNode;
-            remember(fn.id);
-            fn.parameters.forEach(remember);
-            remember(fn.rest);
+            remember(
+                fn.id,
+                node.kind === "FunctionExpression"
+                    ? node
+                    : enclosingScope(node),
+            );
+            fn.parameters.forEach((parameter) => remember(parameter, node));
+            remember(fn.rest, node);
             if (
                 shadows(fn.id) ||
                 fn.parameters.some(shadows) ||
@@ -187,7 +232,7 @@ export function builtinModuleRequests(
             if (declaresFetch(fn.body.body, true)) fetchShadows.push(fn.body);
         } else if (node.kind === "Try") {
             const clause = node as A.Try;
-            remember(clause.parameter);
+            remember(clause.parameter, clause.handler ?? undefined);
             if (shadows(clause.parameter) && clause.handler)
                 fetchShadows.push(clause.handler);
         } else if (node.kind === "Switch") {
@@ -211,7 +256,10 @@ export function builtinModuleRequests(
             )
                 fetchShadows.push(node);
         } else if (node.kind === "ClassExpression" || node.kind === "Class") {
-            remember((node as A.ClassExpression).id);
+            remember(
+                (node as A.ClassExpression).id,
+                node.kind === "ClassExpression" ? node : enclosingScope(node),
+            );
             if (
                 node.kind === "ClassExpression" &&
                 shadows((node as A.ClassExpression).id)
@@ -219,7 +267,7 @@ export function builtinModuleRequests(
                 fetchShadows.push(node);
         } else if (node.kind === "Import")
             for (const s of (node as A.ImportDeclaration).specifiers)
-                remember(s.local);
+                remember(s.local, undefined);
     });
     const fetchReference = (node: A.Node) => {
         if (rootShadow || bindingIds.has(node as A.Identifier)) return false;
@@ -243,34 +291,25 @@ export function builtinModuleRequests(
             return false;
         return parent?.kind !== "Import";
     };
-    const constantStrings = new Map<
-        string,
-        { value: string; scope: A.Node | undefined }
-    >();
-    const bindingCounts = new Map<string, number>();
-    for (const id of bindingIds)
-        bindingCounts.set(id.name, (bindingCounts.get(id.name) ?? 0) + 1);
+    const constantStrings = new Map<A.Identifier, string>();
     const text = (expression: A.Expression): string | undefined => {
         if (expression.kind === "Identifier") {
-            const constant = constantStrings.get(expression.name);
-            if (!constant) return undefined;
-            if (!constant.scope) return constant.value;
             for (
                 let child: A.Node = expression, outer = parents.get(child);
-                outer;
-                child = outer, outer = parents.get(outer)
-            )
-                if (outer === constant.scope) {
-                    // The discriminant evaluates before the case lexical
-                    // environment is created; case tests evaluate inside it.
-                    if (
-                        outer.kind === "Switch" &&
-                        (outer as A.Switch).discriminant === child
-                    )
-                        return undefined;
-                    return constant.value;
-                }
-            return undefined;
+                ;
+                child = outer!, outer = parents.get(outer!)
+            ) {
+                // The discriminant evaluates before the case lexical
+                // environment is created; case tests evaluate inside it.
+                if (
+                    outer?.kind === "Switch" &&
+                    (outer as A.Switch).discriminant === child
+                )
+                    continue;
+                const binding = scopeBindings.get(outer)?.get(expression.name);
+                if (binding) return constantStrings.get(binding);
+                if (!outer) return undefined;
+            }
         }
         if (
             expression.kind === "Literal" &&
@@ -292,24 +331,10 @@ export function builtinModuleRequests(
         if (node.kind !== "Var" || (node as A.Var).declarationKind !== "const")
             return;
         for (const declaration of (node as A.Var).declarations) {
-            if (
-                declaration.id.kind !== "Identifier" ||
-                !declaration.init ||
-                bindingCounts.get(declaration.id.name) !== 1
-            )
+            if (declaration.id.kind !== "Identifier" || !declaration.init)
                 continue;
             const value = text(declaration.init);
-            if (value !== undefined) {
-                let scope = parents.get(node);
-                while (
-                    scope &&
-                    !["Block", "For", "ForIn", "ForOf", "Switch"].includes(
-                        scope.kind,
-                    )
-                )
-                    scope = parents.get(scope);
-                constantStrings.set(declaration.id.name, { value, scope });
-            }
+            if (value !== undefined) constantStrings.set(declaration.id, value);
         }
     });
     for (const statement of ast.body)

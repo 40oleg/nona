@@ -25,6 +25,34 @@ test("fetch discovery distinguishes globals from bindings and covers computed/op
         ["typeof fetch", true],
         ["typeof globalThis.fetch", true],
         ["const key='fetch'; typeof globalThis[key]", true],
+        [
+            "const key='fetch'; function unrelated(key) {} console.log(typeof globalThis[key]);",
+            true,
+        ],
+        [
+            "const key='fetch'; { const key='other'; typeof globalThis[key]; } typeof globalThis[key];",
+            true,
+        ],
+        [
+            "const key='other'; { const key='fetch'; typeof globalThis[key]; }",
+            true,
+        ],
+        [
+            "const key='fet'; function unrelated(key) {} const name=key+'ch'; typeof globalThis[name];",
+            true,
+        ],
+        [
+            "const key='fetch'; { const key='other'; typeof globalThis[key]; }",
+            false,
+        ],
+        [
+            "const key='fetch'; function f() { const key='other'; return typeof globalThis[key]; }",
+            false,
+        ],
+        [
+            "const key='fetch'; function f(value=globalThis[key]) { var key; }",
+            true,
+        ],
         ["globalThis?.['fet' + 'ch']", true],
         ["Reflect.get(globalThis, 'fetch')", true],
         ["function f(fetch) { return fetch(); }", false],
@@ -267,6 +295,36 @@ test("fetch queue cancellation is prompt and protected before a socket/headers e
         assert.equal(request.destroyCalls, 1);
         assert.equal(getEventListeners(controller.signal, "abort").length, 0);
     }
+});
+
+test("fetch rejects upgrades, closes the detached socket and releases abort protection", async () => {
+    const b = boundary();
+    const controller = new AbortController();
+    const pending = b.fetch("http://local/upgrade", {
+        signal: controller.signal,
+    });
+    let rejection: unknown;
+    void pending.catch((error: unknown) => {
+        rejection = error;
+    });
+    const request = b.requests.at(-1);
+    let socketCloses = 0;
+    const socket = { destroy: () => socketCloses++ };
+    request.emit("upgrade", { statusCode: 101 }, socket, b.bytes.alloc(0));
+    await tick();
+    assert.ok(rejection instanceof TypeError, "fetch must reject the upgrade");
+    assert.equal(socketCloses, 1);
+    assert.equal(request.destroyCalls, 1);
+    assert.equal(getEventListeners(controller.signal, "abort").length, 0);
+    controller.abort();
+    request.emit("error", new Error("late upgrade error"));
+    assert.equal(socketCloses, 1);
+    assert.equal(request.destroyCalls, 1);
+    b.setHandler((req) => b.respond(req, 8));
+    assert.equal(
+        (await (await b.fetch("http://local/metrics")).text()).length,
+        8,
+    );
 });
 
 test("fetch redirects release stalled intermediates, enforce 20 hops and preserve cancellation", async () => {
